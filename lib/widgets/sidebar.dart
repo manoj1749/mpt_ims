@@ -5,9 +5,6 @@ class Sidebar extends StatelessWidget {
   final ValueChanged<int> onItemSelected;
   final bool isExpanded;
   final VoidCallback onToggle;
-  final Map<int, List<String>> sectionSubpages;
-  final int selectedSubIndex;
-  final ValueChanged<int> onSubItemSelected;
 
   const Sidebar({
     super.key,
@@ -15,9 +12,6 @@ class Sidebar extends StatelessWidget {
     required this.onItemSelected,
     required this.isExpanded,
     required this.onToggle,
-    required this.sectionSubpages,
-    required this.selectedSubIndex,
-    required this.onSubItemSelected,
   });
 
   @override
@@ -75,34 +69,6 @@ class Sidebar extends StatelessWidget {
                 ),
               ),
             ),
-            if (selectedIndex == i && isExpanded)
-              Padding(
-                padding: const EdgeInsets.only(left: 32.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (int j = 0; j < sectionSubpages[i]!.length; j++)
-                      GestureDetector(
-                        onTap: () => onSubItemSelected(j),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          decoration: const BoxDecoration(
-                              // color: selectedSubIndex == j
-                              //     ? Colors.blue.withOpacity(0.2)
-                              //     : Colors.transparent,
-                              ),
-                          child: Text(
-                            sectionSubpages[i]![j],
-                            style: TextStyle(
-                                color: selectedSubIndex == j
-                                    ? Colors.grey
-                                    : Colors.black),
-                          ),
-                        ),
-                      )
-                  ],
-                ),
-              )
           ],
         ],
       ),

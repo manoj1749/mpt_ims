@@ -49,6 +49,15 @@ class _AppScaffoldState extends State<AppScaffold> {
       'Schneider Material DC Outward List',
     ],
     4: [
+      'Outward Invoice Entry',
+      'Inward Invoice Details',
+      'Outward Invoice Details',
+      'SEIPL Job Work Material',
+      'SEIPL Panel Labour Billing',
+      'SEIPL Material Billing',
+      'SEIPL Panel Charges',
+    ],
+    5: [
       'Daily Expense Entry',
       'Expense Data',
       'Employee Details',

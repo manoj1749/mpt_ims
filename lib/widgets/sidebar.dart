@@ -26,6 +26,7 @@ class Sidebar extends StatelessWidget {
       {'icon': Icons.shopping_cart, 'label': 'Planning & Purchase'},
       {'icon': Icons.store, 'label': 'Stores'},
       {'icon': Icons.verified, 'label': 'Inspection / Quality'},
+      {'icon': Icons.local_shipping, 'label': 'Vendor/Schneider DC'},
       {'icon': Icons.receipt_long, 'label': 'Accounts & Billing'},
       {'icon': Icons.attach_money, 'label': 'Salary & Expense'},
     ];
@@ -50,18 +51,24 @@ class Sidebar extends StatelessWidget {
             InkWell(
               onTap: () => onItemSelected(i),
               child: Container(
-                color: selectedIndex == i ? Colors.blueGrey : Colors.transparent,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                color:
+                    selectedIndex == i ? Colors.blueGrey : Colors.transparent,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                 child: Row(
                   children: [
-                    Icon(items[i]['icon'], color: Colors.black),
-                    if (isExpanded)
-                      const SizedBox(width: 12),
+                    Icon(items[i]['icon'],
+                        color:
+                            selectedIndex == i ? Colors.white : Colors.black),
+                    if (isExpanded) const SizedBox(width: 12),
                     if (isExpanded)
                       Expanded(
                         child: Text(
                           items[i]['label'],
-                          style: const TextStyle(color: Colors.black),
+                          style: TextStyle(
+                              color: selectedIndex == i
+                                  ? Colors.white
+                                  : Colors.black),
                         ),
                       ),
                   ],
@@ -80,13 +87,16 @@ class Sidebar extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           decoration: const BoxDecoration(
-                            // color: selectedSubIndex == j
-                            //     ? Colors.blue.withOpacity(0.2)
-                            //     : Colors.transparent,
-                          ),
+                              // color: selectedSubIndex == j
+                              //     ? Colors.blue.withOpacity(0.2)
+                              //     : Colors.transparent,
+                              ),
                           child: Text(
                             sectionSubpages[i]![j],
-                            style: TextStyle(color:selectedSubIndex == j ? Colors.grey: Colors.black),
+                            style: TextStyle(
+                                color: selectedSubIndex == j
+                                    ? Colors.grey
+                                    : Colors.black),
                           ),
                         ),
                       )

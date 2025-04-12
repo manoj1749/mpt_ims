@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/sidebar.dart';
-import '../pages/section_page.dart'; // make sure this path is correct
+import '../pages/section_page.dart';
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({super.key});
@@ -10,33 +10,89 @@ class AppScaffold extends StatefulWidget {
 }
 
 class _AppScaffoldState extends State<AppScaffold> {
-  int _selectedSectionIndex = 0;
-  bool _isSidebarExpanded = true;
+  String _selectedSubsection = '';
 
   final List<String> sectionTitles = [
-    'Planning & Purchase',
+    'Admin',
+    'Accounts',
+    'HR',
+    'Sales / Customer Management',
+    'Design',
+    'Planning',
+    'Purchase',
     'Stores',
-    'Inspection / Quality',
-    'Vendor/Schneider DC',
-    'Accounts & Billing',
-    'Salary & Expense',
+    'Production',
+    'Quality',
   ];
 
   final Map<int, List<String>> _sectionSubpages = {
-    0: ['Supplier Details', 'Master Material List', 'Purchase Request (PR)', 'PR Material List', 'Purchase Order Entry', 'Pending PO Material List'],
-    1: ['GR / Inward Material Entry', 'Inward Purchase Material List', 'Store Outward Material Entry', 'Store Outward Material List', 'Store Material Stock', 'Label / Transporter Bill Entry', 'Label List'],
-    2: ['Incoming Inspection', 'Self Life Item', 'Sampling Plan', 'Approved Supplier', 'Defects Recording Sheet', 'Incoming Inspection Data'],
-    3: ['Vendor DC Outward Entry', 'Vendor DC Outward List', 'Vendor DC Inward Entry', 'Vendor DC Inward List', 'Schneider Material DC Outward Entry', 'Schneider Material DC Outward List'],
-    4: ['Outward Invoice Entry', 'Inward Invoice Details', 'Outward Invoice Details', 'SEIPL Job Work Material', 'SEIPL Panel Labour Billing', 'SEIPL Material Billing', 'SEIPL Panel Charges'],
-    5: ['Daily Expense Entry', 'Expense Data', 'Employee Details', 'Salary Entry', 'Amount Paid to Magnet Power Tech']
+    0: [], // Admin (no subsections listed)
+
+    1: [
+      'Invoice receipt',
+      'Supplier Master',
+      'Customer Master',
+      'Bank statement entry',
+      'Expense’s entry',
+      'Payment’s entry',
+      'Salary & Wages entry',
+      'Sales entry',
+      'GST entry',
+    ],
+
+    2: [
+      'Employee Details',
+      'Attendance Management',
+      'ESI & PF Entry',
+    ],
+
+    3: [
+      'Sale order Details',
+      'Customer Free Issue List',
+      'Sale Value Update',
+    ],
+
+    4: [
+      'Material Master Creation',
+      'Brought List',
+    ],
+
+    5: [
+      'Bill of Material Preparation',
+      'PR Creation',
+      'Job Order Request',
+    ],
+
+    6: [
+      'Purchase Order Creation',
+    ],
+
+    7: [
+      'GR',
+      'Material Issue',
+      'Stock Maintenance & Display',
+      'Delivery Challan',
+      'Vendor Delivery Challan',
+    ],
+
+    8: [
+      'Job Order Entry',
+      'Assembly Work Allocation',
+    ],
+
+    9: [
+      'Incoming Inspection',
+      'Final Inspection',
+    ],
   };
 
-  void _onSectionSelected(int index) {
+  void _onSubsectionSelected(String subsection) {
     setState(() {
-      _selectedSectionIndex = index;
+      _selectedSubsection = subsection;
     });
   }
 
+  bool _isSidebarExpanded = true;
   void _toggleSidebar() {
     setState(() {
       _isSidebarExpanded = !_isSidebarExpanded;
@@ -49,15 +105,15 @@ class _AppScaffoldState extends State<AppScaffold> {
       body: Row(
         children: [
           Sidebar(
-            selectedIndex: _selectedSectionIndex,
-            onItemSelected: _onSectionSelected,
             isExpanded: _isSidebarExpanded,
+            sectionSubpages: _sectionSubpages,
+            selectedSubsection: _selectedSubsection,
+            onSubsectionSelected: _onSubsectionSelected,
             onToggle: _toggleSidebar,
           ),
           Expanded(
             child: SectionPage(
-              title: sectionTitles[_selectedSectionIndex],
-              subsections: _sectionSubpages[_selectedSectionIndex]!,
+              title: _selectedSubsection,
             ),
           ),
         ],

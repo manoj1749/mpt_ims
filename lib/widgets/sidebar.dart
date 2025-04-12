@@ -6,6 +6,7 @@ class Sidebar extends StatelessWidget {
   final void Function(String) onSubsectionSelected;
   final String selectedSubsection;
   final VoidCallback onToggle;
+  final void Function(int)? onSectionExpand;
 
   const Sidebar({
     super.key,
@@ -14,11 +15,14 @@ class Sidebar extends StatelessWidget {
     required this.onSubsectionSelected,
     required this.selectedSubsection,
     required this.onToggle,
+    required this.onSectionExpand,
+
   });
 
   @override
   Widget build(BuildContext context) {
     final List<Map<String, dynamic>> items = [
+      {'icon': Icons.home, 'label': 'Home'},
       {'icon': Icons.admin_panel_settings, 'label': 'Admin'},
       {'icon': Icons.account_balance_wallet, 'label': 'Accounts'},
       {'icon': Icons.people_alt, 'label': 'HR'},
@@ -49,74 +53,103 @@ class Sidebar extends StatelessWidget {
             child: ListView.builder(
               itemCount: items.length,
               itemBuilder: (context, i) {
+                final bool isSectionSelected = (sectionSubpages[i] == null ||
+                        sectionSubpages[i]!.isEmpty) &&
+                    selectedSubsection == items[i]['label'];
+                // Inside ListView.builder
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      color: Colors.grey.shade200,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: isExpanded
-                            ? MainAxisAlignment.start
-                            : MainAxisAlignment.center,
-                        children: [
-                          Icon(items[i]['icon'], color: Colors.black),
-                          if (isExpanded) const SizedBox(width: 10),
-                          if (isExpanded)
-                            Expanded(
-                              child: Text(
-                                items[i]['label'],
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    if (isExpanded)
-                      Padding(
-                        padding:
-                            const EdgeInsets.only(left: 20, right: 8, bottom: 6, top: 6),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: sectionSubpages[i]!.map((sub) {
-                            final bool isSelected =
-                                sub == selectedSubsection;
-                            return GestureDetector(
-                              onTap: () => onSubsectionSelected(sub),
-                              child: Container(
-                                width: double.infinity,
-                                margin:
-                                    const EdgeInsets.symmetric(vertical: 2),
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 6, horizontal: 6),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? Colors.blueGrey
-                                      : Colors.grey.shade300,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
+                    GestureDetector(
+                      onTap: () {
+                        if (sectionSubpages[i] == null ||
+                            sectionSubpages[i]!.isEmpty) {
+                          onSubsectionSelected(
+                              items[i]['label']); // Use section name
+                        } else if (!isExpanded) {
+                          // Has subsections and sidebar is collapsed → expand it
+                          onSectionExpand?.call(i);
+                        }
+                      },
+                      child: Container(
+                        color: isSectionSelected
+                            ? Colors.blueGrey
+                            : Colors.grey.shade200,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: isExpanded
+                              ? MainAxisAlignment.start
+                              : MainAxisAlignment.center,
+                          children: [
+                            Icon(items[i]['icon'], color: Colors.black),
+                            if (isExpanded) const SizedBox(width: 10),
+                            if (isExpanded)
+                              Expanded(
                                 child: Text(
-                                  sub,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : Colors.black87,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
+                                  items[i]['label'],
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black,
                                   ),
                                 ),
                               ),
-                            );
-                          }).toList(),
+                          ],
                         ),
                       ),
+                    ),
+
+                    // Only render subsections if available
+                    if (isExpanded &&
+                        sectionSubpages[i] != null &&
+                        sectionSubpages[i]!.isNotEmpty)
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                              left: 20, right: 8, bottom: 6, top: 6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: sectionSubpages[i]!.map((sub) {
+                              final bool isSelected = sub == selectedSubsection;
+                              return GestureDetector(
+                                onTap: () => onSubsectionSelected(sub),
+                                child: Container(
+                                  width: double.infinity,
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 6, horizontal: 6),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Colors.blueGrey
+                                        : Colors.grey.shade300,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    sub,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.black87,
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+
+                    const SizedBox(
+                      height: 6,
+                    ),
                   ],
                 );
               },

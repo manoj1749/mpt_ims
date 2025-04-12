@@ -10,10 +10,12 @@ class AppScaffold extends StatefulWidget {
 }
 
 class _AppScaffoldState extends State<AppScaffold> {
-  String _selectedSubsection = '';
+  String _selectedSubsection = 'Home';
+  int _expandedSectionIndex = -1;
 
   final List<String> sectionTitles = [
-    'Admin',
+    'Home'
+        'Admin',
     'Accounts',
     'HR',
     'Sales / Customer Management',
@@ -26,9 +28,9 @@ class _AppScaffoldState extends State<AppScaffold> {
   ];
 
   final Map<int, List<String>> _sectionSubpages = {
-    0: [], // Admin (no subsections listed)
-
-    1: [
+    0: [],
+    1: [],
+    2: [
       'Invoice receipt',
       'Supplier Master',
       'Customer Master',
@@ -39,48 +41,40 @@ class _AppScaffoldState extends State<AppScaffold> {
       'Sales entry',
       'GST entry',
     ],
-
-    2: [
+    3: [
       'Employee Details',
       'Attendance Management',
       'ESI & PF Entry',
     ],
-
-    3: [
+    4: [
       'Sale order Details',
       'Customer Free Issue List',
       'Sale Value Update',
     ],
-
-    4: [
+    5: [
       'Material Master Creation',
       'Brought List',
     ],
-
-    5: [
+    6: [
       'Bill of Material Preparation',
       'PR Creation',
       'Job Order Request',
     ],
-
-    6: [
+    7: [
       'Purchase Order Creation',
     ],
-
-    7: [
+    8: [
       'GR',
       'Material Issue',
       'Stock Maintenance & Display',
       'Delivery Challan',
       'Vendor Delivery Challan',
     ],
-
-    8: [
+    9: [
       'Job Order Entry',
       'Assembly Work Allocation',
     ],
-
-    9: [
+    10: [
       'Incoming Inspection',
       'Final Inspection',
     ],
@@ -96,6 +90,14 @@ class _AppScaffoldState extends State<AppScaffold> {
   void _toggleSidebar() {
     setState(() {
       _isSidebarExpanded = !_isSidebarExpanded;
+      _expandedSectionIndex = -1; // Reset expanded section
+    });
+  }
+
+  void _handleSectionExpand(int index) {
+    setState(() {
+      _isSidebarExpanded = true;
+      _expandedSectionIndex = index;
     });
   }
 
@@ -110,6 +112,7 @@ class _AppScaffoldState extends State<AppScaffold> {
             selectedSubsection: _selectedSubsection,
             onSubsectionSelected: _onSubsectionSelected,
             onToggle: _toggleSidebar,
+            onSectionExpand: _handleSectionExpand,
           ),
           Expanded(
             child: SectionPage(

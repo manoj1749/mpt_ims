@@ -36,6 +36,12 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> signUp() async {
+    if (!emailCtrl.text.contains('@') || passwordCtrl.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Invalid email or weak password, password must be at least 6 characters.")),
+      );
+      return;
+    }
     try {
       await _auth.createUserWithEmailAndPassword(
         email: emailCtrl.text.trim(),

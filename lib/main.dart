@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:mpt_ims/db/hive_initializer.dart';
+import 'package:mpt_ims/layout/app_scaffold.dart';
 import 'package:mpt_ims/models/supplier.dart';
 import 'package:mpt_ims/provider/supplier_provider.dart';
 
@@ -15,19 +17,22 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await initializeHive();
-
+  // Hive.registerAdapter(SupplierAdapter());
   final supplierBox = await Hive.openBox<Supplier>('suppliers');
+
+  final user = FirebaseAuth.instance.currentUser;
 
   runApp(ProviderScope(
     overrides: [
       supplierBoxProvider.overrideWithValue(supplierBox),
     ],
-    child: const IMSApp(),
+    child: IMSApp(isLoggedIn: user != null),
   ));
 }
 
 class IMSApp extends StatelessWidget {
-  const IMSApp({super.key});
+  final bool isLoggedIn;
+  const IMSApp({super.key, required this.isLoggedIn});
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +42,8 @@ class IMSApp extends StatelessWidget {
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF1E1E1E),
       ),
-      home: const LoginPage(), // start here
+      home: isLoggedIn ? const AppScaffold() : const LoginPage(),
     );
   }
 }
+

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../widgets/sidebar.dart';
-import '../pages/section_page.dart';
+import 'package:mpt_ims/pages/accounts/supplier_master.dart';
+import 'package:mpt_ims/pages/section_page.dart';
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({super.key});
@@ -10,12 +10,11 @@ class AppScaffold extends StatefulWidget {
 }
 
 class _AppScaffoldState extends State<AppScaffold> {
-  String _selectedSubsection = 'Home';
-  int _expandedSectionIndex = -1;
+  int? _selectedSectionIndex;
 
   final List<String> sectionTitles = [
-    'Home'
-        'Admin',
+    'Home',
+    'Admin',
     'Accounts',
     'HR',
     'Sales / Customer Management',
@@ -80,46 +79,89 @@ class _AppScaffoldState extends State<AppScaffold> {
     ],
   };
 
-  void _onSubsectionSelected(String subsection) {
+  void _onSectionSelected(int index) {
     setState(() {
-      _selectedSubsection = subsection;
+      _selectedSectionIndex = index;
     });
   }
 
-  bool _isSidebarExpanded = true;
-  void _toggleSidebar() {
-    setState(() {
-      _isSidebarExpanded = !_isSidebarExpanded;
-      _expandedSectionIndex = -1; // Reset expanded section
-    });
-  }
+  void _onSubsectionSelected(String name) {
+    Widget page;
+    switch (name) {
+      case 'Supplier Master':
+        page = const SupplierMasterPage();
+        break;
+      default:
+        page = SectionPage(title: name);
+    }
 
-  void _handleSectionExpand(int index) {
-    setState(() {
-      _isSidebarExpanded = true;
-      _expandedSectionIndex = index;
-    });
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => page),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          Sidebar(
-            isExpanded: _isSidebarExpanded,
-            sectionSubpages: _sectionSubpages,
-            selectedSubsection: _selectedSubsection,
-            onSubsectionSelected: _onSubsectionSelected,
-            onToggle: _toggleSidebar,
-            onSectionExpand: _handleSectionExpand,
-          ),
-          Expanded(
-            child: SectionPage(
-              title: _selectedSubsection,
-            ),
-          ),
-        ],
+      appBar: AppBar(
+        title: Text(
+          _selectedSectionIndex == null
+              ? 'Sections'
+              : sectionTitles[_selectedSectionIndex!],
+        ),
+        leading: _selectedSectionIndex != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  setState(() => _selectedSectionIndex = null);
+                },
+              )
+            : null,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: GridView.count(
+          crossAxisCount: 4,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 2.5,
+          children: (_selectedSectionIndex == null
+                  ? List.generate(sectionTitles.length, (i) => {
+                        'title': sectionTitles[i],
+                        'hasSub': _sectionSubpages[i]?.isNotEmpty ?? false,
+                        'index': i,
+                      })
+                  : (_sectionSubpages[_selectedSectionIndex!] ?? []).map((sub) => {
+                        'title': sub,
+                        'hasSub': false,
+                      }))
+              .map((entry) => GestureDetector(
+                    onTap: () {
+                      if (entry['hasSub'] == true) {
+                        _onSectionSelected(entry['index'] as int);
+                      } else {
+                        _onSubsectionSelected(entry['title'] as String);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        entry['title'] as String,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ))
+              .toList(),
+        ),
       ),
     );
   }

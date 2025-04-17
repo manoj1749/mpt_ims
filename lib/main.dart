@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:mpt_ims/db/hive_initializer.dart';
 import 'package:mpt_ims/layout/app_scaffold.dart';
+import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/supplier.dart';
+import 'package:mpt_ims/provider/material_provider.dart';
 import 'package:mpt_ims/provider/supplier_provider.dart';
 
 import 'firebase_options.dart'; // From Firebase setup
@@ -19,12 +21,14 @@ void main() async {
   await initializeHive();
   // Hive.registerAdapter(SupplierAdapter());
   final supplierBox = await Hive.openBox<Supplier>('suppliers');
+  final materialBox = await Hive.openBox<MaterialItem>('materials');
 
   final user = FirebaseAuth.instance.currentUser;
 
   runApp(ProviderScope(
     overrides: [
       supplierBoxProvider.overrideWithValue(supplierBox),
+      materialBoxProvider.overrideWithValue(materialBox),
     ],
     child: IMSApp(isLoggedIn: user != null),
   ));

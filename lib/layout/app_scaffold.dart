@@ -3,6 +3,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_ims/pages/accounts/supplier_master.dart';
+import 'package:mpt_ims/pages/design/material_master.dart';
 import 'package:mpt_ims/pages/login_page.dart';
 import 'package:mpt_ims/pages/section_page.dart';
 
@@ -94,6 +95,9 @@ class _AppScaffoldState extends State<AppScaffold> {
     switch (name) {
       case 'Supplier Master':
         page = const SupplierMasterPage();
+        break;
+      case 'Material Master Creation':
+        page = const MaterialMasterPage();
         break;
       default:
         page = SectionPage(title: name);

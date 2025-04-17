@@ -114,7 +114,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         decoration: const InputDecoration(
           labelText: 'Vendor Name',
           border: OutlineInputBorder(),
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         ),
         items: suppliers
             .map((s) => DropdownMenuItem(
@@ -132,23 +132,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         validator: (value) =>
             value == null || value.isEmpty ? 'Required' : null,
         onSaved: (value) => item.vendorName = value ?? '',
-        buttonStyleData: const ButtonStyleData(
-          height: 52,
-          padding: EdgeInsets.zero,
-        ),
-        dropdownStyleData: DropdownStyleData(
-          maxHeight: 250,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            color: Colors.grey[900], // Adjust based on your theme
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          offset: const Offset(0, -2), // Ensures dropdown opens just below
-        ),
-        menuItemStyleData: const MenuItemStyleData(
-          height: 44,
-          padding: EdgeInsets.symmetric(horizontal: 14),
-        ),
       ),
     );
   }

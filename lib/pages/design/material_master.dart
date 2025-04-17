@@ -7,47 +7,6 @@ import 'package:mpt_ims/provider/material_provider.dart';
 class MaterialMasterPage extends ConsumerWidget {
   const MaterialMasterPage({super.key});
 
-  void _showMaterialDetails(BuildContext context, MaterialItem item) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(item.description),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('SL No: ${item.slNo}'),
-              Text('Vendor: ${item.vendorName}'),
-              Text('Part No: ${item.partNo}'),
-              Text('Unit: ${item.unit}'),
-              Text('Supplier Rate: ${item.supplierRate}'),
-              Text('SEIPL Rate: ${item.seiplRate}'),
-              Text('Category: ${item.category}'),
-              Text('Sub Category: ${item.subCategory}'),
-              Text('Sale Rate: ${item.saleRate}'),
-              Text('Total Received Qty: ${item.totalReceivedQty}'),
-              Text('Vendor Issued Qty: ${item.vendorIssuedQty}'),
-              Text('Vendor Received Qty: ${item.vendorReceivedQty}'),
-              Text('Board Issue Qty: ${item.boardIssueQty}'),
-              Text('Available Stock: ${item.avlStock}'),
-              Text('Available Stock Value: ${item.avlStockValue}'),
-              Text('Billing Qty Diff: ${item.billingQtyDiff}'),
-              Text('Total Received Cost: ${item.totalReceivedCost}'),
-              Text('Total Billed Cost: ${item.totalBilledCost}'),
-              Text('Cost Diff: ${item.costDiff}'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          )
-        ],
-      ),
-    );
-  }
-
   void _confirmDelete(BuildContext context, WidgetRef ref, int index) {
     showDialog(
       context: context,
@@ -71,13 +30,6 @@ class MaterialMasterPage extends ConsumerWidget {
     );
   }
 
-  void _openAddMaterialForm(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AddMaterialPage()),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final materials = ref.watch(materialListProvider);
@@ -85,57 +37,98 @@ class MaterialMasterPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Material Master')),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _openAddMaterialForm(context),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddMaterialPage()),
+          );
+        },
         child: const Icon(Icons.add),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: GridView.count(
-          crossAxisCount: 3,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.4,
-          children: List.generate(materials.length, (index) {
-            final item = materials[index];
-            return Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      item.description,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    Text('SL No: ${index + 1}'),
-                    Text('Part No: ${item.partNo}'),
-                    Text('Stock: ${item.avlStock} ${item.unit}'),
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.visibility),
-                            onPressed: () => _showMaterialDetails(context, item),
+      body: materials.isEmpty
+          ? const Center(child: Text('No materials found.'))
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columnSpacing: 24,
+                columns: const [
+                  DataColumn(label: Text('SL No')),
+                  DataColumn(label: Text('Description')),
+                  DataColumn(label: Text('Vendor')),
+                  DataColumn(label: Text('Part No')),
+                  DataColumn(label: Text('Unit')),
+                  DataColumn(label: Text('Supplier Rate')),
+                  DataColumn(label: Text('SEIPL Rate')),
+                  DataColumn(label: Text('Category')),
+                  DataColumn(label: Text('Sub Category')),
+                  DataColumn(label: Text('Sale Rate')),
+                  DataColumn(label: Text('Total Received Qty')),
+                  DataColumn(label: Text('Vendor Issued Qty')),
+                  DataColumn(label: Text('Vendor Received Qty')),
+                  DataColumn(label: Text('Board Issue Qty')),
+                  DataColumn(label: Text('Available Stock')),
+                  DataColumn(label: Text('Stock Value')),
+                  DataColumn(label: Text('Billing Qty Diff')),
+                  DataColumn(label: Text('Received Cost')),
+                  DataColumn(label: Text('Billed Cost')),
+                  DataColumn(label: Text('Cost Diff')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: List.generate(materials.length, (index) {
+                  final item = materials[index];
+                  return DataRow(cells: [
+                    DataCell(Text('${index + 1}')),
+                    DataCell(Text(item.description)),
+                    DataCell(Text(item.vendorName)),
+                    DataCell(Text(item.partNo)),
+                    DataCell(Text(item.unit)),
+                    DataCell(Text(item.supplierRate)),
+                    DataCell(Text(item.seiplRate)),
+                    DataCell(Text(item.category)),
+                    DataCell(Text(item.subCategory)),
+                    DataCell(Text(item.saleRate)),
+                    DataCell(Text(item.totalReceivedQty)),
+                    DataCell(Text(item.vendorIssuedQty)),
+                    DataCell(Text(item.vendorReceivedQty)),
+                    DataCell(Text(item.boardIssueQty)),
+                    DataCell(Text(item.avlStock)),
+                    DataCell(Text(item.avlStockValue)),
+                    DataCell(Text(item.billingQtyDiff)),
+                    DataCell(Text(item.totalReceivedCost)),
+                    DataCell(Text(item.totalBilledCost)),
+                    DataCell(Text(item.costDiff)),
+                    DataCell(Row(
+                      children: [
+                        Tooltip(
+                          message: 'Edit',
+                          child: IconButton(
+                            icon: const Icon(Icons.edit),
+                            color: Colors.teal[600],
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AddMaterialPage(materialToEdit: item),
+                                ),
+                              );
+                            },
                           ),
-                          IconButton(
+                        ),
+                        const SizedBox(width: 6),
+                        Tooltip(
+                          message: 'Delete',
+                          child: IconButton(
                             icon: const Icon(Icons.delete),
+                            color: Colors.red[400],
                             onPressed: () => _confirmDelete(context, ref, index),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                        ),
+                      ],
+                    )),
+                  ]);
+                }),
               ),
-            );
-          }),
-        ),
-      ),
+            ),
     );
   }
 }

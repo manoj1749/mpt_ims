@@ -7,45 +7,6 @@ import 'package:mpt_ims/pages/accounts/add_supplier_page.dart';
 class SupplierMasterPage extends ConsumerWidget {
   const SupplierMasterPage({super.key});
 
-  void _showSupplierDetails(BuildContext context, Supplier supplier) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(supplier.name),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Address: ${supplier.address1}, ${supplier.address2}, ${supplier.address3}, ${supplier.address4}'),
-              Text('State: ${supplier.state} (${supplier.stateCode})'),
-              Text('Payment Terms: ${supplier.paymentTerms}'),
-              Text('PAN NO: ${supplier.pan}'),
-              Text('GST NO: ${supplier.gstNo}'),
-              Text('IGST: ${supplier.igst}'),
-              Text('CGST: ${supplier.cgst}'),
-              Text('SGST: ${supplier.sgst}'),
-              Text('Total GST: ${supplier.totalGst}'),
-              Text('Contact Person: ${supplier.contact}'),
-              Text('Phone: ${supplier.phone}'),
-              Text('Email: ${supplier.email}'),
-              Text('Bank: ${supplier.bank}, Branch: ${supplier.branch}'),
-              Text('Account: ${supplier.account}'),
-              Text('IFSC: ${supplier.ifsc}'),
-              Text('Alternate Email: ${supplier.email1}'),
-              Text('Vendor Code: ${supplier.vendorCode}'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          )
-        ],
-      ),
-    );
-  }
-
   void _confirmDeleteSupplier(BuildContext context, WidgetRef ref, Supplier supplier) {
     showDialog(
       context: context,
@@ -77,9 +38,7 @@ class SupplierMasterPage extends ConsumerWidget {
     final suppliers = ref.watch(supplierListProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Supplier Master'),
-      ),
+      appBar: AppBar(title: const Text('Supplier Master')),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.push(
           context,
@@ -87,66 +46,88 @@ class SupplierMasterPage extends ConsumerWidget {
         ),
         child: const Icon(Icons.add),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: GridView.count(
-          crossAxisCount: 3,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.4,
-          children: suppliers.map((supplier) {
-            return Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      supplier.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text('Contact: ${supplier.contact}'),
-                    Text('Phone: ${supplier.phone}'),
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          IconButton(
+      body: suppliers.isEmpty
+          ? const Center(child: Text('No suppliers found.'))
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columnSpacing: 24,
+                columns: const [
+                  DataColumn(label: Text('Name')),
+                  DataColumn(label: Text('Address')),
+                  DataColumn(label: Text('State')),
+                  DataColumn(label: Text('State Code')),
+                  DataColumn(label: Text('Contact')),
+                  DataColumn(label: Text('Phone')),
+                  DataColumn(label: Text('Email')),
+                  DataColumn(label: Text('Alt Email')),
+                  DataColumn(label: Text('Vendor Code')),
+                  DataColumn(label: Text('PAN')),
+                  DataColumn(label: Text('GST No')),
+                  DataColumn(label: Text('IGST')),
+                  DataColumn(label: Text('CGST')),
+                  DataColumn(label: Text('SGST')),
+                  DataColumn(label: Text('Total GST')),
+                  DataColumn(label: Text('Bank')),
+                  DataColumn(label: Text('Branch')),
+                  DataColumn(label: Text('Account')),
+                  DataColumn(label: Text('IFSC')),
+                  DataColumn(label: Text('Payment Terms')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: suppliers.map((s) {
+                  return DataRow(cells: [
+                    DataCell(Text(s.name)),
+                    DataCell(Text('${s.address1}, ${s.address2}, ${s.address3}, ${s.address4}')),
+                    DataCell(Text(s.state)),
+                    DataCell(Text(s.stateCode)),
+                    DataCell(Text(s.contact)),
+                    DataCell(Text(s.phone)),
+                    DataCell(Text(s.email)),
+                    DataCell(Text(s.email1)),
+                    DataCell(Text(s.vendorCode)),
+                    DataCell(Text(s.pan)),
+                    DataCell(Text(s.gstNo)),
+                    DataCell(Text(s.igst)),
+                    DataCell(Text(s.cgst)),
+                    DataCell(Text(s.sgst)),
+                    DataCell(Text(s.totalGst)),
+                    DataCell(Text(s.bank)),
+                    DataCell(Text(s.branch)),
+                    DataCell(Text(s.account)),
+                    DataCell(Text(s.ifsc)),
+                    DataCell(Text(s.paymentTerms)),
+                    DataCell(Row(
+                      children: [
+                        Tooltip(
+                          message: 'Edit',
+                          child: IconButton(
                             icon: const Icon(Icons.edit),
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AddSupplierPage(supplierToEdit: supplier),
-                              ),
-                            ),
+                            color: Colors.teal[600],
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AddSupplierPage(supplierToEdit: s),
+                                ),
+                              );
+                            },
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.visibility),
-                            onPressed: () => _showSupplierDetails(context, supplier),
-                          ),
-                          IconButton(
+                        ),
+                        Tooltip(
+                          message: 'Delete',
+                          child: IconButton(
                             icon: const Icon(Icons.delete),
-                            onPressed: () => _confirmDeleteSupplier(context, ref, supplier),
+                            color: Colors.red[400],
+                            onPressed: () => _confirmDeleteSupplier(context, ref, s),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                        ),
+                      ],
+                    )),
+                  ]);
+                }).toList(),
               ),
-            );
-          }).toList(),
-        ),
-      ),
+            ),
     );
   }
 }

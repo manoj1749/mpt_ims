@@ -114,26 +114,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         decoration: const InputDecoration(
           labelText: 'Vendor Name',
           border: OutlineInputBorder(),
-          contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
         ),
-        selectedItemBuilder: (context) {
-          return suppliers
-              .map(
-                (s) => Container(
-                  alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    s.name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              )
-              .toList();
-        },
         items: suppliers
             .map((s) => DropdownMenuItem(
                   value: s.name,

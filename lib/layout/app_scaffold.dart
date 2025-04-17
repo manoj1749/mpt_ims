@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:mpt_ims/pages/accounts/supplier_master.dart';
 import 'package:mpt_ims/pages/design/material_master.dart';
 import 'package:mpt_ims/pages/login_page.dart';
+import 'package:mpt_ims/pages/planning/purchase_request_list_page.dart';
 import 'package:mpt_ims/pages/section_page.dart';
 
 class AppScaffold extends StatefulWidget {
@@ -98,6 +99,9 @@ class _AppScaffoldState extends State<AppScaffold> {
         break;
       case 'Material Master Creation':
         page = const MaterialMasterPage();
+        break;
+      case 'PR Creation':
+        page = const PurchaseRequestListPage();
         break;
       default:
         page = SectionPage(title: name);

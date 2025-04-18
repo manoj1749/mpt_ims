@@ -7,7 +7,7 @@ import 'package:mpt_ims/pages/accounts/supplier_master.dart';
 import 'package:mpt_ims/pages/design/material_master.dart';
 import 'package:mpt_ims/pages/login_page.dart';
 import 'package:mpt_ims/pages/planning/purchase_request_list_page.dart';
-import 'package:mpt_ims/pages/purchase/purchase_order_page.dart';
+import 'package:mpt_ims/pages/purchase/add_purchase_order_page.dart';
 import 'package:mpt_ims/pages/section_page.dart';
 
 class AppScaffold extends StatefulWidget {

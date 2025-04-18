@@ -585,28 +585,67 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               Center(
                 child: ElevatedButton(
                   onPressed: () {
-                    final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
-                    final items = groupedItems.values.toList();
-                    final total = calculateTotal(items);
-                    final po = PurchaseOrder(
-                      poNo: 'PO${DateTime.now().millisecondsSinceEpoch}',
-                      poDate: now,
-                      supplierName: selectedSupplier?.name ?? '',
-                      boardNo: _boardNoController.text,
-                      transport: _transportController.text,
-                      deliveryRequirements:
-                          _deliveryRequirementsController.text,
-                      items: items,
-                      total: total,
-                      igst: 0,
-                      cgst: 0,
-                      sgst: 0,
-                      grandTotal: total,
-                    );
-                    poNotifier.addOrder(po);
-                    Navigator.pop(context);
+                    if (_formKey.currentState!.validate()) {
+                      final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
+                      
+                      // Create updated items list with final quantities
+                      final updatedItems = groupedItems.values.map((item) {
+                        final qty = double.tryParse(
+                          _qtyControllers[item.materialCode]?.text ?? '0'
+                        ) ?? 0;
+                        
+                        return POItem(
+                          materialCode: item.materialCode,
+                          materialDescription: item.materialDescription,
+                          unit: item.unit,
+                          quantity: qty,
+                          costPerUnit: item.costPerUnit,
+                          totalCost: qty * item.costPerUnit,
+                          seiplRate: item.seiplRate,
+                          rateDifference: item.rateDifference,
+                          totalRateDifference: qty * item.rateDifference,
+                        );
+                      }).toList();
+
+                      // Calculate final total
+                      double total = updatedItems.fold(
+                        0.0,
+                        (sum, item) => sum + item.totalCost
+                      );
+
+                      // Create and save purchase order
+                      final po = PurchaseOrder(
+                        poNo: 'PO${DateTime.now().millisecondsSinceEpoch}',
+                        poDate: now,
+                        supplierName: selectedSupplier?.name ?? '',
+                        boardNo: _boardNoController.text,
+                        transport: _transportController.text,
+                        deliveryRequirements: _deliveryRequirementsController.text,
+                        items: updatedItems,
+                        total: total,
+                        igst: 0, // You might want to calculate these based on your requirements
+                        cgst: 0,
+                        sgst: 0,
+                        grandTotal: total, // Update this if you need to include taxes
+                      );
+                      
+                      poNotifier.addOrder(po);
+                      Navigator.pop(context);
+                    }
                   },
-                  child: const Text("Save Data"),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "Save Purchase Order",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               )
             ],

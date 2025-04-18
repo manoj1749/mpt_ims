@@ -31,6 +31,9 @@ class PurchaseRequest extends HiveObject {
   @HiveField(8)
   String? _status;
 
+  @HiveField(9)
+  String supplierName;
+
   String get status => _status ?? 'Draft';
 
   set status(String value) {
@@ -47,6 +50,7 @@ class PurchaseRequest extends HiveObject {
     required this.requiredBy,
     required this.remarks,
     String? status,
+    required this.supplierName,
   }) {
     _status = status;
   }

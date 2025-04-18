@@ -1,3 +1,4 @@
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -23,6 +24,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   final TextEditingController _transportController = TextEditingController();
   final TextEditingController _deliveryRequirementsController =
       TextEditingController();
+  final Map<String, TextEditingController> _qtyControllers = {};
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -30,6 +32,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     _boardNoController.dispose();
     _transportController.dispose();
     _deliveryRequirementsController.dispose();
+    for (var controller in _qtyControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -105,15 +110,42 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               Row(
                 children: [
                   Expanded(
-                    child: DropdownButtonFormField<Supplier>(
-                      value: selectedSupplier,
+                    child: DropdownButtonFormField2<Supplier>(
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Supplier',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(vertical: 0),
+                      ),
                       hint: const Text("Select Supplier"),
-                      onChanged: (val) =>
-                          setState(() => selectedSupplier = val),
+                      value: selectedSupplier,
                       items: suppliers
-                          .map((s) =>
-                              DropdownMenuItem(value: s, child: Text(s.name)))
+                          .map((supplier) => DropdownMenuItem<Supplier>(
+                                value: supplier,
+                                child: Text(
+                                  supplier.name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ))
                           .toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          selectedSupplier = val;
+                        });
+                      },
+                      dropdownStyleData: DropdownStyleData(
+                        maxHeight: 300,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      menuItemStyleData: const MenuItemStyleData(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      buttonStyleData: const ButtonStyleData(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        height: 60,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -173,80 +205,380 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               const SizedBox(height: 10),
               if (groupedItems.isNotEmpty)
                 Expanded(
-                  child: ListView.separated(
-                    itemCount: groupedItems.length,
-                    separatorBuilder: (_, __) => const Divider(),
-                    itemBuilder: (_, index) {
-                      final item = groupedItems.values.elementAt(index);
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                            vertical: 6, horizontal: 4),
-                        elevation: 2,
-                        color: Colors.grey[900],
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
+                            ),
+                          ),
+                          child: const Row(
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                      child: Text(
-                                          "Cat No: ${item.materialCode}",
-                                          style: const TextStyle(
-                                              color: Colors.white))),
-                                  Expanded(
-                                      child: Text(
-                                          "Qty: ${item.quantity} ${item.unit}",
-                                          style: const TextStyle(
-                                              color: Colors.white))),
-                                ],
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  "Material Details",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              Text("Description: ${item.materialDescription}",
-                                  style: const TextStyle(color: Colors.white)),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                      child: Text(
-                                          "Cost/Unit: ₹${item.costPerUnit}",
-                                          style: const TextStyle(
-                                              color: Colors.white))),
-                                  Expanded(
-                                      child: Text(
-                                          "SEIPL Rate: ₹${item.seiplRate}",
-                                          style: const TextStyle(
-                                              color: Colors.white))),
-                                ],
+                              Expanded(
+                                child: Text(
+                                  "Quantity",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Expanded(
-                                      child: Text(
-                                          "Total Cost: ₹${item.totalCost.toStringAsFixed(2)}",
-                                          style: const TextStyle(
-                                              color: Colors.white))),
-                                  Expanded(
-                                      child: Text(
-                                          "Rate Diff: ₹${item.rateDifference.toStringAsFixed(2)}",
-                                          style: const TextStyle(
-                                              color: Colors.white))),
-                                  Expanded(
-                                      child: Text(
-                                          "Total Diff: ₹${item.totalRateDifference.toStringAsFixed(2)}",
-                                          style: const TextStyle(
-                                              color: Colors.white))),
-                                ],
+                              Expanded(
+                                child: Text(
+                                  "Rates",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  "Cost",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      );
-                    },
+                        Expanded(
+                          child: ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: groupedItems.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 32),
+                            itemBuilder: (_, index) {
+                              final item = groupedItems.values.elementAt(index);
+                              double totalNeededQty = filteredPRs
+                                  .where((pr) =>
+                                      pr.materialCode == item.materialCode)
+                                  .map(
+                                      (pr) => double.tryParse(pr.quantity) ?? 0)
+                                  .fold(0.0, (a, b) => a + b);
+
+                              // Initialize controller if not exists
+                              _qtyControllers[item.materialCode] ??= TextEditingController(
+                                text: totalNeededQty.toString(),
+                              );
+
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[900],
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context)
+                                                      .primaryColor
+                                                      .withOpacity(0.2),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  item.materialCode,
+                                                  style: TextStyle(
+                                                    color: Theme.of(context)
+                                                        .primaryColor,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            item.materialDescription,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            "Qty Needed",
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            "$totalNeededQty ${item.unit}",
+                                            style: const TextStyle(
+                                              color: Colors.amberAccent,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          const Text(
+                                            "Order Qty",
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          TextFormField(
+                                            controller: _qtyControllers[item.materialCode],
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            keyboardType: TextInputType.number,
+                                            decoration: InputDecoration(
+                                              isDense: true,
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 6),
+                                              filled: true,
+                                              fillColor: Colors.grey[850],
+                                              border: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                            ),
+                                            onChanged: (val) {
+                                              final newQty =
+                                                  double.tryParse(val) ??
+                                                      item.quantity;
+                                              setState(() {
+                                                item.quantity = newQty;
+                                                item.totalCost =
+                                                    newQty * item.costPerUnit;
+                                                item.totalRateDifference =
+                                                    newQty *
+                                                        item.rateDifference;
+                                              });
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            "Rate Details",
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          RichText(
+                                            text: TextSpan(
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13,
+                                              ),
+                                              children: [
+                                                const TextSpan(
+                                                  text: "Cost/Unit: ",
+                                                  style: TextStyle(
+                                                      color: Colors.white70),
+                                                ),
+                                                TextSpan(
+                                                  text:
+                                                      "₹${item.costPerUnit}\n",
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold),
+                                                ),
+                                                const TextSpan(
+                                                  text: "SEIPL: ",
+                                                  style: TextStyle(
+                                                      color: Colors.white70),
+                                                ),
+                                                TextSpan(
+                                                  text: "₹${item.seiplRate}",
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            "Cost Summary",
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          ListenableBuilder(
+                                            listenable: _qtyControllers[item.materialCode]!,
+                                            builder: (context, child) {
+                                              final qty = double.tryParse(
+                                                    _qtyControllers[item.materialCode]!.text
+                                                  ) ?? item.quantity;
+                                              final totalCost = qty * item.costPerUnit;
+                                              final totalDiff = qty * item.rateDifference;
+                                              
+                                              return RichText(
+                                                text: TextSpan(
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 13,
+                                                  ),
+                                                  children: [
+                                                    const TextSpan(
+                                                      text: "Total: ",
+                                                      style: TextStyle(
+                                                          color: Colors.white70),
+                                                    ),
+                                                    TextSpan(
+                                                      text:
+                                                          "₹${totalCost.toStringAsFixed(2)}\n",
+                                                      style: const TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 15,
+                                                      ),
+                                                    ),
+                                                    const TextSpan(
+                                                      text: "Difference: ",
+                                                      style: TextStyle(
+                                                          color: Colors.white70),
+                                                    ),
+                                                    TextSpan(
+                                                      text:
+                                                          "₹${totalDiff.toStringAsFixed(2)}",
+                                                      style: TextStyle(
+                                                        color:
+                                                            totalDiff > 0
+                                                                ? Colors.red[300]
+                                                                : Colors.green[300],
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[900],
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(16),
+                              bottomRight: Radius.circular(16),
+                            ),
+                          ),
+                          child: ListenableBuilder(
+                            listenable: Listenable.merge(
+                              _qtyControllers.values.toList(),
+                            ),
+                            builder: (context, _) {
+                              double total = 0;
+                              for (var item in groupedItems.values) {
+                                final qty = double.tryParse(
+                                  _qtyControllers[item.materialCode]?.text ?? '0'
+                                ) ?? 0;
+                                total += qty * item.costPerUnit;
+                              }
+                              
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    "Total Order Value: ",
+                                    style: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  Text(
+                                    "₹${total.toStringAsFixed(2)}",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               const SizedBox(height: 10),

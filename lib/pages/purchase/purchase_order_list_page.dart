@@ -427,8 +427,8 @@ class PurchaseOrderListPage extends ConsumerWidget {
                 ),
               );
             },
-            child: const Text('Delete'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
           ),
         ],
       ),

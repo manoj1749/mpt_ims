@@ -61,9 +61,9 @@ class PurchaseRequest extends HiveObject {
     final remaining = totalRequired - totalOrdered;
     
     // Update remarks with order information
-    String orderInfo = "\nPO: $poNo - Ordered: $quantity ${this.unit}";
+    String orderInfo = "\nPO: $poNo - Ordered: $quantity $unit";
     if (remaining > 0) {
-      orderInfo += " (Remaining: $remaining ${this.unit})";
+      orderInfo += " (Remaining: $remaining $unit)";
     }
     
     // Append to existing remarks or create new

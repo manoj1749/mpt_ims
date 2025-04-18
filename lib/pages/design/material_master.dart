@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/pages/design/add_material_page.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
 

@@ -1,3 +1,5 @@
+// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -144,7 +146,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       }
 
       final material = findMaterialByCode(materials, materialCode);
-      final firstPR = prs.first; // Use first PR for material details
 
       groupedItems[materialCode] = POItem(      
         materialCode: materialCode,
@@ -457,7 +458,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                                 return 'Quantity must be greater than 0';
                                               }
                                               if (inputQty > remainingQty) {
-                                                return 'Cannot exceed required quantity (${remainingQty})';
+                                                return 'Cannot exceed required quantity ($remainingQty)';
                                               }
                                               return null;
                                             },

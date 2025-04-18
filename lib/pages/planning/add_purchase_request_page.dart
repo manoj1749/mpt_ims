@@ -204,6 +204,7 @@ class _AddPurchaseRequestPageState
                                 quantity: quantity ?? '',
                                 requiredBy: requiredBy ?? '',
                                 remarks: remarks ?? '',
+                                supplierName: selected.vendorName,
                                 status: 'Requested',
                               );
 

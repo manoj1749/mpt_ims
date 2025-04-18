@@ -6,9 +6,11 @@ import 'package:hive/hive.dart';
 import 'package:mpt_ims/db/hive_initializer.dart';
 import 'package:mpt_ims/layout/app_scaffold.dart';
 import 'package:mpt_ims/models/material_item.dart';
+import 'package:mpt_ims/models/purchase_order.dart';
 import 'package:mpt_ims/models/purchase_request.dart';
 import 'package:mpt_ims/models/supplier.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
+import 'package:mpt_ims/provider/purchase_order.dart';
 import 'package:mpt_ims/provider/purchase_request_provider.dart';
 import 'package:mpt_ims/provider/supplier_provider.dart';
 
@@ -26,6 +28,8 @@ void main() async {
   final materialBox = await Hive.openBox<MaterialItem>('materials');
   final purchaseRequestBox =
       await Hive.openBox<PurchaseRequest>('purchase_requests');
+  final purchaseOrderBox =
+      await Hive.openBox<PurchaseOrder>('purchase_orders');
 
   final user = FirebaseAuth.instance.currentUser;
 
@@ -34,6 +38,7 @@ void main() async {
       supplierBoxProvider.overrideWithValue(supplierBox),
       materialBoxProvider.overrideWithValue(materialBox),
       purchaseRequestBoxProvider.overrideWithValue(purchaseRequestBox),
+      purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
     ],
     child: IMSApp(isLoggedIn: user != null),
   ));

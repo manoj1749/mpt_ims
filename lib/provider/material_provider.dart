@@ -25,8 +25,12 @@ class MaterialNotifier extends StateNotifier<List<MaterialItem>> {
     state = box.values.toList();
   }
 
-  void deleteMaterial(int index) async {
-    await box.deleteAt(index);
-    state = box.values.toList();
+  void deleteMaterial(MaterialItem material) {
+    final box = Hive.box<MaterialItem>('materials');
+    final index = state.indexOf(material);
+    if (index != -1) {
+      box.deleteAt(index);
+      state = List.from(state)..removeAt(index);
+    }
   }
 }

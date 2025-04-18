@@ -26,6 +26,9 @@ class SupplierMasterPage extends ConsumerWidget {
                 const SnackBar(content: Text('Supplier deleted')),
               );
             },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -38,95 +41,420 @@ class SupplierMasterPage extends ConsumerWidget {
     final suppliers = ref.watch(supplierListProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Supplier Master')),
-      floatingActionButton: FloatingActionButton(
+      appBar: AppBar(
+        title: const Text('Supplier Master'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () {
+              // TODO: Implement filtering
+            },
+            tooltip: 'Filter Suppliers',
+          ),
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              // TODO: Implement search
+            },
+            tooltip: 'Search Suppliers',
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const AddSupplierPage()),
         ),
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('New Supplier'),
       ),
       body: suppliers.isEmpty
-          ? const Center(child: Text('No suppliers found.'))
-          : SingleChildScrollView(
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.business_outlined,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No suppliers found',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddSupplierPage()),
+                    ),
+                    child: const Text('Add New Supplier'),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${suppliers.length} Suppliers',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const Spacer(),
+                      // Add export button here if needed
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
+                    child: SingleChildScrollView(
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          dataTableTheme: DataTableThemeData(
+                            headingRowColor: MaterialStateProperty.all(
+                              Theme.of(context).primaryColor.withOpacity(0.1),
+                            ),
+                            dataRowColor: MaterialStateProperty.resolveWith(
+                              (states) {
+                                if (states.contains(MaterialState.selected)) {
+                                  return Theme.of(context)
+                                      .primaryColor
+                                      .withOpacity(0.2);
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ),
               child: DataTable(
+                          showCheckboxColumn: true,
                 columnSpacing: 24,
+                          dataRowMinHeight: 120,
+                          dataRowMaxHeight: 120,
                 columns: const [
-                  DataColumn(label: Text('Name')),
-                  DataColumn(label: Text('Address')),
-                  DataColumn(label: Text('State')),
-                  DataColumn(label: Text('State Code')),
-                  DataColumn(label: Text('Contact')),
-                  DataColumn(label: Text('Phone')),
-                  DataColumn(label: Text('Email')),
-                  DataColumn(label: Text('Alt Email')),
-                  DataColumn(label: Text('Vendor Code')),
-                  DataColumn(label: Text('PAN')),
-                  DataColumn(label: Text('GST No')),
-                  DataColumn(label: Text('IGST')),
-                  DataColumn(label: Text('CGST')),
-                  DataColumn(label: Text('SGST')),
-                  DataColumn(label: Text('Total GST')),
-                  DataColumn(label: Text('Bank')),
-                  DataColumn(label: Text('Branch')),
-                  DataColumn(label: Text('Account')),
-                  DataColumn(label: Text('IFSC')),
-                  DataColumn(label: Text('Payment Terms')),
+                            DataColumn(
+                              label: Text(
+                                'Basic Info',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Contact Details',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Address',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'GST Details',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Bank Details',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Payment Info',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
                   DataColumn(label: Text('Actions')),
                 ],
                 rows: suppliers.map((s) {
-                  return DataRow(cells: [
-                    DataCell(Text(s.name)),
-                    DataCell(Text('${s.address1}, ${s.address2}, ${s.address3}, ${s.address4}')),
-                    DataCell(Text(s.state)),
-                    DataCell(Text(s.stateCode)),
-                    DataCell(Text(s.contact)),
-                    DataCell(Text(s.phone)),
-                    DataCell(Text(s.email)),
-                    DataCell(Text(s.email1)),
-                    DataCell(Text(s.vendorCode)),
-                    DataCell(Text(s.pan)),
-                    DataCell(Text(s.gstNo)),
-                    DataCell(Text(s.igst)),
-                    DataCell(Text(s.cgst)),
-                    DataCell(Text(s.sgst)),
-                    DataCell(Text(s.totalGst)),
-                    DataCell(Text(s.bank)),
-                    DataCell(Text(s.branch)),
-                    DataCell(Text(s.account)),
-                    DataCell(Text(s.ifsc)),
-                    DataCell(Text(s.paymentTerms)),
-                    DataCell(Row(
+                            return DataRow(
+                              cells: [
+                                DataCell(
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 200),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          s.name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .primaryColor
+                                                .withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            'Code: ${s.vendorCode}',
+                                            style: TextStyle(
+                                              color: Theme.of(context).primaryColor,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 200),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          'Contact: ${s.contact}',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'Phone: ${s.phone}',
+                                          style: const TextStyle(
+                                            color: Colors.blue,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'Email: ${s.email}',
+                                          style: const TextStyle(
+                                            color: Colors.blue,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (s.email1.isNotEmpty)
+                                          Text(
+                                            'Alt Email: ${s.email1}',
+                                            style: const TextStyle(
+                                              color: Colors.blue,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 250),
+                                    child: Tooltip(
+                                      message:
+                                          '${s.address1}\n${s.address2}\n${s.address3}\n${s.address4}\n${s.state} (${s.stateCode})',
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            s.address1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (s.address2.isNotEmpty)
+                                            Text(
+                                              s.address2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          if (s.address3.isNotEmpty)
+                                            Text(
+                                              s.address3,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          Text(
+                                            '${s.state} (${s.stateCode})',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 12,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 200),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .primaryColor
+                                                .withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            'GST: ${s.gstNo}',
+                                            style: TextStyle(
+                                              color: Theme.of(context).primaryColor,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'PAN: ${s.pan}',
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'IGST: ${s.igst}% | CGST: ${s.cgst}% | SGST: ${s.sgst}%',
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'Total GST: ${s.totalGst}%',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 200),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          s.bank,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'Branch: ${s.branch}',
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'A/C: ${s.account}',
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'IFSC: ${s.ifsc}',
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    constraints: const BoxConstraints(maxWidth: 150),
+                                    child: Text(
+                                      s.paymentTerms,
+                                      style: TextStyle(
+                                        color: Colors.orange[800],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
                       children: [
-                        Tooltip(
-                          message: 'Edit',
-                          child: IconButton(
+                                      IconButton(
                             icon: const Icon(Icons.edit),
-                            color: Colors.teal[600],
+                                        color: Colors.blue,
                             onPressed: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => AddSupplierPage(supplierToEdit: s),
+                                              builder: (_) => AddSupplierPage(
+                                                supplierToEdit: s,
+                                              ),
                                 ),
                               );
                             },
+                                        tooltip: 'Edit Supplier',
                           ),
-                        ),
-                        Tooltip(
-                          message: 'Delete',
-                          child: IconButton(
+                                      IconButton(
                             icon: const Icon(Icons.delete),
                             color: Colors.red[400],
-                            onPressed: () => _confirmDeleteSupplier(context, ref, s),
+                                        onPressed: () =>
+                                            _confirmDeleteSupplier(context, ref, s),
+                                        tooltip: 'Delete Supplier',
+                                      ),
+                                    ],
                           ),
                         ),
                       ],
-                    )),
-                  ]);
+                            );
                 }).toList(),
               ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
     );
   }

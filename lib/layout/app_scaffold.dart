@@ -9,6 +9,7 @@ import 'package:mpt_ims/pages/login_page.dart';
 import 'package:mpt_ims/pages/planning/purchase_request_list_page.dart';
 import 'package:mpt_ims/pages/purchase/add_purchase_order_page.dart';
 import 'package:mpt_ims/pages/section_page.dart';
+import 'package:mpt_ims/pages/purchase/purchase_order_list_page.dart';
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({super.key});
@@ -42,8 +43,8 @@ class _AppScaffoldState extends State<AppScaffold> {
       'Supplier Master',
       'Customer Master',
       'Bank statement entry',
-      'Expense’s entry',
-      'Payment’s entry',
+      "Expense's entry",
+      "Payment's entry",
       'Salary & Wages entry',
       'Sales entry',
       'GST entry',
@@ -68,6 +69,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       'Job Order Request',
     ],
     7: [
+      'Purchase Order List',
       'Purchase Order Creation',
     ],
     8: [
@@ -104,6 +106,9 @@ class _AppScaffoldState extends State<AppScaffold> {
         break;
       case 'PR Creation':
         page = const PurchaseRequestListPage();
+        break;
+      case 'Purchase Order List':
+        page = const PurchaseOrderListPage();
         break;
       case 'Purchase Order Creation':
         page = const AddPurchaseOrderPage();

@@ -13,6 +13,8 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(MaterialItemAdapter());
   Hive.registerAdapter(PurchaseRequestAdapter());
   Hive.registerAdapter(PurchaseOrderAdapter());
+  Hive.registerAdapter(POItemAdapter());
+
   await Hive.openBox<Supplier>('suppliers');
   await Hive.openBox<MaterialItem>('materials');
   await Hive.openBox<PurchaseRequest>('purchase_requests');

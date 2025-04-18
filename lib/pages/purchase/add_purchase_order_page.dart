@@ -11,7 +11,8 @@ import '../../provider/purchase_request_provider.dart';
 import '../../provider/purchase_order.dart';
 
 class AddPurchaseOrderPage extends ConsumerStatefulWidget {
-  const AddPurchaseOrderPage({super.key});
+  final PurchaseOrder? orderToEdit;
+  const AddPurchaseOrderPage({super.key, this.orderToEdit});
 
   @override
   ConsumerState<AddPurchaseOrderPage> createState() =>
@@ -26,6 +27,24 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       TextEditingController();
   final Map<String, TextEditingController> _qtyControllers = {};
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.orderToEdit != null) {
+      final order = widget.orderToEdit!;
+      _boardNoController.text = order.boardNo;
+      _transportController.text = order.transport;
+      _deliveryRequirementsController.text = order.deliveryRequirements;
+      
+      // Initialize quantity controllers for existing items
+      for (var item in order.items) {
+        _qtyControllers[item.materialCode] = TextEditingController(
+          text: item.quantity.toString(),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {

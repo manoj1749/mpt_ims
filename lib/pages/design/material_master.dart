@@ -18,12 +18,12 @@ class MaterialMasterPage extends ConsumerWidget {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton.tonal(
             onPressed: () {
               ref.read(materialListProvider.notifier).deleteMaterial(material);
               Navigator.pop(context);
             },
-            style: TextButton.styleFrom(
+            style: FilledButton.styleFrom(
               foregroundColor: Colors.red,
             ),
             child: const Text('Delete'),
@@ -40,14 +40,8 @@ class MaterialMasterPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Material Master'),
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              // TODO: Implement filtering
-            },
-            tooltip: 'Filter Materials',
-          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
@@ -57,15 +51,14 @@ class MaterialMasterPage extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AddMaterialPage()),
           );
         },
-        icon: const Icon(Icons.add),
-        label: const Text('New Material'),
+        child: const Icon(Icons.add),
       ),
       body: materials.isEmpty
           ? Center(
@@ -75,18 +68,18 @@ class MaterialMasterPage extends ConsumerWidget {
                   Icon(
                     Icons.inventory_2_outlined,
                     size: 64,
-                    color: Colors.grey[400],
+                    color: Colors.grey[300],
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No materials found',
+                    'No materials yet',
                     style: TextStyle(
                       fontSize: 18,
                       color: Colors.grey[600],
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ElevatedButton(
+                  FilledButton(
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const AddMaterialPage()),
@@ -96,357 +89,213 @@ class MaterialMasterPage extends ConsumerWidget {
                 ],
               ),
             )
-          : Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  color: Theme.of(context).primaryColor.withOpacity(0.1),
-                  child: Row(
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
                       Text(
                         '${materials.length} Materials',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(width: 16),
+                      FilledButton.tonal(
+                        onPressed: () {
+                          // TODO: Implement filtering
+                        },
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.filter_list, size: 20),
+                            SizedBox(width: 8),
+                            Text('Filter'),
+                          ],
                         ),
                       ),
-                      const Spacer(),
-                      // Add export button here if needed
                     ],
                   ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SingleChildScrollView(
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          dataTableTheme: DataTableThemeData(
-                            headingRowColor: MaterialStateProperty.all(
-                              Theme.of(context).primaryColor.withOpacity(0.1),
-                            ),
-                            dataRowColor: MaterialStateProperty.resolveWith(
-                              (states) {
-                                if (states.contains(MaterialState.selected)) {
-                                  return Theme.of(context)
-                                      .primaryColor
-                                      .withOpacity(0.2);
-                                }
-                                return null;
-                              },
-                            ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: Card(
+                      elevation: 0,
+                      margin: EdgeInsets.zero,
+                      child: SizedBox(
+                        width: MediaQuery.of(context).size.width - 32,
+                        child: PaginatedDataTable(
+                          source: _MaterialDataSource(
+                            materials: materials,
+                            context: context,
+                            ref: ref,
+                            onDelete: (material) => _confirmDelete(context, ref, material),
                           ),
-                        ),
-                        child: DataTable(
-                          showCheckboxColumn: true,
-                          columnSpacing: 24,
-                          dataRowMinHeight: 120,
-                          dataRowMaxHeight: 120,
+                          header: null,
+                          rowsPerPage: materials.length,
+                          showFirstLastButtons: true,
+                          showCheckboxColumn: false,
+                          horizontalMargin: 16,
+                          columnSpacing: 20,
+                          availableRowsPerPage: const [20, 50, 100, 200],
                           columns: const [
-                            DataColumn(
-                              label: Text(
-                                'Basic Info',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Vendor Info',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Category',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Stock Details',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Cost Analysis',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
+                            DataColumn(label: Text('SL No')),
+                            DataColumn(label: Text('Part No')),
+                            DataColumn(label: Text('Description')),
+                            DataColumn(label: Text('Category')),
+                            DataColumn(label: Text('Sub Category')),
+                            DataColumn(label: Text('Unit')),
+                            DataColumn(label: Text('Vendor')),
+                            DataColumn(label: Text('Supplier Rate')),
+                            DataColumn(label: Text('SEIPL Rate')),
+                            DataColumn(label: Text('Sale Rate')),
+                            DataColumn(label: Text('Stock')),
+                            DataColumn(label: Text('Stock Value')),
+                            DataColumn(label: Text('Total Received')),
+                            DataColumn(label: Text('Vendor Issued')),
+                            DataColumn(label: Text('Vendor Received')),
+                            DataColumn(label: Text('Board Issue')),
+                            DataColumn(label: Text('Billing Diff')),
+                            DataColumn(label: Text('Cost Diff')),
                             DataColumn(label: Text('Actions')),
                           ],
-                          rows: materials.map((m) {
-                            return DataRow(
-                              cells: [
-                                DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 200),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          m.description,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Theme.of(context)
-                                                .primaryColor
-                                                .withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            'Part No: ${m.partNo}',
-                                            style: TextStyle(
-                                              color: Theme.of(context).primaryColor,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Unit: ${m.unit}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'SL No: ${m.slNo}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 200),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Vendor: ${m.vendorName}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'Supplier Rate: ₹${m.supplierRate}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'SEIPL Rate: ₹${m.seiplRate}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'Sale Rate: ₹${m.saleRate}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 150),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            m.category,
-                                            style: TextStyle(
-                                              color: Colors.blue[700],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.purple.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            m.subCategory,
-                                            style: TextStyle(
-                                              color: Colors.purple[700],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 200),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Available Stock: ${m.avlStock} ${m.unit}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'Stock Value: ₹${m.avlStockValue}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'Total Received: ${m.totalReceivedQty} ${m.unit}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'Board Issue: ${m.boardIssueQty} ${m.unit}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 200),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      
-                                      children: [
-                                        Text(
-                                          'Total Received Cost: ₹${m.totalReceivedCost}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'Total Billed Cost: ₹${m.totalBilledCost}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'Cost Difference: ₹${m.costDiff}',
-                                          style: TextStyle(
-                                            color: (double.tryParse(m.costDiff) ?? 0) < 0 ? Colors.red : Colors.green,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'Billing Qty Diff: ${m.billingQtyDiff} ${m.unit}',
-                                          style: TextStyle(
-                                            color: (double.tryParse(m.billingQtyDiff) ?? 0) < 0 ? Colors.red : Colors.green,
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit),
-                                        color: Colors.blue,
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => AddMaterialPage(
-                                                materialToEdit: m,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        tooltip: 'Edit Material',
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete),
-                                        color: Colors.red[400],
-                                        onPressed: () =>
-                                            _confirmDelete(context, ref, m),
-                                        tooltip: 'Delete Material',
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
     );
   }
+}
+
+class _MaterialDataSource extends DataTableSource {
+  final List<MaterialItem> materials;
+  final BuildContext context;
+  final WidgetRef ref;
+  final Function(MaterialItem) onDelete;
+
+  _MaterialDataSource({
+    required this.materials,
+    required this.context,
+    required this.ref,
+    required this.onDelete,
+  });
+
+  @override
+  DataRow? getRow(int index) {
+    if (index >= materials.length) return null;
+    final m = materials[index];
+    
+    final stockQty = double.tryParse(m.avlStock) ?? 0;
+    final stockValue = double.tryParse(m.avlStockValue) ?? 0;
+    final costDiff = double.tryParse(m.costDiff) ?? 0;
+
+    return DataRow(
+      cells: [
+        DataCell(
+          Text(
+            m.slNo,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ),
+        DataCell(
+          Text(
+            m.partNo,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        DataCell(
+          Text(
+            m.description,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        DataCell(Text(m.category)),
+        DataCell(Text(m.subCategory)),
+        DataCell(Text(m.unit)),
+        DataCell(Text(m.vendorName)),
+        DataCell(Text('₹${m.supplierRate}')),
+        DataCell(Text('₹${m.seiplRate}')),
+        DataCell(Text('₹${m.saleRate}')),
+        DataCell(
+          Text(
+            '${m.avlStock} ${m.unit}',
+            style: TextStyle(
+              color: stockQty > 0 ? Colors.green : Colors.red,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        DataCell(
+          Text(
+            '₹${stockValue.toStringAsFixed(2)}',
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ),
+        DataCell(Text('${m.totalReceivedQty} ${m.unit}')),
+        DataCell(Text('${m.vendorIssuedQty} ${m.unit}')),
+        DataCell(Text('${m.vendorReceivedQty} ${m.unit}')),
+        DataCell(Text('${m.boardIssueQty} ${m.unit}')),
+        DataCell(Text('${m.billingQtyDiff} ${m.unit}')),
+        DataCell(
+          Text(
+            '₹${costDiff.toStringAsFixed(2)}',
+            style: TextStyle(
+              color: costDiff < 0 ? Colors.red : Colors.green,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AddMaterialPage(
+                        materialToEdit: m,
+                      ),
+                    ),
+                  );
+                },
+                color: Colors.blue,
+                tooltip: 'Edit',
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: () => onDelete(m),
+                color: Colors.red[400],
+                tooltip: 'Delete',
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  bool get isRowCountApproximate => false;
+
+  @override
+  int get rowCount => materials.length;
+
+  @override
+  int get selectedRowCount => 0;
 }

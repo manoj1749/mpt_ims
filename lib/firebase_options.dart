@@ -55,7 +55,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '153944133184',
     projectId: 'mpt-ims',
     storageBucket: 'mpt-ims.firebasestorage.app',
-    iosBundleId: 'com.example.mptIms',
+    iosBundleId: 'com.manoj.mptIms',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

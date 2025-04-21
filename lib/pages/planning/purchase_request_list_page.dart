@@ -10,19 +10,12 @@ class PurchaseRequestListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final requests = ref.watch(purchaseRequestListProvider);
-    final notifier = ref.read(purchaseRequestListProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Purchase Requests'),
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              // TODO: Implement filtering
-            },
-            tooltip: 'Filter Requests',
-          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
@@ -32,18 +25,17 @@ class PurchaseRequestListPage extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => const AddPurchaseRequestPage(
-              existingRequest: null,
-              index: null,
+              builder: (_) => const AddPurchaseRequestPage(
+                    existingRequest: null,
+                    index: null,
             ),
           ),
         ),
-        icon: const Icon(Icons.add),
-        label: const Text('New Request'),
+        child: const Icon(Icons.add),
       ),
       body: requests.isEmpty
           ? Center(
@@ -53,18 +45,18 @@ class PurchaseRequestListPage extends ConsumerWidget {
                   Icon(
                     Icons.assignment_outlined,
                     size: 64,
-                    color: Colors.grey[400],
+                    color: Colors.grey[300],
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No purchase requests found',
+                    'No purchase requests yet',
                     style: TextStyle(
                       fontSize: 18,
                       color: Colors.grey[600],
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ElevatedButton(
+                  FilledButton(
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -79,369 +71,241 @@ class PurchaseRequestListPage extends ConsumerWidget {
                 ],
               ),
             )
-          : Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  color: Theme.of(context).primaryColor.withOpacity(0.1),
-                  child: Row(
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
                       Text(
-                        '${requests.length} Requests',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                        '${requests.length} Purchase Requests',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(width: 16),
+                      FilledButton.tonal(
+                        onPressed: () {
+                          // TODO: Implement filtering
+                        },
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.filter_list, size: 20),
+                            SizedBox(width: 8),
+                            Text('Filter'),
+                          ],
                         ),
                       ),
-                      const Spacer(),
-                      // Add export button here if needed
                     ],
                   ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SingleChildScrollView(
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          dataTableTheme: DataTableThemeData(
-                            headingRowColor: MaterialStateProperty.all(
-                              Theme.of(context).primaryColor.withOpacity(0.1),
-                            ),
-                            dataRowColor: MaterialStateProperty.resolveWith(
-                              (states) {
-                                if (states.contains(MaterialState.selected)) {
-                                  return Theme.of(context)
-                                      .primaryColor
-                                      .withOpacity(0.2);
-                                }
-                                return null;
-                              },
-                            ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: Card(
+                      elevation: 0,
+                      margin: EdgeInsets.zero,
+                      child: SizedBox(
+                        width: MediaQuery.of(context).size.width - 32,
+                        child: PaginatedDataTable(
+                          source: _PurchaseRequestDataSource(
+                            requests: requests,
+                            context: context,
+                            ref: ref,
+                            onDelete: (request) => _confirmDelete(context, ref, request),
                           ),
-                        ),
-                        child: DataTable(
-                          showCheckboxColumn: true,
-                          columnSpacing: 24,
-                          dataRowMinHeight: 120,
-                          dataRowMaxHeight: 120,
+                          header: null,
+                          rowsPerPage: requests.length,
+                          showFirstLastButtons: true,
+                          showCheckboxColumn: false,
+                          horizontalMargin: 16,
+                          columnSpacing: 20,
+                          availableRowsPerPage: const [20, 50, 100, 200],
                           columns: const [
-                            DataColumn(
-                              label: Text(
-                                'PR Info',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Material Details',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Quantity Info',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Supplier & Status',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
+                            DataColumn(label: Text('PR No')),
+                            DataColumn(label: Text('Date')),
+                            DataColumn(label: Text('Material Code')),
+                            DataColumn(label: Text('Description')),
+                            DataColumn(label: Text('Unit')),
+                            DataColumn(label: Text('Quantity')),
+                            DataColumn(label: Text('Required By')),
+                            DataColumn(label: Text('Supplier')),
+                            DataColumn(label: Text('Ordered')),
+                            DataColumn(label: Text('Remaining')),
+                            DataColumn(label: Text('Status')),
                             DataColumn(label: Text('Actions')),
                           ],
-                          rows: requests.map((pr) {
-                            final totalOrdered = pr.orderedQuantities.values.fold<double>(
-                              0.0,
-                              (sum, qty) => sum + qty,
-                            );
-                            final remainingQty = (double.tryParse(pr.quantity) ?? 0) - totalOrdered;
-                            final orderedStr = totalOrdered.toStringAsFixed(2);
-
-                            return DataRow(
-                              cells: [
-                                DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 200),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'PR No: ${pr.prNo}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Theme.of(context)
-                                                .primaryColor
-                                                .withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            'Date: ${pr.date}',
-                                            style: TextStyle(
-                                              color: Theme.of(context).primaryColor,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Required By: ${pr.requiredBy}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 250),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          pr.materialDescription,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'Code: ${pr.materialCode}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          'Unit: ${pr.unit}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 200),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            'Required: ${pr.quantity} ${pr.unit}',
-                                            style: TextStyle(
-                                              color: Colors.blue[700],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            'Ordered: $orderedStr ${pr.unit}',
-                                            style: TextStyle(
-                                              color: Colors.orange[700],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: remainingQty > 0
-                                                ? Colors.red.withOpacity(0.1)
-                                                : Colors.green.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            'Remaining: ${remainingQty.toStringAsFixed(2)} ${pr.unit}',
-                                            style: TextStyle(
-                                              color: remainingQty > 0
-                                                  ? Colors.red[700]
-                                                  : Colors.green[700],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 200),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Supplier: ${pr.supplierName}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        if (pr.remarks.isNotEmpty)
-                                          Text(
-                                            'Remarks: ${pr.remarks}',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 12,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: remainingQty > 0
-                                                ? Colors.orange.withOpacity(0.1)
-                                                : Colors.green.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            remainingQty > 0 ? 'PENDING' : 'COMPLETED',
-                                            style: TextStyle(
-                                              color: remainingQty > 0
-                                                  ? Colors.orange[700]
-                                                  : Colors.green[700],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit),
-                                        color: Colors.blue,
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  AddPurchaseRequestPage(
-                                                existingRequest: pr,
-                                                index: null,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        tooltip: 'Edit PR',
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete),
-                                        color: Colors.red[400],
-                                        onPressed: () =>
-                                            _confirmDeletePR(context, ref, pr),
-                                        tooltip: 'Delete PR',
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
     );
   }
+}
 
-  void _confirmDeletePR(BuildContext context, WidgetRef ref, PurchaseRequest pr) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Purchase Request'),
-        content: const Text('Are you sure you want to delete this request?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+class _PurchaseRequestDataSource extends DataTableSource {
+  final List<PurchaseRequest> requests;
+  final BuildContext context;
+  final WidgetRef ref;
+  final Function(PurchaseRequest) onDelete;
+
+  _PurchaseRequestDataSource({
+    required this.requests,
+    required this.context,
+    required this.ref,
+    required this.onDelete,
+  });
+
+  @override
+  DataRow? getRow(int index) {
+    if (index >= requests.length) return null;
+    final pr = requests[index];
+    
+    final totalOrdered = pr.orderedQuantities.values.fold<double>(
+      0.0,
+      (sum, qty) => sum + qty,
+    );
+    final remainingQty = (double.tryParse(pr.quantity) ?? 0) - totalOrdered;
+    final progress = totalOrdered / (double.tryParse(pr.quantity) ?? 1);
+
+    return DataRow(
+      cells: [
+        DataCell(
+          Text(
+            pr.prNo,
+            style: const TextStyle(fontWeight: FontWeight.w500),
           ),
-          TextButton(
-            onPressed: () {
-              final notifier = ref.read(purchaseRequestListProvider.notifier);
-              notifier.deleteRequest(pr);
-              Navigator.pop(context);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+        ),
+        DataCell(Text(pr.date)),
+        DataCell(Text(pr.materialCode)),
+        DataCell(
+          Text(
+            pr.materialDescription,
+            overflow: TextOverflow.ellipsis,
           ),
-        ],
-      ),
+        ),
+        DataCell(Text(pr.unit)),
+        DataCell(
+          Text(
+            pr.quantity,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+                                ),
+        ),
+        DataCell(Text(pr.requiredBy)),
+        DataCell(Text(pr.supplierName)),
+        DataCell(
+          Text(
+            totalOrdered.toStringAsFixed(2),
+            style: TextStyle(
+              color: progress >= 1 ? Colors.green : Colors.orange,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        DataCell(
+          Text(
+            remainingQty.toStringAsFixed(2),
+            style: TextStyle(
+              color: remainingQty > 0 ? Colors.red : Colors.green,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        DataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: progress >= 1
+                  ? Colors.green.withOpacity(0.1)
+                  : progress > 0
+                      ? Colors.orange.withOpacity(0.1)
+                      : Colors.grey.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              progress >= 1
+                  ? 'Completed'
+                  : progress > 0
+                      ? 'Partial'
+                      : 'Pending',
+              style: TextStyle(
+                color: progress >= 1
+                    ? Colors.green
+                    : progress > 0
+                        ? Colors.orange
+                        : Colors.grey,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                onPressed: () {
+                  // TODO: Implement inline editing
+                },
+                color: Colors.blue,
+                tooltip: 'Edit',
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: () => onDelete(pr),
+                            color: Colors.red[400],
+                tooltip: 'Delete',
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'draft':
-        return Colors.grey;
-      case 'completed':
-        return Colors.green;
-      case 'partially ordered':
-        return Colors.orange;
-      default:
-        return Colors.blue;
-    }
-  }
+  @override
+  bool get isRowCountApproximate => false;
+
+  @override
+  int get rowCount => requests.length;
+
+  @override
+  int get selectedRowCount => 0;
+}
+
+void _confirmDelete(BuildContext context, WidgetRef ref, PurchaseRequest pr) {
+                              showDialog(
+                                context: context,
+                                builder: (_) => AlertDialog(
+                                  title: const Text('Delete Purchase Request'),
+      content: const Text('Are you sure you want to delete this request?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Cancel'),
+                                    ),
+        FilledButton.tonal(
+                                      onPressed: () {
+            ref.read(purchaseRequestListProvider.notifier).deleteRequest(pr);
+                                        Navigator.pop(context);
+                                      },
+          style: FilledButton.styleFrom(
+            foregroundColor: Colors.red,
+          ),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              );
 }

@@ -1,4 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:mpt_ims/models/employee.dart';
 import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/purchase_order.dart';
 import 'package:mpt_ims/models/purchase_request.dart';
@@ -14,10 +15,12 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(PurchaseRequestAdapter());
   Hive.registerAdapter(PurchaseOrderAdapter());
   Hive.registerAdapter(POItemAdapter());
+  Hive.registerAdapter(EmployeeAdapter());
 
   await Hive.openBox<Supplier>('suppliers');
   await Hive.openBox<MaterialItem>('materials');
   await Hive.openBox<PurchaseRequest>('purchase_requests');
   await Hive.openBox<PurchaseOrder>('purchase_orders');
+  await Hive.openBox<Employee>('employees');
   // }
 }

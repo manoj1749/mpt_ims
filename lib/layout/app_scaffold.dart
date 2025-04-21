@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:mpt_ims/pages/accounts/supplier_master.dart';
 import 'package:mpt_ims/pages/design/material_master.dart';
+import 'package:mpt_ims/pages/hr/employee_list_page.dart';
 import 'package:mpt_ims/pages/login_page.dart';
 import 'package:mpt_ims/pages/planning/purchase_request_list_page.dart';
 import 'package:mpt_ims/pages/section_page.dart';
@@ -106,6 +107,9 @@ class _AppScaffoldState extends State<AppScaffold> {
         break;
       case 'Purchase Order Creation':
         page = const PurchaseOrderListPage();
+        break;
+      case 'Employee Details':
+        page = const EmployeeListPage();
         break;
       default:
         page = SectionPage(title: name);

@@ -105,34 +105,127 @@ class PurchaseRequestListPage extends ConsumerWidget {
                       margin: EdgeInsets.zero,
                       child: SizedBox(
                         width: MediaQuery.of(context).size.width - 32,
-                        child: PaginatedDataTable(
-                          source: _PurchaseRequestDataSource(
-                            requests: requests,
-                            context: context,
-                            ref: ref,
-                            onDelete: (request) => _confirmDelete(context, ref, request),
-                          ),
-                          header: null,
-                          rowsPerPage: requests.length,
-                          showFirstLastButtons: true,
-                          showCheckboxColumn: false,
-                          horizontalMargin: 16,
-                          columnSpacing: 20,
-                          availableRowsPerPage: const [20, 50, 100, 200],
-                          columns: const [
-                            DataColumn(label: Text('PR No')),
-                            DataColumn(label: Text('Date')),
-                            DataColumn(label: Text('Material Code')),
-                            DataColumn(label: Text('Description')),
-                            DataColumn(label: Text('Unit')),
-                            DataColumn(label: Text('Quantity')),
-                            DataColumn(label: Text('Required By')),
-                            DataColumn(label: Text('Supplier')),
-                            DataColumn(label: Text('Ordered')),
-                            DataColumn(label: Text('Remaining')),
-                            DataColumn(label: Text('Status')),
-                            DataColumn(label: Text('Actions')),
-                          ],
+                        child: ListView.builder(
+                          itemCount: requests.length,
+                          itemBuilder: (context, index) {
+                            final pr = requests[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              child: ExpansionTile(
+                                title: Row(
+                                  children: [
+                                    Text(
+                                      pr.prNo,
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Text(pr.date),
+                                    const SizedBox(width: 16),
+                                    Text('Required By: ${pr.requiredBy}'),
+                                    const SizedBox(width: 16),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: pr.isFullyOrdered
+                                            ? Colors.green.withOpacity(0.1)
+                                            : Colors.orange.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        pr.status,
+                                        style: TextStyle(
+                                          color: pr.isFullyOrdered
+                                              ? Colors.green
+                                              : Colors.orange,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                children: [
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: DataTable(
+                                      columns: const [
+                                        DataColumn(label: Text('Material Code')),
+                                        DataColumn(label: Text('Description')),
+                                        DataColumn(label: Text('Unit')),
+                                        DataColumn(label: Text('Quantity')),
+                                        DataColumn(label: Text('Ordered')),
+                                        DataColumn(label: Text('Remaining')),
+                                        DataColumn(label: Text('Remarks')),
+                                      ],
+                                      rows: pr.items.map((item) {
+                                        return DataRow(
+                                          cells: [
+                                            DataCell(Text(item.materialCode)),
+                                            DataCell(Text(item.materialDescription)),
+                                            DataCell(Text(item.unit)),
+                                            DataCell(Text(item.quantity)),
+                                            DataCell(
+                                              Text(
+                                                item.totalOrderedQuantity.toStringAsFixed(2),
+                                                style: TextStyle(
+                                                  color: item.isFullyOrdered
+                                                      ? Colors.green
+                                                      : Colors.orange,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(
+                                              Text(
+                                                item.remainingQuantity.toStringAsFixed(2),
+                                                style: TextStyle(
+                                                  color: item.remainingQuantity > 0
+                                                      ? Colors.red
+                                                      : Colors.green,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(Text(item.remarks)),
+                                          ],
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                  ButtonBar(
+                                    children: [
+                                      TextButton.icon(
+                                        icon: const Icon(Icons.edit_outlined),
+                                        label: const Text('Edit'),
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => AddPurchaseRequestPage(
+                                                existingRequest: pr,
+                                                index: index,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      TextButton.icon(
+                                        icon: const Icon(Icons.delete_outline),
+                                        label: const Text('Delete'),
+                                        onPressed: () => _confirmDelete(context, ref, pr),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Colors.red,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -142,170 +235,30 @@ class PurchaseRequestListPage extends ConsumerWidget {
             ),
     );
   }
-}
 
-class _PurchaseRequestDataSource extends DataTableSource {
-  final List<PurchaseRequest> requests;
-  final BuildContext context;
-  final WidgetRef ref;
-  final Function(PurchaseRequest) onDelete;
-
-  _PurchaseRequestDataSource({
-    required this.requests,
-    required this.context,
-    required this.ref,
-    required this.onDelete,
-  });
-
-  @override
-  DataRow? getRow(int index) {
-    if (index >= requests.length) return null;
-    final pr = requests[index];
-    
-    final totalOrdered = pr.orderedQuantities.values.fold<double>(
-      0.0,
-      (sum, qty) => sum + qty,
+  Future<void> _confirmDelete(
+      BuildContext context, WidgetRef ref, PurchaseRequest request) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Delete'),
+        content: Text('Are you sure you want to delete PR ${request.prNo}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
-    final remainingQty = (double.tryParse(pr.quantity) ?? 0) - totalOrdered;
-    final progress = totalOrdered / (double.tryParse(pr.quantity) ?? 1);
 
-    return DataRow(
-      cells: [
-        DataCell(
-          Text(
-            pr.prNo,
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-        ),
-        DataCell(Text(pr.date)),
-        DataCell(Text(pr.materialCode)),
-        DataCell(
-          Text(
-            pr.materialDescription,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        DataCell(Text(pr.unit)),
-        DataCell(
-          Text(
-            pr.quantity,
-            style: const TextStyle(fontWeight: FontWeight.w500),
-                                ),
-        ),
-        DataCell(Text(pr.requiredBy)),
-        DataCell(Text(pr.supplierName)),
-        DataCell(
-          Text(
-            totalOrdered.toStringAsFixed(2),
-            style: TextStyle(
-              color: progress >= 1 ? Colors.green : Colors.orange,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        DataCell(
-          Text(
-            remainingQty.toStringAsFixed(2),
-            style: TextStyle(
-              color: remainingQty > 0 ? Colors.red : Colors.green,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        DataCell(
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: progress >= 1
-                  ? Colors.green.withOpacity(0.1)
-                  : progress > 0
-                      ? Colors.orange.withOpacity(0.1)
-                      : Colors.grey.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              progress >= 1
-                  ? 'Completed'
-                  : progress > 0
-                      ? 'Partial'
-                      : 'Pending',
-              style: TextStyle(
-                color: progress >= 1
-                    ? Colors.green
-                    : progress > 0
-                        ? Colors.orange
-                        : Colors.grey,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ),
-        DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                onPressed: () {
-                  // TODO: Implement inline editing
-                },
-                color: Colors.blue,
-                tooltip: 'Edit',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () => onDelete(pr),
-                            color: Colors.red[400],
-                tooltip: 'Delete',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+    if (confirmed == true) {
+      ref.read(purchaseRequestListProvider.notifier).deleteRequest(request);
+    }
   }
-
-  @override
-  bool get isRowCountApproximate => false;
-
-  @override
-  int get rowCount => requests.length;
-
-  @override
-  int get selectedRowCount => 0;
-}
-
-void _confirmDelete(BuildContext context, WidgetRef ref, PurchaseRequest pr) {
-                              showDialog(
-                                context: context,
-                                builder: (_) => AlertDialog(
-                                  title: const Text('Delete Purchase Request'),
-      content: const Text('Are you sure you want to delete this request?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('Cancel'),
-                                    ),
-        FilledButton.tonal(
-                                      onPressed: () {
-            ref.read(purchaseRequestListProvider.notifier).deleteRequest(pr);
-                                        Navigator.pop(context);
-                                      },
-          style: FilledButton.styleFrom(
-            foregroundColor: Colors.red,
-          ),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                ),
-                              );
 }

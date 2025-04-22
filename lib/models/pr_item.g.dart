@@ -1,46 +1,47 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'purchase_request.dart';
+part of 'pr_item.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class PurchaseRequestAdapter extends TypeAdapter<PurchaseRequest> {
+class PRItemAdapter extends TypeAdapter<PRItem> {
   @override
-  final int typeId = 2;
+  final int typeId = 8;
 
   @override
-  PurchaseRequest read(BinaryReader reader) {
+  PRItem read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return PurchaseRequest(
-      prNo: fields[0] as String,
-      date: fields[1] as String,
-      requiredBy: fields[2] as String,
-      supplierName: fields[4] as String,
-      items: (fields[5] as List?)?.cast<PRItem>(),
-    ).._status = fields[3] as String?;
+    return PRItem(
+      materialCode: fields[0] as String,
+      materialDescription: fields[1] as String,
+      unit: fields[2] as String,
+      quantity: fields[3] as String,
+      remarks: fields[4] as String,
+      orderedQuantities: (fields[5] as Map?)?.cast<String, double>(),
+    );
   }
 
   @override
-  void write(BinaryWriter writer, PurchaseRequest obj) {
+  void write(BinaryWriter writer, PRItem obj) {
     writer
       ..writeByte(6)
       ..writeByte(0)
-      ..write(obj.prNo)
+      ..write(obj.materialCode)
       ..writeByte(1)
-      ..write(obj.date)
+      ..write(obj.materialDescription)
       ..writeByte(2)
-      ..write(obj.requiredBy)
+      ..write(obj.unit)
       ..writeByte(3)
-      ..write(obj._status)
+      ..write(obj.quantity)
       ..writeByte(4)
-      ..write(obj.supplierName)
+      ..write(obj.remarks)
       ..writeByte(5)
-      ..write(obj.items);
+      ..write(obj.orderedQuantities);
   }
 
   @override
@@ -49,7 +50,7 @@ class PurchaseRequestAdapter extends TypeAdapter<PurchaseRequest> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PurchaseRequestAdapter &&
+      other is PRItemAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

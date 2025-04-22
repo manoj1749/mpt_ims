@@ -3,6 +3,7 @@ import 'package:mpt_ims/models/employee.dart';
 import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/purchase_order.dart';
 import 'package:mpt_ims/models/purchase_request.dart';
+import 'package:mpt_ims/models/pr_item.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/supplier.dart';
 
@@ -12,10 +13,16 @@ Future<void> initializeHive() async {
   //  if (!Hive.isAdapterRegistered(0)) {
   Hive.registerAdapter(SupplierAdapter()); // ✅ Adapter ID = 0
   Hive.registerAdapter(MaterialItemAdapter());
+  Hive.registerAdapter(PRItemAdapter());
   Hive.registerAdapter(PurchaseRequestAdapter());
   Hive.registerAdapter(PurchaseOrderAdapter());
   Hive.registerAdapter(POItemAdapter());
   Hive.registerAdapter(EmployeeAdapter());
+
+  // Delete existing purchase requests box to handle migration
+  if (await Hive.boxExists('purchase_requests')) {
+    await Hive.deleteBoxFromDisk('purchase_requests');
+  }
 
   await Hive.openBox<Supplier>('suppliers');
   await Hive.openBox<MaterialItem>('materials');

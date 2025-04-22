@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/purchase_request.dart';
+import 'package:mpt_ims/models/pr_item.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
 import '../../models/supplier.dart';
 import '../../models/purchase_order.dart';
@@ -32,50 +33,51 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   final _formKey = GlobalKey<FormState>();
 
   // Group PRs by material code
-  Map<String, List<PurchaseRequest>> _groupPRsByMaterial(List<PurchaseRequest> prs) {
-    final grouped = <String, List<PurchaseRequest>>{};
+  Map<String, List<PRItem>> _groupPRsByMaterial(List<PurchaseRequest> prs) {
+    final grouped = <String, List<PRItem>>{};
     for (var pr in prs) {
-      if (!pr.isFullyOrdered) {  // Only include PRs that aren't fully ordered
-        grouped.putIfAbsent(pr.materialCode, () => []).add(pr);
+      for (var item in pr.items) {
+        if (!item.isFullyOrdered) {  // Only include items that aren't fully ordered
+          grouped.putIfAbsent(item.materialCode, () => []).add(item);
+        }
       }
     }
     return grouped;
   }
 
   // Calculate total remaining quantity for a material
-  double _calculateTotalRemainingQuantity(List<PurchaseRequest> prs) {
-    return prs.fold(0.0, (sum, pr) {
-      final totalQty = double.tryParse(pr.quantity) ?? 0.0;
-      final orderedQty = pr.orderedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
-      return sum + (totalQty - orderedQty);
-    });
+  double _calculateTotalRemainingQuantity(List<PRItem> items) {
+    return items.fold(0.0, (sum, item) => sum + item.remainingQuantity);
   }
 
   // Allocate ordered quantity across PRs
   void _allocateOrderedQuantity(String materialCode, double orderedQty, String poNo) {
     final prs = ref.read(purchaseRequestListProvider.notifier);
-    final materialPRs = prs.state.where((pr) => 
-      pr.materialCode == materialCode && !pr.isFullyOrdered
+    final allPRs = prs.state.where((pr) => 
+      pr.items.any((item) => item.materialCode == materialCode && !item.isFullyOrdered)
     ).toList();
     
-    materialPRs.sort((a, b) => a.date.compareTo(b.date)); // Process oldest PRs first
+    allPRs.sort((a, b) => a.date.compareTo(b.date)); // Process oldest PRs first
     
     var remainingToAllocate = orderedQty;
-    for (var pr in materialPRs) {
+    for (var pr in allPRs) {
       if (remainingToAllocate <= 0) break;
       
-      final totalQty = double.tryParse(pr.quantity) ?? 0.0;
-      final orderedQty = pr.orderedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
-      final prRemaining = totalQty - orderedQty;
+      for (var item in pr.items) {
+        if (item.materialCode != materialCode || item.isFullyOrdered) continue;
+        
+        if (remainingToAllocate <= 0) break;
+        
+        final allocateAmount = remainingToAllocate > item.remainingQuantity 
+          ? item.remainingQuantity 
+          : remainingToAllocate;
+        
+        item.addOrderedQuantity(poNo, allocateAmount);
+        remainingToAllocate -= allocateAmount;
+      }
       
-      if (prRemaining <= 0) continue;
-      
-      final allocateAmount = remainingToAllocate > prRemaining 
-        ? prRemaining 
-        : remainingToAllocate;
-      
-      pr.addOrderedQuantity(poNo, allocateAmount);
-      remainingToAllocate -= allocateAmount;
+      pr.updateStatus();
+      pr.save();
     }
   }
 
@@ -126,15 +128,15 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                 !pr.isFullyOrdered)
             .toList();
 
-    final groupedPRs = _groupPRsByMaterial(filteredPRs);
+    final groupedItems = _groupPRsByMaterial(filteredPRs);
     final materials = ref.watch(materialListProvider);
 
-    final groupedItems = <String, POItem>{};
+    final poItems = <String, POItem>{};
 
-    for (var entry in groupedPRs.entries) {
+    for (var entry in groupedItems.entries) {
       final materialCode = entry.key;
-      final prs = entry.value;
-      final totalRemainingQty = _calculateTotalRemainingQuantity(prs);
+      final items = entry.value;
+      final totalRemainingQty = _calculateTotalRemainingQuantity(items);
       
       if (totalRemainingQty <= 0) continue;  // Skip if no remaining quantity
 
@@ -146,20 +148,21 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       }
 
       final material = findMaterialByCode(materials, materialCode);
+      if (material == null) continue;
 
-      groupedItems[materialCode] = POItem(      
+      poItems[materialCode] = POItem(      
         materialCode: materialCode,
-        materialDescription: material?.description ?? '',
-        unit: material?.unit ?? '',
+        materialDescription: material.description,
+        unit: material.unit,
         quantity: totalRemainingQty,
-        costPerUnit: double.parse(material?.saleRate ?? '0'),
-        totalCost: totalRemainingQty * double.parse(material?.saleRate ?? '0'),
-        seiplRate: double.parse(material?.seiplRate ?? '0'),
-        rateDifference: double.parse(material?.saleRate ?? '0') -
-            double.parse(material?.seiplRate ?? '0'),
+        costPerUnit: double.parse(material.saleRate),
+        totalCost: totalRemainingQty * double.parse(material.saleRate),
+        seiplRate: double.parse(material.seiplRate),
+        rateDifference: double.parse(material.saleRate) -
+            double.parse(material.seiplRate),
         totalRateDifference: totalRemainingQty *
-            (double.parse(material?.saleRate ?? '0') -
-                double.parse(material?.seiplRate ?? '0')),
+            (double.parse(material.saleRate) -
+                double.parse(material.seiplRate)),
       );
 
       // Initialize controller if not exists
@@ -273,7 +276,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                 decoration: const InputDecoration(labelText: 'Board No'),
               ),
               const SizedBox(height: 10),
-              if (groupedItems.isNotEmpty)
+              if (poItems.isNotEmpty)
                 Expanded(
                   child: Card(
                     elevation: 4,
@@ -338,17 +341,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         Expanded(
                           child: ListView.separated(
                             padding: const EdgeInsets.all(16),
-                            itemCount: groupedItems.length,
+                            itemCount: poItems.length,
                             separatorBuilder: (_, __) =>
                                 const Divider(height: 32),
                             itemBuilder: (_, index) {
-                              final item = groupedItems.values.elementAt(index);
-                              double totalNeededQty = filteredPRs
-                                  .where((pr) =>
-                                      pr.materialCode == item.materialCode)
-                                  .map(
-                                      (pr) => double.tryParse(pr.quantity) ?? 0)
-                                  .fold(0.0, (a, b) => a + b);
+                              final item = poItems.values.elementAt(index);
+                              final prItems = groupedItems[item.materialCode] ?? [];
+                              final totalNeededQty = _calculateTotalRemainingQuantity(prItems);
 
                               // Initialize controller if not exists
                               _qtyControllers[item.materialCode] ??= TextEditingController(
@@ -428,7 +427,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            "${_calculateTotalRemainingQuantity(groupedPRs[item.materialCode] ?? [])} ${item.unit}",
+                                            "$totalNeededQty ${item.unit}",
                                             style: const TextStyle(
                                               color: Colors.amberAccent,
                                               fontWeight: FontWeight.bold,
@@ -453,24 +452,22 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                             keyboardType: TextInputType.number,
                                             validator: (value) {
                                               final inputQty = double.tryParse(value ?? '') ?? 0;
-                                              final remainingQty = _calculateTotalRemainingQuantity(groupedPRs[item.materialCode] ?? []);
                                               if (inputQty <= 0) {
                                                 return 'Quantity must be greater than 0';
                                               }
-                                              if (inputQty > remainingQty) {
-                                                return 'Cannot exceed required quantity ($remainingQty)';
+                                              if (inputQty > totalNeededQty) {
+                                                return 'Cannot exceed required quantity ($totalNeededQty)';
                                               }
                                               return null;
                                             },
                                             onChanged: (val) {
                                               final newQty = double.tryParse(val) ?? 0;
-                                              final remainingQty = _calculateTotalRemainingQuantity(groupedPRs[item.materialCode] ?? []);
                                               
                                               // Limit the quantity to remaining quantity
-                                              final limitedQty = newQty > remainingQty ? remainingQty : newQty;
+                                              final limitedQty = newQty > totalNeededQty ? totalNeededQty : newQty;
                                               
-                                              if (newQty > remainingQty) {
-                                                _qtyControllers[item.materialCode]?.text = remainingQty.toString();
+                                              if (newQty > totalNeededQty) {
+                                                _qtyControllers[item.materialCode]?.text = totalNeededQty.toString();
                                               }
                                               
                                               setState(() {
@@ -634,7 +631,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                             ),
                             builder: (context, _) {
                               double total = 0;
-                              for (var item in groupedItems.values) {
+                              for (var item in poItems.values) {
                                 final qty = double.tryParse(
                                   _qtyControllers[item.materialCode]?.text ?? '0'
                                 ) ?? 0;
@@ -677,7 +674,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       final poNo = 'PO${DateTime.now().millisecondsSinceEpoch}';
                       
                       // Create updated items list with final quantities
-                      final updatedItems = groupedItems.values.map((item) {
+                      final updatedItems = poItems.values.map((item) {
                         final qty = double.tryParse(
                           _qtyControllers[item.materialCode]?.text ?? '0'
                         ) ?? 0;

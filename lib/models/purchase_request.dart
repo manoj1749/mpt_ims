@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'pr_item.dart';
 
 part 'purchase_request.g.dart';
 
@@ -11,31 +12,16 @@ class PurchaseRequest extends HiveObject {
   String date;
 
   @HiveField(2)
-  String materialCode;
-
-  @HiveField(3)
-  String materialDescription;
-
-  @HiveField(4)
-  String unit;
-
-  @HiveField(5)
-  String quantity;
-
-  @HiveField(6)
   String requiredBy;
 
-  @HiveField(7)
-  String remarks;
-
-  @HiveField(8)
+  @HiveField(3)
   String? _status;
 
-  @HiveField(9)
+  @HiveField(4)
   String supplierName;
 
-  @HiveField(10)
-  Map<String, double> orderedQuantities = {}; // Map of PO number to ordered quantity
+  @HiveField(5)
+  List<PRItem> items = [];
 
   String get status => _status ?? 'Draft';
 
@@ -43,36 +29,15 @@ class PurchaseRequest extends HiveObject {
     _status = value;
   }
 
-  double get totalOrderedQuantity => 
-    orderedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
+  bool get isFullyOrdered => items.every((item) => item.isFullyOrdered);
 
-  double get remainingQuantity {
-    final totalRequired = double.tryParse(quantity) ?? 0.0;
-    return totalRequired - totalOrderedQuantity;
-  }
-
-  bool get isFullyOrdered => remainingQuantity <= 0;
-
-  void addOrderedQuantity(String poNo, double quantity) {
-    orderedQuantities[poNo] = quantity;
-    
-    final totalRequired = double.tryParse(this.quantity) ?? 0.0;
-    final totalOrdered = totalOrderedQuantity;
-    final remaining = totalRequired - totalOrdered;
-    
-    // Update remarks with order information
-    String orderInfo = "\nPO: $poNo - Ordered: $quantity $unit";
-    if (remaining > 0) {
-      orderInfo += " (Remaining: $remaining $unit)";
-    }
-    
-    // Append to existing remarks or create new
-    remarks = remarks.isEmpty ? orderInfo.trim() : "$remarks$orderInfo";
-    
+  void updateStatus() {
     if (isFullyOrdered) {
       status = 'Completed';
-    } else if (totalOrderedQuantity > 0) {
+    } else if (items.any((item) => item.totalOrderedQuantity > 0)) {
       status = 'Partially Ordered';
+    } else {
+      status = 'Draft';
     }
     save();
   }
@@ -80,17 +45,14 @@ class PurchaseRequest extends HiveObject {
   PurchaseRequest({
     required this.prNo,
     required this.date,
-    required this.materialCode,
-    required this.materialDescription,
-    required this.unit,
-    required this.quantity,
     required this.requiredBy,
-    required this.remarks,
     String? status,
     required this.supplierName,
-    Map<String, double>? orderedQuantities,
+    List<PRItem>? items,
   }) {
     _status = status;
-    this.orderedQuantities = orderedQuantities ?? {};
+    if (items != null) {
+      this.items = items;
+    }
   }
 }

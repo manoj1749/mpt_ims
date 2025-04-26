@@ -2,6 +2,7 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:mpt_ims/pages/accounts/customer_list_page.dart';
 import 'package:mpt_ims/pages/accounts/supplier_master.dart';
 import 'package:mpt_ims/pages/design/material_master.dart';
 import 'package:mpt_ims/pages/hr/employee_list_page.dart';
@@ -110,6 +111,9 @@ class _AppScaffoldState extends State<AppScaffold> {
         break;
       case 'Employee Details':
         page = const EmployeeListPage();
+        break;
+      case 'Customer Master':
+        page = const CustomerListPage();
         break;
       default:
         page = SectionPage(title: name);

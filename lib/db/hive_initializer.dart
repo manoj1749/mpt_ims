@@ -1,4 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:mpt_ims/models/customer.dart';
 import 'package:mpt_ims/models/employee.dart';
 import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/purchase_order.dart';
@@ -10,24 +11,21 @@ import '../models/supplier.dart';
 Future<void> initializeHive() async {
   final dir = await getApplicationDocumentsDirectory();
   await Hive.initFlutter(dir.path);
-  //  if (!Hive.isAdapterRegistered(0)) {
-  Hive.registerAdapter(SupplierAdapter()); // ✅ Adapter ID = 0
+
+  Hive.registerAdapter(SupplierAdapter()); 
   Hive.registerAdapter(MaterialItemAdapter());
   Hive.registerAdapter(PRItemAdapter());
   Hive.registerAdapter(PurchaseRequestAdapter());
   Hive.registerAdapter(PurchaseOrderAdapter());
   Hive.registerAdapter(POItemAdapter());
   Hive.registerAdapter(EmployeeAdapter());
-
-  // Delete existing purchase requests box to handle migration
-  if (await Hive.boxExists('purchase_requests')) {
-    await Hive.deleteBoxFromDisk('purchase_requests');
-  }
+  Hive.registerAdapter(CustomerAdapter());
 
   await Hive.openBox<Supplier>('suppliers');
   await Hive.openBox<MaterialItem>('materials');
   await Hive.openBox<PurchaseRequest>('purchase_requests');
   await Hive.openBox<PurchaseOrder>('purchase_orders');
   await Hive.openBox<Employee>('employees');
+  await Hive.openBox<Customer>('customers');
   // }
 }

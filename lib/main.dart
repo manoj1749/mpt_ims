@@ -6,11 +6,13 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mpt_ims/db/hive_initializer.dart';
 import 'package:mpt_ims/layout/app_scaffold.dart';
+import 'package:mpt_ims/models/customer.dart';
 import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/purchase_order.dart';
 import 'package:mpt_ims/models/purchase_request.dart';
 import 'package:mpt_ims/models/supplier.dart';
 import 'package:mpt_ims/models/employee.dart';
+import 'package:mpt_ims/provider/customer_provider.dart';
 import 'package:mpt_ims/provider/employee_provider.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
 import 'package:mpt_ims/provider/purchase_order.dart';
@@ -34,6 +36,7 @@ void main() async {
   final purchaseOrderBox =
       await Hive.openBox<PurchaseOrder>('purchase_orders');
   final employeeBox = await Hive.openBox<Employee>('employees');
+  final customerBox = await Hive.openBox<Customer>('customers');
 
   final user = FirebaseAuth.instance.currentUser;
 
@@ -44,6 +47,7 @@ void main() async {
       purchaseRequestBoxProvider.overrideWithValue(purchaseRequestBox),
       purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
       employeeBoxProvider.overrideWithValue(employeeBox),
+      customerBoxProvider.overrideWithValue(customerBox),
     ],
     child: IMSApp(isLoggedIn: user != null),
   ));

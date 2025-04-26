@@ -5,6 +5,7 @@ import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/purchase_order.dart';
 import 'package:mpt_ims/models/purchase_request.dart';
 import 'package:mpt_ims/models/pr_item.dart';
+import 'package:mpt_ims/models/store_inward.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/supplier.dart';
 
@@ -20,6 +21,7 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(POItemAdapter());
   Hive.registerAdapter(EmployeeAdapter());
   Hive.registerAdapter(CustomerAdapter());
+  Hive.registerAdapter(StoreInwardAdapter());
 
   await Hive.openBox<Supplier>('suppliers');
   await Hive.openBox<MaterialItem>('materials');
@@ -27,5 +29,6 @@ Future<void> initializeHive() async {
   await Hive.openBox<PurchaseOrder>('purchase_orders');
   await Hive.openBox<Employee>('employees');
   await Hive.openBox<Customer>('customers');
+  await Hive.openBox<StoreInward>('store_inwards');
   // }
 }

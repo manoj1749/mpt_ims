@@ -10,6 +10,7 @@ import 'package:mpt_ims/models/customer.dart';
 import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/purchase_order.dart';
 import 'package:mpt_ims/models/purchase_request.dart';
+import 'package:mpt_ims/models/store_inward.dart';
 import 'package:mpt_ims/models/supplier.dart';
 import 'package:mpt_ims/models/employee.dart';
 import 'package:mpt_ims/provider/customer_provider.dart';
@@ -17,6 +18,7 @@ import 'package:mpt_ims/provider/employee_provider.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
 import 'package:mpt_ims/provider/purchase_order.dart';
 import 'package:mpt_ims/provider/purchase_request_provider.dart';
+import 'package:mpt_ims/provider/store_inward_provider.dart';
 import 'package:mpt_ims/provider/supplier_provider.dart';
 
 import 'firebase_options.dart'; // From Firebase setup
@@ -37,6 +39,7 @@ void main() async {
       await Hive.openBox<PurchaseOrder>('purchase_orders');
   final employeeBox = await Hive.openBox<Employee>('employees');
   final customerBox = await Hive.openBox<Customer>('customers');
+  final storeInwardBox = await Hive.openBox<StoreInward>('store_inwards');
 
   final user = FirebaseAuth.instance.currentUser;
 
@@ -48,6 +51,7 @@ void main() async {
       purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
       employeeBoxProvider.overrideWithValue(employeeBox),
       customerBoxProvider.overrideWithValue(customerBox),
+      storeInwardBoxProvider.overrideWithValue(storeInwardBox),
     ],
     child: IMSApp(isLoggedIn: user != null),
   ));

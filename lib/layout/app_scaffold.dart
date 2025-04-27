@@ -10,7 +10,7 @@ import 'package:mpt_ims/pages/login_page.dart';
 import 'package:mpt_ims/pages/planning/purchase_request_list_page.dart';
 import 'package:mpt_ims/pages/section_page.dart';
 import 'package:mpt_ims/pages/purchase/purchase_order_list_page.dart';
-import 'package:mpt_ims/pages/store/add_store_inward_page.dart';
+import 'package:mpt_ims/pages/store/store_inward_list_page.dart';
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({super.key});
@@ -117,7 +117,7 @@ class _AppScaffoldState extends State<AppScaffold> {
         page = const CustomerListPage();
         break;
       case 'GR':
-        page = const AddStoreInwardPage();
+        page = const StoreInwardListPage();
         break;
       default:
         page = SectionPage(title: name);

@@ -6,7 +6,8 @@ final storeInwardBoxProvider = Provider<Box<StoreInward>>((ref) {
   throw UnimplementedError();
 });
 
-final storeInwardProvider = StateNotifierProvider<StoreInwardNotifier, List<StoreInward>>((ref) {
+final storeInwardProvider =
+    StateNotifierProvider<StoreInwardNotifier, List<StoreInward>>((ref) {
   final box = ref.watch(storeInwardBoxProvider);
   return StoreInwardNotifier(box);
 });

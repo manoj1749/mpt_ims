@@ -21,7 +21,7 @@ class EmployeeNotifier extends StateNotifier<List<Employee>> {
     final index = _box.values.toList().indexWhere(
           (emp) => emp.employeeCode == updatedEmployee.employeeCode,
         );
-    
+
     if (index != -1) {
       // Get the key at the found index
       final key = _box.keyAt(index);
@@ -41,4 +41,4 @@ final employeeListProvider =
     StateNotifierProvider<EmployeeNotifier, List<Employee>>((ref) {
   final box = Hive.box<Employee>('employees');
   return EmployeeNotifier(box);
-}); 
+});

@@ -17,7 +17,7 @@ class AddEmployeePage extends ConsumerStatefulWidget {
 
 class _AddEmployeePageState extends ConsumerState<AddEmployeePage> {
   final _formKey = GlobalKey<FormState>();
-  
+
   late final TextEditingController _nameController;
   late final TextEditingController _employeeCodeController;
   late final TextEditingController _aadhaarController;
@@ -34,18 +34,23 @@ class _AddEmployeePageState extends ConsumerState<AddEmployeePage> {
   void initState() {
     super.initState();
     final employee = widget.employeeToEdit;
-    
+
     _nameController = TextEditingController(text: employee?.name ?? '');
-    _employeeCodeController = TextEditingController(text: employee?.employeeCode ?? '');
-    _aadhaarController = TextEditingController(text: employee?.aadhaarNumber ?? '');
+    _employeeCodeController =
+        TextEditingController(text: employee?.employeeCode ?? '');
+    _aadhaarController =
+        TextEditingController(text: employee?.aadhaarNumber ?? '');
     _esiController = TextEditingController(text: employee?.esiNumber ?? '');
     _pfController = TextEditingController(text: employee?.pfNumber ?? '');
-    _accountController = TextEditingController(text: employee?.accountNumber ?? '');
+    _accountController =
+        TextEditingController(text: employee?.accountNumber ?? '');
     _ifscController = TextEditingController(text: employee?.ifscCode ?? '');
     _bankNameController = TextEditingController(text: employee?.bankName ?? '');
     _branchController = TextEditingController(text: employee?.branch ?? '');
-    _perDaySalaryController = TextEditingController(text: employee?.perDaySalary ?? '');
-    _otSalaryController = TextEditingController(text: employee?.otSalaryPerHour ?? '');
+    _perDaySalaryController =
+        TextEditingController(text: employee?.perDaySalary ?? '');
+    _otSalaryController =
+        TextEditingController(text: employee?.otSalaryPerHour ?? '');
   }
 
   @override
@@ -100,7 +105,8 @@ class _AddEmployeePageState extends ConsumerState<AddEmployeePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.employeeToEdit != null ? 'Edit Employee' : 'Add Employee'),
+        title: Text(
+            widget.employeeToEdit != null ? 'Edit Employee' : 'Add Employee'),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -283,7 +289,9 @@ class _AddEmployeePageState extends ConsumerState<AddEmployeePage> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
-                      widget.employeeToEdit != null ? 'Update Employee' : 'Add Employee',
+                      widget.employeeToEdit != null
+                          ? 'Update Employee'
+                          : 'Add Employee',
                     ),
                   ),
                 ),
@@ -294,4 +302,4 @@ class _AddEmployeePageState extends ConsumerState<AddEmployeePage> {
       ),
     );
   }
-} 
+}

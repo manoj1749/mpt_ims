@@ -33,13 +33,15 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       if (isLogin) {
-        await _auth.signInWithEmailAndPassword(email: email, password: password);
+        await _auth.signInWithEmailAndPassword(
+            email: email, password: password);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AppScaffold()),
         );
       } else {
-        await _auth.createUserWithEmailAndPassword(email: email, password: password);
+        await _auth.createUserWithEmailAndPassword(
+            email: email, password: password);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Account created. Please login.")),
         );
@@ -47,7 +49,9 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${isLogin ? 'Login' : 'Signup'} Failed: ${e.toString()}")),
+        SnackBar(
+            content: Text(
+                "${isLogin ? 'Login' : 'Signup'} Failed: ${e.toString()}")),
       );
     }
   }
@@ -92,7 +96,8 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 Text(
                   isLogin ? "IMS Login" : "Create Account",
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -103,8 +108,9 @@ class _LoginPageState extends State<LoginPage> {
                     labelStyle: TextStyle(color: Colors.white70),
                     border: OutlineInputBorder(),
                   ),
-                  validator: (value) =>
-                      (value == null || !value.contains('@')) ? 'Enter a valid email' : null,
+                  validator: (value) => (value == null || !value.contains('@'))
+                      ? 'Enter a valid email'
+                      : null,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
@@ -116,13 +122,18 @@ class _LoginPageState extends State<LoginPage> {
                     labelStyle: const TextStyle(color: Colors.white70),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(showPassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => showPassword = !showPassword),
+                      icon: Icon(showPassword
+                          ? Icons.visibility_off
+                          : Icons.visibility),
+                      onPressed: () =>
+                          setState(() => showPassword = !showPassword),
                     ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Enter password';
-                    if (!isLogin && value.length < 6) return 'Minimum 6 characters';
+                    if (!isLogin && value.length < 6) {
+                      return 'Minimum 6 characters';
+                    }
                     return null;
                   },
                 ),

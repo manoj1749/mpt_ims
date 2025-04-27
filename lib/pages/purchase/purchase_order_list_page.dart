@@ -160,10 +160,12 @@ class PurchaseOrderListPage extends ConsumerWidget {
                                 Padding(
                                   padding: const EdgeInsets.all(16.0),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       _buildInfoRow('Board No', order.boardNo),
-                                      _buildInfoRow('Transport', order.transport),
+                                      _buildInfoRow(
+                                          'Transport', order.transport),
                                       _buildInfoRow('Delivery Requirements',
                                           order.deliveryRequirements),
                                       const Divider(),
@@ -176,8 +178,8 @@ class PurchaseOrderListPage extends ConsumerWidget {
                                       ),
                                       const SizedBox(height: 8),
                                       ...order.items.map((item) => Card(
-                                            margin:
-                                                const EdgeInsets.only(bottom: 8),
+                                            margin: const EdgeInsets.only(
+                                                bottom: 8),
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .surface,
@@ -257,11 +259,13 @@ class PurchaseOrderListPage extends ConsumerWidget {
                                                       Text(
                                                         'Diff: ₹${item.totalRateDifference}',
                                                         style: TextStyle(
-                                                          color: item.totalRateDifference >
-                                                                  0
-                                                              ? Colors.red[300]
-                                                              : Colors
-                                                                  .green[300],
+                                                          color:
+                                                              item.totalRateDifference >
+                                                                      0
+                                                                  ? Colors
+                                                                      .red[300]
+                                                                  : Colors.green[
+                                                                      300],
                                                           fontWeight:
                                                               FontWeight.bold,
                                                         ),
@@ -329,7 +333,8 @@ class PurchaseOrderListPage extends ConsumerWidget {
                                       ),
                                       const SizedBox(height: 16),
                                       Row(
-                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
                                         children: [
                                           TextButton.icon(
                                             icon: const Icon(Icons.edit),
@@ -410,8 +415,8 @@ class PurchaseOrderListPage extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Purchase Order'),
-        content:
-            Text('Are you sure you want to delete purchase order ${order.poNo}?'),
+        content: Text(
+            'Are you sure you want to delete purchase order ${order.poNo}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -434,4 +439,4 @@ class PurchaseOrderListPage extends ConsumerWidget {
       ),
     );
   }
-} 
+}

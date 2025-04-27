@@ -57,7 +57,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               buildTextField(_poNoController, 'PO No'),
               buildTextField(_poDateController, 'PO Date', isDate: true),
               buildTextField(_invoiceNoController, 'Invoice No'),
-              buildTextField(_invoiceDateController, 'Invoice Date', isDate: true),
+              buildTextField(_invoiceDateController, 'Invoice Date',
+                  isDate: true),
               buildTextField(_invoiceAmountController, 'Invoice Amount'),
               buildTextField(_receivedByController, 'Received By'),
               buildTextField(_checkedByController, 'Checked By'),
@@ -92,7 +93,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     );
   }
 
-  Widget buildTextField(TextEditingController controller, String label, {bool isDate = false}) {
+  Widget buildTextField(TextEditingController controller, String label,
+      {bool isDate = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
@@ -115,7 +117,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 }
               }
             : null,
-        validator: (value) => value == null || value.isEmpty ? 'Enter $label' : null,
+        validator: (value) =>
+            value == null || value.isEmpty ? 'Enter $label' : null,
       ),
     );
   }

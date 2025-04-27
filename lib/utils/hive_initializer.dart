@@ -22,4 +22,4 @@ class HiveInitializer {
     await Hive.openBox<PurchaseRequest>('purchase_requests');
     await Hive.openBox<PurchaseOrder>('purchase_orders');
   }
-} 
+}

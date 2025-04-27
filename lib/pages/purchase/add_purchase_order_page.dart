@@ -37,7 +37,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     final grouped = <String, List<PRItem>>{};
     for (var pr in prs) {
       for (var item in pr.items) {
-        if (!item.isFullyOrdered) {  // Only include items that aren't fully ordered
+        if (!item.isFullyOrdered) {
+          // Only include items that aren't fully ordered
           grouped.putIfAbsent(item.materialCode, () => []).add(item);
         }
       }
@@ -51,31 +52,33 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   }
 
   // Allocate ordered quantity across PRs
-  void _allocateOrderedQuantity(String materialCode, double orderedQty, String poNo) {
+  void _allocateOrderedQuantity(
+      String materialCode, double orderedQty, String poNo) {
     final prs = ref.read(purchaseRequestListProvider.notifier);
-    final allPRs = prs.state.where((pr) => 
-      pr.items.any((item) => item.materialCode == materialCode && !item.isFullyOrdered)
-    ).toList();
-    
+    final allPRs = prs.state
+        .where((pr) => pr.items.any((item) =>
+            item.materialCode == materialCode && !item.isFullyOrdered))
+        .toList();
+
     allPRs.sort((a, b) => a.date.compareTo(b.date)); // Process oldest PRs first
-    
+
     var remainingToAllocate = orderedQty;
     for (var pr in allPRs) {
       if (remainingToAllocate <= 0) break;
-      
+
       for (var item in pr.items) {
         if (item.materialCode != materialCode || item.isFullyOrdered) continue;
-        
+
         if (remainingToAllocate <= 0) break;
-        
-        final allocateAmount = remainingToAllocate > item.remainingQuantity 
-          ? item.remainingQuantity 
-          : remainingToAllocate;
-        
+
+        final allocateAmount = remainingToAllocate > item.remainingQuantity
+            ? item.remainingQuantity
+            : remainingToAllocate;
+
         item.addOrderedQuantity(poNo, allocateAmount);
         remainingToAllocate -= allocateAmount;
       }
-      
+
       pr.updateStatus();
       pr.save();
     }
@@ -89,7 +92,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       _boardNoController.text = order.boardNo;
       _transportController.text = order.transport;
       _deliveryRequirementsController.text = order.deliveryRequirements;
-      
+
       // Initialize quantity controllers for existing items
       for (var item in order.items) {
         _qtyControllers[item.materialCode] = TextEditingController(
@@ -124,8 +127,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         ? <PurchaseRequest>[]
         : purchaseRequests
             .where((pr) =>
-                pr.supplierName == selectedSupplier!.name &&
-                !pr.isFullyOrdered)
+                pr.supplierName == selectedSupplier!.name && !pr.isFullyOrdered)
             .toList();
 
     final groupedItems = _groupPRsByMaterial(filteredPRs);
@@ -137,8 +139,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       final materialCode = entry.key;
       final items = entry.value;
       final totalRemainingQty = _calculateTotalRemainingQuantity(items);
-      
-      if (totalRemainingQty <= 0) continue;  // Skip if no remaining quantity
+
+      if (totalRemainingQty <= 0) continue; // Skip if no remaining quantity
 
       MaterialItem? findMaterialByCode(List<MaterialItem> list, String code) {
         for (final item in list) {
@@ -150,7 +152,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       final material = findMaterialByCode(materials, materialCode);
       if (material == null) continue;
 
-      poItems[materialCode] = POItem(      
+      poItems[materialCode] = POItem(
         materialCode: materialCode,
         materialDescription: material.description,
         unit: material.unit,
@@ -158,8 +160,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         costPerUnit: double.parse(material.saleRate),
         totalCost: totalRemainingQty * double.parse(material.saleRate),
         seiplRate: double.parse(material.seiplRate),
-        rateDifference: double.parse(material.saleRate) -
-            double.parse(material.seiplRate),
+        rateDifference:
+            double.parse(material.saleRate) - double.parse(material.seiplRate),
         totalRateDifference: totalRemainingQty *
             (double.parse(material.saleRate) -
                 double.parse(material.seiplRate)),
@@ -346,11 +348,14 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                 const Divider(height: 32),
                             itemBuilder: (_, index) {
                               final item = poItems.values.elementAt(index);
-                              final prItems = groupedItems[item.materialCode] ?? [];
-                              final totalNeededQty = _calculateTotalRemainingQuantity(prItems);
+                              final prItems =
+                                  groupedItems[item.materialCode] ?? [];
+                              final totalNeededQty =
+                                  _calculateTotalRemainingQuantity(prItems);
 
                               // Initialize controller if not exists
-                              _qtyControllers[item.materialCode] ??= TextEditingController(
+                              _qtyControllers[item.materialCode] ??=
+                                  TextEditingController(
                                 text: totalNeededQty.toString(),
                               );
 
@@ -444,14 +449,17 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                           ),
                                           const SizedBox(height: 4),
                                           TextFormField(
-                                            controller: _qtyControllers[item.materialCode],
+                                            controller: _qtyControllers[
+                                                item.materialCode],
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontWeight: FontWeight.bold,
                                             ),
                                             keyboardType: TextInputType.number,
                                             validator: (value) {
-                                              final inputQty = double.tryParse(value ?? '') ?? 0;
+                                              final inputQty = double.tryParse(
+                                                      value ?? '') ??
+                                                  0;
                                               if (inputQty <= 0) {
                                                 return 'Quantity must be greater than 0';
                                               }
@@ -461,30 +469,42 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                               return null;
                                             },
                                             onChanged: (val) {
-                                              final newQty = double.tryParse(val) ?? 0;
-                                              
+                                              final newQty =
+                                                  double.tryParse(val) ?? 0;
+
                                               // Limit the quantity to remaining quantity
-                                              final limitedQty = newQty > totalNeededQty ? totalNeededQty : newQty;
-                                              
+                                              final limitedQty =
+                                                  newQty > totalNeededQty
+                                                      ? totalNeededQty
+                                                      : newQty;
+
                                               if (newQty > totalNeededQty) {
-                                                _qtyControllers[item.materialCode]?.text = totalNeededQty.toString();
+                                                _qtyControllers[
+                                                            item.materialCode]
+                                                        ?.text =
+                                                    totalNeededQty.toString();
                                               }
-                                              
+
                                               setState(() {
                                                 item.quantity = limitedQty;
-                                                item.totalCost = limitedQty * item.costPerUnit;
-                                                item.totalRateDifference = limitedQty * item.rateDifference;
+                                                item.totalCost = limitedQty *
+                                                    item.costPerUnit;
+                                                item.totalRateDifference =
+                                                    limitedQty *
+                                                        item.rateDifference;
                                               });
                                             },
                                             decoration: InputDecoration(
                                               isDense: true,
-                                              contentPadding: const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 6),
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 6),
                                               filled: true,
                                               fillColor: Colors.grey[850],
                                               border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(6),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
                                               ),
                                               errorStyle: const TextStyle(
                                                 color: Colors.redAccent,
@@ -558,14 +578,19 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                           ),
                                           const SizedBox(height: 4),
                                           ListenableBuilder(
-                                            listenable: _qtyControllers[item.materialCode]!,
+                                            listenable: _qtyControllers[
+                                                item.materialCode]!,
                                             builder: (context, child) {
                                               final qty = double.tryParse(
-                                                    _qtyControllers[item.materialCode]!.text
-                                                  ) ?? item.quantity;
-                                              final totalCost = qty * item.costPerUnit;
-                                              final totalDiff = qty * item.rateDifference;
-                                              
+                                                      _qtyControllers[item
+                                                              .materialCode]!
+                                                          .text) ??
+                                                  item.quantity;
+                                              final totalCost =
+                                                  qty * item.costPerUnit;
+                                              final totalDiff =
+                                                  qty * item.rateDifference;
+
                                               return RichText(
                                                 text: TextSpan(
                                                   style: const TextStyle(
@@ -576,30 +601,33 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                                     const TextSpan(
                                                       text: "Total: ",
                                                       style: TextStyle(
-                                                          color: Colors.white70),
+                                                          color:
+                                                              Colors.white70),
                                                     ),
                                                     TextSpan(
                                                       text:
                                                           "₹${totalCost.toStringAsFixed(2)}\n",
                                                       style: const TextStyle(
-                                                        fontWeight: FontWeight.bold,
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                         fontSize: 15,
                                                       ),
                                                     ),
                                                     const TextSpan(
                                                       text: "Difference: ",
                                                       style: TextStyle(
-                                                          color: Colors.white70),
+                                                          color:
+                                                              Colors.white70),
                                                     ),
                                                     TextSpan(
                                                       text:
                                                           "₹${totalDiff.toStringAsFixed(2)}",
                                                       style: TextStyle(
-                                                        color:
-                                                            totalDiff > 0
-                                                                ? Colors.red[300]
-                                                                : Colors.green[300],
-                                                        fontWeight: FontWeight.bold,
+                                                        color: totalDiff > 0
+                                                            ? Colors.red[300]
+                                                            : Colors.green[300],
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                       ),
                                                     ),
                                                   ],
@@ -633,11 +661,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                               double total = 0;
                               for (var item in poItems.values) {
                                 final qty = double.tryParse(
-                                  _qtyControllers[item.materialCode]?.text ?? '0'
-                                ) ?? 0;
+                                        _qtyControllers[item.materialCode]
+                                                ?.text ??
+                                            '0') ??
+                                    0;
                                 total += qty * item.costPerUnit;
                               }
-                              
+
                               return Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
@@ -670,18 +700,20 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                 child: ElevatedButton(
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
-                      final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
+                      final now =
+                          DateFormat('yyyy-MM-dd').format(DateTime.now());
                       final poNo = 'PO${DateTime.now().millisecondsSinceEpoch}';
-                      
+
                       // Create updated items list with final quantities
                       final updatedItems = poItems.values.map((item) {
                         final qty = double.tryParse(
-                          _qtyControllers[item.materialCode]?.text ?? '0'
-                        ) ?? 0;
-                        
+                                _qtyControllers[item.materialCode]?.text ??
+                                    '0') ??
+                            0;
+
                         // Allocate ordered quantity across PRs
                         _allocateOrderedQuantity(item.materialCode, qty, poNo);
-                        
+
                         return POItem(
                           materialCode: item.materialCode,
                           materialDescription: item.materialDescription,
@@ -697,9 +729,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
                       // Calculate final total
                       double total = updatedItems.fold(
-                        0.0,
-                        (sum, item) => sum + item.totalCost
-                      );
+                          0.0, (sum, item) => sum + item.totalCost);
 
                       // Create and save purchase order
                       final po = PurchaseOrder(
@@ -708,7 +738,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         supplierName: selectedSupplier?.name ?? '',
                         boardNo: _boardNoController.text,
                         transport: _transportController.text,
-                        deliveryRequirements: _deliveryRequirementsController.text,
+                        deliveryRequirements:
+                            _deliveryRequirementsController.text,
                         items: updatedItems,
                         total: total,
                         igst: 0,
@@ -716,13 +747,14 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         sgst: 0,
                         grandTotal: total,
                       );
-                      
+
                       poNotifier.addOrder(po);
                       Navigator.pop(context);
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 48, vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

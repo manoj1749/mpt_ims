@@ -13,7 +13,7 @@ Future<void> initializeHive() async {
   final dir = await getApplicationDocumentsDirectory();
   await Hive.initFlutter(dir.path);
 
-  Hive.registerAdapter(SupplierAdapter()); 
+  Hive.registerAdapter(SupplierAdapter());
   Hive.registerAdapter(MaterialItemAdapter());
   Hive.registerAdapter(PRItemAdapter());
   Hive.registerAdapter(PurchaseRequestAdapter());

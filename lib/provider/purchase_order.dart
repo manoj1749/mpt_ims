@@ -6,9 +6,9 @@ final purchaseOrderBoxProvider = Provider<Box<PurchaseOrder>>((ref) {
   throw UnimplementedError();
 });
 
-final purchaseOrderListProvider = StateNotifierProvider<PurchaseOrderNotifier, List<PurchaseOrder>>((ref) =>
-  PurchaseOrderNotifier(ref.read(purchaseOrderBoxProvider))
-);
+final purchaseOrderListProvider =
+    StateNotifierProvider<PurchaseOrderNotifier, List<PurchaseOrder>>(
+        (ref) => PurchaseOrderNotifier(ref.read(purchaseOrderBoxProvider)));
 
 class PurchaseOrderNotifier extends StateNotifier<List<PurchaseOrder>> {
   final Box<PurchaseOrder> _box;
@@ -36,7 +36,8 @@ class PurchaseOrderNotifier extends StateNotifier<List<PurchaseOrder>> {
   }
 }
 
-final purchaseOrderProvider = StateNotifierProvider<PurchaseOrderNotifier, List<PurchaseOrder>>((ref) {
+final purchaseOrderProvider =
+    StateNotifierProvider<PurchaseOrderNotifier, List<PurchaseOrder>>((ref) {
   final box = Hive.box<PurchaseOrder>('purchase_orders');
   return PurchaseOrderNotifier(box);
 });

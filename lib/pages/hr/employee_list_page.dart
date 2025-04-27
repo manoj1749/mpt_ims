@@ -83,7 +83,8 @@ class EmployeeListPage extends ConsumerWidget {
                   FilledButton(
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const AddEmployeePage()),
+                      MaterialPageRoute(
+                          builder: (_) => const AddEmployeePage()),
                     ),
                     child: const Text('Add New Employee'),
                   ),
@@ -129,7 +130,8 @@ class EmployeeListPage extends ConsumerWidget {
                             employees: employees,
                             context: context,
                             ref: ref,
-                            onDelete: (employee) => _confirmDelete(context, ref, employee),
+                            onDelete: (employee) =>
+                                _confirmDelete(context, ref, employee),
                           ),
                           header: null,
                           rowsPerPage: employees.length,
@@ -265,4 +267,4 @@ class _EmployeeDataSource extends DataTableSource {
 
   @override
   int get selectedRowCount => 0;
-} 
+}

@@ -20,10 +20,11 @@ class PRItem extends HiveObject {
   String remarks;
 
   @HiveField(5)
-  Map<String, double> orderedQuantities = {}; // Map of PO number to ordered quantity
+  Map<String, double> orderedQuantities =
+      {}; // Map of PO number to ordered quantity
 
-  double get totalOrderedQuantity => 
-    orderedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
+  double get totalOrderedQuantity =>
+      orderedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
 
   double get remainingQuantity {
     final totalRequired = double.tryParse(quantity) ?? 0.0;
@@ -46,4 +47,4 @@ class PRItem extends HiveObject {
   }) {
     this.orderedQuantities = orderedQuantities ?? {};
   }
-} 
+}

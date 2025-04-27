@@ -6,7 +6,8 @@ final materialBoxProvider = Provider<Box<MaterialItem>>((ref) {
   throw UnimplementedError(); // Overridden in main
 });
 
-final materialListProvider = StateNotifierProvider<MaterialNotifier, List<MaterialItem>>(
+final materialListProvider =
+    StateNotifierProvider<MaterialNotifier, List<MaterialItem>>(
   (ref) => MaterialNotifier(ref.read(materialBoxProvider)),
 );
 

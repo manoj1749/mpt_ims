@@ -7,12 +7,14 @@ import 'package:mpt_ims/models/material_item.dart';
 class MaterialMasterPage extends ConsumerWidget {
   const MaterialMasterPage({super.key});
 
-  void _confirmDelete(BuildContext context, WidgetRef ref, MaterialItem material) {
+  void _confirmDelete(
+      BuildContext context, WidgetRef ref, MaterialItem material) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Material'),
-        content: const Text('Are you sure you want to delete this material item?'),
+        content:
+            const Text('Are you sure you want to delete this material item?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -82,7 +84,8 @@ class MaterialMasterPage extends ConsumerWidget {
                   FilledButton(
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const AddMaterialPage()),
+                      MaterialPageRoute(
+                          builder: (_) => const AddMaterialPage()),
                     ),
                     child: const Text('Add New Material'),
                   ),
@@ -128,7 +131,8 @@ class MaterialMasterPage extends ConsumerWidget {
                             materials: materials,
                             context: context,
                             ref: ref,
-                            onDelete: (material) => _confirmDelete(context, ref, material),
+                            onDelete: (material) =>
+                                _confirmDelete(context, ref, material),
                           ),
                           header: null,
                           rowsPerPage: materials.length,
@@ -186,7 +190,7 @@ class _MaterialDataSource extends DataTableSource {
   DataRow? getRow(int index) {
     if (index >= materials.length) return null;
     final m = materials[index];
-    
+
     final stockQty = double.tryParse(m.avlStock) ?? 0;
     final stockValue = double.tryParse(m.avlStockValue) ?? 0;
     final costDiff = double.tryParse(m.costDiff) ?? 0;

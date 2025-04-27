@@ -98,4 +98,4 @@ class Customer extends HiveObject {
     required this.ifsc,
     required this.email1,
   });
-} 
+}

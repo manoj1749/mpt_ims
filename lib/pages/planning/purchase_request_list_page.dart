@@ -29,9 +29,9 @@ class PurchaseRequestListPage extends ConsumerWidget {
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => const AddPurchaseRequestPage(
-                    existingRequest: null,
-                    index: null,
+            builder: (_) => const AddPurchaseRequestPage(
+              existingRequest: null,
+              index: null,
             ),
           ),
         ),
@@ -116,7 +116,8 @@ class PurchaseRequestListPage extends ConsumerWidget {
                                   children: [
                                     Text(
                                       pr.prNo,
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
                                     ),
                                     const SizedBox(width: 16),
                                     Text(pr.date),
@@ -152,7 +153,8 @@ class PurchaseRequestListPage extends ConsumerWidget {
                                     scrollDirection: Axis.horizontal,
                                     child: DataTable(
                                       columns: const [
-                                        DataColumn(label: Text('Material Code')),
+                                        DataColumn(
+                                            label: Text('Material Code')),
                                         DataColumn(label: Text('Description')),
                                         DataColumn(label: Text('Unit')),
                                         DataColumn(label: Text('Quantity')),
@@ -164,12 +166,14 @@ class PurchaseRequestListPage extends ConsumerWidget {
                                         return DataRow(
                                           cells: [
                                             DataCell(Text(item.materialCode)),
-                                            DataCell(Text(item.materialDescription)),
+                                            DataCell(
+                                                Text(item.materialDescription)),
                                             DataCell(Text(item.unit)),
                                             DataCell(Text(item.quantity)),
                                             DataCell(
                                               Text(
-                                                item.totalOrderedQuantity.toStringAsFixed(2),
+                                                item.totalOrderedQuantity
+                                                    .toStringAsFixed(2),
                                                 style: TextStyle(
                                                   color: item.isFullyOrdered
                                                       ? Colors.green
@@ -180,11 +184,13 @@ class PurchaseRequestListPage extends ConsumerWidget {
                                             ),
                                             DataCell(
                                               Text(
-                                                item.remainingQuantity.toStringAsFixed(2),
+                                                item.remainingQuantity
+                                                    .toStringAsFixed(2),
                                                 style: TextStyle(
-                                                  color: item.remainingQuantity > 0
-                                                      ? Colors.red
-                                                      : Colors.green,
+                                                  color:
+                                                      item.remainingQuantity > 0
+                                                          ? Colors.red
+                                                          : Colors.green,
                                                   fontWeight: FontWeight.w500,
                                                 ),
                                               ),
@@ -195,7 +201,7 @@ class PurchaseRequestListPage extends ConsumerWidget {
                                       }).toList(),
                                     ),
                                   ),
-                                  ButtonBar(
+                                  OverflowBar(
                                     children: [
                                       TextButton.icon(
                                         icon: const Icon(Icons.edit_outlined),
@@ -204,7 +210,8 @@ class PurchaseRequestListPage extends ConsumerWidget {
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
-                                              builder: (_) => AddPurchaseRequestPage(
+                                              builder: (_) =>
+                                                  AddPurchaseRequestPage(
                                                 existingRequest: pr,
                                                 index: index,
                                               ),
@@ -215,7 +222,8 @@ class PurchaseRequestListPage extends ConsumerWidget {
                                       TextButton.icon(
                                         icon: const Icon(Icons.delete_outline),
                                         label: const Text('Delete'),
-                                        onPressed: () => _confirmDelete(context, ref, pr),
+                                        onPressed: () =>
+                                            _confirmDelete(context, ref, pr),
                                         style: TextButton.styleFrom(
                                           foregroundColor: Colors.red,
                                         ),

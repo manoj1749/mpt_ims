@@ -35,8 +35,7 @@ void main() async {
   final materialBox = await Hive.openBox<MaterialItem>('materials');
   final purchaseRequestBox =
       await Hive.openBox<PurchaseRequest>('purchase_requests');
-  final purchaseOrderBox =
-      await Hive.openBox<PurchaseOrder>('purchase_orders');
+  final purchaseOrderBox = await Hive.openBox<PurchaseOrder>('purchase_orders');
   final employeeBox = await Hive.openBox<Employee>('employees');
   final customerBox = await Hive.openBox<Customer>('customers');
   final storeInwardBox = await Hive.openBox<StoreInward>('store_inwards');
@@ -73,4 +72,3 @@ class IMSApp extends StatelessWidget {
     );
   }
 }
-

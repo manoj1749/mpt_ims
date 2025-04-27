@@ -83,7 +83,8 @@ class CustomerListPage extends ConsumerWidget {
                   FilledButton(
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const AddCustomerPage()),
+                      MaterialPageRoute(
+                          builder: (_) => const AddCustomerPage()),
                     ),
                     child: const Text('Add New Customer'),
                   ),
@@ -103,7 +104,8 @@ class CustomerListPage extends ConsumerWidget {
                         customers: customers,
                         context: context,
                         ref: ref,
-                        onDelete: (customer) => _confirmDelete(context, ref, customer),
+                        onDelete: (customer) =>
+                            _confirmDelete(context, ref, customer),
                       ),
                       header: null,
                       rowsPerPage: customers.length,
@@ -184,9 +186,12 @@ class _CustomerDataSource extends DataTableSource {
         DataCell(Text(customer.email1)),
         DataCell(
           Text(
-            [customer.address1, customer.address2, customer.address3, customer.address4]
-                .where((addr) => addr.isNotEmpty)
-                .join(', '),
+            [
+              customer.address1,
+              customer.address2,
+              customer.address3,
+              customer.address4
+            ].where((addr) => addr.isNotEmpty).join(', '),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -248,4 +253,4 @@ class _CustomerDataSource extends DataTableSource {
 
   @override
   int get selectedRowCount => 0;
-} 
+}

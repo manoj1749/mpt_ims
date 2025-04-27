@@ -30,4 +30,4 @@ class CustomerNotifier extends StateNotifier<List<Customer>> {
     customer.delete();
     state = box.values.toList();
   }
-} 
+}

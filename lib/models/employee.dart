@@ -78,4 +78,4 @@ class Employee extends HiveObject {
       otSalaryPerHour: otSalaryPerHour ?? this.otSalaryPerHour,
     );
   }
-} 
+}

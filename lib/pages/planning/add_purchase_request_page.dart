@@ -2,7 +2,6 @@ import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../models/material_item.dart';
 import '../../models/purchase_request.dart';
 import '../../models/pr_item.dart';
 import '../../pages/design/add_material_page.dart';
@@ -20,7 +19,8 @@ class AddPurchaseRequestPage extends ConsumerStatefulWidget {
       _AddPurchaseRequestPageState();
 }
 
-class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage> {
+class _AddPurchaseRequestPageState
+    extends ConsumerState<AddPurchaseRequestPage> {
   final _formKey = GlobalKey<FormState>();
   final List<PRItemFormData> _items = [];
   String? _requiredBy;
@@ -162,17 +162,18 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                                               horizontal: 12, vertical: 14),
                                         ),
                                         items: materials
-                                            .map((m) => DropdownMenuItem<String>(
-                                                  value: m.description,
-                                                  child: Text(
-                                                      '${m.description} (${m.vendorName})'),
-                                                ))
+                                            .map(
+                                                (m) => DropdownMenuItem<String>(
+                                                      value: m.description,
+                                                      child: Text(
+                                                          '${m.description} (${m.vendorName})'),
+                                                    ))
                                             .toList(),
                                         onChanged: (val) {
                                           setState(() {
                                             item.selectedMaterial = val;
-                                            final selectedItem = materials
-                                                .firstWhere((m) =>
+                                            final selectedItem =
+                                                materials.firstWhere((m) =>
                                                     m.description == val);
                                             item.partNoController.text =
                                                 selectedItem.partNo;
@@ -180,10 +181,10 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                                                 selectedItem.unit;
                                           });
                                         },
-                                        validator: (val) => val == null ||
-                                                val.isEmpty
-                                            ? 'Required'
-                                            : null,
+                                        validator: (val) =>
+                                            val == null || val.isEmpty
+                                                ? 'Required'
+                                                : null,
                                       ),
                                       const SizedBox(height: 12),
                                       TextFormField(
@@ -211,8 +212,7 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                                           labelText: 'Quantity',
                                           border: OutlineInputBorder(),
                                         ),
-                                        validator: (v) => v == null ||
-                                                v.isEmpty
+                                        validator: (v) => v == null || v.isEmpty
                                             ? 'Required'
                                             : null,
                                         onSaved: (v) => item.quantity = v,
@@ -231,7 +231,7 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                                   ),
                                 ),
                               );
-                            }).toList(),
+                            }),
                             const SizedBox(height: 20),
                             ElevatedButton.icon(
                               onPressed: _addNewItem,
@@ -269,7 +269,8 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                               requiredBy: _requiredBy!,
                               supplierName: materials
                                   .firstWhere((m) =>
-                                      m.description == _items[0].selectedMaterial)
+                                      m.description ==
+                                      _items[0].selectedMaterial)
                                   .vendorName,
                               items: items,
                               status: 'Requested',

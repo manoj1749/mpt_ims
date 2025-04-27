@@ -7,7 +7,8 @@ import 'package:mpt_ims/pages/accounts/add_supplier_page.dart';
 class SupplierMasterPage extends ConsumerWidget {
   const SupplierMasterPage({super.key});
 
-  void _confirmDeleteSupplier(BuildContext context, WidgetRef ref, Supplier supplier) {
+  void _confirmDeleteSupplier(
+      BuildContext context, WidgetRef ref, Supplier supplier) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -83,7 +84,8 @@ class SupplierMasterPage extends ConsumerWidget {
                   FilledButton(
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const AddSupplierPage()),
+                      MaterialPageRoute(
+                          builder: (_) => const AddSupplierPage()),
                     ),
                     child: const Text('Add New Supplier'),
                   ),
@@ -129,7 +131,8 @@ class SupplierMasterPage extends ConsumerWidget {
                             suppliers: suppliers,
                             context: context,
                             ref: ref,
-                            onDelete: (supplier) => _confirmDeleteSupplier(context, ref, supplier),
+                            onDelete: (supplier) =>
+                                _confirmDeleteSupplier(context, ref, supplier),
                           ),
                           header: null,
                           rowsPerPage: suppliers.length,

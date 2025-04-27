@@ -111,7 +111,10 @@ class _AddSupplierPageState extends ConsumerState<AddSupplierPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.supplierToEdit == null ? 'Add Supplier' : 'Edit Supplier')),
+      appBar: AppBar(
+          title: Text(widget.supplierToEdit == null
+              ? 'Add Supplier'
+              : 'Edit Supplier')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -119,33 +122,49 @@ class _AddSupplierPageState extends ConsumerState<AddSupplierPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                _buildTextField('Supplier Name', (v) => name = v, initial: name),
-                _buildTextField('Contact Person', (v) => contact = v, initial: contact),
-                _buildTextField('Phone', (v) => phone = v, initial: phone, keyboardType: TextInputType.phone),
-                _buildTextField('Email', (v) => email = v, initial: email, keyboardType: TextInputType.emailAddress),
-                _buildTextField('Vendor Code', (v) => vendorCode = v, initial: vendorCode),
-                _buildTextField('Address 1', (v) => address1 = v, initial: address1),
-                _buildTextField('Address 2', (v) => address2 = v, initial: address2),
-                _buildTextField('Address 3', (v) => address3 = v, initial: address3),
-                _buildTextField('Address 4', (v) => address4 = v, initial: address4),
+                _buildTextField('Supplier Name', (v) => name = v,
+                    initial: name),
+                _buildTextField('Contact Person', (v) => contact = v,
+                    initial: contact),
+                _buildTextField('Phone', (v) => phone = v,
+                    initial: phone, keyboardType: TextInputType.phone),
+                _buildTextField('Email', (v) => email = v,
+                    initial: email, keyboardType: TextInputType.emailAddress),
+                _buildTextField('Vendor Code', (v) => vendorCode = v,
+                    initial: vendorCode),
+                _buildTextField('Address 1', (v) => address1 = v,
+                    initial: address1),
+                _buildTextField('Address 2', (v) => address2 = v,
+                    initial: address2),
+                _buildTextField('Address 3', (v) => address3 = v,
+                    initial: address3),
+                _buildTextField('Address 4', (v) => address4 = v,
+                    initial: address4),
                 _buildTextField('State', (v) => state = v, initial: state),
-                _buildTextField('State Code', (v) => stateCode = v, initial: stateCode),
-                _buildTextField('Payment Terms', (v) => paymentTerms = v, initial: paymentTerms),
+                _buildTextField('State Code', (v) => stateCode = v,
+                    initial: stateCode),
+                _buildTextField('Payment Terms', (v) => paymentTerms = v,
+                    initial: paymentTerms),
                 _buildTextField('PAN No', (v) => pan = v, initial: pan),
                 _buildTextField('GST No', (v) => gstNo = v, initial: gstNo),
                 _buildTextField('IGST %', (v) => igst = v, initial: igst),
                 _buildTextField('CGST %', (v) => cgst = v, initial: cgst),
                 _buildTextField('SGST %', (v) => sgst = v, initial: sgst),
-                _buildTextField('Total GST %', (v) => totalGst = v, initial: totalGst),
+                _buildTextField('Total GST %', (v) => totalGst = v,
+                    initial: totalGst),
                 _buildTextField('Bank Name', (v) => bank = v, initial: bank),
                 _buildTextField('Branch', (v) => branch = v, initial: branch),
-                _buildTextField('Account No', (v) => account = v, initial: account),
+                _buildTextField('Account No', (v) => account = v,
+                    initial: account),
                 _buildTextField('IFSC Code', (v) => ifsc = v, initial: ifsc),
-                _buildTextField('Alternate Email', (v) => email1 = v, initial: email1),
+                _buildTextField('Alternate Email', (v) => email1 = v,
+                    initial: email1),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _saveSupplier,
-                  child: Text(widget.supplierToEdit == null ? 'Save Supplier' : 'Update Supplier'),
+                  child: Text(widget.supplierToEdit == null
+                      ? 'Save Supplier'
+                      : 'Update Supplier'),
                 ),
               ],
             ),
@@ -170,7 +189,8 @@ class _AddSupplierPageState extends ConsumerState<AddSupplierPage> {
           border: const OutlineInputBorder(),
         ),
         keyboardType: keyboardType,
-        validator: (value) => (value == null || value.isEmpty) ? 'Required' : null,
+        validator: (value) =>
+            (value == null || value.isEmpty) ? 'Required' : null,
         onSaved: (value) => onSaved(value ?? ''),
       ),
     );

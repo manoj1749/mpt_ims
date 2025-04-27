@@ -6,7 +6,8 @@ final purchaseRequestBoxProvider = Provider<Box<PurchaseRequest>>((ref) {
   throw UnimplementedError();
 });
 
-final purchaseRequestListProvider = StateNotifierProvider<PurchaseRequestNotifier, List<PurchaseRequest>>(
+final purchaseRequestListProvider =
+    StateNotifierProvider<PurchaseRequestNotifier, List<PurchaseRequest>>(
   (ref) => PurchaseRequestNotifier(ref.read(purchaseRequestBoxProvider)),
 );
 

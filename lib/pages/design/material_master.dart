@@ -225,7 +225,9 @@ class _MaterialDataSource extends DataTableSource {
         DataCell(Text(m.subCategory)),
         DataCell(Text(m.unit)),
         DataCell(Text(m.getPreferredVendorName(ref))),
-        DataCell(Text(m.getLowestSupplierRate(ref).isEmpty ? '-' : '₹${m.getLowestSupplierRate(ref)}')),
+        DataCell(Text(m.getLowestSupplierRate(ref).isEmpty
+            ? '-'
+            : '₹${m.getLowestSupplierRate(ref)}')),
         DataCell(Text(m.getVendorCount(ref).toString())),
         DataCell(Text('₹${m.getTotalReceivedCost(ref)}')),
         DataCell(Text('₹${m.getTotalBilledCost(ref)}')),
@@ -306,7 +308,7 @@ class _MaterialDataSource extends DataTableSource {
 
   void _showVendorDetails(BuildContext context, MaterialItem material) {
     final rates = material.getRankedVendors(ref);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -339,8 +341,11 @@ class _MaterialDataSource extends DataTableSource {
                       Expanded(child: Text('₹${rate.supplierRate}')),
                       Expanded(child: Text('₹${rate.seiplRate}')),
                       Expanded(child: Text('₹${rate.saleRate}')),
-                      Expanded(child: Text('${rate.avlStock} ${material.unit}')),
-                      Expanded(child: Text('₹${rate.stockValue.toStringAsFixed(2)}')),
+                      Expanded(
+                          child: Text('${rate.avlStock} ${material.unit}')),
+                      Expanded(
+                          child:
+                              Text('₹${rate.stockValue.toStringAsFixed(2)}')),
                       Expanded(child: Text(rate.lastPurchaseDate)),
                       Expanded(child: Text(rate.remarks)),
                     ],

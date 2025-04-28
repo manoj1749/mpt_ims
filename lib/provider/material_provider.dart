@@ -29,7 +29,8 @@ class MaterialNotifier extends StateNotifier<List<MaterialItem>> {
   }
 
   void deleteMaterial(MaterialItem material) async {
-    final index = box.values.toList().indexWhere((m) => m.slNo == material.slNo);
+    final index =
+        box.values.toList().indexWhere((m) => m.slNo == material.slNo);
     if (index != -1) {
       await box.deleteAt(index);
       state = box.values.toList();

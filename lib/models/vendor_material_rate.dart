@@ -131,4 +131,4 @@ class VendorMaterialRate extends HiveObject {
       costDiff: costDiff ?? this.costDiff,
     );
   }
-} 
+}

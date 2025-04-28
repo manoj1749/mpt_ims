@@ -2,11 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mpt_ims/models/vendor_material_rate.dart';
 
-final vendorMaterialRateProvider = StateNotifierProvider<VendorMaterialRateNotifier, List<VendorMaterialRate>>((ref) {
+final vendorMaterialRateProvider =
+    StateNotifierProvider<VendorMaterialRateNotifier, List<VendorMaterialRate>>(
+        (ref) {
   return VendorMaterialRateNotifier();
 });
 
-class VendorMaterialRateNotifier extends StateNotifier<List<VendorMaterialRate>> {
+class VendorMaterialRateNotifier
+    extends StateNotifier<List<VendorMaterialRate>> {
   VendorMaterialRateNotifier() : super([]) {
     _loadRates();
   }
@@ -47,4 +50,4 @@ class VendorMaterialRateNotifier extends StateNotifier<List<VendorMaterialRate>>
   List<VendorMaterialRate> getRatesForVendor(String vendorId) {
     return state.where((rate) => rate.vendorId == vendorId).toList();
   }
-} 
+}

@@ -56,4 +56,3 @@ class PurchaseOrder extends HiveObject {
     required this.grandTotal,
   });
 }
-

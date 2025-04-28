@@ -259,9 +259,12 @@ class PurchaseOrderListPage extends ConsumerWidget {
                                                       Text(
                                                         'Diff: ₹${item.totalRateDifference}',
                                                         style: TextStyle(
-                                                          color: double.parse(item.totalRateDifference) > 0
+                                                          color: double.parse(item
+                                                                      .totalRateDifference) >
+                                                                  0
                                                               ? Colors.red[300]
-                                                              : Colors.green[300],
+                                                              : Colors
+                                                                  .green[300],
                                                           fontWeight:
                                                               FontWeight.bold,
                                                         ),

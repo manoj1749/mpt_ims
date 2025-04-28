@@ -66,11 +66,11 @@ class POItem extends HiveObject {
     final cost = double.parse(newCostPerUnit);
     final seipl = double.parse(seiplRate);
     final qty = double.parse(quantity);
-    
+
     totalCost = (qty * cost).toString();
     rateDifference = (seipl - cost).toString();
     totalRateDifference = (qty * (seipl - cost)).toString();
     marginPerUnit = (seipl - cost).toString();
     totalMargin = (qty * (seipl - cost)).toString();
   }
-} 
+}

@@ -28,7 +28,8 @@ class AddPurchaseOrderPage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AddPurchaseOrderPage> createState() => _AddPurchaseOrderPageState();
+  ConsumerState<AddPurchaseOrderPage> createState() =>
+      _AddPurchaseOrderPageState();
 }
 
 class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
@@ -98,16 +99,20 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   void initState() {
     super.initState();
     if (widget.existingPO != null) {
-      selectedSupplier = ref.read(supplierListProvider)
+      selectedSupplier = ref
+          .read(supplierListProvider)
           .firstWhere((s) => s.name == widget.existingPO!.supplierName);
       selectedItems = widget.existingPO!.items;
       for (var item in selectedItems) {
-        qtyControllers[item.materialCode] = TextEditingController(text: item.quantity);
-        maxQtyControllers[item.materialCode] = TextEditingController(text: item.quantity);
+        qtyControllers[item.materialCode] =
+            TextEditingController(text: item.quantity);
+        maxQtyControllers[item.materialCode] =
+            TextEditingController(text: item.quantity);
       }
       _boardNoController.text = widget.existingPO!.boardNo;
       _transportController.text = widget.existingPO!.transport;
-      _deliveryRequirementsController.text = widget.existingPO!.deliveryRequirements;
+      _deliveryRequirementsController.text =
+          widget.existingPO!.deliveryRequirements;
     }
   }
 
@@ -130,10 +135,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   }
 
   POItem _createPOItem(MaterialItem material, double totalRemainingQty) {
-    final rates = ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(material.slNo);
+    final rates = ref
+        .read(vendorMaterialRateProvider.notifier)
+        .getRatesForMaterial(material.slNo);
     final vendorRate = rates.firstWhere(
       (r) => r.vendorId == selectedSupplier!.name,
-      orElse: () => throw Exception('No rate found for vendor ${selectedSupplier!.name}'),
+      orElse: () =>
+          throw Exception('No rate found for vendor ${selectedSupplier!.name}'),
     );
 
     final costPerUnit = double.parse(vendorRate.saleRate);
@@ -158,11 +166,12 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
       final poItems = selectedItems.map((item) {
-        final qty = double.parse(qtyControllers[item.materialCode]?.text ?? '0');
+        final qty =
+            double.parse(qtyControllers[item.materialCode]?.text ?? '0');
         final cost = double.parse(item.costPerUnit);
         final seipl = double.parse(item.seiplRate);
         final margin = double.parse(item.marginPerUnit);
-        
+
         return POItem(
           materialCode: item.materialCode,
           materialDescription: item.materialDescription,
@@ -176,9 +185,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         );
       }).toList();
 
-      final total = poItems.fold(0.0, (sum, item) => sum + double.parse(item.totalCost));
+      final total =
+          poItems.fold(0.0, (sum, item) => sum + double.parse(item.totalCost));
       final newPO = PurchaseOrder(
-        poNo: widget.existingPO?.poNo ?? 'PO${DateTime.now().millisecondsSinceEpoch}',
+        poNo: widget.existingPO?.poNo ??
+            'PO${DateTime.now().millisecondsSinceEpoch}',
         poDate: widget.existingPO?.poDate ?? now,
         supplierName: selectedSupplier!.name,
         boardNo: _boardNoController.text,
@@ -559,9 +570,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                                           .text),
                                                 ).toString();
                                                 qtyControllers[
-                                                            item.materialCode]
-                                                        ?.text =
-                                                    limitedQty;
+                                                        item.materialCode]
+                                                    ?.text = limitedQty;
                                                 item.updateQuantity(limitedQty);
                                               });
                                             },
@@ -653,11 +663,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                                 item.materialCode]!,
                                             builder: (context, child) {
                                               final qty = double.tryParse(
-                                                  qtyControllers[item.materialCode]
-                                                          ?.text ??
-                                                      '0') ??
+                                                      qtyControllers[item
+                                                                  .materialCode]
+                                                              ?.text ??
+                                                          '0') ??
                                                   0.0;
-                                              final cost = double.parse(item.costPerUnit);
+                                              final cost = double.parse(
+                                                  item.costPerUnit);
                                               final totalCost = qty * cost;
 
                                               return RichText(

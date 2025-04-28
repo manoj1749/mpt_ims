@@ -36,7 +36,8 @@ class StoreInwardListPage extends ConsumerWidget {
               itemBuilder: (context, index) {
                 final inward = storeInwards[index];
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: ListTile(
                     title: Text('GRN No: ${inward.grnNo}'),
                     subtitle: Column(
@@ -84,4 +85,4 @@ class StoreInwardListPage extends ConsumerWidget {
             ),
     );
   }
-} 
+}

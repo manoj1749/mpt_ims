@@ -41,7 +41,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   @override
   void initState() {
     super.initState();
-    item = widget.materialToEdit?.copy() ??  // Create a copy if editing
+    item = widget.materialToEdit?.copy() ?? // Create a copy if editing
         MaterialItem(
           slNo: '',
           description: '',
@@ -113,17 +113,21 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
           border: const OutlineInputBorder(),
         ),
         keyboardType: type,
-        validator: (value) => value == null || value.isEmpty ? 'Required' : null,
+        validator: (value) =>
+            value == null || value.isEmpty ? 'Required' : null,
       ),
     );
   }
 
   Future<void> _addVendorRate(Supplier vendor) async {
     // Only get rates if editing an existing material
-    final rates = widget.materialToEdit != null 
-        ? ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(item.slNo)
+    final rates = widget.materialToEdit != null
+        ? ref
+            .read(vendorMaterialRateProvider.notifier)
+            .getRatesForMaterial(item.slNo)
         : [];
-    final existingRate = rates.where((r) => r.vendorId == vendor.name).firstOrNull;
+    final existingRate =
+        rates.where((r) => r.vendorId == vendor.name).firstOrNull;
 
     // Reset all controllers for new rate
     _supplierRateController.text = existingRate?.supplierRate ?? '';
@@ -137,7 +141,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${existingRate != null ? 'Edit' : 'Add'} Rate for ${vendor.name}'),
+        title: Text(
+            '${existingRate != null ? 'Edit' : 'Add'} Rate for ${vendor.name}'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -240,11 +245,13 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         issuedQty: _issuedQtyController.text,
         receivedQty: _receivedQtyController.text,
         avlStock: _stockController.text,
-        avlStockValue: (double.tryParse(_stockController.text) ?? 0 * seiplRate).toString(),
+        avlStockValue: (double.tryParse(_stockController.text) ?? 0 * seiplRate)
+            .toString(),
         billingQtyDiff: '0',
         totalReceivedCost: (receivedQty * supplierRate).toString(),
         totalBilledCost: (receivedQty * seiplRate).toString(),
-        costDiff: ((receivedQty * seiplRate) - (receivedQty * supplierRate)).toString(),
+        costDiff: ((receivedQty * seiplRate) - (receivedQty * supplierRate))
+            .toString(),
       );
 
       if (existingRate != null) {
@@ -257,18 +264,21 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   }
 
   void _removeVendorRate(String vendorName) {
-    ref.read(vendorMaterialRateProvider.notifier).deleteRate(item.slNo, vendorName);
+    ref
+        .read(vendorMaterialRateProvider.notifier)
+        .deleteRate(item.slNo, vendorName);
     setState(() {}); // Refresh the UI
   }
 
   Widget _buildVendorRatesSection(List<Supplier> vendors) {
     // Only show rates if we have a valid material ID (editing an existing material)
     final rates = widget.materialToEdit != null
-        ? ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(item.slNo)
+        ? ref
+            .read(vendorMaterialRateProvider.notifier)
+            .getRatesForMaterial(item.slNo)
         : [];
-    final preferredVendorName = widget.materialToEdit != null 
-        ? item.getPreferredVendorName(ref)
-        : '';
+    final preferredVendorName =
+        widget.materialToEdit != null ? item.getPreferredVendorName(ref) : '';
 
     return Card(
       child: Padding(
@@ -280,7 +290,9 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  widget.materialToEdit != null ? 'Vendor Rates' : 'Save material first to add vendor rates',
+                  widget.materialToEdit != null
+                      ? 'Vendor Rates'
+                      : 'Save material first to add vendor rates',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -314,15 +326,16 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                 itemCount: vendors.length,
                 itemBuilder: (context, index) {
                   final vendor = vendors[index];
-                  final rate = rates.where((r) => r.vendorId == vendor.name).firstOrNull;
+                  final rate =
+                      rates.where((r) => r.vendorId == vendor.name).firstOrNull;
                   final isPreferred = vendor.name == preferredVendorName;
 
                   return Card(
                     color: isPreferred ? Colors.green[50] : null,
                     child: ListTile(
-                      leading: isPreferred 
-                        ? const Icon(Icons.star, color: Colors.amber)
-                        : const SizedBox(width: 24),
+                      leading: isPreferred
+                          ? const Icon(Icons.star, color: Colors.amber)
+                          : const SizedBox(width: 24),
                       title: Text(vendor.name),
                       subtitle: rate != null
                           ? Column(
@@ -332,7 +345,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                                 Text('SEIPL Rate: ₹${rate.seiplRate}'),
                                 Text('Sale Rate: ₹${rate.saleRate}'),
                                 Text('Stock: ${rate.avlStock} ${item.unit}'),
-                                Text('Stock Value: ₹${rate.stockValue.toStringAsFixed(2)}'),
+                                Text(
+                                    'Stock Value: ₹${rate.stockValue.toStringAsFixed(2)}'),
                                 Text('Last Purchase: ${rate.lastPurchaseDate}'),
                                 if (rate.remarks.isNotEmpty)
                                   Text('Remarks: ${rate.remarks}'),

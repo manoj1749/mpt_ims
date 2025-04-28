@@ -7,6 +7,7 @@ import '../../models/pr_item.dart';
 import '../../pages/design/add_material_page.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/purchase_request_provider.dart';
+import '../../provider/vendor_material_rate_provider.dart';
 
 class AddPurchaseRequestPage extends ConsumerStatefulWidget {
   final PurchaseRequest? existingRequest;
@@ -166,7 +167,7 @@ class _AddPurchaseRequestPageState
                                                 (m) => DropdownMenuItem<String>(
                                                       value: m.description,
                                                       child: Text(
-                                                          '${m.description} (${m.preferredVendorName})'),
+                                                          '${m.description} (${m.getPreferredVendorName(ref)})'),
                                                     ))
                                             .toList(),
                                         onChanged: (val) {
@@ -271,7 +272,7 @@ class _AddPurchaseRequestPageState
                                   .firstWhere((m) =>
                                       m.description ==
                                       _items[0].selectedMaterial)
-                                  .preferredVendorName,
+                                  .getPreferredVendorName(ref),
                               items: items,
                               status: 'Requested',
                             );

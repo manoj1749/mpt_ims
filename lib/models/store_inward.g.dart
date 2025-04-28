@@ -72,7 +72,7 @@ class StoreInwardAdapter extends TypeAdapter<StoreInward> {
 
 class InwardItemAdapter extends TypeAdapter<InwardItem> {
   @override
-  final int typeId = 9;
+  final int typeId = 7;
 
   @override
   InwardItem read(BinaryReader reader) {

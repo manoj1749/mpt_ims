@@ -22,16 +22,17 @@ class MaterialNotifier extends StateNotifier<List<MaterialItem>> {
   }
 
   void updateMaterial(int index, MaterialItem updatedItem) async {
-    await box.putAt(index, updatedItem);
-    state = box.values.toList();
+    if (index >= 0 && index < box.length) {
+      await box.putAt(index, updatedItem);
+      state = box.values.toList();
+    }
   }
 
-  void deleteMaterial(MaterialItem material) {
-    final box = Hive.box<MaterialItem>('materials');
-    final index = state.indexOf(material);
+  void deleteMaterial(MaterialItem material) async {
+    final index = box.values.toList().indexWhere((m) => m.slNo == material.slNo);
     if (index != -1) {
-      box.deleteAt(index);
-      state = List.from(state)..removeAt(index);
+      await box.deleteAt(index);
+      state = box.values.toList();
     }
   }
 }

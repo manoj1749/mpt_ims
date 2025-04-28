@@ -1,5 +1,6 @@
 // lib/models/purchase_order.dart
 import 'package:hive/hive.dart';
+import 'po_item.dart';
 part 'purchase_order.g.dart';
 
 @HiveType(typeId: 4)
@@ -56,44 +57,3 @@ class PurchaseOrder extends HiveObject {
   });
 }
 
-@HiveType(typeId: 5)
-class POItem {
-  @HiveField(0)
-  String materialCode;
-
-  @HiveField(1)
-  String materialDescription;
-
-  @HiveField(2)
-  String unit;
-
-  @HiveField(3)
-  double quantity;
-
-  @HiveField(4)
-  double costPerUnit;
-
-  @HiveField(5)
-  double totalCost;
-
-  @HiveField(6)
-  double seiplRate;
-
-  @HiveField(7)
-  double rateDifference;
-
-  @HiveField(8)
-  double totalRateDifference;
-
-  POItem({
-    required this.materialCode,
-    required this.materialDescription,
-    required this.unit,
-    required this.quantity,
-    required this.costPerUnit,
-    required this.totalCost,
-    required this.seiplRate,
-    required this.rateDifference,
-    required this.totalRateDifference,
-  });
-}

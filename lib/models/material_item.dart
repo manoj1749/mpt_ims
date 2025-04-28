@@ -1,4 +1,8 @@
 import 'package:hive/hive.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mpt_ims/models/vendor_material_rate.dart';
+import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
+import 'dart:math';
 
 part 'material_item.g.dart';
 
@@ -17,102 +21,19 @@ class MaterialItem extends HiveObject {
   String unit;
 
   @HiveField(4)
-  String seiplRate;
-
-  @HiveField(5)
   String category;
 
-  @HiveField(6)
+  @HiveField(5)
   String subCategory;
 
-  @HiveField(7)
-  String saleRate;
-
-  @HiveField(8)
-  String totalReceivedQty;
-
-  @HiveField(9)
-  String vendorIssuedQty;
-
-  @HiveField(10)
-  String vendorReceivedQty;
-
-  @HiveField(11)
-  String boardIssueQty;
-
-  @HiveField(12)
-  String avlStock;
-
-  @HiveField(13)
-  String avlStockValue;
-
-  @HiveField(14)
-  String billingQtyDiff;
-
-  @HiveField(15)
-  String totalReceivedCost;
-
-  @HiveField(16)
-  String totalBilledCost;
-
-  @HiveField(17)
-  String costDiff;
-
-  @HiveField(18)
-  Map<String, VendorRate> vendorRates; // Map of vendor name to their rate info
-
-  // Get the preferred vendor (one with lowest rate)
-  String get preferredVendorName {
-    if (vendorRates.isEmpty) return '';
-    return vendorRates.entries
-        .reduce((a, b) => 
-          double.parse(a.value.rate) <= double.parse(b.value.rate) ? a : b)
-        .key;
-  }
-
-  // Get all vendors sorted by rate
-  List<MapEntry<String, VendorRate>> get rankedVendors {
-    return vendorRates.entries.toList()
-      ..sort((a, b) => 
-          double.parse(a.value.rate).compareTo(double.parse(b.value.rate)));
-  }
-
-  // Get the lowest rate
-  String get lowestRate {
-    if (vendorRates.isEmpty) return '';
-    return rankedVendors.first.value.rate;
-  }
-
   MaterialItem copy() {
-    Map<String, VendorRate> copiedRates = {};
-    vendorRates.forEach((key, value) {
-      copiedRates[key] = VendorRate(
-        rate: value.rate,
-        lastPurchaseDate: value.lastPurchaseDate,
-        remarks: value.remarks,
-      );
-    });
-
     return MaterialItem(
       slNo: slNo,
       description: description,
       partNo: partNo,
       unit: unit,
-      seiplRate: seiplRate,
       category: category,
       subCategory: subCategory,
-      saleRate: saleRate,
-      totalReceivedQty: totalReceivedQty,
-      vendorIssuedQty: vendorIssuedQty,
-      vendorReceivedQty: vendorReceivedQty,
-      boardIssueQty: boardIssueQty,
-      avlStock: avlStock,
-      avlStockValue: avlStockValue,
-      billingQtyDiff: billingQtyDiff,
-      totalReceivedCost: totalReceivedCost,
-      totalBilledCost: totalBilledCost,
-      costDiff: costDiff,
-      vendorRates: copiedRates,
     );
   }
 
@@ -121,38 +42,84 @@ class MaterialItem extends HiveObject {
     required this.description,
     required this.partNo,
     required this.unit,
-    required this.seiplRate,
     required this.category,
     required this.subCategory,
-    required this.saleRate,
-    required this.totalReceivedQty,
-    required this.vendorIssuedQty,
-    required this.vendorReceivedQty,
-    required this.boardIssueQty,
-    required this.avlStock,
-    required this.avlStockValue,
-    required this.billingQtyDiff,
-    required this.totalReceivedCost,
-    required this.totalBilledCost,
-    required this.costDiff,
-    Map<String, VendorRate>? vendorRates,
-  }) : vendorRates = vendorRates ?? {};
-}
-
-@HiveType(typeId: 11)
-class VendorRate {
-  @HiveField(0)
-  String rate;
-
-  @HiveField(1)
-  String lastPurchaseDate;
-
-  @HiveField(2)
-  String remarks;
-
-  VendorRate({
-    required this.rate,
-    required this.lastPurchaseDate,
-    required this.remarks,
   });
+
+  // Helper methods to work with VendorMaterialRateProvider
+  String getPreferredVendorName(WidgetRef ref) {
+    final rates = getRankedVendors(ref);
+    if (rates.isEmpty) return '';
+    return rates.first.vendorId;
+  }
+
+  String getLowestSupplierRate(WidgetRef ref) {
+    final rates = getRankedVendors(ref);
+    if (rates.isEmpty) return '';
+    // Use sale rate instead of supplier rate for best rate calculation
+    return rates.map((r) => double.tryParse(r.saleRate) ?? double.infinity)
+        .reduce(min)
+        .toString();
+  }
+
+  List<VendorMaterialRate> getRankedVendors(WidgetRef ref) {
+    final rates = ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+    // Sort by sale rate instead of supplier rate
+    rates.sort((a, b) => (double.parse(a.saleRate)).compareTo(double.parse(b.saleRate)));
+    return rates;
+  }
+
+  int getVendorCount(WidgetRef ref) {
+    return ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo).length;
+  }
+
+  // Get total available stock across all vendors
+  String getTotalAvailableStock(WidgetRef ref) {
+    final rates = ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+    final total = rates.fold(0.0, (sum, rate) => sum + (double.tryParse(rate.avlStock) ?? 0));
+    return total.toString();
+  }
+
+  // Get total stock value across all vendors
+  String getTotalStockValue(WidgetRef ref) {
+    final rates = ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+    final total = rates.fold(0.0, (sum, rate) => sum + rate.stockValue);
+    return total.toString();
+  }
+
+  // Get total received quantity across all vendors
+  String getTotalReceivedQty(WidgetRef ref) {
+    final rates = ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+    final total = rates.fold(0.0, (sum, rate) => sum + (double.tryParse(rate.totalReceivedQty) ?? 0));
+    return total.toString();
+  }
+
+  // Get total issued quantity across all vendors
+  String getTotalIssuedQty(WidgetRef ref) {
+    final rates = ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+    final total = rates.fold(0.0, (sum, rate) => sum + (double.tryParse(rate.issuedQty) ?? 0));
+    return total.toString();
+  }
+
+  // Get total received cost across all vendors
+  String getTotalReceivedCost(WidgetRef ref) {
+    final rates = ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+    final total = rates.fold(0.0, (sum, rate) => sum + (double.tryParse(rate.totalReceivedCost) ?? 0));
+    return total.toString();
+  }
+
+  // Get total billed cost across all vendors
+  String getTotalBilledCost(WidgetRef ref) {
+    final rates = ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+    final total = rates.fold(0.0, (sum, rate) => sum + (double.tryParse(rate.totalBilledCost) ?? 0));
+    return total.toString();
+  }
+
+  // Get total cost difference across all vendors
+  String getTotalCostDiff(WidgetRef ref) {
+    final rates = ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+    final total = rates.fold(0.0, (sum, rate) => sum + (double.tryParse(rate.costDiff) ?? 0));
+    return total.toString();
+  }
 }
+

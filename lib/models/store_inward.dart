@@ -52,7 +52,7 @@ class StoreInward extends HiveObject {
   });
 }
 
-@HiveType(typeId: 9)
+@HiveType(typeId: 7)
 class InwardItem {
   @HiveField(0)
   String materialCode;

@@ -259,13 +259,9 @@ class PurchaseOrderListPage extends ConsumerWidget {
                                                       Text(
                                                         'Diff: ₹${item.totalRateDifference}',
                                                         style: TextStyle(
-                                                          color:
-                                                              item.totalRateDifference >
-                                                                      0
-                                                                  ? Colors
-                                                                      .red[300]
-                                                                  : Colors.green[
-                                                                      300],
+                                                          color: double.parse(item.totalRateDifference) > 0
+                                                              ? Colors.red[300]
+                                                              : Colors.green[300],
                                                           fontWeight:
                                                               FontWeight.bold,
                                                         ),
@@ -345,7 +341,8 @@ class PurchaseOrderListPage extends ConsumerWidget {
                                                 MaterialPageRoute(
                                                   builder: (context) =>
                                                       AddPurchaseOrderPage(
-                                                          orderToEdit: order),
+                                                          existingPO: order,
+                                                          index: index),
                                                 ),
                                               );
                                             },

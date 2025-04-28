@@ -1,36 +1,46 @@
 // ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
 
+import 'dart:math';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:mpt_ims/models/material_item.dart';
-import 'package:mpt_ims/models/purchase_request.dart';
-import 'package:mpt_ims/models/pr_item.dart';
-import 'package:mpt_ims/provider/material_provider.dart';
+import '../../models/material_item.dart';
+import '../../models/purchase_request.dart';
+import '../../models/pr_item.dart';
+import '../../provider/material_provider.dart';
 import '../../models/supplier.dart';
+import '../../models/po_item.dart';
 import '../../models/purchase_order.dart';
 import '../../provider/supplier_provider.dart';
 import '../../provider/purchase_request_provider.dart';
 import '../../provider/purchase_order.dart';
+import '../../provider/vendor_material_rate_provider.dart';
 
 class AddPurchaseOrderPage extends ConsumerStatefulWidget {
-  final PurchaseOrder? orderToEdit;
-  const AddPurchaseOrderPage({super.key, this.orderToEdit});
+  final PurchaseOrder? existingPO;
+  final int? index;
+
+  const AddPurchaseOrderPage({
+    super.key,
+    this.existingPO,
+    this.index,
+  });
 
   @override
-  ConsumerState<AddPurchaseOrderPage> createState() =>
-      _AddPurchaseOrderPageState();
+  ConsumerState<AddPurchaseOrderPage> createState() => _AddPurchaseOrderPageState();
 }
 
 class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
+  final _formKey = GlobalKey<FormState>();
   Supplier? selectedSupplier;
+  List<POItem> selectedItems = [];
+  final Map<String, TextEditingController> qtyControllers = {};
+  final Map<String, TextEditingController> maxQtyControllers = {};
   final TextEditingController _boardNoController = TextEditingController();
   final TextEditingController _transportController = TextEditingController();
   final TextEditingController _deliveryRequirementsController =
       TextEditingController();
-  final Map<String, TextEditingController> _qtyControllers = {};
-  final _formKey = GlobalKey<FormState>();
 
   // Group PRs by material code
   Map<String, List<PRItem>> _groupPRsByMaterial(List<PurchaseRequest> prs) {
@@ -87,18 +97,17 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.orderToEdit != null) {
-      final order = widget.orderToEdit!;
-      _boardNoController.text = order.boardNo;
-      _transportController.text = order.transport;
-      _deliveryRequirementsController.text = order.deliveryRequirements;
-
-      // Initialize quantity controllers for existing items
-      for (var item in order.items) {
-        _qtyControllers[item.materialCode] = TextEditingController(
-          text: item.quantity.toString(),
-        );
+    if (widget.existingPO != null) {
+      selectedSupplier = ref.read(supplierListProvider)
+          .firstWhere((s) => s.name == widget.existingPO!.supplierName);
+      selectedItems = widget.existingPO!.items;
+      for (var item in selectedItems) {
+        qtyControllers[item.materialCode] = TextEditingController(text: item.quantity);
+        maxQtyControllers[item.materialCode] = TextEditingController(text: item.quantity);
       }
+      _boardNoController.text = widget.existingPO!.boardNo;
+      _transportController.text = widget.existingPO!.transport;
+      _deliveryRequirementsController.text = widget.existingPO!.deliveryRequirements;
     }
   }
 
@@ -107,14 +116,91 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     _boardNoController.dispose();
     _transportController.dispose();
     _deliveryRequirementsController.dispose();
-    for (var controller in _qtyControllers.values) {
+    for (var controller in qtyControllers.values) {
+      controller.dispose();
+    }
+    for (var controller in maxQtyControllers.values) {
       controller.dispose();
     }
     super.dispose();
   }
 
   double calculateTotal(List<POItem> items) {
-    return items.fold(0.0, (sum, item) => sum + item.totalCost);
+    return items.fold(0.0, (sum, item) => sum + double.parse(item.totalCost));
+  }
+
+  POItem _createPOItem(MaterialItem material, double totalRemainingQty) {
+    final rates = ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(material.slNo);
+    final vendorRate = rates.firstWhere(
+      (r) => r.vendorId == selectedSupplier!.name,
+      orElse: () => throw Exception('No rate found for vendor ${selectedSupplier!.name}'),
+    );
+
+    final costPerUnit = double.parse(vendorRate.saleRate);
+    final seiplRate = double.parse(vendorRate.seiplRate);
+    final marginPerUnit = costPerUnit - seiplRate;
+
+    return POItem(
+      materialCode: material.partNo,
+      materialDescription: material.description,
+      unit: material.unit,
+      quantity: totalRemainingQty.toString(),
+      costPerUnit: costPerUnit.toString(),
+      totalCost: (totalRemainingQty * costPerUnit).toString(),
+      seiplRate: seiplRate.toString(),
+      marginPerUnit: marginPerUnit.toString(),
+      totalMargin: (marginPerUnit * totalRemainingQty).toString(),
+    );
+  }
+
+  void _savePurchaseOrder() {
+    if (_formKey.currentState!.validate()) {
+      final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      final poItems = selectedItems.map((item) {
+        final qty = double.parse(qtyControllers[item.materialCode]?.text ?? '0');
+        final cost = double.parse(item.costPerUnit);
+        final seipl = double.parse(item.seiplRate);
+        final margin = double.parse(item.marginPerUnit);
+        
+        return POItem(
+          materialCode: item.materialCode,
+          materialDescription: item.materialDescription,
+          unit: item.unit,
+          quantity: qty.toString(),
+          costPerUnit: item.costPerUnit,
+          totalCost: (qty * cost).toString(),
+          seiplRate: item.seiplRate,
+          marginPerUnit: margin.toString(),
+          totalMargin: (qty * margin).toString(),
+        );
+      }).toList();
+
+      final total = poItems.fold(0.0, (sum, item) => sum + double.parse(item.totalCost));
+      final newPO = PurchaseOrder(
+        poNo: widget.existingPO?.poNo ?? 'PO${DateTime.now().millisecondsSinceEpoch}',
+        poDate: widget.existingPO?.poDate ?? now,
+        supplierName: selectedSupplier!.name,
+        boardNo: _boardNoController.text,
+        transport: _transportController.text,
+        deliveryRequirements: _deliveryRequirementsController.text,
+        items: poItems,
+        total: total,
+        igst: 0.0,
+        cgst: 0.0,
+        sgst: 0.0,
+        grandTotal: total,
+      );
+
+      final notifier = ref.read(purchaseOrderProvider.notifier);
+      if (widget.index != null) {
+        notifier.updateOrder(widget.index!, newPO);
+      } else {
+        notifier.addOrder(newPO);
+      }
+
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -152,23 +238,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       final material = findMaterialByCode(materials, materialCode);
       if (material == null) continue;
 
-      poItems[materialCode] = POItem(
-        materialCode: materialCode,
-        materialDescription: material.description,
-        unit: material.unit,
-        quantity: totalRemainingQty,
-        costPerUnit: double.parse(material.saleRate),
-        totalCost: totalRemainingQty * double.parse(material.saleRate),
-        seiplRate: double.parse(material.seiplRate),
-        rateDifference:
-            double.parse(material.saleRate) - double.parse(material.seiplRate),
-        totalRateDifference: totalRemainingQty *
-            (double.parse(material.saleRate) -
-                double.parse(material.seiplRate)),
-      );
+      poItems[materialCode] = _createPOItem(material, totalRemainingQty);
 
       // Initialize controller if not exists
-      _qtyControllers[materialCode] ??= TextEditingController(
+      qtyControllers[materialCode] ??= TextEditingController(
+        text: totalRemainingQty.toString(),
+      );
+      maxQtyControllers[materialCode] ??= TextEditingController(
         text: totalRemainingQty.toString(),
       );
     }
@@ -354,7 +430,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                   _calculateTotalRemainingQuantity(prItems);
 
                               // Initialize controller if not exists
-                              _qtyControllers[item.materialCode] ??=
+                              qtyControllers[item.materialCode] ??=
+                                  TextEditingController(
+                                text: totalNeededQty.toString(),
+                              );
+                              maxQtyControllers[item.materialCode] ??=
                                   TextEditingController(
                                 text: totalNeededQty.toString(),
                               );
@@ -449,7 +529,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                           ),
                                           const SizedBox(height: 4),
                                           TextFormField(
-                                            controller: _qtyControllers[
+                                            controller: qtyControllers[
                                                 item.materialCode],
                                             style: const TextStyle(
                                               color: Colors.white,
@@ -468,30 +548,21 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                               }
                                               return null;
                                             },
-                                            onChanged: (val) {
-                                              final newQty =
-                                                  double.tryParse(val) ?? 0;
-
-                                              // Limit the quantity to remaining quantity
-                                              final limitedQty =
-                                                  newQty > totalNeededQty
-                                                      ? totalNeededQty
-                                                      : newQty;
-
-                                              if (newQty > totalNeededQty) {
-                                                _qtyControllers[
+                                            onChanged: (value) {
+                                              if (value.isEmpty) return;
+                                              setState(() {
+                                                final limitedQty = min(
+                                                  double.parse(value),
+                                                  double.parse(
+                                                      maxQtyControllers[item
+                                                              .materialCode]!
+                                                          .text),
+                                                ).toString();
+                                                qtyControllers[
                                                             item.materialCode]
                                                         ?.text =
-                                                    totalNeededQty.toString();
-                                              }
-
-                                              setState(() {
-                                                item.quantity = limitedQty;
-                                                item.totalCost = limitedQty *
-                                                    item.costPerUnit;
-                                                item.totalRateDifference =
-                                                    limitedQty *
-                                                        item.rateDifference;
+                                                    limitedQty;
+                                                item.updateQuantity(limitedQty);
                                               });
                                             },
                                             decoration: InputDecoration(
@@ -578,18 +649,16 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                           ),
                                           const SizedBox(height: 4),
                                           ListenableBuilder(
-                                            listenable: _qtyControllers[
+                                            listenable: qtyControllers[
                                                 item.materialCode]!,
                                             builder: (context, child) {
                                               final qty = double.tryParse(
-                                                      _qtyControllers[item
-                                                              .materialCode]!
-                                                          .text) ??
-                                                  item.quantity;
-                                              final totalCost =
-                                                  qty * item.costPerUnit;
-                                              final totalDiff =
-                                                  qty * item.rateDifference;
+                                                  qtyControllers[item.materialCode]
+                                                          ?.text ??
+                                                      '0') ??
+                                                  0.0;
+                                              final cost = double.parse(item.costPerUnit);
+                                              final totalCost = qty * cost;
 
                                               return RichText(
                                                 text: TextSpan(
@@ -611,23 +680,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                                         fontWeight:
                                                             FontWeight.bold,
                                                         fontSize: 15,
-                                                      ),
-                                                    ),
-                                                    const TextSpan(
-                                                      text: "Difference: ",
-                                                      style: TextStyle(
-                                                          color:
-                                                              Colors.white70),
-                                                    ),
-                                                    TextSpan(
-                                                      text:
-                                                          "₹${totalDiff.toStringAsFixed(2)}",
-                                                      style: TextStyle(
-                                                        color: totalDiff > 0
-                                                            ? Colors.red[300]
-                                                            : Colors.green[300],
-                                                        fontWeight:
-                                                            FontWeight.bold,
                                                       ),
                                                     ),
                                                   ],
@@ -655,17 +707,19 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           ),
                           child: ListenableBuilder(
                             listenable: Listenable.merge(
-                              _qtyControllers.values.toList(),
+                              qtyControllers.values.toList(),
                             ),
                             builder: (context, _) {
                               double total = 0;
                               for (var item in poItems.values) {
                                 final qty = double.tryParse(
-                                        _qtyControllers[item.materialCode]
+                                        qtyControllers[item.materialCode]
                                                 ?.text ??
                                             '0') ??
-                                    0;
-                                total += qty * item.costPerUnit;
+                                    0.0;
+                                final cost = double.parse(item.costPerUnit);
+                                final totalCost = qty * cost;
+                                total += totalCost;
                               }
 
                               return Row(
@@ -698,60 +752,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               const SizedBox(height: 10),
               Center(
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      final now =
-                          DateFormat('yyyy-MM-dd').format(DateTime.now());
-                      final poNo = 'PO${DateTime.now().millisecondsSinceEpoch}';
-
-                      // Create updated items list with final quantities
-                      final updatedItems = poItems.values.map((item) {
-                        final qty = double.tryParse(
-                                _qtyControllers[item.materialCode]?.text ??
-                                    '0') ??
-                            0;
-
-                        // Allocate ordered quantity across PRs
-                        _allocateOrderedQuantity(item.materialCode, qty, poNo);
-
-                        return POItem(
-                          materialCode: item.materialCode,
-                          materialDescription: item.materialDescription,
-                          unit: item.unit,
-                          quantity: qty,
-                          costPerUnit: item.costPerUnit,
-                          totalCost: qty * item.costPerUnit,
-                          seiplRate: item.seiplRate,
-                          rateDifference: item.rateDifference,
-                          totalRateDifference: qty * item.rateDifference,
-                        );
-                      }).toList();
-
-                      // Calculate final total
-                      double total = updatedItems.fold(
-                          0.0, (sum, item) => sum + item.totalCost);
-
-                      // Create and save purchase order
-                      final po = PurchaseOrder(
-                        poNo: poNo,
-                        poDate: now,
-                        supplierName: selectedSupplier?.name ?? '',
-                        boardNo: _boardNoController.text,
-                        transport: _transportController.text,
-                        deliveryRequirements:
-                            _deliveryRequirementsController.text,
-                        items: updatedItems,
-                        total: total,
-                        igst: 0,
-                        cgst: 0,
-                        sgst: 0,
-                        grandTotal: total,
-                      );
-
-                      poNotifier.addOrder(po);
-                      Navigator.pop(context);
-                    }
-                  },
+                  onPressed: _savePurchaseOrder,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 48, vertical: 16),

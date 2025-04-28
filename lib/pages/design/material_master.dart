@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mpt_ims/pages/design/add_material_page.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
 import 'package:mpt_ims/models/material_item.dart';
+import 'package:mpt_ims/models/vendor_material_rate.dart';
+import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
 
 class MaterialMasterPage extends ConsumerWidget {
   const MaterialMasterPage({super.key});
@@ -192,9 +194,9 @@ class _MaterialDataSource extends DataTableSource {
     if (index >= materials.length) return null;
     final m = materials[index];
 
-    final stockQty = double.tryParse(m.avlStock) ?? 0;
-    final stockValue = double.tryParse(m.avlStockValue) ?? 0;
-    final costDiff = double.tryParse(m.costDiff) ?? 0;
+    final stockQty = double.tryParse(m.getTotalAvailableStock(ref)) ?? 0;
+    final stockValue = double.tryParse(m.getTotalStockValue(ref)) ?? 0;
+    final costDiff = double.tryParse(m.getTotalCostDiff(ref)) ?? 0;
 
     return DataRow(
       cells: [
@@ -222,14 +224,14 @@ class _MaterialDataSource extends DataTableSource {
         DataCell(Text(m.category)),
         DataCell(Text(m.subCategory)),
         DataCell(Text(m.unit)),
-        DataCell(Text(m.preferredVendorName)),
-        DataCell(Text(m.lowestRate.isEmpty ? '-' : '₹${m.lowestRate}')),
-        DataCell(Text(m.vendorRates.length.toString())),
-        DataCell(Text('₹${m.seiplRate}')),
-        DataCell(Text('₹${m.saleRate}')),
+        DataCell(Text(m.getPreferredVendorName(ref))),
+        DataCell(Text(m.getLowestSupplierRate(ref).isEmpty ? '-' : '₹${m.getLowestSupplierRate(ref)}')),
+        DataCell(Text(m.getVendorCount(ref).toString())),
+        DataCell(Text('₹${m.getTotalReceivedCost(ref)}')),
+        DataCell(Text('₹${m.getTotalBilledCost(ref)}')),
         DataCell(
           Text(
-            '${m.avlStock} ${m.unit}',
+            '${m.getTotalAvailableStock(ref)} ${m.unit}',
             style: TextStyle(
               color: stockQty > 0 ? Colors.green : Colors.red,
               fontWeight: FontWeight.w500,
@@ -242,11 +244,11 @@ class _MaterialDataSource extends DataTableSource {
             style: const TextStyle(fontWeight: FontWeight.w500),
           ),
         ),
-        DataCell(Text('${m.totalReceivedQty} ${m.unit}')),
-        DataCell(Text('${m.vendorIssuedQty} ${m.unit}')),
-        DataCell(Text('${m.vendorReceivedQty} ${m.unit}')),
-        DataCell(Text('${m.boardIssueQty} ${m.unit}')),
-        DataCell(Text('${m.billingQtyDiff} ${m.unit}')),
+        DataCell(Text('${m.getTotalReceivedQty(ref)} ${m.unit}')),
+        DataCell(Text('${m.getTotalIssuedQty(ref)} ${m.unit}')),
+        DataCell(Text('${m.getTotalReceivedQty(ref)} ${m.unit}')),
+        DataCell(Text('${m.getTotalIssuedQty(ref)} ${m.unit}')),
+        DataCell(Text('${m.getTotalReceivedQty(ref)} ${m.unit}')),
         DataCell(
           Text(
             '₹${costDiff.toStringAsFixed(2)}',
@@ -268,6 +270,7 @@ class _MaterialDataSource extends DataTableSource {
                     MaterialPageRoute(
                       builder: (_) => AddMaterialPage(
                         materialToEdit: m,
+                        index: materials.indexOf(m),
                       ),
                     ),
                   );
@@ -302,12 +305,14 @@ class _MaterialDataSource extends DataTableSource {
   }
 
   void _showVendorDetails(BuildContext context, MaterialItem material) {
+    final rates = material.getRankedVendors(ref);
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Vendors for ${material.description}'),
         content: SizedBox(
-          width: 600,
+          width: 800,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -315,21 +320,27 @@ class _MaterialDataSource extends DataTableSource {
                 title: Row(
                   children: [
                     Expanded(child: Text('Vendor')),
-                    Expanded(child: Text('Rate')),
+                    Expanded(child: Text('Supplier Rate')),
+                    Expanded(child: Text('SEIPL Rate')),
+                    Expanded(child: Text('Sale Rate')),
+                    Expanded(child: Text('Stock')),
+                    Expanded(child: Text('Stock Value')),
                     Expanded(child: Text('Last Purchase')),
                     Expanded(child: Text('Remarks')),
                   ],
                 ),
               ),
               const Divider(),
-              ...material.rankedVendors.map((entry) {
-                final vendor = entry.key;
-                final rate = entry.value;
+              ...rates.map((rate) {
                 return ListTile(
                   title: Row(
                     children: [
-                      Expanded(child: Text(vendor)),
-                      Expanded(child: Text('₹${rate.rate}')),
+                      Expanded(child: Text(rate.vendorId)),
+                      Expanded(child: Text('₹${rate.supplierRate}')),
+                      Expanded(child: Text('₹${rate.seiplRate}')),
+                      Expanded(child: Text('₹${rate.saleRate}')),
+                      Expanded(child: Text('${rate.avlStock} ${material.unit}')),
+                      Expanded(child: Text('₹${rate.stockValue.toStringAsFixed(2)}')),
                       Expanded(child: Text(rate.lastPurchaseDate)),
                       Expanded(child: Text(rate.remarks)),
                     ],

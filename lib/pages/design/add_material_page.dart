@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 
 import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/supplier.dart';
+import 'package:mpt_ims/models/vendor_material_rate.dart';
 import 'package:mpt_ims/pages/accounts/add_supplier_page.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
 import 'package:mpt_ims/provider/supplier_provider.dart';
+import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
 
 class AddMaterialPage extends ConsumerStatefulWidget {
   final MaterialItem? materialToEdit;
@@ -25,8 +27,13 @@ class AddMaterialPage extends ConsumerStatefulWidget {
 class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   final _formKey = GlobalKey<FormState>();
   late MaterialItem item;
-  final _rateController = TextEditingController();
+  final _supplierRateController = TextEditingController();
+  final _seiplRateController = TextEditingController();
+  final _saleRateController = TextEditingController();
   final _remarksController = TextEditingController();
+  final _receivedQtyController = TextEditingController();
+  final _issuedQtyController = TextEditingController();
+  final _stockController = TextEditingController();
 
   // Add controllers for all text fields
   final Map<String, TextEditingController> _controllers = {};
@@ -40,21 +47,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
           description: '',
           partNo: '',
           unit: '',
-          seiplRate: '',
           category: '',
           subCategory: '',
-          saleRate: '',
-          totalReceivedQty: '',
-          vendorIssuedQty: '',
-          vendorReceivedQty: '',
-          boardIssueQty: '',
-          avlStock: '',
-          avlStockValue: '',
-          billingQtyDiff: '',
-          totalReceivedCost: '',
-          totalBilledCost: '',
-          costDiff: '',
-          vendorRates: {},
         );
 
     // Initialize controllers with current values
@@ -62,26 +56,19 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _controllers['description'] = TextEditingController(text: item.description);
     _controllers['partNo'] = TextEditingController(text: item.partNo);
     _controllers['unit'] = TextEditingController(text: item.unit);
-    _controllers['seiplRate'] = TextEditingController(text: item.seiplRate);
     _controllers['category'] = TextEditingController(text: item.category);
     _controllers['subCategory'] = TextEditingController(text: item.subCategory);
-    _controllers['saleRate'] = TextEditingController(text: item.saleRate);
-    _controllers['totalReceivedQty'] = TextEditingController(text: item.totalReceivedQty);
-    _controllers['vendorIssuedQty'] = TextEditingController(text: item.vendorIssuedQty);
-    _controllers['vendorReceivedQty'] = TextEditingController(text: item.vendorReceivedQty);
-    _controllers['boardIssueQty'] = TextEditingController(text: item.boardIssueQty);
-    _controllers['avlStock'] = TextEditingController(text: item.avlStock);
-    _controllers['avlStockValue'] = TextEditingController(text: item.avlStockValue);
-    _controllers['billingQtyDiff'] = TextEditingController(text: item.billingQtyDiff);
-    _controllers['totalReceivedCost'] = TextEditingController(text: item.totalReceivedCost);
-    _controllers['totalBilledCost'] = TextEditingController(text: item.totalBilledCost);
-    _controllers['costDiff'] = TextEditingController(text: item.costDiff);
   }
 
   @override
   void dispose() {
-    _rateController.dispose();
+    _supplierRateController.dispose();
+    _seiplRateController.dispose();
+    _saleRateController.dispose();
     _remarksController.dispose();
+    _receivedQtyController.dispose();
+    _issuedQtyController.dispose();
+    _stockController.dispose();
     // Dispose all controllers
     for (var controller in _controllers.values) {
       controller.dispose();
@@ -98,25 +85,16 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
       item.description = _controllers['description']!.text;
       item.partNo = _controllers['partNo']!.text;
       item.unit = _controllers['unit']!.text;
-      item.seiplRate = _controllers['seiplRate']!.text;
       item.category = _controllers['category']!.text;
       item.subCategory = _controllers['subCategory']!.text;
-      item.saleRate = _controllers['saleRate']!.text;
-      item.totalReceivedQty = _controllers['totalReceivedQty']!.text;
-      item.vendorIssuedQty = _controllers['vendorIssuedQty']!.text;
-      item.vendorReceivedQty = _controllers['vendorReceivedQty']!.text;
-      item.boardIssueQty = _controllers['boardIssueQty']!.text;
-      item.avlStock = _controllers['avlStock']!.text;
-      item.avlStockValue = _controllers['avlStockValue']!.text;
-      item.billingQtyDiff = _controllers['billingQtyDiff']!.text;
-      item.totalReceivedCost = _controllers['totalReceivedCost']!.text;
-      item.totalBilledCost = _controllers['totalBilledCost']!.text;
-      item.costDiff = _controllers['costDiff']!.text;
 
       if (widget.index != null) {
+        // Update existing material
         notifier.updateMaterial(widget.index!, item);
       } else {
-        item.slNo = (ref.read(materialListProvider).length + 1).toString();
+        // Create new material with a new slNo
+        final newSlNo = (ref.read(materialListProvider).length + 1).toString();
+        item.slNo = newSlNo;
         notifier.addMaterial(item);
       }
 
@@ -141,42 +119,96 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   }
 
   Future<void> _addVendorRate(Supplier vendor) async {
-    // If editing existing rate, populate the fields
-    if (item.vendorRates.containsKey(vendor.name)) {
-      final rate = item.vendorRates[vendor.name]!;
-      _rateController.text = rate.rate;
-      _remarksController.text = rate.remarks;
-    } else {
-      _rateController.text = '';
-      _remarksController.text = '';
-    }
+    // Only get rates if editing an existing material
+    final rates = widget.materialToEdit != null 
+        ? ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(item.slNo)
+        : [];
+    final existingRate = rates.where((r) => r.vendorId == vendor.name).firstOrNull;
+
+    // Reset all controllers for new rate
+    _supplierRateController.text = existingRate?.supplierRate ?? '';
+    _seiplRateController.text = existingRate?.seiplRate ?? '';
+    _saleRateController.text = existingRate?.saleRate ?? '';
+    _receivedQtyController.text = existingRate?.totalReceivedQty ?? '0';
+    _issuedQtyController.text = existingRate?.issuedQty ?? '0';
+    _stockController.text = existingRate?.avlStock ?? '0';
+    _remarksController.text = existingRate?.remarks ?? '';
 
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${item.vendorRates.containsKey(vendor.name) ? 'Edit' : 'Add'} Rate for ${vendor.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _rateController,
-              decoration: const InputDecoration(
-                labelText: 'Rate *',
-                border: OutlineInputBorder(),
+        title: Text('${existingRate != null ? 'Edit' : 'Add'} Rate for ${vendor.name}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _supplierRateController,
+                decoration: const InputDecoration(
+                  labelText: 'Supplier Rate *',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               ),
-              keyboardType: TextInputType.number,
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _remarksController,
-              decoration: const InputDecoration(
-                labelText: 'Remarks',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _seiplRateController,
+                decoration: const InputDecoration(
+                  labelText: 'SEIPL Rate *',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               ),
-              maxLines: 3,
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _saleRateController,
+                decoration: const InputDecoration(
+                  labelText: 'Sale Rate *',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _receivedQtyController,
+                decoration: const InputDecoration(
+                  labelText: 'Received Quantity',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _issuedQtyController,
+                decoration: const InputDecoration(
+                  labelText: 'Issued Quantity',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _stockController,
+                decoration: const InputDecoration(
+                  labelText: 'Available Stock',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _remarksController,
+                decoration: const InputDecoration(
+                  labelText: 'Remarks',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -191,24 +223,53 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
       ),
     );
 
-    if (result == true && _rateController.text.isNotEmpty) {
-      setState(() {
-        item.vendorRates[vendor.name] = VendorRate(
-          rate: _rateController.text,
-          lastPurchaseDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-          remarks: _remarksController.text,
-        );
-      });
+    if (result == true && _supplierRateController.text.isNotEmpty) {
+      final receivedQty = double.tryParse(_receivedQtyController.text) ?? 0;
+      final supplierRate = double.tryParse(_supplierRateController.text) ?? 0;
+      final seiplRate = double.tryParse(_seiplRateController.text) ?? 0;
+
+      final newRate = VendorMaterialRate(
+        materialId: item.slNo,
+        vendorId: vendor.name,
+        supplierRate: _supplierRateController.text,
+        seiplRate: _seiplRateController.text,
+        saleRate: _saleRateController.text,
+        lastPurchaseDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        remarks: _remarksController.text,
+        totalReceivedQty: _receivedQtyController.text,
+        issuedQty: _issuedQtyController.text,
+        receivedQty: _receivedQtyController.text,
+        avlStock: _stockController.text,
+        avlStockValue: (double.tryParse(_stockController.text) ?? 0 * seiplRate).toString(),
+        billingQtyDiff: '0',
+        totalReceivedCost: (receivedQty * supplierRate).toString(),
+        totalBilledCost: (receivedQty * seiplRate).toString(),
+        costDiff: ((receivedQty * seiplRate) - (receivedQty * supplierRate)).toString(),
+      );
+
+      if (existingRate != null) {
+        ref.read(vendorMaterialRateProvider.notifier).updateRate(newRate);
+      } else {
+        ref.read(vendorMaterialRateProvider.notifier).addRate(newRate);
+      }
+      setState(() {}); // Refresh the UI
     }
   }
 
   void _removeVendorRate(String vendorName) {
-    setState(() {
-      item.vendorRates.remove(vendorName);
-    });
+    ref.read(vendorMaterialRateProvider.notifier).deleteRate(item.slNo, vendorName);
+    setState(() {}); // Refresh the UI
   }
 
   Widget _buildVendorRatesSection(List<Supplier> vendors) {
+    // Only show rates if we have a valid material ID (editing an existing material)
+    final rates = widget.materialToEdit != null
+        ? ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(item.slNo)
+        : [];
+    final preferredVendorName = widget.materialToEdit != null 
+        ? item.getPreferredVendorName(ref)
+        : '';
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -218,9 +279,9 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Vendor Rates',
-                  style: TextStyle(
+                Text(
+                  widget.materialToEdit != null ? 'Vendor Rates' : 'Save material first to add vendor rates',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -243,14 +304,18 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
               const Center(
                 child: Text('No vendors available'),
               )
+            else if (widget.materialToEdit == null)
+              const Center(
+                child: Text('Save the material first to add vendor rates'),
+              )
             else
               ListView.builder(
                 shrinkWrap: true,
                 itemCount: vendors.length,
                 itemBuilder: (context, index) {
                   final vendor = vendors[index];
-                  final rate = item.vendorRates[vendor.name];
-                  final isPreferred = vendor.name == item.preferredVendorName;
+                  final rate = rates.where((r) => r.vendorId == vendor.name).firstOrNull;
+                  final isPreferred = vendor.name == preferredVendorName;
 
                   return Card(
                     color: isPreferred ? Colors.green[50] : null,
@@ -263,32 +328,38 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                           ? Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Rate: ₹${rate.rate}'),
+                                Text('Supplier Rate: ₹${rate.supplierRate}'),
+                                Text('SEIPL Rate: ₹${rate.seiplRate}'),
+                                Text('Sale Rate: ₹${rate.saleRate}'),
+                                Text('Stock: ${rate.avlStock} ${item.unit}'),
+                                Text('Stock Value: ₹${rate.stockValue.toStringAsFixed(2)}'),
                                 Text('Last Purchase: ${rate.lastPurchaseDate}'),
                                 if (rate.remarks.isNotEmpty)
                                   Text('Remarks: ${rate.remarks}'),
                               ],
                             )
                           : const Text('No rate added'),
-                      trailing: rate != null
-                          ? Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit),
+                      trailing: widget.materialToEdit != null
+                          ? (rate != null
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit),
+                                      onPressed: () => _addVendorRate(vendor),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete),
+                                      onPressed: () =>
+                                          _removeVendorRate(vendor.name),
+                                    ),
+                                  ],
+                                )
+                              : TextButton(
                                   onPressed: () => _addVendorRate(vendor),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete),
-                                  onPressed: () =>
-                                      _removeVendorRate(vendor.name),
-                                ),
-                              ],
-                            )
-                          : TextButton(
-                              onPressed: () => _addVendorRate(vendor),
-                              child: const Text('Add Rate'),
-                            ),
+                                  child: const Text('Add Rate'),
+                                ))
+                          : null,
                     ),
                   );
                 },
@@ -331,20 +402,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                     _buildTextField('Description', 'description'),
                     _buildTextField('Part No', 'partNo'),
                     _buildTextField('Unit', 'unit'),
-                    _buildTextField('SEIPL Rate', 'seiplRate', type: TextInputType.number),
                     _buildTextField('Category', 'category'),
                     _buildTextField('Sub Category', 'subCategory'),
-                    _buildTextField('Sale Rate', 'saleRate', type: TextInputType.number),
-                    _buildTextField('Total Received Qty', 'totalReceivedQty', type: TextInputType.number),
-                    _buildTextField('Vendor Issued Qty', 'vendorIssuedQty', type: TextInputType.number),
-                    _buildTextField('Vendor Received Qty', 'vendorReceivedQty', type: TextInputType.number),
-                    _buildTextField('Board Issue Qty', 'boardIssueQty', type: TextInputType.number),
-                    _buildTextField('AVL Stock', 'avlStock', type: TextInputType.number),
-                    _buildTextField('AVL Stock Value', 'avlStockValue', type: TextInputType.number),
-                    _buildTextField('Billing Qty Diff', 'billingQtyDiff', type: TextInputType.number),
-                    _buildTextField('Total Received Cost', 'totalReceivedCost', type: TextInputType.number),
-                    _buildTextField('Total Billed Cost', 'totalBilledCost', type: TextInputType.number),
-                    _buildTextField('Cost Diff', 'costDiff', type: TextInputType.number),
                   ],
                 ),
               ),

@@ -148,8 +148,9 @@ class MaterialMasterPage extends ConsumerWidget {
                             DataColumn(label: Text('Category')),
                             DataColumn(label: Text('Sub Category')),
                             DataColumn(label: Text('Unit')),
-                            DataColumn(label: Text('Vendor')),
-                            DataColumn(label: Text('Supplier Rate')),
+                            DataColumn(label: Text('Preferred Vendor')),
+                            DataColumn(label: Text('Best Rate')),
+                            DataColumn(label: Text('# of Vendors')),
                             DataColumn(label: Text('SEIPL Rate')),
                             DataColumn(label: Text('Sale Rate')),
                             DataColumn(label: Text('Stock')),
@@ -221,8 +222,9 @@ class _MaterialDataSource extends DataTableSource {
         DataCell(Text(m.category)),
         DataCell(Text(m.subCategory)),
         DataCell(Text(m.unit)),
-        DataCell(Text(m.vendorName)),
-        DataCell(Text('₹${m.supplierRate}')),
+        DataCell(Text(m.preferredVendorName)),
+        DataCell(Text(m.lowestRate.isEmpty ? '-' : '₹${m.lowestRate}')),
+        DataCell(Text(m.vendorRates.length.toString())),
         DataCell(Text('₹${m.seiplRate}')),
         DataCell(Text('₹${m.saleRate}')),
         DataCell(
@@ -278,6 +280,11 @@ class _MaterialDataSource extends DataTableSource {
                 ),
               ),
               IconButton(
+                icon: const Icon(Icons.people_outline, size: 20),
+                onPressed: () => _showVendorDetails(context, m),
+                tooltip: 'Vendor Details',
+              ),
+              IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () => onDelete(m),
                 color: Colors.red[400],
@@ -291,6 +298,54 @@ class _MaterialDataSource extends DataTableSource {
           ),
         ),
       ],
+    );
+  }
+
+  void _showVendorDetails(BuildContext context, MaterialItem material) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Vendors for ${material.description}'),
+        content: SizedBox(
+          width: 600,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ListTile(
+                title: Row(
+                  children: [
+                    Expanded(child: Text('Vendor')),
+                    Expanded(child: Text('Rate')),
+                    Expanded(child: Text('Last Purchase')),
+                    Expanded(child: Text('Remarks')),
+                  ],
+                ),
+              ),
+              const Divider(),
+              ...material.rankedVendors.map((entry) {
+                final vendor = entry.key;
+                final rate = entry.value;
+                return ListTile(
+                  title: Row(
+                    children: [
+                      Expanded(child: Text(vendor)),
+                      Expanded(child: Text('₹${rate.rate}')),
+                      Expanded(child: Text(rate.lastPurchaseDate)),
+                      Expanded(child: Text(rate.remarks)),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 

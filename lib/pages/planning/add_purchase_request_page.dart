@@ -166,7 +166,7 @@ class _AddPurchaseRequestPageState
                                                 (m) => DropdownMenuItem<String>(
                                                       value: m.description,
                                                       child: Text(
-                                                          '${m.description} (${m.vendorName})'),
+                                                          '${m.description} (${m.preferredVendorName})'),
                                                     ))
                                             .toList(),
                                         onChanged: (val) {
@@ -271,7 +271,7 @@ class _AddPurchaseRequestPageState
                                   .firstWhere((m) =>
                                       m.description ==
                                       _items[0].selectedMaterial)
-                                  .vendorName,
+                                  .preferredVendorName,
                               items: items,
                               status: 'Requested',
                             );

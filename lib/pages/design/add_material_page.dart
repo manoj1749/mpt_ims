@@ -1,6 +1,6 @@
-import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/supplier.dart';
@@ -12,7 +12,11 @@ class AddMaterialPage extends ConsumerStatefulWidget {
   final MaterialItem? materialToEdit;
   final int? index;
 
-  const AddMaterialPage({super.key, this.materialToEdit, this.index});
+  const AddMaterialPage({
+    super.key,
+    this.materialToEdit,
+    this.index,
+  });
 
   @override
   ConsumerState<AddMaterialPage> createState() => _AddMaterialPageState();
@@ -21,19 +25,21 @@ class AddMaterialPage extends ConsumerStatefulWidget {
 class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   final _formKey = GlobalKey<FormState>();
   late MaterialItem item;
-  String? selectedSupplier;
+  final _rateController = TextEditingController();
+  final _remarksController = TextEditingController();
+
+  // Add controllers for all text fields
+  final Map<String, TextEditingController> _controllers = {};
 
   @override
   void initState() {
     super.initState();
-    item = widget.materialToEdit ??
+    item = widget.materialToEdit?.copy() ??  // Create a copy if editing
         MaterialItem(
           slNo: '',
-          vendorName: '',
           description: '',
           partNo: '',
           unit: '',
-          supplierRate: '',
           seiplRate: '',
           category: '',
           subCategory: '',
@@ -48,14 +54,64 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
           totalReceivedCost: '',
           totalBilledCost: '',
           costDiff: '',
+          vendorRates: {},
         );
-    selectedSupplier = item.vendorName;
+
+    // Initialize controllers with current values
+    _controllers['slNo'] = TextEditingController(text: item.slNo);
+    _controllers['description'] = TextEditingController(text: item.description);
+    _controllers['partNo'] = TextEditingController(text: item.partNo);
+    _controllers['unit'] = TextEditingController(text: item.unit);
+    _controllers['seiplRate'] = TextEditingController(text: item.seiplRate);
+    _controllers['category'] = TextEditingController(text: item.category);
+    _controllers['subCategory'] = TextEditingController(text: item.subCategory);
+    _controllers['saleRate'] = TextEditingController(text: item.saleRate);
+    _controllers['totalReceivedQty'] = TextEditingController(text: item.totalReceivedQty);
+    _controllers['vendorIssuedQty'] = TextEditingController(text: item.vendorIssuedQty);
+    _controllers['vendorReceivedQty'] = TextEditingController(text: item.vendorReceivedQty);
+    _controllers['boardIssueQty'] = TextEditingController(text: item.boardIssueQty);
+    _controllers['avlStock'] = TextEditingController(text: item.avlStock);
+    _controllers['avlStockValue'] = TextEditingController(text: item.avlStockValue);
+    _controllers['billingQtyDiff'] = TextEditingController(text: item.billingQtyDiff);
+    _controllers['totalReceivedCost'] = TextEditingController(text: item.totalReceivedCost);
+    _controllers['totalBilledCost'] = TextEditingController(text: item.totalBilledCost);
+    _controllers['costDiff'] = TextEditingController(text: item.costDiff);
+  }
+
+  @override
+  void dispose() {
+    _rateController.dispose();
+    _remarksController.dispose();
+    // Dispose all controllers
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   void _saveMaterial() {
     if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
       final notifier = ref.read(materialListProvider.notifier);
+
+      // Update item with current values
+      item.slNo = _controllers['slNo']!.text;
+      item.description = _controllers['description']!.text;
+      item.partNo = _controllers['partNo']!.text;
+      item.unit = _controllers['unit']!.text;
+      item.seiplRate = _controllers['seiplRate']!.text;
+      item.category = _controllers['category']!.text;
+      item.subCategory = _controllers['subCategory']!.text;
+      item.saleRate = _controllers['saleRate']!.text;
+      item.totalReceivedQty = _controllers['totalReceivedQty']!.text;
+      item.vendorIssuedQty = _controllers['vendorIssuedQty']!.text;
+      item.vendorReceivedQty = _controllers['vendorReceivedQty']!.text;
+      item.boardIssueQty = _controllers['boardIssueQty']!.text;
+      item.avlStock = _controllers['avlStock']!.text;
+      item.avlStockValue = _controllers['avlStockValue']!.text;
+      item.billingQtyDiff = _controllers['billingQtyDiff']!.text;
+      item.totalReceivedCost = _controllers['totalReceivedCost']!.text;
+      item.totalBilledCost = _controllers['totalBilledCost']!.text;
+      item.costDiff = _controllers['costDiff']!.text;
 
       if (widget.index != null) {
         notifier.updateMaterial(widget.index!, item);
@@ -68,145 +124,236 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     }
   }
 
-  Widget _buildTextField(String label, void Function(String) onSaved,
-      {String? initial, TextInputType type = TextInputType.text}) {
+  Widget _buildTextField(String label, String field,
+      {TextInputType type = TextInputType.text}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
-        initialValue: initial,
+        controller: _controllers[field],
         decoration: InputDecoration(
-            labelText: label, border: const OutlineInputBorder()),
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
         keyboardType: type,
-        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-        onSaved: (v) => onSaved(v ?? ''),
+        validator: (value) => value == null || value.isEmpty ? 'Required' : null,
       ),
     );
   }
 
-// Inside your build method
-  Widget _buildSupplierDropdown(List<Supplier> suppliers) {
-    if (suppliers.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Future<void> _addVendorRate(Supplier vendor) async {
+    // If editing existing rate, populate the fields
+    if (item.vendorRates.containsKey(vendor.name)) {
+      final rate = item.vendorRates[vendor.name]!;
+      _rateController.text = rate.rate;
+      _remarksController.text = rate.remarks;
+    } else {
+      _rateController.text = '';
+      _remarksController.text = '';
+    }
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${item.vendorRates.containsKey(vendor.name) ? 'Edit' : 'Add'} Rate for ${vendor.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('No vendors found.'),
-            ElevatedButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddSupplierPage()),
+            TextFormField(
+              controller: _rateController,
+              decoration: const InputDecoration(
+                labelText: 'Rate *',
+                border: OutlineInputBorder(),
               ),
-              child: const Text('Add Vendor'),
+              keyboardType: TextInputType.number,
+              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _remarksController,
+              decoration: const InputDecoration(
+                labelText: 'Remarks',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
             ),
           ],
         ),
-      );
-    }
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: DropdownButtonFormField2<String>(
-        isExpanded: true,
-        value: suppliers.any((s) => s.name == selectedSupplier)
-            ? selectedSupplier
-            : null,
-        decoration: const InputDecoration(
-          labelText: 'Vendor Name',
-          border: OutlineInputBorder(),
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        ),
-        items: suppliers
-            .map((s) => DropdownMenuItem(
-                  value: s.name,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      s.name,
-                      style: const TextStyle(fontSize: 14),
+    if (result == true && _rateController.text.isNotEmpty) {
+      setState(() {
+        item.vendorRates[vendor.name] = VendorRate(
+          rate: _rateController.text,
+          lastPurchaseDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          remarks: _remarksController.text,
+        );
+      });
+    }
+  }
+
+  void _removeVendorRate(String vendorName) {
+    setState(() {
+      item.vendorRates.remove(vendorName);
+    });
+  }
+
+  Widget _buildVendorRatesSection(List<Supplier> vendors) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Vendor Rates',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (vendors.isEmpty)
+                  TextButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Vendor'),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AddSupplierPage(),
+                      ),
                     ),
                   ),
-                ))
-            .toList(),
-        onChanged: (value) => setState(() => selectedSupplier = value),
-        validator: (value) =>
-            value == null || value.isEmpty ? 'Required' : null,
-        onSaved: (value) => item.vendorName = value ?? '',
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (vendors.isEmpty)
+              const Center(
+                child: Text('No vendors available'),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                itemCount: vendors.length,
+                itemBuilder: (context, index) {
+                  final vendor = vendors[index];
+                  final rate = item.vendorRates[vendor.name];
+                  final isPreferred = vendor.name == item.preferredVendorName;
+
+                  return Card(
+                    color: isPreferred ? Colors.green[50] : null,
+                    child: ListTile(
+                      leading: isPreferred 
+                        ? const Icon(Icons.star, color: Colors.amber)
+                        : const SizedBox(width: 24),
+                      title: Text(vendor.name),
+                      subtitle: rate != null
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Rate: ₹${rate.rate}'),
+                                Text('Last Purchase: ${rate.lastPurchaseDate}'),
+                                if (rate.remarks.isNotEmpty)
+                                  Text('Remarks: ${rate.remarks}'),
+                              ],
+                            )
+                          : const Text('No rate added'),
+                      trailing: rate != null
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit),
+                                  onPressed: () => _addVendorRate(vendor),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete),
+                                  onPressed: () =>
+                                      _removeVendorRate(vendor.name),
+                                ),
+                              ],
+                            )
+                          : TextButton(
+                              onPressed: () => _addVendorRate(vendor),
+                              child: const Text('Add Rate'),
+                            ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final suppliers = ref.watch(supplierListProvider);
+    final vendors = ref.watch(supplierListProvider);
 
     return Scaffold(
       appBar: AppBar(
-          title: Text(widget.materialToEdit == null
-              ? 'Add Material'
-              : 'Edit Material')),
+        title: Text(widget.materialToEdit == null
+            ? 'Add New Material'
+            : 'Edit Material'),
+        actions: [
+          TextButton.icon(
+            icon: const Icon(Icons.save),
+            label: const Text('Save'),
+            onPressed: _saveMaterial,
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                _buildSupplierDropdown(suppliers),
-                _buildTextField('Description', (v) => item.description = v,
-                    initial: item.description),
-                _buildTextField('Part No', (v) => item.partNo = v,
-                    initial: item.partNo),
-                _buildTextField('Unit', (v) => item.unit = v,
-                    initial: item.unit),
-                _buildTextField('Supplier Rate', (v) => item.supplierRate = v,
-                    initial: item.supplierRate),
-                _buildTextField('SEIPL Rate', (v) => item.seiplRate = v,
-                    initial: item.seiplRate),
-                _buildTextField('Category', (v) => item.category = v,
-                    initial: item.category),
-                _buildTextField('Sub Category', (v) => item.subCategory = v,
-                    initial: item.subCategory),
-                _buildTextField('Sale Rate', (v) => item.saleRate = v,
-                    initial: item.saleRate),
-                _buildTextField(
-                    'Total Received Qty', (v) => item.totalReceivedQty = v,
-                    initial: item.totalReceivedQty),
-                _buildTextField(
-                    'Vendor Issued Qty', (v) => item.vendorIssuedQty = v,
-                    initial: item.vendorIssuedQty),
-                _buildTextField(
-                    'Vendor Received Qty', (v) => item.vendorReceivedQty = v,
-                    initial: item.vendorReceivedQty),
-                _buildTextField(
-                    'Board Issue Qty', (v) => item.boardIssueQty = v,
-                    initial: item.boardIssueQty),
-                _buildTextField('AVL Stock', (v) => item.avlStock = v,
-                    initial: item.avlStock),
-                _buildTextField(
-                    'AVL Stock Value', (v) => item.avlStockValue = v,
-                    initial: item.avlStockValue),
-                _buildTextField(
-                    'Billing Qty Diff', (v) => item.billingQtyDiff = v,
-                    initial: item.billingQtyDiff),
-                _buildTextField(
-                    'Total Received Cost', (v) => item.totalReceivedCost = v,
-                    initial: item.totalReceivedCost),
-                _buildTextField(
-                    'Total Billed Cost', (v) => item.totalBilledCost = v,
-                    initial: item.totalBilledCost),
-                _buildTextField('Cost Diff', (v) => item.costDiff = v,
-                    initial: item.costDiff),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _saveMaterial,
-                  child: Text(widget.materialToEdit == null
-                      ? 'Save Material'
-                      : 'Update Material'),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 2,
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  children: [
+                    _buildTextField('Sl No', 'slNo'),
+                    _buildTextField('Description', 'description'),
+                    _buildTextField('Part No', 'partNo'),
+                    _buildTextField('Unit', 'unit'),
+                    _buildTextField('SEIPL Rate', 'seiplRate', type: TextInputType.number),
+                    _buildTextField('Category', 'category'),
+                    _buildTextField('Sub Category', 'subCategory'),
+                    _buildTextField('Sale Rate', 'saleRate', type: TextInputType.number),
+                    _buildTextField('Total Received Qty', 'totalReceivedQty', type: TextInputType.number),
+                    _buildTextField('Vendor Issued Qty', 'vendorIssuedQty', type: TextInputType.number),
+                    _buildTextField('Vendor Received Qty', 'vendorReceivedQty', type: TextInputType.number),
+                    _buildTextField('Board Issue Qty', 'boardIssueQty', type: TextInputType.number),
+                    _buildTextField('AVL Stock', 'avlStock', type: TextInputType.number),
+                    _buildTextField('AVL Stock Value', 'avlStockValue', type: TextInputType.number),
+                    _buildTextField('Billing Qty Diff', 'billingQtyDiff', type: TextInputType.number),
+                    _buildTextField('Total Received Cost', 'totalReceivedCost', type: TextInputType.number),
+                    _buildTextField('Total Billed Cost', 'totalBilledCost', type: TextInputType.number),
+                    _buildTextField('Cost Diff', 'costDiff', type: TextInputType.number),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildVendorRatesSection(vendors),
+            ),
+          ],
         ),
       ),
     );

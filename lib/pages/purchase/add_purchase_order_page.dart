@@ -63,37 +63,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   }
 
   // Allocate ordered quantity across PRs
-  void _allocateOrderedQuantity(
-      String materialCode, double orderedQty, String poNo) {
-    final prs = ref.read(purchaseRequestListProvider.notifier);
-    final allPRs = prs.state
-        .where((pr) => pr.items.any((item) =>
-            item.materialCode == materialCode && !item.isFullyOrdered))
-        .toList();
-
-    allPRs.sort((a, b) => a.date.compareTo(b.date)); // Process oldest PRs first
-
-    var remainingToAllocate = orderedQty;
-    for (var pr in allPRs) {
-      if (remainingToAllocate <= 0) break;
-
-      for (var item in pr.items) {
-        if (item.materialCode != materialCode || item.isFullyOrdered) continue;
-
-        if (remainingToAllocate <= 0) break;
-
-        final allocateAmount = remainingToAllocate > item.remainingQuantity
-            ? item.remainingQuantity
-            : remainingToAllocate;
-
-        item.addOrderedQuantity(poNo, allocateAmount);
-        remainingToAllocate -= allocateAmount;
-      }
-
-      pr.updateStatus();
-      pr.save();
-    }
-  }
 
   @override
   void initState() {
@@ -169,7 +138,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         final qty =
             double.parse(qtyControllers[item.materialCode]?.text ?? '0');
         final cost = double.parse(item.costPerUnit);
-        final seipl = double.parse(item.seiplRate);
         final margin = double.parse(item.marginPerUnit);
 
         return POItem(
@@ -218,7 +186,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   Widget build(BuildContext context) {
     final suppliers = ref.watch(supplierListProvider);
     final purchaseRequests = ref.watch(purchaseRequestListProvider);
-    final poNotifier = ref.read(purchaseOrderProvider.notifier);
 
     final filteredPRs = selectedSupplier == null
         ? <PurchaseRequest>[]

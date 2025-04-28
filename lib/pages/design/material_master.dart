@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mpt_ims/pages/design/add_material_page.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
 import 'package:mpt_ims/models/material_item.dart';
-import 'package:mpt_ims/models/vendor_material_rate.dart';
-import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
 
 class MaterialMasterPage extends ConsumerWidget {
   const MaterialMasterPage({super.key});
@@ -351,7 +349,7 @@ class _MaterialDataSource extends DataTableSource {
                     ],
                   ),
                 );
-              }).toList(),
+              }),
             ],
           ),
         ),

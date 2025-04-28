@@ -7,7 +7,6 @@ import '../../models/pr_item.dart';
 import '../../pages/design/add_material_page.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/purchase_request_provider.dart';
-import '../../provider/vendor_material_rate_provider.dart';
 
 class AddPurchaseRequestPage extends ConsumerStatefulWidget {
   final PurchaseRequest? existingRequest;

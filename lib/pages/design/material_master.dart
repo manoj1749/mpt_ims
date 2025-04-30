@@ -201,7 +201,9 @@ class _MaterialDataSource extends DataTableSource {
     final m = materials[index];
 
     // Watch vendor rates to make the UI reactive
-    final rates = ref.watch(vendorMaterialRateProvider.notifier).getRatesForMaterial(m.slNo);
+    final rates = ref
+        .watch(vendorMaterialRateProvider.notifier)
+        .getRatesForMaterial(m.slNo);
     final stockQty = double.tryParse(m.getTotalAvailableStock(ref)) ?? 0;
     final stockValue = double.tryParse(m.getTotalStockValue(ref)) ?? 0;
     final costDiff = double.tryParse(m.getTotalCostDiff(ref)) ?? 0;

@@ -20,7 +20,7 @@ final vendorMaterialRateProvider =
 class VendorMaterialRateNotifier
     extends StateNotifier<List<VendorMaterialRate>> {
   final Ref ref;
-  
+
   VendorMaterialRateNotifier(this.ref) : super([]);
 
   static const String boxName = 'vendor_material_rates';

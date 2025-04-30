@@ -107,11 +107,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     final rates = ref
         .read(vendorMaterialRateProvider.notifier)
         .getRatesForMaterial(material.slNo);
-    
+
     // Check if the supplier has a rate for this material
-    final vendorRate = rates.where((r) => r.vendorId == selectedSupplier!.name).firstOrNull;
+    final vendorRate =
+        rates.where((r) => r.vendorId == selectedSupplier!.name).firstOrNull;
     if (vendorRate == null) {
-      throw Exception('Please add rate for ${material.description} for vendor ${selectedSupplier!.name} before creating PO');
+      throw Exception(
+          'Please add rate for ${material.description} for vendor ${selectedSupplier!.name} before creating PO');
     }
 
     final costPerUnit = double.parse(vendorRate.saleRate);

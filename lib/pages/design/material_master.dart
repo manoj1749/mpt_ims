@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mpt_ims/pages/design/add_material_page.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
 import 'package:mpt_ims/models/material_item.dart';
+import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
 
 class MaterialMasterPage extends ConsumerWidget {
   const MaterialMasterPage({super.key});
@@ -38,6 +39,9 @@ class MaterialMasterPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final materials = ref.watch(materialListProvider);
+    final isLoading = ref.watch(vendorRatesLoadingProvider);
+    // Watch the entire vendor rates state to make the UI reactive
+    final _ = ref.watch(vendorMaterialRateProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -62,114 +66,118 @@ class MaterialMasterPage extends ConsumerWidget {
         },
         child: const Icon(Icons.add),
       ),
-      body: materials.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.inventory_2_outlined,
-                    size: 64,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No materials yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AddMaterialPage()),
-                    ),
-                    child: const Text('Add New Material'),
-                  ),
-                ],
-              ),
+      body: isLoading
+          ? const Center(
+              child: CircularProgressIndicator(),
             )
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          : materials.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        '${materials.length} Materials',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      Icon(
+                        Icons.inventory_2_outlined,
+                        size: 64,
+                        color: Colors.grey[300],
                       ),
-                      const SizedBox(width: 16),
-                      FilledButton.tonal(
-                        onPressed: () {
-                          // TODO: Implement filtering
-                        },
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.filter_list, size: 20),
-                            SizedBox(width: 8),
-                            Text('Filter'),
-                          ],
+                      const SizedBox(height: 16),
+                      Text(
+                        'No materials yet',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const AddMaterialPage()),
+                        ),
+                        child: const Text('Add New Material'),
+                      ),
+                    ],
+                  ),
+                )
+              : Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '${materials.length} Materials',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(width: 16),
+                          FilledButton.tonal(
+                            onPressed: () {
+                              // TODO: Implement filtering
+                            },
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.filter_list, size: 20),
+                                SizedBox(width: 8),
+                                Text('Filter'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: Card(
+                          elevation: 0,
+                          margin: EdgeInsets.zero,
+                          child: SizedBox(
+                            width: MediaQuery.of(context).size.width - 32,
+                            child: PaginatedDataTable(
+                              source: _MaterialDataSource(
+                                materials: materials,
+                                context: context,
+                                ref: ref,
+                                onDelete: (material) =>
+                                    _confirmDelete(context, ref, material),
+                              ),
+                              header: null,
+                              rowsPerPage: materials.length,
+                              showFirstLastButtons: true,
+                              showCheckboxColumn: false,
+                              horizontalMargin: 16,
+                              columnSpacing: 20,
+                              availableRowsPerPage: const [20, 50, 100, 200],
+                              columns: const [
+                                DataColumn(label: Text('SL No')),
+                                DataColumn(label: Text('Part No')),
+                                DataColumn(label: Text('Description')),
+                                DataColumn(label: Text('Category')),
+                                DataColumn(label: Text('Sub Category')),
+                                DataColumn(label: Text('Unit')),
+                                DataColumn(label: Text('Preferred Vendor')),
+                                DataColumn(label: Text('Best Rate')),
+                                DataColumn(label: Text('# of Vendors')),
+                                DataColumn(label: Text('SEIPL Rate')),
+                                DataColumn(label: Text('Sale Rate')),
+                                DataColumn(label: Text('Stock')),
+                                DataColumn(label: Text('Stock Value')),
+                                DataColumn(label: Text('Total Received')),
+                                DataColumn(label: Text('Vendor Issued')),
+                                DataColumn(label: Text('Vendor Received')),
+                                DataColumn(label: Text('Board Issue')),
+                                DataColumn(label: Text('Billing Diff')),
+                                DataColumn(label: Text('Cost Diff')),
+                                DataColumn(label: Text('Actions')),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: Card(
-                      elevation: 0,
-                      margin: EdgeInsets.zero,
-                      child: SizedBox(
-                        width: MediaQuery.of(context).size.width - 32,
-                        child: PaginatedDataTable(
-                          source: _MaterialDataSource(
-                            materials: materials,
-                            context: context,
-                            ref: ref,
-                            onDelete: (material) =>
-                                _confirmDelete(context, ref, material),
-                          ),
-                          header: null,
-                          rowsPerPage: materials.length,
-                          showFirstLastButtons: true,
-                          showCheckboxColumn: false,
-                          horizontalMargin: 16,
-                          columnSpacing: 20,
-                          availableRowsPerPage: const [20, 50, 100, 200],
-                          columns: const [
-                            DataColumn(label: Text('SL No')),
-                            DataColumn(label: Text('Part No')),
-                            DataColumn(label: Text('Description')),
-                            DataColumn(label: Text('Category')),
-                            DataColumn(label: Text('Sub Category')),
-                            DataColumn(label: Text('Unit')),
-                            DataColumn(label: Text('Preferred Vendor')),
-                            DataColumn(label: Text('Best Rate')),
-                            DataColumn(label: Text('# of Vendors')),
-                            DataColumn(label: Text('SEIPL Rate')),
-                            DataColumn(label: Text('Sale Rate')),
-                            DataColumn(label: Text('Stock')),
-                            DataColumn(label: Text('Stock Value')),
-                            DataColumn(label: Text('Total Received')),
-                            DataColumn(label: Text('Vendor Issued')),
-                            DataColumn(label: Text('Vendor Received')),
-                            DataColumn(label: Text('Board Issue')),
-                            DataColumn(label: Text('Billing Diff')),
-                            DataColumn(label: Text('Cost Diff')),
-                            DataColumn(label: Text('Actions')),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
     );
   }
 }
@@ -192,6 +200,8 @@ class _MaterialDataSource extends DataTableSource {
     if (index >= materials.length) return null;
     final m = materials[index];
 
+    // Watch vendor rates to make the UI reactive
+    final rates = ref.watch(vendorMaterialRateProvider.notifier).getRatesForMaterial(m.slNo);
     final stockQty = double.tryParse(m.getTotalAvailableStock(ref)) ?? 0;
     final stockValue = double.tryParse(m.getTotalStockValue(ref)) ?? 0;
     final costDiff = double.tryParse(m.getTotalCostDiff(ref)) ?? 0;
@@ -227,8 +237,12 @@ class _MaterialDataSource extends DataTableSource {
             ? '-'
             : '₹${m.getLowestSupplierRate(ref)}')),
         DataCell(Text(m.getVendorCount(ref).toString())),
-        DataCell(Text('₹${m.getTotalReceivedCost(ref)}')),
-        DataCell(Text('₹${m.getTotalBilledCost(ref)}')),
+        DataCell(Text(m.getPreferredVendorSeiplRate(ref).isEmpty
+            ? '-'
+            : '₹${m.getPreferredVendorSeiplRate(ref)}')),
+        DataCell(Text(m.getPreferredVendorSaleRate(ref).isEmpty
+            ? '-'
+            : '₹${m.getPreferredVendorSaleRate(ref)}')),
         DataCell(
           Text(
             '${m.getTotalAvailableStock(ref)} ${m.unit}',

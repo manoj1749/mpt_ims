@@ -30,7 +30,6 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await initializeHive();
-  // Hive.registerAdapter(SupplierAdapter());
   final supplierBox = await Hive.openBox<Supplier>('suppliers');
   final materialBox = await Hive.openBox<MaterialItem>('materials');
   final purchaseRequestBox =

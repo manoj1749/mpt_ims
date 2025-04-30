@@ -2,17 +2,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mpt_ims/models/vendor_material_rate.dart';
 
+// Provider to track loading state
+final vendorRatesLoadingProvider = StateProvider<bool>((ref) => true);
+
 final vendorMaterialRateProvider =
     StateNotifierProvider<VendorMaterialRateNotifier, List<VendorMaterialRate>>(
-        (ref) {
-  return VendorMaterialRateNotifier();
-});
+  (ref) {
+    final notifier = VendorMaterialRateNotifier(ref);
+    // Initialize rates
+    notifier._loadRates().then((_) {
+      ref.read(vendorRatesLoadingProvider.notifier).state = false;
+    });
+    return notifier;
+  },
+);
 
 class VendorMaterialRateNotifier
     extends StateNotifier<List<VendorMaterialRate>> {
-  VendorMaterialRateNotifier() : super([]) {
-    _loadRates();
-  }
+  final Ref ref;
+  
+  VendorMaterialRateNotifier(this.ref) : super([]);
 
   static const String boxName = 'vendor_material_rates';
 

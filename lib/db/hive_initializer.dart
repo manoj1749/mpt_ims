@@ -29,7 +29,7 @@ Future<void> initializeHive() async {
   await Hive.initFlutter(dir.path);
 
   // Clear incompatible data first
-  await clearIncompatibleData();
+  // await clearIncompatibleData();
 
   // Register adapters in the correct order
   Hive.registerAdapter(MaterialItemAdapter());

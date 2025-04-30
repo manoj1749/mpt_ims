@@ -107,11 +107,12 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     final rates = ref
         .read(vendorMaterialRateProvider.notifier)
         .getRatesForMaterial(material.slNo);
-    final vendorRate = rates.firstWhere(
-      (r) => r.vendorId == selectedSupplier!.name,
-      orElse: () =>
-          throw Exception('No rate found for vendor ${selectedSupplier!.name}'),
-    );
+    
+    // Check if the supplier has a rate for this material
+    final vendorRate = rates.where((r) => r.vendorId == selectedSupplier!.name).firstOrNull;
+    if (vendorRate == null) {
+      throw Exception('Please add rate for ${material.description} for vendor ${selectedSupplier!.name} before creating PO');
+    }
 
     final costPerUnit = double.parse(vendorRate.saleRate);
     final seiplRate = double.parse(vendorRate.seiplRate);
@@ -216,15 +217,36 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       final material = findMaterialByCode(materials, materialCode);
       if (material == null) continue;
 
-      poItems[materialCode] = _createPOItem(material, totalRemainingQty);
+      try {
+        poItems[materialCode] = _createPOItem(material, totalRemainingQty);
 
-      // Initialize controller if not exists
-      qtyControllers[materialCode] ??= TextEditingController(
-        text: totalRemainingQty.toString(),
-      );
-      maxQtyControllers[materialCode] ??= TextEditingController(
-        text: totalRemainingQty.toString(),
-      );
+        // Initialize controller if not exists
+        qtyControllers[materialCode] ??= TextEditingController(
+          text: totalRemainingQty.toString(),
+        );
+        maxQtyControllers[materialCode] ??= TextEditingController(
+          text: totalRemainingQty.toString(),
+        );
+      } catch (e) {
+        // Show a snackbar with the error message
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Add Rate',
+                textColor: Colors.white,
+                onPressed: () {
+                  // TODO: Navigate to add rate page
+                  // This will be implemented when the add rate functionality is ready
+                },
+              ),
+            ),
+          );
+        });
+      }
     }
 
     return Scaffold(

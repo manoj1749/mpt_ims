@@ -63,9 +63,23 @@ class MaterialItem extends HiveObject {
         .toString();
   }
 
+  // Get SEIPL Rate of the preferred vendor
+  String getPreferredVendorSeiplRate(WidgetRef ref) {
+    final rates = getRankedVendors(ref);
+    if (rates.isEmpty) return '';
+    return rates.first.seiplRate;
+  }
+
+  // Get Sale Rate of the preferred vendor
+  String getPreferredVendorSaleRate(WidgetRef ref) {
+    final rates = getRankedVendors(ref);
+    if (rates.isEmpty) return '';
+    return rates.first.saleRate;
+  }
+
   List<VendorMaterialRate> getRankedVendors(WidgetRef ref) {
     final rates =
-        ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+        ref.watch(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
     // Sort by sale rate instead of supplier rate
     rates.sort((a, b) =>
         (double.parse(a.saleRate)).compareTo(double.parse(b.saleRate)));
@@ -74,7 +88,7 @@ class MaterialItem extends HiveObject {
 
   int getVendorCount(WidgetRef ref) {
     return ref
-        .read(vendorMaterialRateProvider.notifier)
+        .watch(vendorMaterialRateProvider.notifier)
         .getRatesForMaterial(slNo)
         .length;
   }
@@ -82,7 +96,7 @@ class MaterialItem extends HiveObject {
   // Get total available stock across all vendors
   String getTotalAvailableStock(WidgetRef ref) {
     final rates =
-        ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+        ref.watch(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
     final total = rates.fold(
         0.0, (sum, rate) => sum + (double.tryParse(rate.avlStock) ?? 0));
     return total.toString();
@@ -91,7 +105,7 @@ class MaterialItem extends HiveObject {
   // Get total stock value across all vendors
   String getTotalStockValue(WidgetRef ref) {
     final rates =
-        ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+        ref.watch(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
     final total = rates.fold(0.0, (sum, rate) => sum + rate.stockValue);
     return total.toString();
   }
@@ -99,7 +113,7 @@ class MaterialItem extends HiveObject {
   // Get total received quantity across all vendors
   String getTotalReceivedQty(WidgetRef ref) {
     final rates =
-        ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+        ref.watch(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
     final total = rates.fold(0.0,
         (sum, rate) => sum + (double.tryParse(rate.totalReceivedQty) ?? 0));
     return total.toString();
@@ -108,7 +122,7 @@ class MaterialItem extends HiveObject {
   // Get total issued quantity across all vendors
   String getTotalIssuedQty(WidgetRef ref) {
     final rates =
-        ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+        ref.watch(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
     final total = rates.fold(
         0.0, (sum, rate) => sum + (double.tryParse(rate.issuedQty) ?? 0));
     return total.toString();
@@ -117,7 +131,7 @@ class MaterialItem extends HiveObject {
   // Get total received cost across all vendors
   String getTotalReceivedCost(WidgetRef ref) {
     final rates =
-        ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+        ref.watch(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
     final total = rates.fold(0.0,
         (sum, rate) => sum + (double.tryParse(rate.totalReceivedCost) ?? 0));
     return total.toString();
@@ -126,7 +140,7 @@ class MaterialItem extends HiveObject {
   // Get total billed cost across all vendors
   String getTotalBilledCost(WidgetRef ref) {
     final rates =
-        ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+        ref.watch(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
     final total = rates.fold(
         0.0, (sum, rate) => sum + (double.tryParse(rate.totalBilledCost) ?? 0));
     return total.toString();
@@ -135,7 +149,7 @@ class MaterialItem extends HiveObject {
   // Get total cost difference across all vendors
   String getTotalCostDiff(WidgetRef ref) {
     final rates =
-        ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
+        ref.watch(vendorMaterialRateProvider.notifier).getRatesForMaterial(slNo);
     final total = rates.fold(
         0.0, (sum, rate) => sum + (double.tryParse(rate.costDiff) ?? 0));
     return total.toString();

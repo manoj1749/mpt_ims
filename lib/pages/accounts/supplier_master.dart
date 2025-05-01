@@ -3,9 +3,240 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mpt_ims/models/supplier.dart';
 import 'package:mpt_ims/provider/supplier_provider.dart';
 import 'package:mpt_ims/pages/accounts/add_supplier_page.dart';
+import 'package:pluto_grid/pluto_grid.dart';
 
 class SupplierMasterPage extends ConsumerWidget {
   const SupplierMasterPage({super.key});
+
+  List<PlutoColumn> _getColumns(BuildContext context, WidgetRef ref) {
+    return [
+      PlutoColumn(
+        title: 'Name',
+        field: 'name',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Vendor Code',
+        field: 'vendorCode',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Contact Person',
+        field: 'contact',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Phone',
+        field: 'phone',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Email',
+        field: 'email',
+        type: PlutoColumnType.text(),
+        width: 180,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Alt. Email',
+        field: 'email1',
+        type: PlutoColumnType.text(),
+        width: 180,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Address',
+        field: 'address',
+        type: PlutoColumnType.text(),
+        width: 250,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'State',
+        field: 'state',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'State Code',
+        field: 'stateCode',
+        type: PlutoColumnType.text(),
+        width: 100,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'PAN',
+        field: 'pan',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'GST No',
+        field: 'gstNo',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'IGST',
+        field: 'igst',
+        type: PlutoColumnType.text(),
+        width: 80,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'CGST',
+        field: 'cgst',
+        type: PlutoColumnType.text(),
+        width: 80,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'SGST',
+        field: 'sgst',
+        type: PlutoColumnType.text(),
+        width: 80,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Total GST',
+        field: 'totalGst',
+        type: PlutoColumnType.text(),
+        width: 100,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Bank',
+        field: 'bank',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Branch',
+        field: 'branch',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Account No',
+        field: 'account',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'IFSC',
+        field: 'ifsc',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Payment Terms',
+        field: 'paymentTerms',
+        type: PlutoColumnType.text(),
+        width: 200,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Actions',
+        field: 'actions',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final supplier = rendererContext.row.cells['name']!.value as String;
+          final supplierData = ref
+              .read(supplierListProvider)
+              .firstWhere((s) => s.name == supplier);
+
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          AddSupplierPage(supplierToEdit: supplierData),
+                    ),
+                  );
+                },
+                color: Colors.blue,
+                tooltip: 'Edit',
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: () => _confirmDeleteSupplier(
+                  context,
+                  ref,
+                  supplierData,
+                ),
+                color: Colors.red[400],
+                tooltip: 'Delete',
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    ];
+  }
+
+  List<PlutoRow> _getRows(List<Supplier> suppliers) {
+    return suppliers.map((s) {
+      return PlutoRow(
+        cells: {
+          'name': PlutoCell(value: s.name),
+          'vendorCode': PlutoCell(value: s.vendorCode),
+          'contact': PlutoCell(value: s.contact),
+          'phone': PlutoCell(value: s.phone),
+          'email': PlutoCell(value: s.email),
+          'email1': PlutoCell(value: s.email1),
+          'address': PlutoCell(
+            value: [s.address1, s.address2, s.address3, s.address4]
+                .where((addr) => addr.isNotEmpty)
+                .join(', '),
+          ),
+          'state': PlutoCell(value: s.state),
+          'stateCode': PlutoCell(value: s.stateCode),
+          'pan': PlutoCell(value: s.pan),
+          'gstNo': PlutoCell(value: s.gstNo),
+          'igst': PlutoCell(value: '${s.igst}%'),
+          'cgst': PlutoCell(value: '${s.cgst}%'),
+          'sgst': PlutoCell(value: '${s.sgst}%'),
+          'totalGst': PlutoCell(value: '${s.totalGst}%'),
+          'bank': PlutoCell(value: s.bank),
+          'branch': PlutoCell(value: s.branch),
+          'account': PlutoCell(value: s.account),
+          'ifsc': PlutoCell(value: s.ifsc),
+          'paymentTerms': PlutoCell(value: s.paymentTerms),
+          'actions': PlutoCell(value: ''),
+        },
+      );
+    }).toList();
+  }
 
   void _confirmDeleteSupplier(
       BuildContext context, WidgetRef ref, Supplier supplier) {
@@ -121,49 +352,33 @@ class SupplierMasterPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: Card(
-                      elevation: 0,
-                      margin: EdgeInsets.zero,
-                      child: SizedBox(
-                        width: MediaQuery.of(context).size.width - 32,
-                        child: PaginatedDataTable(
-                          source: _SupplierDataSource(
-                            suppliers: suppliers,
-                            context: context,
-                            ref: ref,
-                            onDelete: (supplier) =>
-                                _confirmDeleteSupplier(context, ref, supplier),
-                          ),
-                          header: null,
-                          rowsPerPage: suppliers.length,
-                          showFirstLastButtons: true,
-                          showCheckboxColumn: false,
-                          horizontalMargin: 16,
-                          columnSpacing: 20,
-                          availableRowsPerPage: const [20, 50, 100, 200],
-                          columns: const [
-                            DataColumn(label: Text('Name')),
-                            DataColumn(label: Text('Vendor Code')),
-                            DataColumn(label: Text('Contact Person')),
-                            DataColumn(label: Text('Phone')),
-                            DataColumn(label: Text('Email')),
-                            DataColumn(label: Text('Alt. Email')),
-                            DataColumn(label: Text('Address')),
-                            DataColumn(label: Text('State')),
-                            DataColumn(label: Text('State Code')),
-                            DataColumn(label: Text('PAN')),
-                            DataColumn(label: Text('GST No')),
-                            DataColumn(label: Text('IGST')),
-                            DataColumn(label: Text('CGST')),
-                            DataColumn(label: Text('SGST')),
-                            DataColumn(label: Text('Total GST')),
-                            DataColumn(label: Text('Bank')),
-                            DataColumn(label: Text('Branch')),
-                            DataColumn(label: Text('Account No')),
-                            DataColumn(label: Text('IFSC')),
-                            DataColumn(label: Text('Payment Terms')),
-                            DataColumn(label: Text('Actions')),
+                    child: PlutoGrid(
+                      columns: _getColumns(context, ref),
+                      rows: _getRows(suppliers),
+                      onLoaded: (PlutoGridOnLoadedEvent event) {
+                        event.stateManager.setShowColumnFilter(true);
+                      },
+                      configuration: PlutoGridConfiguration(
+                        columnFilter: PlutoGridColumnFilterConfig(
+                          filters: const [
+                            ...FilterHelper.defaultFilters,
                           ],
+                        ),
+                        style: PlutoGridStyleConfig(
+                          gridBorderColor: Colors.grey[700]!,
+                          gridBackgroundColor: Colors.grey[900]!,
+                          borderColor: Colors.grey[700]!,
+                          iconColor: Colors.grey[300]!,
+                          rowColor: Colors.grey[850]!,
+                          oddRowColor: Colors.grey[800]!,
+                          evenRowColor: Colors.grey[850]!,
+                          activatedColor: Colors.blue[900]!,
+                          cellTextStyle: const TextStyle(color: Colors.white),
+                          columnTextStyle: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          rowHeight: 45,
                         ),
                       ),
                     ),
@@ -173,112 +388,4 @@ class SupplierMasterPage extends ConsumerWidget {
             ),
     );
   }
-}
-
-class _SupplierDataSource extends DataTableSource {
-  final List<Supplier> suppliers;
-  final BuildContext context;
-  final WidgetRef ref;
-  final Function(Supplier) onDelete;
-
-  _SupplierDataSource({
-    required this.suppliers,
-    required this.context,
-    required this.ref,
-    required this.onDelete,
-  });
-
-  @override
-  DataRow? getRow(int index) {
-    if (index >= suppliers.length) return null;
-    final s = suppliers[index];
-
-    return DataRow(
-      cells: [
-        DataCell(
-          Text(
-            s.name,
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-        ),
-        DataCell(
-          Text(
-            s.vendorCode,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        DataCell(Text(s.contact)),
-        DataCell(Text(s.phone)),
-        DataCell(Text(s.email)),
-        DataCell(Text(s.email1)),
-        DataCell(
-          Text(
-            [s.address1, s.address2, s.address3, s.address4]
-                .where((addr) => addr.isNotEmpty)
-                .join(', '),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        DataCell(Text(s.state)),
-        DataCell(Text(s.stateCode)),
-        DataCell(Text(s.pan)),
-        DataCell(Text(s.gstNo)),
-        DataCell(Text('${s.igst}%')),
-        DataCell(Text('${s.cgst}%')),
-        DataCell(Text('${s.sgst}%')),
-        DataCell(
-          Text(
-            '${s.totalGst}%',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-        ),
-        DataCell(Text(s.bank)),
-        DataCell(Text(s.branch)),
-        DataCell(Text(s.account)),
-        DataCell(Text(s.ifsc)),
-        DataCell(Text(s.paymentTerms)),
-        DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                onPressed: () {
-                  // TODO: Implement inline editing
-                },
-                color: Colors.blue,
-                tooltip: 'Edit',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () => onDelete(s),
-                color: Colors.red[400],
-                tooltip: 'Delete',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  bool get isRowCountApproximate => false;
-
-  @override
-  int get rowCount => suppliers.length;
-
-  @override
-  int get selectedRowCount => 0;
 }

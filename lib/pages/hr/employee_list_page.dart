@@ -3,9 +3,165 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mpt_ims/models/employee.dart';
 import 'package:mpt_ims/provider/employee_provider.dart';
 import 'add_employee_page.dart';
+import 'package:pluto_grid/pluto_grid.dart';
 
 class EmployeeListPage extends ConsumerWidget {
   const EmployeeListPage({super.key});
+
+  List<PlutoColumn> _getColumns(BuildContext context, WidgetRef ref) {
+    return [
+      PlutoColumn(
+        title: 'Name',
+        field: 'name',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Employee Code',
+        field: 'employeeCode',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Aadhaar Number',
+        field: 'aadhaarNumber',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'ESI Number',
+        field: 'esiNumber',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'PF Number',
+        field: 'pfNumber',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Account Number',
+        field: 'accountNumber',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'IFSC Code',
+        field: 'ifscCode',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Bank Name',
+        field: 'bankName',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Branch',
+        field: 'branch',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Per Day Salary',
+        field: 'perDaySalary',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'OT Salary/Hour',
+        field: 'otSalaryPerHour',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Actions',
+        field: 'actions',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final employee = rendererContext.row.cells['name']!.value as String;
+          final employeeData = ref
+              .read(employeeListProvider)
+              .firstWhere((e) => e.name == employee);
+
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AddEmployeePage(
+                        employeeToEdit: employeeData,
+                      ),
+                    ),
+                  );
+                },
+                color: Colors.blue,
+                tooltip: 'Edit',
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: () => _confirmDelete(
+                  context,
+                  ref,
+                  employeeData,
+                ),
+                color: Colors.red[400],
+                tooltip: 'Delete',
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    ];
+  }
+
+  List<PlutoRow> _getRows(List<Employee> employees) {
+    return employees.map((e) {
+      return PlutoRow(
+        cells: {
+          'name': PlutoCell(value: e.name),
+          'employeeCode': PlutoCell(value: e.employeeCode),
+          'aadhaarNumber': PlutoCell(value: e.aadhaarNumber),
+          'esiNumber': PlutoCell(value: e.esiNumber),
+          'pfNumber': PlutoCell(value: e.pfNumber),
+          'accountNumber': PlutoCell(value: e.accountNumber),
+          'ifscCode': PlutoCell(value: e.ifscCode),
+          'bankName': PlutoCell(value: e.bankName),
+          'branch': PlutoCell(value: e.branch),
+          'perDaySalary': PlutoCell(value: '₹${e.perDaySalary}'),
+          'otSalaryPerHour': PlutoCell(value: '₹${e.otSalaryPerHour}'),
+          'actions': PlutoCell(value: ''),
+        },
+      );
+    }).toList();
+  }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, Employee employee) {
     showDialog(
@@ -120,40 +276,33 @@ class EmployeeListPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: Card(
-                      elevation: 0,
-                      margin: EdgeInsets.zero,
-                      child: SizedBox(
-                        width: MediaQuery.of(context).size.width - 32,
-                        child: PaginatedDataTable(
-                          source: _EmployeeDataSource(
-                            employees: employees,
-                            context: context,
-                            ref: ref,
-                            onDelete: (employee) =>
-                                _confirmDelete(context, ref, employee),
-                          ),
-                          header: null,
-                          rowsPerPage: employees.length,
-                          showFirstLastButtons: true,
-                          showCheckboxColumn: false,
-                          horizontalMargin: 16,
-                          columnSpacing: 20,
-                          availableRowsPerPage: const [20, 50, 100, 200],
-                          columns: const [
-                            DataColumn(label: Text('Name')),
-                            DataColumn(label: Text('Employee Code')),
-                            DataColumn(label: Text('Aadhaar Number')),
-                            DataColumn(label: Text('ESI Number')),
-                            DataColumn(label: Text('PF Number')),
-                            DataColumn(label: Text('Account Number')),
-                            DataColumn(label: Text('IFSC Code')),
-                            DataColumn(label: Text('Bank Name')),
-                            DataColumn(label: Text('Branch')),
-                            DataColumn(label: Text('Per Day Salary')),
-                            DataColumn(label: Text('OT Salary/Hour')),
-                            DataColumn(label: Text('Actions')),
+                    child: PlutoGrid(
+                      columns: _getColumns(context, ref),
+                      rows: _getRows(employees),
+                      onLoaded: (PlutoGridOnLoadedEvent event) {
+                        event.stateManager.setShowColumnFilter(true);
+                      },
+                      configuration: PlutoGridConfiguration(
+                        columnFilter: PlutoGridColumnFilterConfig(
+                          filters: const [
+                            ...FilterHelper.defaultFilters,
                           ],
+                        ),
+                        style: PlutoGridStyleConfig(
+                          gridBorderColor: Colors.grey[700]!,
+                          gridBackgroundColor: Colors.grey[900]!,
+                          borderColor: Colors.grey[700]!,
+                          iconColor: Colors.grey[300]!,
+                          rowColor: Colors.grey[850]!,
+                          oddRowColor: Colors.grey[800]!,
+                          evenRowColor: Colors.grey[850]!,
+                          activatedColor: Colors.blue[900]!,
+                          cellTextStyle: const TextStyle(color: Colors.white),
+                          columnTextStyle: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          rowHeight: 45,
                         ),
                       ),
                     ),
@@ -163,108 +312,4 @@ class EmployeeListPage extends ConsumerWidget {
             ),
     );
   }
-}
-
-class _EmployeeDataSource extends DataTableSource {
-  final List<Employee> employees;
-  final BuildContext context;
-  final WidgetRef ref;
-  final Function(Employee) onDelete;
-
-  _EmployeeDataSource({
-    required this.employees,
-    required this.context,
-    required this.ref,
-    required this.onDelete,
-  });
-
-  @override
-  DataRow? getRow(int index) {
-    if (index >= employees.length) return null;
-    final employee = employees[index];
-
-    return DataRow(
-      cells: [
-        DataCell(
-          Text(
-            employee.name,
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-        ),
-        DataCell(
-          Text(
-            employee.employeeCode,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        DataCell(Text(employee.aadhaarNumber)),
-        DataCell(Text(employee.esiNumber)),
-        DataCell(Text(employee.pfNumber)),
-        DataCell(Text(employee.accountNumber)),
-        DataCell(Text(employee.ifscCode)),
-        DataCell(Text(employee.bankName)),
-        DataCell(Text(employee.branch)),
-        DataCell(
-          Text(
-            '₹${employee.perDaySalary}',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-        ),
-        DataCell(
-          Text(
-            '₹${employee.otSalaryPerHour}',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-        ),
-        DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddEmployeePage(
-                        employeeToEdit: employee,
-                      ),
-                    ),
-                  );
-                },
-                color: Colors.blue,
-                tooltip: 'Edit',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () => onDelete(employee),
-                color: Colors.red[400],
-                tooltip: 'Delete',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  bool get isRowCountApproximate => false;
-
-  @override
-  int get rowCount => employees.length;
-
-  @override
-  int get selectedRowCount => 0;
 }

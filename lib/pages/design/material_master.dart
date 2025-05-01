@@ -4,36 +4,246 @@ import 'package:mpt_ims/pages/design/add_material_page.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
 import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
+import 'package:pluto_grid/pluto_grid.dart';
 
 class MaterialMasterPage extends ConsumerWidget {
   const MaterialMasterPage({super.key});
 
-  void _confirmDelete(
-      BuildContext context, WidgetRef ref, MaterialItem material) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Material'),
-        content:
-            const Text('Are you sure you want to delete this material item?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton.tonal(
-            onPressed: () {
-              ref.read(materialListProvider.notifier).deleteMaterial(material);
-              Navigator.pop(context);
-            },
-            style: FilledButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
+  List<PlutoColumn> _getColumns(BuildContext context, WidgetRef ref) {
+    return [
+      PlutoColumn(
+        title: 'SL No',
+        field: 'slNo',
+        type: PlutoColumnType.text(),
+        width: 100,
+        enableEditingMode: false,
       ),
-    );
+      PlutoColumn(
+        title: 'Part No',
+        field: 'partNo',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Description',
+        field: 'description',
+        type: PlutoColumnType.text(),
+        width: 200,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Category',
+        field: 'category',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Sub Category',
+        field: 'subCategory',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Unit',
+        field: 'unit',
+        type: PlutoColumnType.text(),
+        width: 80,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Preferred Vendor',
+        field: 'preferredVendor',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Best Rate',
+        field: 'bestRate',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: '# of Vendors',
+        field: 'vendorCount',
+        type: PlutoColumnType.number(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'SEIPL Rate',
+        field: 'seiplRate',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Sale Rate',
+        field: 'saleRate',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Stock',
+        field: 'stock',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Stock Value',
+        field: 'stockValue',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Total Received',
+        field: 'totalReceived',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Vendor Issued',
+        field: 'vendorIssued',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Vendor Received',
+        field: 'vendorReceived',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Board Issue',
+        field: 'boardIssue',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Cost Diff',
+        field: 'costDiff',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Actions',
+        field: 'actions',
+        type: PlutoColumnType.text(),
+        width: 200,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final material = ref
+              .read(materialListProvider)
+              .firstWhere((m) => m.slNo == rendererContext.row.cells['slNo']!.value);
+
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AddMaterialPage(
+                        materialToEdit: material,
+                        index: ref.read(materialListProvider).indexOf(material),
+                      ),
+                    ),
+                  );
+                },
+                color: Colors.blue,
+                tooltip: 'Edit',
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.people_outline, size: 20),
+                onPressed: () => _showVendorDetails(
+                  context,
+                  material,
+                  ref,
+                ),
+                tooltip: 'Vendor Details',
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: () => _confirmDelete(
+                  context,
+                  ref,
+                  material,
+                ),
+                color: Colors.red[400],
+                tooltip: 'Delete',
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    ];
+  }
+
+  List<PlutoRow> _getRows(List<MaterialItem> materials, WidgetRef ref) {
+    return materials.map((m) {
+      final stockQty = double.tryParse(m.getTotalAvailableStock(ref)) ?? 0;
+      final stockValue = double.tryParse(m.getTotalStockValue(ref)) ?? 0;
+      final costDiff = double.tryParse(m.getTotalCostDiff(ref)) ?? 0;
+
+      return PlutoRow(
+        cells: {
+          'slNo': PlutoCell(value: m.slNo),
+          'partNo': PlutoCell(value: m.partNo),
+          'description': PlutoCell(value: m.description),
+          'category': PlutoCell(value: m.category),
+          'subCategory': PlutoCell(value: m.subCategory),
+          'unit': PlutoCell(value: m.unit),
+          'preferredVendor': PlutoCell(value: m.getPreferredVendorName(ref)),
+          'bestRate': PlutoCell(
+              value: m.getLowestSupplierRate(ref).isEmpty
+                  ? '-'
+                  : '₹${m.getLowestSupplierRate(ref)}'),
+          'vendorCount': PlutoCell(value: m.getVendorCount(ref)),
+          'seiplRate': PlutoCell(
+              value: m.getPreferredVendorSeiplRate(ref).isEmpty
+                  ? '-'
+                  : '₹${m.getPreferredVendorSeiplRate(ref)}'),
+          'saleRate': PlutoCell(
+              value: m.getPreferredVendorSaleRate(ref).isEmpty
+                  ? '-'
+                  : '₹${m.getPreferredVendorSaleRate(ref)}'),
+          'stock': PlutoCell(value: '${m.getTotalAvailableStock(ref)} ${m.unit}'),
+          'stockValue': PlutoCell(value: '₹${stockValue.toStringAsFixed(2)}'),
+          'totalReceived':
+              PlutoCell(value: '${m.getTotalReceivedQty(ref)} ${m.unit}'),
+          'vendorIssued':
+              PlutoCell(value: '${m.getTotalIssuedQty(ref)} ${m.unit}'),
+          'vendorReceived':
+              PlutoCell(value: '${m.getTotalReceivedQty(ref)} ${m.unit}'),
+          'boardIssue':
+              PlutoCell(value: '${m.getTotalIssuedQty(ref)} ${m.unit}'),
+          'costDiff': PlutoCell(value: '₹${costDiff.toStringAsFixed(2)}'),
+          'actions': PlutoCell(value: ''),
+        },
+      );
+    }).toList();
   }
 
   @override
@@ -129,48 +339,33 @@ class MaterialMasterPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
                       Expanded(
-                        child: Card(
-                          elevation: 0,
-                          margin: EdgeInsets.zero,
-                          child: SizedBox(
-                            width: MediaQuery.of(context).size.width - 32,
-                            child: PaginatedDataTable(
-                              source: _MaterialDataSource(
-                                materials: materials,
-                                context: context,
-                                ref: ref,
-                                onDelete: (material) =>
-                                    _confirmDelete(context, ref, material),
-                              ),
-                              header: null,
-                              rowsPerPage: materials.length,
-                              showFirstLastButtons: true,
-                              showCheckboxColumn: false,
-                              horizontalMargin: 16,
-                              columnSpacing: 20,
-                              availableRowsPerPage: const [20, 50, 100, 200],
-                              columns: const [
-                                DataColumn(label: Text('SL No')),
-                                DataColumn(label: Text('Part No')),
-                                DataColumn(label: Text('Description')),
-                                DataColumn(label: Text('Category')),
-                                DataColumn(label: Text('Sub Category')),
-                                DataColumn(label: Text('Unit')),
-                                DataColumn(label: Text('Preferred Vendor')),
-                                DataColumn(label: Text('Best Rate')),
-                                DataColumn(label: Text('# of Vendors')),
-                                DataColumn(label: Text('SEIPL Rate')),
-                                DataColumn(label: Text('Sale Rate')),
-                                DataColumn(label: Text('Stock')),
-                                DataColumn(label: Text('Stock Value')),
-                                DataColumn(label: Text('Total Received')),
-                                DataColumn(label: Text('Vendor Issued')),
-                                DataColumn(label: Text('Vendor Received')),
-                                DataColumn(label: Text('Board Issue')),
-                                DataColumn(label: Text('Billing Diff')),
-                                DataColumn(label: Text('Cost Diff')),
-                                DataColumn(label: Text('Actions')),
+                        child: PlutoGrid(
+                          columns: _getColumns(context, ref),
+                          rows: _getRows(materials, ref),
+                          onLoaded: (PlutoGridOnLoadedEvent event) {
+                            event.stateManager.setShowColumnFilter(true);
+                          },
+                          configuration: PlutoGridConfiguration(
+                            columnFilter: PlutoGridColumnFilterConfig(
+                              filters: const [
+                                ...FilterHelper.defaultFilters,
                               ],
+                            ),
+                            style: PlutoGridStyleConfig(
+                              gridBorderColor: Colors.grey[700]!,
+                              gridBackgroundColor: Colors.grey[900]!,
+                              borderColor: Colors.grey[700]!,
+                              iconColor: Colors.grey[300]!,
+                              rowColor: Colors.grey[850]!,
+                              oddRowColor: Colors.grey[800]!,
+                              evenRowColor: Colors.grey[850]!,
+                              activatedColor: Colors.blue[900]!,
+                              cellTextStyle: const TextStyle(color: Colors.white),
+                              columnTextStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              rowHeight: 45,
                             ),
                           ),
                         ),
@@ -180,147 +375,37 @@ class MaterialMasterPage extends ConsumerWidget {
                 ),
     );
   }
-}
 
-class _MaterialDataSource extends DataTableSource {
-  final List<MaterialItem> materials;
-  final BuildContext context;
-  final WidgetRef ref;
-  final Function(MaterialItem) onDelete;
-
-  _MaterialDataSource({
-    required this.materials,
-    required this.context,
-    required this.ref,
-    required this.onDelete,
-  });
-
-  @override
-  DataRow? getRow(int index) {
-    if (index >= materials.length) return null;
-    final m = materials[index];
-
-    // Watch vendor rates to make the UI reactive
-    ref
-        .watch(vendorMaterialRateProvider.notifier)
-        .getRatesForMaterial(m.slNo);
-    final stockQty = double.tryParse(m.getTotalAvailableStock(ref)) ?? 0;
-    final stockValue = double.tryParse(m.getTotalStockValue(ref)) ?? 0;
-    final costDiff = double.tryParse(m.getTotalCostDiff(ref)) ?? 0;
-
-    return DataRow(
-      cells: [
-        DataCell(
-          Text(
-            m.slNo,
-            style: const TextStyle(fontWeight: FontWeight.w500),
+  void _confirmDelete(
+      BuildContext context, WidgetRef ref, MaterialItem material) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Material'),
+        content:
+            const Text('Are you sure you want to delete this material item?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
-        ),
-        DataCell(
-          Text(
-            m.partNo,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w500,
+          FilledButton.tonal(
+            onPressed: () {
+              ref.read(materialListProvider.notifier).deleteMaterial(material);
+              Navigator.pop(context);
+            },
+            style: FilledButton.styleFrom(
+              foregroundColor: Colors.red,
             ),
+            child: const Text('Delete'),
           ),
-        ),
-        DataCell(
-          Text(
-            m.description,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        DataCell(Text(m.category)),
-        DataCell(Text(m.subCategory)),
-        DataCell(Text(m.unit)),
-        DataCell(Text(m.getPreferredVendorName(ref))),
-        DataCell(Text(m.getLowestSupplierRate(ref).isEmpty
-            ? '-'
-            : '₹${m.getLowestSupplierRate(ref)}')),
-        DataCell(Text(m.getVendorCount(ref).toString())),
-        DataCell(Text(m.getPreferredVendorSeiplRate(ref).isEmpty
-            ? '-'
-            : '₹${m.getPreferredVendorSeiplRate(ref)}')),
-        DataCell(Text(m.getPreferredVendorSaleRate(ref).isEmpty
-            ? '-'
-            : '₹${m.getPreferredVendorSaleRate(ref)}')),
-        DataCell(
-          Text(
-            '${m.getTotalAvailableStock(ref)} ${m.unit}',
-            style: TextStyle(
-              color: stockQty > 0 ? Colors.green : Colors.red,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        DataCell(
-          Text(
-            '₹${stockValue.toStringAsFixed(2)}',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-        ),
-        DataCell(Text('${m.getTotalReceivedQty(ref)} ${m.unit}')),
-        DataCell(Text('${m.getTotalIssuedQty(ref)} ${m.unit}')),
-        DataCell(Text('${m.getTotalReceivedQty(ref)} ${m.unit}')),
-        DataCell(Text('${m.getTotalIssuedQty(ref)} ${m.unit}')),
-        DataCell(Text('${m.getTotalReceivedQty(ref)} ${m.unit}')),
-        DataCell(
-          Text(
-            '₹${costDiff.toStringAsFixed(2)}',
-            style: TextStyle(
-              color: costDiff < 0 ? Colors.red : Colors.green,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddMaterialPage(
-                        materialToEdit: m,
-                        index: materials.indexOf(m),
-                      ),
-                    ),
-                  );
-                },
-                color: Colors.blue,
-                tooltip: 'Edit',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.people_outline, size: 20),
-                onPressed: () => _showVendorDetails(context, m),
-                tooltip: 'Vendor Details',
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () => onDelete(m),
-                color: Colors.red[400],
-                tooltip: 'Delete',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  void _showVendorDetails(BuildContext context, MaterialItem material) {
+  void _showVendorDetails(
+      BuildContext context, MaterialItem material, WidgetRef ref) {
     final rates = material.getRankedVendors(ref);
 
     showDialog(
@@ -355,11 +440,9 @@ class _MaterialDataSource extends DataTableSource {
                       Expanded(child: Text('₹${rate.supplierRate}')),
                       Expanded(child: Text('₹${rate.seiplRate}')),
                       Expanded(child: Text('₹${rate.saleRate}')),
+                      Expanded(child: Text('${rate.avlStock} ${material.unit}')),
                       Expanded(
-                          child: Text('${rate.avlStock} ${material.unit}')),
-                      Expanded(
-                          child:
-                              Text('₹${rate.stockValue.toStringAsFixed(2)}')),
+                          child: Text('₹${rate.stockValue.toStringAsFixed(2)}')),
                       Expanded(child: Text(rate.lastPurchaseDate)),
                       Expanded(child: Text(rate.remarks)),
                     ],
@@ -378,13 +461,4 @@ class _MaterialDataSource extends DataTableSource {
       ),
     );
   }
-
-  @override
-  bool get isRowCountApproximate => false;
-
-  @override
-  int get rowCount => materials.length;
-
-  @override
-  int get selectedRowCount => 0;
 }

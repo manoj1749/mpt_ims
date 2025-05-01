@@ -16,6 +16,7 @@ import '../../provider/supplier_provider.dart';
 import '../../provider/purchase_request_provider.dart';
 import '../../provider/purchase_order.dart';
 import '../../provider/vendor_material_rate_provider.dart';
+import 'package:collection/collection.dart';
 
 class AddPurchaseOrderPage extends ConsumerStatefulWidget {
   final PurchaseOrder? existingPO;
@@ -135,29 +136,51 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
   void _savePurchaseOrder() {
     if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
       final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-      final poItems = selectedItems.map((item) {
-        final qty =
-            double.parse(qtyControllers[item.materialCode]?.text ?? '0');
-        final cost = double.parse(item.costPerUnit);
-        final margin = double.parse(item.marginPerUnit);
+      for (var item in selectedItems) {
+        final qtyText = qtyControllers[item.materialCode]?.text ?? '0';
+        item.updateQuantity(qtyText);
+      }
 
+
+      // First update all items with their latest quantities and calculations
+      final updatedItems = selectedItems.map((item) {
+        final qty = int.parse(item.quantity);
+        final cost = double.parse(item.costPerUnit);
+        final seipl = double.parse(item.seiplRate);
+        final margin = cost - seipl;
+
+        final totalCost = (qty * cost).toStringAsFixed(2);
+        final totalMargin = (qty * margin).toStringAsFixed(2);
+        final rateDiff = (cost - seipl).toStringAsFixed(2);
+        final totalRateDiff = (qty * (cost - seipl)).toStringAsFixed(2);
         return POItem(
           materialCode: item.materialCode,
           materialDescription: item.materialDescription,
           unit: item.unit,
           quantity: qty.toString(),
-          costPerUnit: item.costPerUnit,
-          totalCost: (qty * cost).toString(),
-          seiplRate: item.seiplRate,
-          marginPerUnit: margin.toString(),
-          totalMargin: (qty * margin).toString(),
+          costPerUnit: cost.toStringAsFixed(2),
+          totalCost: totalCost,
+          seiplRate: seipl.toStringAsFixed(2),
+          rateDifference: rateDiff,
+          totalRateDifference: totalRateDiff,
+          marginPerUnit: margin.toStringAsFixed(2),
+          totalMargin: totalMargin,
         );
       }).toList();
 
-      final total =
-          poItems.fold(0.0, (sum, item) => sum + double.parse(item.totalCost));
+      // Calculate totals with proper rounding
+      final subtotal = updatedItems.fold(
+        0.0,
+        (sum, item) => sum + double.parse(item.totalCost),
+      );
+      final igst = 0.0; // Add tax calculation logic if needed
+      final cgst = 0.0;
+      final sgst = 0.0;
+      final grandTotal = subtotal + igst + cgst + sgst;
+
       final newPO = PurchaseOrder(
         poNo: widget.existingPO?.poNo ??
             'PO${DateTime.now().millisecondsSinceEpoch}',
@@ -166,19 +189,52 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         boardNo: _boardNoController.text,
         transport: _transportController.text,
         deliveryRequirements: _deliveryRequirementsController.text,
-        items: poItems,
-        total: total,
-        igst: 0.0,
-        cgst: 0.0,
-        sgst: 0.0,
-        grandTotal: total,
+        items: updatedItems,
+        total: double.parse(subtotal.toStringAsFixed(2)),
+        igst: double.parse(igst.toStringAsFixed(2)),
+        cgst: double.parse(cgst.toStringAsFixed(2)),
+        sgst: double.parse(sgst.toStringAsFixed(2)),
+        grandTotal: double.parse(grandTotal.toStringAsFixed(2)),
       );
 
-      final notifier = ref.read(purchaseOrderProvider.notifier);
+      // Update PR quantities and status with proper integer handling
+      final purchaseRequests = ref.read(purchaseRequestListProvider);
+      final prNotifier = ref.read(purchaseRequestListProvider.notifier);
+
+      for (var pr in purchaseRequests) {
+        if (pr.supplierName == selectedSupplier!.name) {
+          bool prUpdated = false;
+
+          for (var prItem in pr.items) {
+            final poItem = updatedItems.firstWhereOrNull(
+              (po) => po.materialCode == prItem.materialCode,
+            );
+
+            if (poItem != null) {
+              // Convert quantity to integer before updating PR
+              final orderedQty = int.parse(poItem.quantity);
+              prItem.addOrderedQuantity(
+                newPO.poNo,
+                orderedQty.toDouble(),
+              );
+              prUpdated = true;
+            }
+          }
+
+          if (prUpdated) {
+            pr.updateStatus();
+            final index = purchaseRequests.indexOf(pr);
+            prNotifier.updateRequest(index, pr);
+          }
+        }
+      }
+
+      // Save the PO
+      final poNotifier = ref.read(purchaseOrderProvider.notifier);
       if (widget.index != null) {
-        notifier.updateOrder(widget.index!, newPO);
+        poNotifier.updateOrder(widget.index!, newPO);
       } else {
-        notifier.addOrder(newPO);
+        poNotifier.addOrder(newPO);
       }
 
       Navigator.pop(context);
@@ -250,6 +306,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         });
       }
     }
+
+    selectedItems = poItems.values.toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text("Purchase Order Creation")),
@@ -533,36 +591,48 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                           TextFormField(
                                             controller: qtyControllers[
                                                 item.materialCode],
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
                                             keyboardType: TextInputType.number,
                                             validator: (value) {
-                                              final inputQty = double.tryParse(
-                                                      value ?? '') ??
-                                                  0;
+                                              if (value == null ||
+                                                  value.isEmpty) {
+                                                return 'Quantity is required';
+                                              }
+                                              final inputQty =
+                                                  int.tryParse(value);
+                                              if (inputQty == null) {
+                                                return 'Please enter a valid number';
+                                              }
                                               if (inputQty <= 0) {
                                                 return 'Quantity must be greater than 0';
                                               }
-                                              if (inputQty > totalNeededQty) {
-                                                return 'Cannot exceed required quantity ($totalNeededQty)';
+                                              final maxQty = int.parse(
+                                                  totalNeededQty
+                                                      .toStringAsFixed(0));
+                                              if (inputQty > maxQty) {
+                                                return 'Cannot exceed required quantity ($maxQty)';
                                               }
                                               return null;
                                             },
-                                            onChanged: (value) {
-                                              if (value.isEmpty) return;
+                                            onSaved: (value) {
+                                              if (value == null ||
+                                                  value.isEmpty) return;
+                                              final qty = int.tryParse(value);
+                                              if (qty == null) return;
+
                                               setState(() {
-                                                final limitedQty = min(
-                                                  double.parse(value),
-                                                  double.parse(
-                                                      maxQtyControllers[item
-                                                              .materialCode]!
-                                                          .text),
-                                                ).toString();
-                                                qtyControllers[
-                                                        item.materialCode]
-                                                    ?.text = limitedQty;
+                                                final maxQty = int.parse(
+                                                    maxQtyControllers[
+                                                            item.materialCode]!
+                                                        .text
+                                                        .split('.')[0]);
+
+                                                final limitedQty =
+                                                    min(qty, maxQty).toString();
+                                                if (value != limitedQty) {
+                                                  qtyControllers[
+                                                          item.materialCode]
+                                                      ?.text = limitedQty;
+                                                }
                                                 item.updateQuantity(limitedQty);
                                               });
                                             },
@@ -570,16 +640,14 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                               isDense: true,
                                               contentPadding:
                                                   const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 6),
-                                              filled: true,
-                                              fillColor: Colors.grey[850],
+                                                horizontal: 8,
+                                                vertical: 6,
+                                              ),
                                               border: OutlineInputBorder(
                                                 borderRadius:
-                                                    BorderRadius.circular(6),
+                                                    BorderRadius.circular(4),
                                               ),
                                               errorStyle: const TextStyle(
-                                                color: Colors.redAccent,
                                                 fontSize: 12,
                                               ),
                                             ),

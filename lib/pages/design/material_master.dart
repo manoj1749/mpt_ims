@@ -203,7 +203,6 @@ class MaterialMasterPage extends ConsumerWidget {
 
   List<PlutoRow> _getRows(List<MaterialItem> materials, WidgetRef ref) {
     return materials.map((m) {
-      final stockQty = double.tryParse(m.getTotalAvailableStock(ref)) ?? 0;
       final stockValue = double.tryParse(m.getTotalStockValue(ref)) ?? 0;
       final costDiff = double.tryParse(m.getTotalCostDiff(ref)) ?? 0;
 

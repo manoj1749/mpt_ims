@@ -29,6 +29,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
   await initializeHive();
   final supplierBox = await Hive.openBox<Supplier>('suppliers');
   final materialBox = await Hive.openBox<MaterialItem>('materials');

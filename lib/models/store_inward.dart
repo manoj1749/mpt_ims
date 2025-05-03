@@ -75,6 +75,9 @@ class InwardItem {
   @HiveField(6)
   double rejectedQty;
 
+  @HiveField(7)
+  String costPerUnit;
+
   InwardItem({
     required this.materialCode,
     required this.materialDescription,
@@ -83,5 +86,6 @@ class InwardItem {
     required this.receivedQty,
     required this.acceptedQty,
     required this.rejectedQty,
+    required this.costPerUnit,
   });
 }

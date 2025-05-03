@@ -42,6 +42,7 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(EmployeeAdapter());
   Hive.registerAdapter(CustomerAdapter());
   Hive.registerAdapter(StoreInwardAdapter());
+  Hive.registerAdapter(InwardItemAdapter());
 
   // Open boxes
   await Hive.openBox<MaterialItem>('materials');

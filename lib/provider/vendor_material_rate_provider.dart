@@ -1,6 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:mpt_ims/models/vendor_material_rate.dart';
+import 'package:hive/hive.dart';
+import '../models/vendor_material_rate.dart';
+
+// Box provider
+final vendorMaterialRateBoxProvider = Provider<Box<VendorMaterialRate>>((ref) {
+  throw UnimplementedError();
+});
 
 // Provider to track loading state
 final vendorRatesLoadingProvider = StateProvider<bool>((ref) => true);
@@ -8,48 +13,30 @@ final vendorRatesLoadingProvider = StateProvider<bool>((ref) => true);
 final vendorMaterialRateProvider =
     StateNotifierProvider<VendorMaterialRateNotifier, List<VendorMaterialRate>>(
   (ref) {
-    final notifier = VendorMaterialRateNotifier(ref);
-    // Initialize rates
-    notifier._loadRates().then((_) {
-      ref.read(vendorRatesLoadingProvider.notifier).state = false;
-    });
-    return notifier;
+    final box = ref.watch(vendorMaterialRateBoxProvider);
+    return VendorMaterialRateNotifier(box);
   },
 );
 
-class VendorMaterialRateNotifier
-    extends StateNotifier<List<VendorMaterialRate>> {
-  final Ref ref;
+class VendorMaterialRateNotifier extends StateNotifier<List<VendorMaterialRate>> {
+  final Box<VendorMaterialRate> box;
 
-  VendorMaterialRateNotifier(this.ref) : super([]);
+  VendorMaterialRateNotifier(this.box) : super(box.values.toList());
 
-  static const String boxName = 'vendor_material_rates';
-
-  Future<void> _loadRates() async {
-    final box = await Hive.openBox<VendorMaterialRate>(boxName);
+  Future<void> addRate(VendorMaterialRate rate) async {
+    await box.put(rate.uniqueKey, rate);
     state = box.values.toList();
   }
 
-  Future<void> addRate(VendorMaterialRate rate) async {
-    final box = await Hive.openBox<VendorMaterialRate>(boxName);
-    await box.put(rate.uniqueKey, rate);
-    state = [...state, rate];
-  }
-
   Future<void> updateRate(VendorMaterialRate rate) async {
-    final box = await Hive.openBox<VendorMaterialRate>(boxName);
     await box.put(rate.uniqueKey, rate);
-    state = [
-      for (final existingRate in state)
-        if (existingRate.uniqueKey == rate.uniqueKey) rate else existingRate
-    ];
+    state = box.values.toList();
   }
 
   Future<void> deleteRate(String materialId, String vendorId) async {
-    final box = await Hive.openBox<VendorMaterialRate>(boxName);
     final key = "$materialId-$vendorId";
     await box.delete(key);
-    state = state.where((rate) => rate.uniqueKey != key).toList();
+    state = box.values.toList();
   }
 
   List<VendorMaterialRate> getRatesForMaterial(String materialId) {

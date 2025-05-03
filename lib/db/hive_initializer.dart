@@ -12,6 +12,7 @@ import 'package:mpt_ims/models/store_inward.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/supplier.dart';
 import '../models/vendor_material_rate.dart';
+import '../models/quality_inspection.dart';
 
 Future<void> clearIncompatibleData() async {
   try {
@@ -43,6 +44,9 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(CustomerAdapter());
   Hive.registerAdapter(StoreInwardAdapter());
   Hive.registerAdapter(InwardItemAdapter());
+  Hive.registerAdapter(QualityInspectionAdapter());
+  Hive.registerAdapter(InspectionItemAdapter());
+  Hive.registerAdapter(QualityParameterAdapter());
 
   // Open boxes
   await Hive.openBox<MaterialItem>('materials');
@@ -53,4 +57,5 @@ Future<void> initializeHive() async {
   await Hive.openBox<Customer>('customers');
   await Hive.openBox<StoreInward>('store_inwards');
   await Hive.openBox<VendorMaterialRate>('vendor_material_rates');
+  await Hive.openBox<QualityInspection>('quality_inspections');
 }

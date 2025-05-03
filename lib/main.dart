@@ -13,6 +13,7 @@ import 'package:mpt_ims/models/purchase_request.dart';
 import 'package:mpt_ims/models/store_inward.dart';
 import 'package:mpt_ims/models/supplier.dart';
 import 'package:mpt_ims/models/employee.dart';
+import 'package:mpt_ims/models/quality_inspection.dart';
 import 'package:mpt_ims/provider/customer_provider.dart';
 import 'package:mpt_ims/provider/employee_provider.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
@@ -20,7 +21,9 @@ import 'package:mpt_ims/provider/purchase_order.dart';
 import 'package:mpt_ims/provider/purchase_request_provider.dart';
 import 'package:mpt_ims/provider/store_inward_provider.dart';
 import 'package:mpt_ims/provider/supplier_provider.dart';
-
+import 'package:mpt_ims/provider/quality_inspection_provider.dart';
+import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
+import 'package:mpt_ims/models/vendor_material_rate.dart';
 import 'firebase_options.dart'; // From Firebase setup
 import 'pages/login_page.dart'; // We'll create this
 
@@ -39,6 +42,8 @@ void main() async {
   final employeeBox = await Hive.openBox<Employee>('employees');
   final customerBox = await Hive.openBox<Customer>('customers');
   final storeInwardBox = await Hive.openBox<StoreInward>('store_inwards');
+  final vendorMaterialRateBox = await Hive.openBox<VendorMaterialRate>('vendor_material_rates');
+  final qualityInspectionBox = await Hive.openBox<QualityInspection>('quality_inspections');
 
   final user = FirebaseAuth.instance.currentUser;
 
@@ -51,6 +56,8 @@ void main() async {
       employeeBoxProvider.overrideWithValue(employeeBox),
       customerBoxProvider.overrideWithValue(customerBox),
       storeInwardBoxProvider.overrideWithValue(storeInwardBox),
+      vendorMaterialRateBoxProvider.overrideWithValue(vendorMaterialRateBox),
+      qualityInspectionBoxProvider.overrideWithValue(qualityInspectionBox),
     ],
     child: IMSApp(isLoggedIn: user != null),
   ));

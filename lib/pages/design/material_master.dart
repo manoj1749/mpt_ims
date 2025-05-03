@@ -5,9 +5,17 @@ import 'package:mpt_ims/provider/material_provider.dart';
 import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
 import 'package:pluto_grid/pluto_grid.dart';
+import 'package:collection/collection.dart';
 
-class MaterialMasterPage extends ConsumerWidget {
+class MaterialMasterPage extends ConsumerStatefulWidget {
   const MaterialMasterPage({super.key});
+
+  @override
+  ConsumerState<MaterialMasterPage> createState() => _MaterialMasterPageState();
+}
+
+class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
+  late PlutoGridStateManager stateManager;
 
   List<PlutoColumn> _getColumns(BuildContext context, WidgetRef ref) {
     return [
@@ -151,9 +159,12 @@ class MaterialMasterPage extends ConsumerWidget {
         width: 200,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final material = ref
-              .read(materialListProvider)
-              .firstWhere((m) => m.slNo == rendererContext.row.cells['slNo']!.value);
+          final materials = ref.read(materialListProvider);
+          final material = materials.where((m) => m.slNo == rendererContext.row.cells['slNo']!.value).firstOrNull;
+          
+          if (material == null) {
+            return const SizedBox.shrink(); // Return empty widget if material not found
+          }
 
           return Row(
             mainAxisSize: MainAxisSize.min,
@@ -166,7 +177,7 @@ class MaterialMasterPage extends ConsumerWidget {
                     MaterialPageRoute(
                       builder: (_) => AddMaterialPage(
                         materialToEdit: material,
-                        index: ref.read(materialListProvider).indexOf(material),
+                        index: materials.indexOf(material),
                       ),
                     ),
                   );
@@ -260,11 +271,12 @@ class MaterialMasterPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    // Watch both the materials list and vendor rates to ensure UI updates
     final materials = ref.watch(materialListProvider);
     final isLoading = ref.watch(vendorRatesLoadingProvider);
-    // Watch the entire vendor rates state to make the UI reactive
-    final _ = ref.watch(vendorMaterialRateProvider);
+    // Watch the vendor rates state
+    ref.watch(vendorMaterialRateProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -281,11 +293,15 @@ class MaterialMasterPage extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          await Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AddMaterialPage()),
           );
+          // Force refresh after returning from add page
+          if (mounted) {
+            setState(() {});
+          }
         },
         child: const Icon(Icons.add),
       ),
@@ -356,6 +372,7 @@ class MaterialMasterPage extends ConsumerWidget {
                           columns: _getColumns(context, ref),
                           rows: _getRows(materials, ref),
                           onLoaded: (PlutoGridOnLoadedEvent event) {
+                            stateManager = event.stateManager;
                             event.stateManager.setShowColumnFilter(true);
                           },
                           configuration: PlutoGridConfiguration(
@@ -403,9 +420,44 @@ class MaterialMasterPage extends ConsumerWidget {
             child: const Text('Cancel'),
           ),
           FilledButton.tonal(
-            onPressed: () {
-              ref.read(materialListProvider.notifier).deleteMaterial(material);
-              Navigator.pop(context);
+            onPressed: () async {
+              try {
+                Navigator.pop(context); // Close dialog first to prevent state updates after pop
+
+                // Find and remove the row from the grid
+                if (mounted) {
+                  final rowToRemove = stateManager.rows.firstWhereOrNull(
+                    (row) => row.cells['slNo']?.value == material.slNo
+                  );
+                  if (rowToRemove != null) {
+                    stateManager.removeRows([rowToRemove]);
+                  }
+                }
+
+                // Delete all vendor rates for this material first
+                final vendorRateNotifier = ref.read(vendorMaterialRateProvider.notifier);
+                final rates = vendorRateNotifier.getRatesForMaterial(material.slNo);
+                for (final rate in rates) {
+                  await vendorRateNotifier.deleteRate(material.slNo, rate.vendorId);
+                }
+
+                // Then delete the material
+                await ref.read(materialListProvider.notifier).deleteMaterial(material);
+                
+                // Force a rebuild of the grid if still mounted
+                if (mounted) {
+                  setState(() {});
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting material: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             style: FilledButton.styleFrom(
               foregroundColor: Colors.red,

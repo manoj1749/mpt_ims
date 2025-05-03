@@ -16,24 +16,43 @@ class MaterialNotifier extends StateNotifier<List<MaterialItem>> {
 
   MaterialNotifier(this.box) : super(box.values.toList());
 
-  void addMaterial(MaterialItem item) async {
-    await box.add(item);
-    state = box.values.toList();
-  }
-
-  void updateMaterial(int index, MaterialItem updatedItem) async {
-    if (index >= 0 && index < box.length) {
-      await box.putAt(index, updatedItem);
-      state = box.values.toList();
+  Future<void> addMaterial(MaterialItem item) async {
+    try {
+      await box.add(item);
+      if (mounted) {
+        state = box.values.toList();
+      }
+    } catch (e) {
+      // Re-throw the error to be handled by the UI
+      rethrow;
     }
   }
 
-  void deleteMaterial(MaterialItem material) async {
-    final index =
-        box.values.toList().indexWhere((m) => m.slNo == material.slNo);
-    if (index != -1) {
-      await box.deleteAt(index);
-      state = box.values.toList();
+  Future<void> updateMaterial(int index, MaterialItem updatedItem) async {
+    try {
+      if (index >= 0 && index < box.length) {
+        await box.putAt(index, updatedItem);
+        if (mounted) {
+          state = box.values.toList();
+        }
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteMaterial(MaterialItem material) async {
+    try {
+      final index =
+          box.values.toList().indexWhere((m) => m.slNo == material.slNo);
+      if (index != -1) {
+        await box.deleteAt(index);
+        if (mounted) {
+          state = box.values.toList();
+        }
+      }
+    } catch (e) {
+      rethrow;
     }
   }
 }

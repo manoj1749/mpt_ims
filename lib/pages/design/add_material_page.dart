@@ -34,6 +34,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   final _receivedQtyController = TextEditingController();
   final _issuedQtyController = TextEditingController();
   final _stockController = TextEditingController();
+  late TextEditingController _inspectionStockController;
 
   // Add controllers for all text fields
   final Map<String, TextEditingController> _controllers = {};
@@ -43,7 +44,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     super.initState();
     item = widget.materialToEdit?.copy() ?? // Create a copy if editing
         MaterialItem(
-          slNo: '',
+          slNo: (ref.read(materialListProvider).length + 1).toString(), // Generate new slNo
           description: '',
           partNo: '',
           unit: '',
@@ -58,6 +59,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _controllers['unit'] = TextEditingController(text: item.unit);
     _controllers['category'] = TextEditingController(text: item.category);
     _controllers['subCategory'] = TextEditingController(text: item.subCategory);
+    _inspectionStockController = TextEditingController(text: '0');
   }
 
   @override
@@ -69,6 +71,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _receivedQtyController.dispose();
     _issuedQtyController.dispose();
     _stockController.dispose();
+    _inspectionStockController.dispose();
     // Dispose all controllers
     for (var controller in _controllers.values) {
       controller.dispose();
@@ -76,29 +79,46 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     super.dispose();
   }
 
-  void _saveMaterial() {
+  void _saveMaterial() async {
     if (_formKey.currentState!.validate()) {
-      final notifier = ref.read(materialListProvider.notifier);
+      try {
+        final notifier = ref.read(materialListProvider.notifier);
 
-      // Update item with current values
-      item.slNo = _controllers['slNo']!.text;
-      item.description = _controllers['description']!.text;
-      item.partNo = _controllers['partNo']!.text;
-      item.unit = _controllers['unit']!.text;
-      item.category = _controllers['category']!.text;
-      item.subCategory = _controllers['subCategory']!.text;
+        // Update item with current values
+        item.slNo = _controllers['slNo']!.text;
+        item.description = _controllers['description']!.text;
+        item.partNo = _controllers['partNo']!.text;
+        item.unit = _controllers['unit']!.text;
+        item.category = _controllers['category']!.text;
+        item.subCategory = _controllers['subCategory']!.text;
 
-      if (widget.index != null) {
-        // Update existing material
-        notifier.updateMaterial(widget.index!, item);
-      } else {
-        // Create new material with a new slNo
-        final newSlNo = (ref.read(materialListProvider).length + 1).toString();
-        item.slNo = newSlNo;
-        notifier.addMaterial(item);
+        if (widget.index != null) {
+          // Update existing material
+          await notifier.updateMaterial(widget.index!, item);
+        } else {
+          // Create new material with a new slNo
+          final newSlNo = (ref.read(materialListProvider).length + 1).toString();
+          item.slNo = newSlNo;
+          await notifier.addMaterial(item);
+        }
+
+        // Ensure the material list is refreshed
+        ref.invalidate(materialListProvider);
+        
+        if (mounted) {
+          // Pop back to material master page
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error saving material: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
-
-      Navigator.pop(context);
     }
   }
 
@@ -120,7 +140,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   }
 
   Future<void> _addVendorRate(Supplier vendor) async {
-    // Only get rates if editing an existing material
+    // Get rates if editing an existing material
     final rates = widget.materialToEdit != null
         ? ref
             .read(vendorMaterialRateProvider.notifier)
@@ -205,6 +225,15 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
               ),
               const SizedBox(height: 16),
               TextFormField(
+                controller: _inspectionStockController,
+                decoration: const InputDecoration(
+                  labelText: 'Inspection Stock',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: _remarksController,
                 decoration: const InputDecoration(
                   labelText: 'Remarks',
@@ -252,6 +281,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         totalBilledCost: (receivedQty * seiplRate).toString(),
         costDiff: ((receivedQty * seiplRate) - (receivedQty * supplierRate))
             .toString(),
+        inspectionStock: _inspectionStockController.text,
       );
 
       if (existingRate != null) {
@@ -271,14 +301,11 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   }
 
   Widget _buildVendorRatesSection(List<Supplier> vendors) {
-    // Only show rates if we have a valid material ID (editing an existing material)
-    final rates = widget.materialToEdit != null
-        ? ref
-            .read(vendorMaterialRateProvider.notifier)
-            .getRatesForMaterial(item.slNo)
-        : [];
-    final preferredVendorName =
-        widget.materialToEdit != null ? item.getPreferredVendorName(ref) : '';
+    // Show rates for both new and existing materials
+    final rates = ref
+        .read(vendorMaterialRateProvider.notifier)
+        .getRatesForMaterial(item.slNo);
+    final preferredVendorName = item.getPreferredVendorName(ref);
 
     return Card(
       child: Padding(
@@ -289,11 +316,9 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  widget.materialToEdit != null
-                      ? 'Vendor Rates'
-                      : 'Save material first to add vendor rates',
-                  style: const TextStyle(
+                const Text(
+                  'Vendor Rates',
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -315,10 +340,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
             if (vendors.isEmpty)
               const Center(
                 child: Text('No vendors available'),
-              )
-            else if (widget.materialToEdit == null)
-              const Center(
-                child: Text('Save the material first to add vendor rates'),
               )
             else
               ListView.builder(
@@ -345,6 +366,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                                 Text('SEIPL Rate: ₹${rate.seiplRate}'),
                                 Text('Sale Rate: ₹${rate.saleRate}'),
                                 Text('Stock: ${rate.avlStock} ${item.unit}'),
+                                Text('Inspection Stock: ${rate.inspectionStock} ${item.unit}'),
                                 Text(
                                     'Stock Value: ₹${rate.stockValue.toStringAsFixed(2)}'),
                                 Text('Last Purchase: ${rate.lastPurchaseDate}'),
@@ -353,27 +375,20 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                               ],
                             )
                           : const Text('No rate added'),
-                      trailing: widget.materialToEdit != null
-                          ? (rate != null
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit),
-                                      onPressed: () => _addVendorRate(vendor),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete),
-                                      onPressed: () =>
-                                          _removeVendorRate(vendor.name),
-                                    ),
-                                  ],
-                                )
-                              : TextButton(
-                                  onPressed: () => _addVendorRate(vendor),
-                                  child: const Text('Add Rate'),
-                                ))
-                          : null,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () => _addVendorRate(vendor),
+                          ),
+                          if (rate != null)
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _removeVendorRate(vendor.name),
+                            ),
+                        ],
+                      ),
                     ),
                   );
                 },

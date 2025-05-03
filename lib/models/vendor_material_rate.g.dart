@@ -33,13 +33,14 @@ class VendorMaterialRateAdapter extends TypeAdapter<VendorMaterialRate> {
       totalReceivedCost: fields[13] as String,
       totalBilledCost: fields[14] as String,
       costDiff: fields[15] as String,
+      inspectionStock: fields[16] == null ? '0' : fields[16] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, VendorMaterialRate obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.materialId)
       ..writeByte(1)
@@ -71,7 +72,9 @@ class VendorMaterialRateAdapter extends TypeAdapter<VendorMaterialRate> {
       ..writeByte(14)
       ..write(obj.totalBilledCost)
       ..writeByte(15)
-      ..write(obj.costDiff);
+      ..write(obj.costDiff)
+      ..writeByte(16)
+      ..write(obj.inspectionStock);
   }
 
   @override

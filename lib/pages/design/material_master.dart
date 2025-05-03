@@ -96,6 +96,13 @@ class MaterialMasterPage extends ConsumerWidget {
         enableEditingMode: false,
       ),
       PlutoColumn(
+        title: 'Inspection Stock',
+        field: 'inspectionStock',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
         title: 'Stock Value',
         field: 'stockValue',
         type: PlutoColumnType.text(),
@@ -205,6 +212,12 @@ class MaterialMasterPage extends ConsumerWidget {
     return materials.map((m) {
       final stockValue = double.tryParse(m.getTotalStockValue(ref)) ?? 0;
       final costDiff = double.tryParse(m.getTotalCostDiff(ref)) ?? 0;
+      
+      // Get total inspection stock across all vendors
+      final inspectionStock = ref
+          .watch(vendorMaterialRateProvider.notifier)
+          .getRatesForMaterial(m.slNo)
+          .fold(0.0, (sum, rate) => sum + (double.tryParse(rate.inspectionStock) ?? 0));
 
       return PlutoRow(
         cells: {
@@ -229,6 +242,7 @@ class MaterialMasterPage extends ConsumerWidget {
                   ? '-'
                   : '₹${m.getPreferredVendorSaleRate(ref)}'),
           'stock': PlutoCell(value: '${m.getTotalAvailableStock(ref)} ${m.unit}'),
+          'inspectionStock': PlutoCell(value: '$inspectionStock ${m.unit}'),
           'stockValue': PlutoCell(value: '₹${stockValue.toStringAsFixed(2)}'),
           'totalReceived':
               PlutoCell(value: '${m.getTotalReceivedQty(ref)} ${m.unit}'),

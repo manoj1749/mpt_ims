@@ -29,7 +29,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
   final _receivedByController = TextEditingController();
   final _checkedByController = TextEditingController();
   final List<InwardItem> _items = [];
-  
+
   Supplier? selectedSupplier;
   PurchaseOrder? selectedPO;
 
@@ -62,23 +62,24 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       _poNoController.text = po.poNo;
       _poDateController.text = po.poDate;
       _invoiceAmountController.text = po.grandTotal.toString();
-      
+
       // Clear existing items
       _items.clear();
       _materialSlNoMap.clear();
-      
+
       // Add items from PO
       final materials = ref.read(materialListProvider);
       for (final poItem in po.items) {
         // Find the material by partNo to get its slNo
         final material = materials.firstWhere(
           (m) => m.partNo == poItem.materialCode,
-          orElse: () => throw Exception('Material not found: ${poItem.materialCode}'),
+          orElse: () =>
+              throw Exception('Material not found: ${poItem.materialCode}'),
         );
-        
+
         // Store the mapping
         _materialSlNoMap[poItem.materialCode] = material.slNo;
-        
+
         _items.add(
           InwardItem(
             materialCode: poItem.materialCode,
@@ -101,10 +102,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     final vendorRateNotifier = ref.read(vendorMaterialRateProvider.notifier);
     final suppliers = ref.watch(supplierListProvider);
     final purchaseOrders = ref.watch(purchaseOrderProvider);
-    
+
     // Filter POs based on selected supplier
-    final supplierPOs = selectedSupplier != null 
-        ? purchaseOrders.where((po) => po.supplierName == selectedSupplier!.name).toList()
+    final supplierPOs = selectedSupplier != null
+        ? purchaseOrders
+            .where((po) => po.supplierName == selectedSupplier!.name)
+            .toList()
         : <PurchaseOrder>[];
 
     return Scaffold(
@@ -116,7 +119,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           child: ListView(
             children: [
               buildTextField(_grnDateController, 'GR Date', isDate: true),
-              
+
               // Supplier Dropdown
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -125,7 +128,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   decoration: const InputDecoration(
                     labelText: 'Supplier',
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                   ),
                   items: suppliers.map((supplier) {
                     return DropdownMenuItem(
@@ -145,7 +149,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   validator: (value) => value == null ? 'Required' : null,
                 ),
               ),
-              
+
               // PO Dropdown
               if (selectedSupplier != null && supplierPOs.isNotEmpty)
                 Padding(
@@ -155,7 +159,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                     decoration: const InputDecoration(
                       labelText: 'Purchase Order',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                     ),
                     items: supplierPOs.map((po) {
                       return DropdownMenuItem(
@@ -165,25 +170,28 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                     }).toList(),
                     onChanged: (value) {
                       if (value != null) {
-                        final po = supplierPOs.firstWhere((po) => po.poNo == value);
+                        final po =
+                            supplierPOs.firstWhere((po) => po.poNo == value);
                         _onPOSelected(po);
                       }
                     },
                     validator: (value) => value == null ? 'Required' : null,
                   ),
                 ),
-              
+
               // Read-only PO fields
               buildTextField(_poNoController, 'PO No', readOnly: true),
               buildTextField(_poDateController, 'PO Date', readOnly: true),
-              
+
               buildTextField(_invoiceNoController, 'Invoice No'),
-              buildTextField(_invoiceDateController, 'Invoice Date', isDate: true),
-              buildTextField(_invoiceAmountController, 'Invoice Amount', readOnly: true),
+              buildTextField(_invoiceDateController, 'Invoice Date',
+                  isDate: true),
+              buildTextField(_invoiceAmountController, 'Invoice Amount',
+                  readOnly: true),
               buildTextField(_receivedByController, 'Received By'),
               buildTextField(_checkedByController, 'Checked By'),
               const SizedBox(height: 20),
-              
+
               // Items Section
               Card(
                 child: Padding(
@@ -224,76 +232,95 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                           ),
                         )
                       else
-                        ..._items.map((item) => Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.materialDescription,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                        ..._items
+                            .map((item) => Card(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.materialDescription,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                            'Material Code: ${item.materialCode}'),
+                                        Text('Unit: ${item.unit}'),
+                                        Text('Ordered Qty: ${item.orderedQty}'),
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: TextFormField(
+                                                decoration:
+                                                    const InputDecoration(
+                                                  labelText: 'Accepted Qty',
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                initialValue:
+                                                    item.acceptedQty.toString(),
+                                                onChanged: (value) {
+                                                  final accepted =
+                                                      double.tryParse(value) ??
+                                                          0;
+                                                  setState(() {
+                                                    item.acceptedQty = accepted;
+                                                    item.rejectedQty =
+                                                        item.receivedQty -
+                                                            accepted;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: TextFormField(
+                                                decoration:
+                                                    const InputDecoration(
+                                                  labelText: 'Rejected Qty',
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                initialValue:
+                                                    item.rejectedQty.toString(),
+                                                onChanged: (value) {
+                                                  final rejected =
+                                                      double.tryParse(value) ??
+                                                          0;
+                                                  setState(() {
+                                                    item.rejectedQty = rejected;
+                                                    item.acceptedQty =
+                                                        item.receivedQty -
+                                                            rejected;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                  Icons.delete_outline),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _items.remove(item);
+                                                });
+                                              },
+                                              color: Colors.red[400],
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text('Material Code: ${item.materialCode}'),
-                                Text('Unit: ${item.unit}'),
-                                Text('Ordered Qty: ${item.orderedQty}'),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextFormField(
-                                        decoration: const InputDecoration(
-                                          labelText: 'Accepted Qty',
-                                          border: OutlineInputBorder(),
-                                        ),
-                                        keyboardType: TextInputType.number,
-                                        initialValue: item.acceptedQty.toString(),
-                                        onChanged: (value) {
-                                          final accepted = double.tryParse(value) ?? 0;
-                                          setState(() {
-                                            item.acceptedQty = accepted;
-                                            item.rejectedQty = item.receivedQty - accepted;
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: TextFormField(
-                                        decoration: const InputDecoration(
-                                          labelText: 'Rejected Qty',
-                                          border: OutlineInputBorder(),
-                                        ),
-                                        keyboardType: TextInputType.number,
-                                        initialValue: item.rejectedQty.toString(),
-                                        onChanged: (value) {
-                                          final rejected = double.tryParse(value) ?? 0;
-                                          setState(() {
-                                            item.rejectedQty = rejected;
-                                            item.acceptedQty = item.receivedQty - rejected;
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline),
-                                      onPressed: () {
-                                        setState(() {
-                                          _items.remove(item);
-                                        });
-                                      },
-                                      color: Colors.red[400],
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        )).toList(),
+                                ))
+                            .toList(),
                     ],
                   ),
                 ),
@@ -304,7 +331,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   if (_formKey.currentState!.validate()) {
                     // Create store inward record
                     final inward = StoreInward(
-                      grnNo: ref.read(storeInwardProvider.notifier).generateGRNNumber(),
+                      grnNo: ref
+                          .read(storeInwardProvider.notifier)
+                          .generateGRNNumber(),
                       grnDate: _grnDateController.text,
                       supplierName: selectedSupplier!.name,
                       poNo: _poNoController.text,
@@ -321,28 +350,35 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                       // Add to inspection stock
                       for (final item in _items) {
                         // Get the material slNo from the map
-                        final materialSlNo = _materialSlNoMap[item.materialCode];
+                        final materialSlNo =
+                            _materialSlNoMap[item.materialCode];
                         if (materialSlNo == null) {
-                          throw Exception('Material slNo not found for ${item.materialDescription}');
+                          throw Exception(
+                              'Material slNo not found for ${item.materialDescription}');
                         }
-                        
+
                         // Check if vendor material rate exists using slNo
                         final rates = ref
                             .read(vendorMaterialRateProvider.notifier)
                             .getRatesForMaterial(materialSlNo);
-                            
-                        print('Looking for rates for material ${item.materialCode} (slNo: $materialSlNo)');
+
+                        print(
+                            'Looking for rates for material ${item.materialCode} (slNo: $materialSlNo)');
                         print('Found ${rates.length} rates');
-                        print('Vendor IDs: ${rates.map((r) => r.vendorId).join(', ')}');
+                        print(
+                            'Vendor IDs: ${rates.map((r) => r.vendorId).join(', ')}');
                         print('Looking for vendor: ${selectedSupplier!.name}');
-                            
-                        final vendorRate = rates.where((r) => r.vendorId == selectedSupplier!.name).firstOrNull;
+
+                        final vendorRate = rates
+                            .where((r) => r.vendorId == selectedSupplier!.name)
+                            .firstOrNull;
                         if (vendorRate == null) {
-                          throw Exception('No rate found for material ${item.materialDescription} for vendor ${selectedSupplier!.name}');
+                          throw Exception(
+                              'No rate found for material ${item.materialDescription} for vendor ${selectedSupplier!.name}');
                         }
 
                         vendorRateNotifier.addToInspectionStock(
-                          materialSlNo,  // Use slNo instead of materialCode
+                          materialSlNo, // Use slNo instead of materialCode
                           selectedSupplier!.name,
                           item.receivedQty,
                         );
@@ -350,7 +386,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         // If items are accepted/rejected, update stocks accordingly
                         if (item.acceptedQty > 0) {
                           vendorRateNotifier.acceptFromInspectionStock(
-                            materialSlNo,  // Use slNo instead of materialCode
+                            materialSlNo, // Use slNo instead of materialCode
                             selectedSupplier!.name,
                             item.acceptedQty,
                           );
@@ -358,7 +394,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
                         if (item.rejectedQty > 0) {
                           vendorRateNotifier.rejectFromInspectionStock(
-                            materialSlNo,  // Use slNo instead of materialCode
+                            materialSlNo, // Use slNo instead of materialCode
                             selectedSupplier!.name,
                             item.rejectedQty,
                           );
@@ -444,7 +480,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                     items: materials.map((material) {
                       return DropdownMenuItem(
                         value: material,
-                        child: Text('${material.slNo} - ${material.description}'),
+                        child:
+                            Text('${material.slNo} - ${material.description}'),
                       );
                     }).toList(),
                     onChanged: (material) {
@@ -532,11 +569,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 return;
               }
 
-              final orderedQty = double.tryParse(orderedQtyController.text) ?? 0;
-              final receivedQty = double.tryParse(receivedQtyController.text) ?? 0;
+              final orderedQty =
+                  double.tryParse(orderedQtyController.text) ?? 0;
+              final receivedQty =
+                  double.tryParse(receivedQtyController.text) ?? 0;
 
               // Store the mapping
-              _materialSlNoMap[materialCodeController.text] = selectedMaterial!.slNo;
+              _materialSlNoMap[materialCodeController.text] =
+                  selectedMaterial!.slNo;
 
               setState(() {
                 _items.add(
@@ -546,7 +586,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                     unit: unitController.text,
                     orderedQty: orderedQty,
                     receivedQty: receivedQty,
-                    acceptedQty: receivedQty, // Initially all received qty is accepted
+                    acceptedQty:
+                        receivedQty, // Initially all received qty is accepted
                     rejectedQty: 0, // Initially no qty is rejected
                     costPerUnit: costPerUnitController.text,
                   ),

@@ -169,24 +169,25 @@ class QualityParameter {
   static const String platingQuality = 'Plating Quality';
   static const String gradeCheck = 'Grade Check';
   static const String colourShade = 'Colour/Shade';
-  static const String referenceStandard = 'Check for Reference Standard (IS/IEC)';
+  static const String referenceStandard =
+      'Check for Reference Standard (IS/IEC)';
   static const String conformanceReport = 'Review & Verify Conformance Report';
 
   // Get list of standard parameters
   static List<String> get standardParameters => [
-    visualCheck,
-    approvedMake,
-    surfaceFinish,
-    dimensionalCheck,
-    ratingType,
-    functionalCheck,
-    mouldingQuality,
-    platingQuality,
-    gradeCheck,
-    colourShade,
-    referenceStandard,
-    conformanceReport,
-  ];
+        visualCheck,
+        approvedMake,
+        surfaceFinish,
+        dimensionalCheck,
+        ratingType,
+        functionalCheck,
+        mouldingQuality,
+        platingQuality,
+        gradeCheck,
+        colourShade,
+        referenceStandard,
+        conformanceReport,
+      ];
 
   QualityParameter({
     required this.parameter,
@@ -195,4 +196,4 @@ class QualityParameter {
     required this.isAcceptable,
     required this.remarks,
   });
-} 
+}

@@ -20,7 +20,7 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
   String generateInspectionNumber() {
     final today = DateTime.now();
     final dateStr = DateFormat('yyyyMMdd').format(today);
-    
+
     // Get all inspections from today
     final todayInspections = state.where((inspection) {
       return inspection.inspectionNo.startsWith('QC$dateStr');
@@ -28,7 +28,7 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
 
     // Get the next sequence number
     final nextSeq = (todayInspections.length + 1).toString().padLeft(3, '0');
-    
+
     return 'QC$dateStr$nextSeq';
   }
 
@@ -64,15 +64,19 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
 
   // Get inspections by supplier
   List<QualityInspection> getInspectionsBySupplier(String supplierName) {
-    return state.where((inspection) => inspection.supplierName == supplierName).toList();
+    return state
+        .where((inspection) => inspection.supplierName == supplierName)
+        .toList();
   }
 
   // Get inspections by date range
-  List<QualityInspection> getInspectionsByDateRange(DateTime start, DateTime end) {
+  List<QualityInspection> getInspectionsByDateRange(
+      DateTime start, DateTime end) {
     return state.where((inspection) {
-      final inspectionDate = DateFormat('yyyy-MM-dd').parse(inspection.inspectionDate);
+      final inspectionDate =
+          DateFormat('yyyy-MM-dd').parse(inspection.inspectionDate);
       return inspectionDate.isAfter(start.subtract(const Duration(days: 1))) &&
           inspectionDate.isBefore(end.add(const Duration(days: 1)));
     }).toList();
   }
-} 
+}

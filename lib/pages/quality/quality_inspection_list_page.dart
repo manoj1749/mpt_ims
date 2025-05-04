@@ -9,10 +9,12 @@ class QualityInspectionListPage extends ConsumerStatefulWidget {
   const QualityInspectionListPage({super.key});
 
   @override
-  ConsumerState<QualityInspectionListPage> createState() => _QualityInspectionListPageState();
+  ConsumerState<QualityInspectionListPage> createState() =>
+      _QualityInspectionListPageState();
 }
 
-class _QualityInspectionListPageState extends ConsumerState<QualityInspectionListPage> {
+class _QualityInspectionListPageState
+    extends ConsumerState<QualityInspectionListPage> {
   late PlutoGridStateManager stateManager;
 
   List<PlutoColumn> _getColumns() {
@@ -129,36 +131,38 @@ class _QualityInspectionListPageState extends ConsumerState<QualityInspectionLis
       ),
       // Quality Parameters
       ...QualityParameter.standardParameters.map((param) => PlutoColumn(
-        title: param,
-        field: param.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_'),
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          final parameter = rendererContext.cell.value as QualityParameter;
-          
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  parameter.observation.isEmpty ? 'Not Checked' : parameter.observation,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Container(
-                width: 16,
-                height: 16,
-                margin: const EdgeInsets.only(left: 4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: parameter.isAcceptable ? Colors.green : Colors.red,
-                ),
-              ),
-            ],
-          );
-        },
-      )),
+            title: param,
+            field: param.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_'),
+            type: PlutoColumnType.text(),
+            width: 120,
+            enableEditingMode: false,
+            renderer: (rendererContext) {
+              final parameter = rendererContext.cell.value as QualityParameter;
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      parameter.observation.isEmpty
+                          ? 'Not Checked'
+                          : parameter.observation,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Container(
+                    width: 16,
+                    height: 16,
+                    margin: const EdgeInsets.only(left: 4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: parameter.isAcceptable ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ],
+              );
+            },
+          )),
       PlutoColumn(
         title: 'Manufacturing Date/Shelf Life',
         field: 'manufacturingDate',
@@ -234,7 +238,8 @@ class _QualityInspectionListPageState extends ConsumerState<QualityInspectionLis
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () {
-                  final inspection = rendererContext.row.cells['inspection']!.value as QualityInspection;
+                  final inspection = rendererContext
+                      .row.cells['inspection']!.value as QualityInspection;
                   _confirmDelete(context, inspection);
                 },
                 color: Colors.red[400],
@@ -257,7 +262,8 @@ class _QualityInspectionListPageState extends ConsumerState<QualityInspectionLis
         // Create a map for parameter cells
         final parameterCells = Map.fromEntries(
           QualityParameter.standardParameters.map((param) {
-            final fieldName = param.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+            final fieldName =
+                param.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
             final parameter = item.parameters.firstWhere(
               (p) => p.parameter == param,
               orElse: () => QualityParameter(
@@ -309,7 +315,8 @@ class _QualityInspectionListPageState extends ConsumerState<QualityInspectionLis
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Confirm Delete'),
-          content: Text('Are you sure you want to delete inspection ${inspection.inspectionNo}?'),
+          content: Text(
+              'Are you sure you want to delete inspection ${inspection.inspectionNo}?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -317,7 +324,9 @@ class _QualityInspectionListPageState extends ConsumerState<QualityInspectionLis
             ),
             TextButton(
               onPressed: () {
-                ref.read(qualityInspectionProvider.notifier).deleteInspection(inspection);
+                ref
+                    .read(qualityInspectionProvider.notifier)
+                    .deleteInspection(inspection);
                 Navigator.of(context).pop();
               },
               child: const Text('DELETE'),
@@ -438,21 +447,22 @@ class _QualityInspectionListPageState extends ConsumerState<QualityInspectionLis
                               ],
                             ),
                             style: PlutoGridStyleConfig(
-                          gridBorderColor: Colors.grey[700]!,
-                          gridBackgroundColor: Colors.grey[900]!,
-                          borderColor: Colors.grey[700]!,
-                          iconColor: Colors.grey[300]!,
-                          rowColor: Colors.grey[850]!,
-                          oddRowColor: Colors.grey[800]!,
-                          evenRowColor: Colors.grey[850]!,
-                          activatedColor: Colors.blue[900]!,
-                          cellTextStyle: const TextStyle(color: Colors.white),
-                          columnTextStyle: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          rowHeight: 45,
-                        ),
+                              gridBorderColor: Colors.grey[700]!,
+                              gridBackgroundColor: Colors.grey[900]!,
+                              borderColor: Colors.grey[700]!,
+                              iconColor: Colors.grey[300]!,
+                              rowColor: Colors.grey[850]!,
+                              oddRowColor: Colors.grey[800]!,
+                              evenRowColor: Colors.grey[850]!,
+                              activatedColor: Colors.blue[900]!,
+                              cellTextStyle:
+                                  const TextStyle(color: Colors.white),
+                              columnTextStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              rowHeight: 45,
+                            ),
                           ),
                         ),
                       ),
@@ -463,4 +473,4 @@ class _QualityInspectionListPageState extends ConsumerState<QualityInspectionLis
             ),
     );
   }
-} 
+}

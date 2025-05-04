@@ -10,16 +10,18 @@ class AddQualityInspectionPage extends ConsumerStatefulWidget {
   const AddQualityInspectionPage({super.key});
 
   @override
-  ConsumerState<AddQualityInspectionPage> createState() => _AddQualityInspectionPageState();
+  ConsumerState<AddQualityInspectionPage> createState() =>
+      _AddQualityInspectionPageState();
 }
 
-class _AddQualityInspectionPageState extends ConsumerState<AddQualityInspectionPage> {
+class _AddQualityInspectionPageState
+    extends ConsumerState<AddQualityInspectionPage> {
   final _formKey = GlobalKey<FormState>();
   final _inspectionDateController = TextEditingController();
   final _inspectedByController = TextEditingController();
   final _approvedByController = TextEditingController();
   final _remarksController = TextEditingController();
-  
+
   StoreInward? selectedGRN;
   List<InspectionItem> _items = [];
 
@@ -27,7 +29,8 @@ class _AddQualityInspectionPageState extends ConsumerState<AddQualityInspectionP
   void initState() {
     super.initState();
     // Set current date as default inspection date
-    _inspectionDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    _inspectionDateController.text =
+        DateFormat('yyyy-MM-dd').format(DateTime.now());
   }
 
   @override
@@ -188,8 +191,9 @@ class _AddQualityInspectionPageState extends ConsumerState<AddQualityInspectionP
           key: _formKey,
           child: ListView(
             children: [
-              buildTextField(_inspectionDateController, 'Inspection Date', isDate: true),
-              
+              buildTextField(_inspectionDateController, 'Inspection Date',
+                  isDate: true),
+
               // GRN Dropdown
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -198,7 +202,8 @@ class _AddQualityInspectionPageState extends ConsumerState<AddQualityInspectionP
                   decoration: const InputDecoration(
                     labelText: 'Select GRN',
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                   ),
                   items: pendingInwards.map((grn) {
                     return DropdownMenuItem(
@@ -250,273 +255,360 @@ class _AddQualityInspectionPageState extends ConsumerState<AddQualityInspectionP
                           ),
                         )
                       else
-                        ..._items.map((item) => Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.materialDescription,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text('Material Code: ${item.materialCode}'),
-                                Text('Unit: ${item.unit}'),
-                                Text('Received Qty: ${item.receivedQty}'),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextFormField(
-                                        decoration: const InputDecoration(
-                                          labelText: 'Sample Size',
-                                          border: OutlineInputBorder(),
+                        ..._items
+                            .map((item) => Card(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.materialDescription,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
                                         ),
-                                        keyboardType: TextInputType.number,
-                                        initialValue: item.sampleSize.toString(),
-                                        onChanged: (value) {
-                                          final size = double.tryParse(value) ?? 0;
-                                          setState(() {
-                                            item.sampleSize = size;
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: TextFormField(
-                                        decoration: const InputDecoration(
-                                          labelText: 'Manufacturing Date/Shelf Life',
-                                          border: OutlineInputBorder(),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                            'Material Code: ${item.materialCode}'),
+                                        Text('Unit: ${item.unit}'),
+                                        Text(
+                                            'Received Qty: ${item.receivedQty}'),
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: TextFormField(
+                                                decoration:
+                                                    const InputDecoration(
+                                                  labelText: 'Sample Size',
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                initialValue:
+                                                    item.sampleSize.toString(),
+                                                onChanged: (value) {
+                                                  final size =
+                                                      double.tryParse(value) ??
+                                                          0;
+                                                  setState(() {
+                                                    item.sampleSize = size;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: TextFormField(
+                                                decoration:
+                                                    const InputDecoration(
+                                                  labelText:
+                                                      'Manufacturing Date/Shelf Life',
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                                readOnly: true,
+                                                controller:
+                                                    TextEditingController(
+                                                        text: item
+                                                            .manufacturingDate),
+                                                onTap: () async {
+                                                  final date =
+                                                      await showDatePicker(
+                                                    context: context,
+                                                    initialDate: DateTime.now(),
+                                                    firstDate: DateTime(2000),
+                                                    lastDate: DateTime(2100),
+                                                  );
+                                                  if (date != null) {
+                                                    setState(() {
+                                                      item.manufacturingDate =
+                                                          DateFormat(
+                                                                  'yyyy-MM-dd')
+                                                              .format(date);
+                                                    });
+                                                  }
+                                                },
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        readOnly: true,
-                                        controller: TextEditingController(text: item.manufacturingDate),
-                                        onTap: () async {
-                                          final date = await showDatePicker(
-                                            context: context,
-                                            initialDate: DateTime.now(),
-                                            firstDate: DateTime(2000),
-                                            lastDate: DateTime(2100),
+                                        const SizedBox(height: 16),
+                                        // Quality Parameters Section
+                                        const Text(
+                                          'Quality Parameters',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        ...QualityParameter.standardParameters
+                                            .map((param) {
+                                          final existingParam =
+                                              item.parameters.firstWhere(
+                                            (p) => p.parameter == param,
+                                            orElse: () => QualityParameter(
+                                              parameter: param,
+                                              specification: '',
+                                              observation: '',
+                                              isAcceptable: true,
+                                              remarks: '',
+                                            ),
                                           );
-                                          if (date != null) {
-                                            setState(() {
-                                              item.manufacturingDate = DateFormat('yyyy-MM-dd').format(date);
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                // Quality Parameters Section
-                                const Text(
-                                  'Quality Parameters',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                ...QualityParameter.standardParameters.map((param) {
-                                  final existingParam = item.parameters.firstWhere(
-                                    (p) => p.parameter == param,
-                                    orElse: () => QualityParameter(
-                                      parameter: param,
-                                      specification: '',
-                                      observation: '',
-                                      isAcceptable: true,
-                                      remarks: '',
-                                    ),
-                                  );
-                                  return Card(
-                                    margin: const EdgeInsets.symmetric(vertical: 4),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            param,
-                                            style: const TextStyle(fontWeight: FontWeight.bold),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: TextFormField(
-                                                  decoration: const InputDecoration(
-                                                    labelText: 'Observation',
-                                                    border: OutlineInputBorder(),
+                                          return Card(
+                                            margin: const EdgeInsets.symmetric(
+                                                vertical: 4),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(8),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    param,
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold),
                                                   ),
-                                                  initialValue: existingParam.observation,
-                                                  onChanged: (value) {
-                                                    setState(() {
-                                                      existingParam.observation = value;
-                                                      if (!item.parameters.contains(existingParam)) {
-                                                        item.parameters.add(existingParam);
-                                                      }
-                                                    });
-                                                  },
-                                                ),
+                                                  const SizedBox(height: 8),
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: TextFormField(
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            labelText:
+                                                                'Observation',
+                                                            border:
+                                                                OutlineInputBorder(),
+                                                          ),
+                                                          initialValue:
+                                                              existingParam
+                                                                  .observation,
+                                                          onChanged: (value) {
+                                                            setState(() {
+                                                              existingParam
+                                                                      .observation =
+                                                                  value;
+                                                              if (!item
+                                                                  .parameters
+                                                                  .contains(
+                                                                      existingParam)) {
+                                                                item.parameters.add(
+                                                                    existingParam);
+                                                              }
+                                                            });
+                                                          },
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Container(
+                                                        width: 200,
+                                                        child: SwitchListTile(
+                                                          title: const Text(
+                                                              'Acceptable'),
+                                                          value: existingParam
+                                                              .isAcceptable,
+                                                          onChanged: (value) {
+                                                            setState(() {
+                                                              existingParam
+                                                                      .isAcceptable =
+                                                                  value;
+                                                              if (!item
+                                                                  .parameters
+                                                                  .contains(
+                                                                      existingParam)) {
+                                                                item.parameters.add(
+                                                                    existingParam);
+                                                              }
+                                                            });
+                                                          },
+                                                          contentPadding:
+                                                              EdgeInsets.zero,
+                                                          dense: true,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
                                               ),
-                                              const SizedBox(width: 8),
-                                              Container(
-                                                width: 200,
-                                                child: SwitchListTile(
-                                                  title: const Text('Acceptable'),
-                                                  value: existingParam.isAcceptable,
-                                                  onChanged: (value) {
-                                                    setState(() {
-                                                      existingParam.isAcceptable = value;
-                                                      if (!item.parameters.contains(existingParam)) {
-                                                        item.parameters.add(existingParam);
-                                                      }
-                                                    });
-                                                  },
-                                                  contentPadding: EdgeInsets.zero,
-                                                  dense: true,
+                                            ),
+                                          );
+                                        }).toList(),
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: TextFormField(
+                                                decoration:
+                                                    const InputDecoration(
+                                                  labelText: 'Inspected Qty',
+                                                  border: OutlineInputBorder(),
                                                 ),
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                initialValue: item.inspectedQty
+                                                    .toString(),
+                                                onChanged: (value) {
+                                                  final qty =
+                                                      double.tryParse(value) ??
+                                                          0;
+                                                  setState(() {
+                                                    item.inspectedQty = qty;
+                                                  });
+                                                },
+                                                validator: (value) {
+                                                  final qty = double.tryParse(
+                                                          value ?? '') ??
+                                                      0;
+                                                  if (qty <= 0) {
+                                                    return 'Required';
+                                                  }
+                                                  if (qty > item.receivedQty) {
+                                                    return 'Cannot exceed received qty';
+                                                  }
+                                                  return null;
+                                                },
                                               ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextFormField(
-                                        decoration: const InputDecoration(
-                                          labelText: 'Inspected Qty',
-                                          border: OutlineInputBorder(),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: TextFormField(
+                                                decoration:
+                                                    const InputDecoration(
+                                                  labelText: 'Accepted Qty',
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                initialValue:
+                                                    item.acceptedQty.toString(),
+                                                onChanged: (value) {
+                                                  final accepted =
+                                                      double.tryParse(value) ??
+                                                          0;
+                                                  setState(() {
+                                                    item.acceptedQty = accepted;
+                                                    item.rejectedQty =
+                                                        item.inspectedQty -
+                                                            accepted;
+                                                  });
+                                                },
+                                                validator: (value) {
+                                                  final qty = double.tryParse(
+                                                          value ?? '') ??
+                                                      0;
+                                                  if (qty < 0)
+                                                    return 'Invalid quantity';
+                                                  if (qty > item.inspectedQty) {
+                                                    return 'Cannot exceed inspected qty';
+                                                  }
+                                                  return null;
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: TextFormField(
+                                                decoration:
+                                                    const InputDecoration(
+                                                  labelText: 'Rejected Qty',
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                initialValue:
+                                                    item.rejectedQty.toString(),
+                                                onChanged: (value) {
+                                                  final rejected =
+                                                      double.tryParse(value) ??
+                                                          0;
+                                                  setState(() {
+                                                    item.rejectedQty = rejected;
+                                                    item.acceptedQty =
+                                                        item.inspectedQty -
+                                                            rejected;
+                                                  });
+                                                },
+                                                validator: (value) {
+                                                  final qty = double.tryParse(
+                                                          value ?? '') ??
+                                                      0;
+                                                  if (qty < 0)
+                                                    return 'Invalid quantity';
+                                                  if (qty > item.inspectedQty) {
+                                                    return 'Cannot exceed inspected qty';
+                                                  }
+                                                  return null;
+                                                },
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        keyboardType: TextInputType.number,
-                                        initialValue: item.inspectedQty.toString(),
-                                        onChanged: (value) {
-                                          final qty = double.tryParse(value) ?? 0;
-                                          setState(() {
-                                            item.inspectedQty = qty;
-                                          });
-                                        },
-                                        validator: (value) {
-                                          final qty = double.tryParse(value ?? '') ?? 0;
-                                          if (qty <= 0) {
-                                            return 'Required';
-                                          }
-                                          if (qty > item.receivedQty) {
-                                            return 'Cannot exceed received qty';
-                                          }
-                                          return null;
-                                        },
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: TextFormField(
-                                        decoration: const InputDecoration(
-                                          labelText: 'Accepted Qty',
-                                          border: OutlineInputBorder(),
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: TextFormField(
+                                                decoration:
+                                                    const InputDecoration(
+                                                  labelText: 'Remarks',
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                                initialValue: item.remarks,
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    item.remarks = value;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: DropdownButtonFormField<
+                                                  String>(
+                                                decoration:
+                                                    const InputDecoration(
+                                                  labelText: 'Usage Decision',
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                                value: item.usageDecision ==
+                                                        'Pending'
+                                                    ? 'Lot Accepted'
+                                                    : item.usageDecision,
+                                                items: const [
+                                                  DropdownMenuItem(
+                                                      value: 'Lot Accepted',
+                                                      child:
+                                                          Text('Lot Accepted')),
+                                                  DropdownMenuItem(
+                                                      value: 'Rejected',
+                                                      child: Text('Rejected')),
+                                                  DropdownMenuItem(
+                                                      value: '100% Recheck',
+                                                      child:
+                                                          Text('100% Recheck')),
+                                                ],
+                                                onChanged: (value) {
+                                                  if (value != null) {
+                                                    setState(() {
+                                                      item.usageDecision =
+                                                          value;
+                                                    });
+                                                  }
+                                                },
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        keyboardType: TextInputType.number,
-                                        initialValue: item.acceptedQty.toString(),
-                                        onChanged: (value) {
-                                          final accepted = double.tryParse(value) ?? 0;
-                                          setState(() {
-                                            item.acceptedQty = accepted;
-                                            item.rejectedQty = item.inspectedQty - accepted;
-                                          });
-                                        },
-                                        validator: (value) {
-                                          final qty = double.tryParse(value ?? '') ?? 0;
-                                          if (qty < 0) return 'Invalid quantity';
-                                          if (qty > item.inspectedQty) {
-                                            return 'Cannot exceed inspected qty';
-                                          }
-                                          return null;
-                                        },
-                                      ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: TextFormField(
-                                        decoration: const InputDecoration(
-                                          labelText: 'Rejected Qty',
-                                          border: OutlineInputBorder(),
-                                        ),
-                                        keyboardType: TextInputType.number,
-                                        initialValue: item.rejectedQty.toString(),
-                                        onChanged: (value) {
-                                          final rejected = double.tryParse(value) ?? 0;
-                                          setState(() {
-                                            item.rejectedQty = rejected;
-                                            item.acceptedQty = item.inspectedQty - rejected;
-                                          });
-                                        },
-                                        validator: (value) {
-                                          final qty = double.tryParse(value ?? '') ?? 0;
-                                          if (qty < 0) return 'Invalid quantity';
-                                          if (qty > item.inspectedQty) {
-                                            return 'Cannot exceed inspected qty';
-                                          }
-                                          return null;
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextFormField(
-                                        decoration: const InputDecoration(
-                                          labelText: 'Remarks',
-                                          border: OutlineInputBorder(),
-                                        ),
-                                        initialValue: item.remarks,
-                                        onChanged: (value) {
-                                          setState(() {
-                                            item.remarks = value;
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: DropdownButtonFormField<String>(
-                                        decoration: const InputDecoration(
-                                          labelText: 'Usage Decision',
-                                          border: OutlineInputBorder(),
-                                        ),
-                                        value: item.usageDecision == 'Pending' ? 'Lot Accepted' : item.usageDecision,
-                                        items: const [
-                                          DropdownMenuItem(value: 'Lot Accepted', child: Text('Lot Accepted')),
-                                          DropdownMenuItem(value: 'Rejected', child: Text('Rejected')),
-                                          DropdownMenuItem(value: '100% Recheck', child: Text('100% Recheck')),
-                                        ],
-                                        onChanged: (value) {
-                                          if (value != null) {
-                                            setState(() {
-                                              item.usageDecision = value;
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        )).toList(),
+                                  ),
+                                ))
+                            .toList(),
                     ],
                   ),
                 ),
@@ -524,10 +616,13 @@ class _AddQualityInspectionPageState extends ConsumerState<AddQualityInspectionP
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () {
-                  if (_formKey.currentState!.validate() && selectedGRN != null) {
+                  if (_formKey.currentState!.validate() &&
+                      selectedGRN != null) {
                     // Create quality inspection record
                     final inspection = QualityInspection(
-                      inspectionNo: ref.read(qualityInspectionProvider.notifier).generateInspectionNumber(),
+                      inspectionNo: ref
+                          .read(qualityInspectionProvider.notifier)
+                          .generateInspectionNumber(),
                       inspectionDate: _inspectionDateController.text,
                       grnNo: selectedGRN!.grnNo,
                       supplierName: selectedGRN!.supplierName,
@@ -543,7 +638,9 @@ class _AddQualityInspectionPageState extends ConsumerState<AddQualityInspectionP
                       status: 'Pending',
                     );
 
-                    ref.read(qualityInspectionProvider.notifier).addInspection(inspection);
+                    ref
+                        .read(qualityInspectionProvider.notifier)
+                        .addInspection(inspection);
                     Navigator.pop(context);
                   }
                 },
@@ -586,4 +683,4 @@ class _AddQualityInspectionPageState extends ConsumerState<AddQualityInspectionP
       ),
     );
   }
-} 
+}

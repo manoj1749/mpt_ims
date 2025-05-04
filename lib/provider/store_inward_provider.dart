@@ -21,7 +21,7 @@ class StoreInwardNotifier extends StateNotifier<List<StoreInward>> {
   String generateGRNNumber() {
     final today = DateTime.now();
     final dateStr = DateFormat('yyyyMMdd').format(today);
-    
+
     // Get all GRNs from today
     final todayGRNs = state.where((inward) {
       return inward.grnNo.startsWith('GRN$dateStr');
@@ -29,7 +29,7 @@ class StoreInwardNotifier extends StateNotifier<List<StoreInward>> {
 
     // Get the next sequence number
     final nextSeq = (todayGRNs.length + 1).toString().padLeft(3, '0');
-    
+
     return 'GRN$dateStr$nextSeq';
   }
 

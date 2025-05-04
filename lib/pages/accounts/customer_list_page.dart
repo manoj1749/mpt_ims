@@ -173,7 +173,9 @@ class CustomerListPage extends ConsumerWidget {
                     MaterialPageRoute(
                       builder: (_) => AddCustomerPage(
                         customerToEdit: customerData,
-                        index: ref.read(customerListProvider).indexOf(customerData),
+                        index: ref
+                            .read(customerListProvider)
+                            .indexOf(customerData),
                       ),
                     ),
                   );

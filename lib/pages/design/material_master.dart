@@ -160,10 +160,13 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         enableEditingMode: false,
         renderer: (rendererContext) {
           final materials = ref.read(materialListProvider);
-          final material = materials.where((m) => m.slNo == rendererContext.row.cells['slNo']!.value).firstOrNull;
-          
+          final material = materials
+              .where((m) => m.slNo == rendererContext.row.cells['slNo']!.value)
+              .firstOrNull;
+
           if (material == null) {
-            return const SizedBox.shrink(); // Return empty widget if material not found
+            return const SizedBox
+                .shrink(); // Return empty widget if material not found
           }
 
           return Row(
@@ -223,12 +226,15 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
     return materials.map((m) {
       final stockValue = double.tryParse(m.getTotalStockValue(ref)) ?? 0;
       final costDiff = double.tryParse(m.getTotalCostDiff(ref)) ?? 0;
-      
+
       // Get total inspection stock across all vendors
       final inspectionStock = ref
           .watch(vendorMaterialRateProvider.notifier)
           .getRatesForMaterial(m.slNo)
-          .fold(0.0, (sum, rate) => sum + (double.tryParse(rate.inspectionStock) ?? 0));
+          .fold(
+              0.0,
+              (sum, rate) =>
+                  sum + (double.tryParse(rate.inspectionStock) ?? 0));
 
       return PlutoRow(
         cells: {
@@ -252,7 +258,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
               value: m.getPreferredVendorSaleRate(ref).isEmpty
                   ? '-'
                   : '₹${m.getPreferredVendorSaleRate(ref)}'),
-          'stock': PlutoCell(value: '${m.getTotalAvailableStock(ref)} ${m.unit}'),
+          'stock':
+              PlutoCell(value: '${m.getTotalAvailableStock(ref)} ${m.unit}'),
           'inspectionStock': PlutoCell(value: '$inspectionStock ${m.unit}'),
           'stockValue': PlutoCell(value: '₹${stockValue.toStringAsFixed(2)}'),
           'totalReceived':
@@ -390,7 +397,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                               oddRowColor: Colors.grey[800]!,
                               evenRowColor: Colors.grey[850]!,
                               activatedColor: Colors.blue[900]!,
-                              cellTextStyle: const TextStyle(color: Colors.white),
+                              cellTextStyle:
+                                  const TextStyle(color: Colors.white),
                               columnTextStyle: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -422,28 +430,33 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           FilledButton.tonal(
             onPressed: () async {
               try {
-                Navigator.pop(context); // Close dialog first to prevent state updates after pop
+                Navigator.pop(
+                    context); // Close dialog first to prevent state updates after pop
 
                 // Find and remove the row from the grid
                 if (mounted) {
                   final rowToRemove = stateManager.rows.firstWhereOrNull(
-                    (row) => row.cells['slNo']?.value == material.slNo
-                  );
+                      (row) => row.cells['slNo']?.value == material.slNo);
                   if (rowToRemove != null) {
                     stateManager.removeRows([rowToRemove]);
                   }
                 }
 
                 // Delete all vendor rates for this material first
-                final vendorRateNotifier = ref.read(vendorMaterialRateProvider.notifier);
-                final rates = vendorRateNotifier.getRatesForMaterial(material.slNo);
+                final vendorRateNotifier =
+                    ref.read(vendorMaterialRateProvider.notifier);
+                final rates =
+                    vendorRateNotifier.getRatesForMaterial(material.slNo);
                 for (final rate in rates) {
-                  await vendorRateNotifier.deleteRate(material.slNo, rate.vendorId);
+                  await vendorRateNotifier.deleteRate(
+                      material.slNo, rate.vendorId);
                 }
 
                 // Then delete the material
-                await ref.read(materialListProvider.notifier).deleteMaterial(material);
-                
+                await ref
+                    .read(materialListProvider.notifier)
+                    .deleteMaterial(material);
+
                 // Force a rebuild of the grid if still mounted
                 if (mounted) {
                   setState(() {});
@@ -505,9 +518,11 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                       Expanded(child: Text('₹${rate.supplierRate}')),
                       Expanded(child: Text('₹${rate.seiplRate}')),
                       Expanded(child: Text('₹${rate.saleRate}')),
-                      Expanded(child: Text('${rate.avlStock} ${material.unit}')),
                       Expanded(
-                          child: Text('₹${rate.stockValue.toStringAsFixed(2)}')),
+                          child: Text('${rate.avlStock} ${material.unit}')),
+                      Expanded(
+                          child:
+                              Text('₹${rate.stockValue.toStringAsFixed(2)}')),
                       Expanded(child: Text(rate.lastPurchaseDate)),
                       Expanded(child: Text(rate.remarks)),
                     ],

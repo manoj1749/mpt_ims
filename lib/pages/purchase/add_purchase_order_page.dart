@@ -144,7 +144,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         item.updateQuantity(qtyText);
       }
 
-
       // First update all items with their latest quantities and calculations
       final updatedItems = selectedItems.map((item) {
         final qty = int.parse(item.quantity);

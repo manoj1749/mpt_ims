@@ -18,7 +18,8 @@ final vendorMaterialRateProvider =
   },
 );
 
-class VendorMaterialRateNotifier extends StateNotifier<List<VendorMaterialRate>> {
+class VendorMaterialRateNotifier
+    extends StateNotifier<List<VendorMaterialRate>> {
   final Box<VendorMaterialRate> box;
 
   VendorMaterialRateNotifier(this.box) : super(box.values.toList());

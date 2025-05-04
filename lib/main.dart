@@ -32,7 +32,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   await initializeHive();
   final supplierBox = await Hive.openBox<Supplier>('suppliers');
   final materialBox = await Hive.openBox<MaterialItem>('materials');
@@ -42,8 +42,10 @@ void main() async {
   final employeeBox = await Hive.openBox<Employee>('employees');
   final customerBox = await Hive.openBox<Customer>('customers');
   final storeInwardBox = await Hive.openBox<StoreInward>('store_inwards');
-  final vendorMaterialRateBox = await Hive.openBox<VendorMaterialRate>('vendor_material_rates');
-  final qualityInspectionBox = await Hive.openBox<QualityInspection>('quality_inspections');
+  final vendorMaterialRateBox =
+      await Hive.openBox<VendorMaterialRate>('vendor_material_rates');
+  final qualityInspectionBox =
+      await Hive.openBox<QualityInspection>('quality_inspections');
 
   final user = FirebaseAuth.instance.currentUser;
 

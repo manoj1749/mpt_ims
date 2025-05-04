@@ -44,7 +44,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     super.initState();
     item = widget.materialToEdit?.copy() ?? // Create a copy if editing
         MaterialItem(
-          slNo: (ref.read(materialListProvider).length + 1).toString(), // Generate new slNo
+          slNo: (ref.read(materialListProvider).length + 1)
+              .toString(), // Generate new slNo
           description: '',
           partNo: '',
           unit: '',
@@ -97,14 +98,15 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
           await notifier.updateMaterial(widget.index!, item);
         } else {
           // Create new material with a new slNo
-          final newSlNo = (ref.read(materialListProvider).length + 1).toString();
+          final newSlNo =
+              (ref.read(materialListProvider).length + 1).toString();
           item.slNo = newSlNo;
           await notifier.addMaterial(item);
         }
 
         // Ensure the material list is refreshed
         ref.invalidate(materialListProvider);
-        
+
         if (mounted) {
           // Pop back to material master page
           Navigator.pop(context);
@@ -366,7 +368,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                                 Text('SEIPL Rate: ₹${rate.seiplRate}'),
                                 Text('Sale Rate: ₹${rate.saleRate}'),
                                 Text('Stock: ${rate.avlStock} ${item.unit}'),
-                                Text('Inspection Stock: ${rate.inspectionStock} ${item.unit}'),
+                                Text(
+                                    'Inspection Stock: ${rate.inspectionStock} ${item.unit}'),
                                 Text(
                                     'Stock Value: ₹${rate.stockValue.toStringAsFixed(2)}'),
                                 Text('Last Purchase: ${rate.lastPurchaseDate}'),

@@ -10,7 +10,8 @@ class StoreInwardListPage extends ConsumerStatefulWidget {
   const StoreInwardListPage({super.key});
 
   @override
-  ConsumerState<StoreInwardListPage> createState() => _StoreInwardListPageState();
+  ConsumerState<StoreInwardListPage> createState() =>
+      _StoreInwardListPageState();
 }
 
 class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
@@ -144,7 +145,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () {
-                  final inward = rendererContext.row.cells['inward']!.value as StoreInward;
+                  final inward =
+                      rendererContext.row.cells['inward']!.value as StoreInward;
                   _confirmDelete(context, inward);
                 },
                 color: Colors.red[400],
@@ -166,7 +168,7 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
       return inward.items.map((item) {
         final costPerUnit = double.tryParse(item.costPerUnit ?? '0') ?? 0;
         final totalCost = costPerUnit * item.receivedQty;
-        
+
         return PlutoRow(
           cells: {
             'grnNo': PlutoCell(value: inward.grnNo),
@@ -198,7 +200,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Confirm Delete'),
-          content: Text('Are you sure you want to delete store inward for PO ${inward.poNo}?'),
+          content: Text(
+              'Are you sure you want to delete store inward for PO ${inward.poNo}?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),

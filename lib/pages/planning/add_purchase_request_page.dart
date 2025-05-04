@@ -20,7 +20,8 @@ class AddPurchaseRequestPage extends ConsumerStatefulWidget {
       _AddPurchaseRequestPageState();
 }
 
-class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage> {
+class _AddPurchaseRequestPageState
+    extends ConsumerState<AddPurchaseRequestPage> {
   final _formKey = GlobalKey<FormState>();
   final List<PRItemFormData> _items = [];
   String? _requiredBy;
@@ -39,7 +40,8 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
           partNoController: TextEditingController(text: item.materialCode),
           unitController: TextEditingController(text: item.unit),
         ));
-        _selectedVendors[item.materialDescription] = widget.existingRequest!.supplierName;
+        _selectedVendors[item.materialDescription] =
+            widget.existingRequest!.supplierName;
       }
     } else {
       _addNewItem();
@@ -78,8 +80,11 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
   }
 
   List<VendorMaterialRate> _getVendorRates(String materialId) {
-    final rates = ref.read(vendorMaterialRateProvider.notifier).getRatesForMaterial(materialId);
-    rates.sort((a, b) => double.parse(a.saleRate).compareTo(double.parse(b.saleRate)));
+    final rates = ref
+        .read(vendorMaterialRateProvider.notifier)
+        .getRatesForMaterial(materialId);
+    rates.sort(
+        (a, b) => double.parse(a.saleRate).compareTo(double.parse(b.saleRate)));
     return rates;
   }
 
@@ -169,7 +174,8 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                                       Expanded(
                                         child: Text(
                                           m.description,
-                                          style: const TextStyle(color: Colors.red),
+                                          style: const TextStyle(
+                                              color: Colors.red),
                                         ),
                                       ),
                                       Text(
@@ -189,7 +195,7 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                             if (item.selectedMaterial != null) {
                               _selectedVendors.remove(item.selectedMaterial);
                             }
-                            
+
                             item.selectedMaterial = val;
                             if (val != null) {
                               final selectedItem = materials.firstWhere(
@@ -228,12 +234,14 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                                     m.description == item.selectedMaterial)
                                 .slNo,
                           ).map((rate) {
-                            final isLowestRate = rate == _getVendorRates(
-                              materials
-                                  .firstWhere((m) =>
-                                      m.description == item.selectedMaterial)
-                                  .slNo,
-                            ).first;
+                            final isLowestRate = rate ==
+                                _getVendorRates(
+                                  materials
+                                      .firstWhere((m) =>
+                                          m.description ==
+                                          item.selectedMaterial)
+                                      .slNo,
+                                ).first;
                             return DropdownMenuItem<String>(
                               value: rate.vendorId,
                               child: Row(
@@ -243,7 +251,8 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                                     '₹${rate.saleRate}',
                                     style: TextStyle(
                                       color: isLowestRate ? Colors.green : null,
-                                      fontWeight: isLowestRate ? FontWeight.bold : null,
+                                      fontWeight:
+                                          isLowestRate ? FontWeight.bold : null,
                                     ),
                                   ),
                                 ],
@@ -325,7 +334,8 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
                       _formKey.currentState!.save();
-                      final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
+                      final now =
+                          DateFormat('yyyy-MM-dd').format(DateTime.now());
 
                       final items = _items.map((item) {
                         final material = materials.firstWhere(
@@ -346,7 +356,8 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                             'PR${DateTime.now().millisecondsSinceEpoch}',
                         date: widget.existingRequest?.date ?? now,
                         requiredBy: _requiredBy!,
-                        supplierName: _selectedVendors[_items[0].selectedMaterial]!,
+                        supplierName:
+                            _selectedVendors[_items[0].selectedMaterial]!,
                         items: items,
                         status: 'Requested',
                       );

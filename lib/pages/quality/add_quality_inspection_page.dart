@@ -70,104 +70,6 @@ class _AddQualityInspectionPageState
     });
   }
 
-  void _showAddParametersDialog(InspectionItem item) {
-    final parameterController = TextEditingController();
-    final specificationController = TextEditingController();
-    final observationController = TextEditingController();
-    final remarksController = TextEditingController();
-    String selectedParameter = QualityParameter.standardParameters[0];
-    bool isAcceptable = true;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Inspection Parameter'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Parameter',
-                  border: OutlineInputBorder(),
-                ),
-                value: selectedParameter,
-                items: QualityParameter.standardParameters.map((param) {
-                  return DropdownMenuItem(
-                    value: param,
-                    child: Text(param),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    selectedParameter = value;
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: specificationController,
-                decoration: const InputDecoration(
-                  labelText: 'Specification',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: observationController,
-                decoration: const InputDecoration(
-                  labelText: 'Observation',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SwitchListTile(
-                title: const Text('Acceptable'),
-                value: isAcceptable,
-                onChanged: (value) {
-                  setState(() {
-                    isAcceptable = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: remarksController,
-                decoration: const InputDecoration(
-                  labelText: 'Remarks',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              setState(() {
-                item.parameters.add(
-                  QualityParameter(
-                    parameter: selectedParameter,
-                    specification: specificationController.text,
-                    observation: observationController.text,
-                    isAcceptable: isAcceptable,
-                    remarks: remarksController.text,
-                  ),
-                );
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -405,7 +307,7 @@ class _AddQualityInspectionPageState
                                                         ),
                                                       ),
                                                       const SizedBox(width: 8),
-                                                      Container(
+                                                      SizedBox(
                                                         width: 200,
                                                         child: SwitchListTile(
                                                           title: const Text(
@@ -437,7 +339,7 @@ class _AddQualityInspectionPageState
                                               ),
                                             ),
                                           );
-                                        }).toList(),
+                                        }),
                                         const SizedBox(height: 16),
                                         Row(
                                           children: [
@@ -501,8 +403,9 @@ class _AddQualityInspectionPageState
                                                   final qty = double.tryParse(
                                                           value ?? '') ??
                                                       0;
-                                                  if (qty < 0)
+                                                  if (qty < 0) {
                                                     return 'Invalid quantity';
+                                                  }
                                                   if (qty > item.inspectedQty) {
                                                     return 'Cannot exceed inspected qty';
                                                   }
@@ -537,8 +440,9 @@ class _AddQualityInspectionPageState
                                                   final qty = double.tryParse(
                                                           value ?? '') ??
                                                       0;
-                                                  if (qty < 0)
+                                                  if (qty < 0) {
                                                     return 'Invalid quantity';
+                                                  }
                                                   if (qty > item.inspectedQty) {
                                                     return 'Cannot exceed inspected qty';
                                                   }
@@ -608,7 +512,7 @@ class _AddQualityInspectionPageState
                                     ),
                                   ),
                                 ))
-                            .toList(),
+                            ,
                     ],
                   ),
                 ),

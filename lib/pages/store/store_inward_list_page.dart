@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../provider/store_inward_provider.dart';
-import '../../provider/purchase_order.dart';
 import '../../models/store_inward.dart';
 import 'add_store_inward_page.dart';
 
@@ -166,7 +165,7 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
   List<PlutoRow> _getRows(List<StoreInward> inwards) {
     return inwards.expand((inward) {
       return inward.items.map((item) {
-        final costPerUnit = double.tryParse(item.costPerUnit ?? '0') ?? 0;
+        final costPerUnit = double.tryParse(item.costPerUnit) ?? 0;
         final totalCost = costPerUnit * item.receivedQty;
 
         return PlutoRow(
@@ -212,10 +211,10 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
                 ref.read(storeInwardProvider.notifier).deleteInward(inward);
                 Navigator.of(context).pop();
               },
-              child: const Text('DELETE'),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red[400],
               ),
+              child: const Text('DELETE'),
             ),
           ],
         );
@@ -270,8 +269,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
                       event.stateManager.setShowColumnFilter(true);
                     },
                     configuration: PlutoGridConfiguration(
-                      columnFilter: PlutoGridColumnFilterConfig(
-                        filters: const [
+                      columnFilter: const PlutoGridColumnFilterConfig(
+                        filters: [
                           ...FilterHelper.defaultFilters,
                         ],
                       ),

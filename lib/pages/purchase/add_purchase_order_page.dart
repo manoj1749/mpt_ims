@@ -175,9 +175,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         0.0,
         (sum, item) => sum + double.parse(item.totalCost),
       );
-      final igst = 0.0; // Add tax calculation logic if needed
-      final cgst = 0.0;
-      final sgst = 0.0;
+      const igst = 0.0; // Add tax calculation logic if needed
+      const cgst = 0.0;
+      const sgst = 0.0;
       final grandTotal = subtotal + igst + cgst + sgst;
 
       final newPO = PurchaseOrder(

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mpt_ims/pages/design/add_material_page.dart';
@@ -383,8 +385,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                             event.stateManager.setShowColumnFilter(true);
                           },
                           configuration: PlutoGridConfiguration(
-                            columnFilter: PlutoGridColumnFilterConfig(
-                              filters: const [
+                            columnFilter: const PlutoGridColumnFilterConfig(
+                              filters: [
                                 ...FilterHelper.defaultFilters,
                               ],
                             ),

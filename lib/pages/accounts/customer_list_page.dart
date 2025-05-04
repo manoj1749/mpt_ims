@@ -362,8 +362,8 @@ class CustomerListPage extends ConsumerWidget {
                         event.stateManager.setShowColumnFilter(true);
                       },
                       configuration: PlutoGridConfiguration(
-                        columnFilter: PlutoGridColumnFilterConfig(
-                          filters: const [
+                        columnFilter: const PlutoGridColumnFilterConfig(
+                          filters: [
                             ...FilterHelper.defaultFilters,
                           ],
                         ),

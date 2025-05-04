@@ -329,10 +329,10 @@ class _QualityInspectionListPageState
                     .deleteInspection(inspection);
                 Navigator.of(context).pop();
               },
-              child: const Text('DELETE'),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red[400],
               ),
+              child: const Text('DELETE'),
             ),
           ],
         );
@@ -441,8 +441,8 @@ class _QualityInspectionListPageState
                             event.stateManager.setShowColumnFilter(true);
                           },
                           configuration: PlutoGridConfiguration(
-                            columnFilter: PlutoGridColumnFilterConfig(
-                              filters: const [
+                            columnFilter: const PlutoGridColumnFilterConfig(
+                              filters: [
                                 ...FilterHelper.defaultFilters,
                               ],
                             ),

@@ -25,7 +25,7 @@ class _AddPurchaseRequestPageState
   final _formKey = GlobalKey<FormState>();
   final List<PRItemFormData> _items = [];
   String? _requiredBy;
-  Map<String, String?> _selectedVendors = {};
+  final Map<String, String?> _selectedVendors = {};
 
   @override
   void initState() {
@@ -320,7 +320,7 @@ class _AddPurchaseRequestPageState
                     ],
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _addNewItem,

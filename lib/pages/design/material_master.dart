@@ -18,6 +18,20 @@ class MaterialMasterPage extends ConsumerStatefulWidget {
 
 class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
   late PlutoGridStateManager stateManager;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Set loading to false after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
+  }
 
   List<PlutoColumn> _getColumns(BuildContext context, WidgetRef ref) {
     return [
@@ -231,7 +245,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
 
       // Get total inspection stock across all vendors
       final inspectionStock = ref
-          .watch(vendorMaterialRateProvider.notifier)
+          .read(vendorMaterialRateProvider.notifier)
           .getRatesForMaterial(m.slNo)
           .fold(
               0.0,
@@ -283,9 +297,16 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
   Widget build(BuildContext context) {
     // Watch both the materials list and vendor rates to ensure UI updates
     final materials = ref.watch(materialListProvider);
-    final isLoading = ref.watch(vendorRatesLoadingProvider);
-    // Watch the vendor rates state
+    // Watch the vendor rates state to trigger rebuilds when it changes
     ref.watch(vendorMaterialRateProvider);
+
+    // Rebuild the grid rows when either materials or vendor rates change
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && stateManager.rows.isNotEmpty) {
+        stateManager.removeAllRows();
+        stateManager.appendRows(_getRows(materials, ref));
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -307,14 +328,10 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
             context,
             MaterialPageRoute(builder: (_) => const AddMaterialPage()),
           );
-          // Force refresh after returning from add page
-          if (mounted) {
-            setState(() {});
-          }
         },
         child: const Icon(Icons.add),
       ),
-      body: isLoading
+      body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(),
             )
@@ -432,17 +449,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           FilledButton.tonal(
             onPressed: () async {
               try {
-                Navigator.pop(
-                    context); // Close dialog first to prevent state updates after pop
-
-                // Find and remove the row from the grid
-                if (mounted) {
-                  final rowToRemove = stateManager.rows.firstWhereOrNull(
-                      (row) => row.cells['slNo']?.value == material.slNo);
-                  if (rowToRemove != null) {
-                    stateManager.removeRows([rowToRemove]);
-                  }
-                }
+                Navigator.pop(context); // Close dialog first
 
                 // Delete all vendor rates for this material first
                 final vendorRateNotifier =
@@ -459,10 +466,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                     .read(materialListProvider.notifier)
                     .deleteMaterial(material);
 
-                // Force a rebuild of the grid if still mounted
-                if (mounted) {
-                  setState(() {});
-                }
+                // The UI will automatically update due to the provider changes
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

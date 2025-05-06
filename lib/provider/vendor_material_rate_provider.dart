@@ -7,9 +7,6 @@ final vendorMaterialRateBoxProvider = Provider<Box<VendorMaterialRate>>((ref) {
   throw UnimplementedError();
 });
 
-// Provider to track loading state
-final vendorRatesLoadingProvider = StateProvider<bool>((ref) => true);
-
 final vendorMaterialRateProvider =
     StateNotifierProvider<VendorMaterialRateNotifier, List<VendorMaterialRate>>(
   (ref) {

@@ -17,7 +17,7 @@ class MaterialMasterPage extends ConsumerStatefulWidget {
 }
 
 class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
-  late PlutoGridStateManager stateManager;
+  PlutoGridStateManager? stateManager;
   bool _isLoading = true;
 
   @override
@@ -31,6 +31,11 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         });
       }
     });
+  }
+
+  void _onPlutoGridLoaded(PlutoGridOnLoadedEvent event) {
+    stateManager = event.stateManager;
+    stateManager?.setShowColumnFilter(true);
   }
 
   List<PlutoColumn> _getColumns(BuildContext context, WidgetRef ref) {
@@ -302,9 +307,9 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
 
     // Rebuild the grid rows when either materials or vendor rates change
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && stateManager.rows.isNotEmpty) {
-        stateManager.removeAllRows();
-        stateManager.appendRows(_getRows(materials, ref));
+      if (mounted && stateManager?.rows.isNotEmpty == true) {
+        stateManager?.removeAllRows();
+        stateManager?.appendRows(_getRows(materials, ref));
       }
     });
 
@@ -397,10 +402,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                         child: PlutoGrid(
                           columns: _getColumns(context, ref),
                           rows: _getRows(materials, ref),
-                          onLoaded: (PlutoGridOnLoadedEvent event) {
-                            stateManager = event.stateManager;
-                            event.stateManager.setShowColumnFilter(true);
-                          },
+                          onLoaded: _onPlutoGridLoaded,
                           configuration: PlutoGridConfiguration(
                             columnFilter: const PlutoGridColumnFilterConfig(
                               filters: [

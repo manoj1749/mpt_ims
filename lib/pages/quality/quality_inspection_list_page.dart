@@ -4,6 +4,7 @@ import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/quality_inspection.dart';
 import '../../provider/quality_inspection_provider.dart';
 import 'add_quality_inspection_page.dart';
+import 'category_parameter_mapping_page.dart';
 
 class QualityInspectionListPage extends ConsumerStatefulWidget {
   const QualityInspectionListPage({super.key});
@@ -109,6 +110,13 @@ class _QualityInspectionListPageState
         enableEditingMode: false,
       ),
       PlutoColumn(
+        title: 'Expiration Date',
+        field: 'expirationDate',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
         title: 'GR Date',
         field: 'grDate',
         type: PlutoColumnType.text(),
@@ -181,11 +189,17 @@ class _QualityInspectionListPageState
         title: 'Usage Decision',
         field: 'usageDecision',
         type: PlutoColumnType.text(),
-        width: 120,
+        width: 150,
         enableEditingMode: false,
         renderer: (rendererContext) {
+          final item = rendererContext.row.cells['item']!.value as InspectionItem;
+          String displayText = item.usageDecision;
+          if (item.usageDecision == '100% Recheck' && (item.isPartialRecheck ?? false)) {
+            displayText = '100% Recheck (Partial)';
+          }
+
           Color textColor;
-          switch (rendererContext.cell.value) {
+          switch (item.usageDecision) {
             case 'Lot Accepted':
               textColor = Colors.green;
               break;
@@ -199,7 +213,7 @@ class _QualityInspectionListPageState
               textColor = Colors.grey;
           }
           return Text(
-            rendererContext.cell.value.toString(),
+            displayText,
             style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           );
         },
@@ -290,11 +304,10 @@ class _QualityInspectionListPageState
             'totalCost': PlutoCell(value: item.totalCost),
             'billNo': PlutoCell(value: inspection.billNo),
             'billDate': PlutoCell(value: inspection.billDate),
-            'receivedDate': PlutoCell(value: inspection.receivedDate),
-            'grDate': PlutoCell(value: inspection.grnDate),
+            'receivedDate': PlutoCell(value: item.receivedDate),
+            'expirationDate': PlutoCell(value: item.expirationDate),
             'category': PlutoCell(value: item.category),
             'sampleSize': PlutoCell(value: item.sampleSize),
-            'manufacturingDate': PlutoCell(value: item.manufacturingDate),
             'remarks': PlutoCell(value: item.remarks),
             'usageDecision': PlutoCell(value: item.usageDecision),
             'acceptedQty': PlutoCell(value: item.acceptedQty),
@@ -302,6 +315,7 @@ class _QualityInspectionListPageState
             'pendingQty': PlutoCell(value: item.pendingQty),
             'actions': PlutoCell(value: ''),
             'item': PlutoCell(value: item),
+            'inspection': PlutoCell(value: inspection),
             ...parameterCells,
           },
         );
@@ -349,6 +363,18 @@ class _QualityInspectionListPageState
         title: const Text('Quality Inspection List'),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CategoryParameterMappingPage(),
+                ),
+              );
+            },
+            tooltip: 'Configure Quality Parameters',
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {

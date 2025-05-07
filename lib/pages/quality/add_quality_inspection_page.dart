@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/quality_inspection.dart';
 import '../../models/store_inward.dart';
+import '../../models/material_item.dart';
 import '../../provider/quality_inspection_provider.dart';
 import '../../provider/store_inward_provider.dart';
+import '../../provider/category_parameter_provider.dart';
+import '../../provider/material_provider.dart';
 
 class AddQualityInspectionPage extends ConsumerStatefulWidget {
   const AddQualityInspectionPage({super.key});
@@ -43,15 +46,34 @@ class _AddQualityInspectionPageState
   }
 
   void _onGRNSelected(StoreInward grn) {
+    final materials = ref.read(materialListProvider);
+    
     setState(() {
       selectedGRN = grn;
       _items = grn.items.map((item) {
         final costPerUnit = double.tryParse(item.costPerUnit) ?? 0.0;
+        
+        // Find the material to get its category
+        final material = materials.firstWhere(
+          (m) => m.slNo == item.materialCode || m.partNo == item.materialCode,
+          orElse: () => materials.firstWhere(
+            (m) => m.description.toLowerCase() == item.materialDescription.toLowerCase(),
+            orElse: () => MaterialItem(
+              slNo: item.materialCode,
+              description: item.materialDescription,
+              partNo: item.materialCode,
+              unit: item.unit,
+              category: 'General',
+              subCategory: '',
+            ),
+          ),
+        );
+        
         return InspectionItem(
           materialCode: item.materialCode,
           materialDescription: item.materialDescription,
           unit: item.unit,
-          category: 'General', // Default category
+          category: material.category,
           receivedQty: item.receivedQty,
           costPerUnit: costPerUnit,
           totalCost: costPerUnit * item.receivedQty,
@@ -62,14 +84,14 @@ class _AddQualityInspectionPageState
           pendingQty: item.receivedQty,
           remarks: '',
           usageDecision: 'Lot Accepted',
-          manufacturingDate: '',
-          expiryDate: '',
+          receivedDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          expirationDate: '',
           parameters: [],
+          isPartialRecheck: false,
         );
       }).toList();
     });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -158,360 +180,7 @@ class _AddQualityInspectionPageState
                         )
                       else
                         ..._items
-                            .map((item) => Card(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item.materialDescription,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                            'Material Code: ${item.materialCode}'),
-                                        Text('Unit: ${item.unit}'),
-                                        Text(
-                                            'Received Qty: ${item.receivedQty}'),
-                                        const SizedBox(height: 16),
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: TextFormField(
-                                                decoration:
-                                                    const InputDecoration(
-                                                  labelText: 'Sample Size',
-                                                  border: OutlineInputBorder(),
-                                                ),
-                                                keyboardType:
-                                                    TextInputType.number,
-                                                initialValue:
-                                                    item.sampleSize.toString(),
-                                                onChanged: (value) {
-                                                  final size =
-                                                      double.tryParse(value) ??
-                                                          0;
-                                                  setState(() {
-                                                    item.sampleSize = size;
-                                                  });
-                                                },
-                                              ),
-                                            ),
-                                            const SizedBox(width: 16),
-                                            Expanded(
-                                              child: TextFormField(
-                                                decoration:
-                                                    const InputDecoration(
-                                                  labelText:
-                                                      'Manufacturing Date/Shelf Life',
-                                                  border: OutlineInputBorder(),
-                                                ),
-                                                readOnly: true,
-                                                controller:
-                                                    TextEditingController(
-                                                        text: item
-                                                            .manufacturingDate),
-                                                onTap: () async {
-                                                  final date =
-                                                      await showDatePicker(
-                                                    context: context,
-                                                    initialDate: DateTime.now(),
-                                                    firstDate: DateTime(2000),
-                                                    lastDate: DateTime(2100),
-                                                  );
-                                                  if (date != null) {
-                                                    setState(() {
-                                                      item.manufacturingDate =
-                                                          DateFormat(
-                                                                  'yyyy-MM-dd')
-                                                              .format(date);
-                                                    });
-                                                  }
-                                                },
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        // Quality Parameters Section
-                                        const Text(
-                                          'Quality Parameters',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        ...QualityParameter.standardParameters
-                                            .map((param) {
-                                          final existingParam =
-                                              item.parameters.firstWhere(
-                                            (p) => p.parameter == param,
-                                            orElse: () => QualityParameter(
-                                              parameter: param,
-                                              specification: '',
-                                              observation: '',
-                                              isAcceptable: true,
-                                              remarks: '',
-                                            ),
-                                          );
-                                          return Card(
-                                            margin: const EdgeInsets.symmetric(
-                                                vertical: 4),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(8),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    param,
-                                                    style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold),
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: TextFormField(
-                                                          decoration:
-                                                              const InputDecoration(
-                                                            labelText:
-                                                                'Observation',
-                                                            border:
-                                                                OutlineInputBorder(),
-                                                          ),
-                                                          initialValue:
-                                                              existingParam
-                                                                  .observation,
-                                                          onChanged: (value) {
-                                                            setState(() {
-                                                              existingParam
-                                                                      .observation =
-                                                                  value;
-                                                              if (!item
-                                                                  .parameters
-                                                                  .contains(
-                                                                      existingParam)) {
-                                                                item.parameters.add(
-                                                                    existingParam);
-                                                              }
-                                                            });
-                                                          },
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      SizedBox(
-                                                        width: 200,
-                                                        child: SwitchListTile(
-                                                          title: const Text(
-                                                              'Acceptable'),
-                                                          value: existingParam
-                                                              .isAcceptable,
-                                                          onChanged: (value) {
-                                                            setState(() {
-                                                              existingParam
-                                                                      .isAcceptable =
-                                                                  value;
-                                                              if (!item
-                                                                  .parameters
-                                                                  .contains(
-                                                                      existingParam)) {
-                                                                item.parameters.add(
-                                                                    existingParam);
-                                                              }
-                                                            });
-                                                          },
-                                                          contentPadding:
-                                                              EdgeInsets.zero,
-                                                          dense: true,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        }),
-                                        const SizedBox(height: 16),
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: TextFormField(
-                                                decoration:
-                                                    const InputDecoration(
-                                                  labelText: 'Inspected Qty',
-                                                  border: OutlineInputBorder(),
-                                                ),
-                                                keyboardType:
-                                                    TextInputType.number,
-                                                initialValue: item.inspectedQty
-                                                    .toString(),
-                                                onChanged: (value) {
-                                                  final qty =
-                                                      double.tryParse(value) ??
-                                                          0;
-                                                  setState(() {
-                                                    item.inspectedQty = qty;
-                                                  });
-                                                },
-                                                validator: (value) {
-                                                  final qty = double.tryParse(
-                                                          value ?? '') ??
-                                                      0;
-                                                  if (qty <= 0) {
-                                                    return 'Required';
-                                                  }
-                                                  if (qty > item.receivedQty) {
-                                                    return 'Cannot exceed received qty';
-                                                  }
-                                                  return null;
-                                                },
-                                              ),
-                                            ),
-                                            const SizedBox(width: 16),
-                                            Expanded(
-                                              child: TextFormField(
-                                                decoration:
-                                                    const InputDecoration(
-                                                  labelText: 'Accepted Qty',
-                                                  border: OutlineInputBorder(),
-                                                ),
-                                                keyboardType:
-                                                    TextInputType.number,
-                                                initialValue:
-                                                    item.acceptedQty.toString(),
-                                                onChanged: (value) {
-                                                  final accepted =
-                                                      double.tryParse(value) ??
-                                                          0;
-                                                  setState(() {
-                                                    item.acceptedQty = accepted;
-                                                    item.rejectedQty =
-                                                        item.inspectedQty -
-                                                            accepted;
-                                                  });
-                                                },
-                                                validator: (value) {
-                                                  final qty = double.tryParse(
-                                                          value ?? '') ??
-                                                      0;
-                                                  if (qty < 0) {
-                                                    return 'Invalid quantity';
-                                                  }
-                                                  if (qty > item.inspectedQty) {
-                                                    return 'Cannot exceed inspected qty';
-                                                  }
-                                                  return null;
-                                                },
-                                              ),
-                                            ),
-                                            const SizedBox(width: 16),
-                                            Expanded(
-                                              child: TextFormField(
-                                                decoration:
-                                                    const InputDecoration(
-                                                  labelText: 'Rejected Qty',
-                                                  border: OutlineInputBorder(),
-                                                ),
-                                                keyboardType:
-                                                    TextInputType.number,
-                                                initialValue:
-                                                    item.rejectedQty.toString(),
-                                                onChanged: (value) {
-                                                  final rejected =
-                                                      double.tryParse(value) ??
-                                                          0;
-                                                  setState(() {
-                                                    item.rejectedQty = rejected;
-                                                    item.acceptedQty =
-                                                        item.inspectedQty -
-                                                            rejected;
-                                                  });
-                                                },
-                                                validator: (value) {
-                                                  final qty = double.tryParse(
-                                                          value ?? '') ??
-                                                      0;
-                                                  if (qty < 0) {
-                                                    return 'Invalid quantity';
-                                                  }
-                                                  if (qty > item.inspectedQty) {
-                                                    return 'Cannot exceed inspected qty';
-                                                  }
-                                                  return null;
-                                                },
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: TextFormField(
-                                                decoration:
-                                                    const InputDecoration(
-                                                  labelText: 'Remarks',
-                                                  border: OutlineInputBorder(),
-                                                ),
-                                                initialValue: item.remarks,
-                                                onChanged: (value) {
-                                                  setState(() {
-                                                    item.remarks = value;
-                                                  });
-                                                },
-                                              ),
-                                            ),
-                                            const SizedBox(width: 16),
-                                            Expanded(
-                                              child: DropdownButtonFormField<
-                                                  String>(
-                                                decoration:
-                                                    const InputDecoration(
-                                                  labelText: 'Usage Decision',
-                                                  border: OutlineInputBorder(),
-                                                ),
-                                                value: item.usageDecision ==
-                                                        'Pending'
-                                                    ? 'Lot Accepted'
-                                                    : item.usageDecision,
-                                                items: const [
-                                                  DropdownMenuItem(
-                                                      value: 'Lot Accepted',
-                                                      child:
-                                                          Text('Lot Accepted')),
-                                                  DropdownMenuItem(
-                                                      value: 'Rejected',
-                                                      child: Text('Rejected')),
-                                                  DropdownMenuItem(
-                                                      value: '100% Recheck',
-                                                      child:
-                                                          Text('100% Recheck')),
-                                                ],
-                                                onChanged: (value) {
-                                                  if (value != null) {
-                                                    setState(() {
-                                                      item.usageDecision =
-                                                          value;
-                                                    });
-                                                  }
-                                                },
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ))
+                            .map((item) => _buildItemCard(item))
                             ,
                     ],
                   ),
@@ -584,6 +253,308 @@ class _AddQualityInspectionPageState
             : null,
         validator: (value) =>
             value == null || value.isEmpty ? 'Required' : null,
+      ),
+    );
+  }
+
+  Widget _buildItemCard(InspectionItem item) {
+    // Get the parameter mapping for this item's category
+    final mapping = ref.watch(categoryParameterProvider.notifier)
+        .getMappingForCategory(item.category);
+
+    // Initialize parameters based on the mapping if not already set
+    if (mapping != null && item.parameters.isEmpty) {
+      item.parameters = mapping.parameters.map((param) => QualityParameter(
+        parameter: param,
+        specification: '',
+        observation: '',
+        isAcceptable: true,
+        remarks: '',
+      )).toList();
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.materialDescription,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text('Material Code: ${item.materialCode}'),
+            Text('Unit: ${item.unit}'),
+            Text('Category: ${item.category}'),
+            Text('Received Qty: ${item.receivedQty}'),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Sample Size',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    initialValue: item.sampleSize.toString(),
+                    onChanged: (value) {
+                      final size = double.tryParse(value) ?? 0;
+                      setState(() {
+                        item.sampleSize = size;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Received Date',
+                      border: OutlineInputBorder(),
+                    ),
+                    controller: TextEditingController(text: item.receivedDate),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          item.receivedDate = DateFormat('yyyy-MM-dd').format(date);
+                        });
+                      }
+                    },
+                    readOnly: true,
+                  ),
+                ),
+                if (mapping?.requiresExpiryDate ?? false) ...[
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Expiration Date',
+                        border: OutlineInputBorder(),
+                      ),
+                      controller: TextEditingController(text: item.expirationDate),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            item.expirationDate = DateFormat('yyyy-MM-dd').format(date);
+                          });
+                        }
+                      },
+                      readOnly: true,
+                      validator: (value) =>
+                          value == null || value.isEmpty ? 'Required' : null,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(
+                labelText: 'Usage Decision',
+                border: OutlineInputBorder(),
+              ),
+              value: item.usageDecision,
+              items: const [
+                DropdownMenuItem(value: 'Lot Accepted', child: Text('Lot Accepted')),
+                DropdownMenuItem(value: 'Rejected', child: Text('Rejected')),
+                DropdownMenuItem(value: '100% Recheck', child: Text('100% Recheck')),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  item.usageDecision = value!;
+                  if (value != '100% Recheck') {
+                    item.isPartialRecheck = false;
+                  }
+                });
+              },
+            ),
+            if (item.usageDecision == '100% Recheck') ...[
+              const SizedBox(height: 16),
+              CheckboxListTile(
+                title: const Text('Partial Recheck'),
+                value: item.isPartialRecheck ?? false,
+                onChanged: (value) {
+                  setState(() {
+                    item.isPartialRecheck = value;
+                    if (!(value ?? false)) {
+                      item.inspectedQty = 0;
+                      item.acceptedQty = 0;
+                      item.rejectedQty = 0;
+                    }
+                  });
+                },
+              ),
+              if (item.isPartialRecheck ?? false) ...[
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Inspected Qty',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        initialValue: item.inspectedQty.toString(),
+                        onChanged: (value) {
+                          setState(() {
+                            item.inspectedQty = double.tryParse(value) ?? 0;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Accepted Qty',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        initialValue: item.acceptedQty.toString(),
+                        onChanged: (value) {
+                          setState(() {
+                            item.acceptedQty = double.tryParse(value) ?? 0;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Rejected Qty',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        initialValue: item.rejectedQty.toString(),
+                        onChanged: (value) {
+                          setState(() {
+                            item.rejectedQty = double.tryParse(value) ?? 0;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+            if (mapping != null && mapping.parameters.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Quality Parameters',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...mapping.parameters.map((param) {
+                final existingParam = item.parameters.firstWhere(
+                  (p) => p.parameter == param,
+                  orElse: () => QualityParameter(
+                    parameter: param,
+                    specification: '',
+                    observation: '',
+                    isAcceptable: true,
+                    remarks: '',
+                  ),
+                );
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          param,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                decoration: const InputDecoration(
+                                  labelText: 'Observation',
+                                  border: OutlineInputBorder(),
+                                ),
+                                initialValue: existingParam.observation,
+                                onChanged: (value) {
+                                  setState(() {
+                                    existingParam.observation = value;
+                                    if (!item.parameters.contains(existingParam)) {
+                                      item.parameters.add(existingParam);
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 200,
+                              child: SwitchListTile(
+                                title: const Text('Acceptable'),
+                                value: existingParam.isAcceptable,
+                                onChanged: (value) {
+                                  setState(() {
+                                    existingParam.isAcceptable = value;
+                                    if (!item.parameters.contains(existingParam)) {
+                                      item.parameters.add(existingParam);
+                                    }
+                                  });
+                                },
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Remarks',
+                      border: OutlineInputBorder(),
+                    ),
+                    initialValue: item.remarks,
+                    onChanged: (value) {
+                      setState(() {
+                        item.remarks = value;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

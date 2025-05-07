@@ -112,13 +112,16 @@ class InspectionItem {
   String usageDecision; // Lot Accepted / Rejected / 100% Recheck
 
   @HiveField(14)
-  String manufacturingDate; // Manufacturing Date/Shelf Life Period
+  String receivedDate; // Date when material was received
 
   @HiveField(15)
-  String expiryDate;
+  String expirationDate; // Date when material will expire
 
   @HiveField(16)
   List<QualityParameter> parameters;
+
+  @HiveField(17)
+  bool? isPartialRecheck; // For 100% Recheck cases
 
   InspectionItem({
     required this.materialCode,
@@ -135,9 +138,10 @@ class InspectionItem {
     required this.pendingQty,
     required this.remarks,
     required this.usageDecision,
-    required this.manufacturingDate,
-    required this.expiryDate,
+    required this.receivedDate,
+    required this.expirationDate,
     required this.parameters,
+    this.isPartialRecheck = false,
   });
 }
 

@@ -104,16 +104,17 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       pendingQty: fields[11] as double,
       remarks: fields[12] as String,
       usageDecision: fields[13] as String,
-      manufacturingDate: fields[14] as String,
-      expiryDate: fields[15] as String,
+      receivedDate: fields[14] as String,
+      expirationDate: fields[15] as String,
       parameters: (fields[16] as List).cast<QualityParameter>(),
+      isPartialRecheck: fields[17] as bool?,
     );
   }
 
   @override
   void write(BinaryWriter writer, InspectionItem obj) {
     writer
-      ..writeByte(17)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -143,11 +144,13 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       ..writeByte(13)
       ..write(obj.usageDecision)
       ..writeByte(14)
-      ..write(obj.manufacturingDate)
+      ..write(obj.receivedDate)
       ..writeByte(15)
-      ..write(obj.expiryDate)
+      ..write(obj.expirationDate)
       ..writeByte(16)
-      ..write(obj.parameters);
+      ..write(obj.parameters)
+      ..writeByte(17)
+      ..write(obj.isPartialRecheck);
   }
 
   @override

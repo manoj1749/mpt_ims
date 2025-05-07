@@ -13,13 +13,21 @@ import 'package:path_provider/path_provider.dart';
 import '../models/supplier.dart';
 import '../models/vendor_material_rate.dart';
 import '../models/quality_inspection.dart';
+import '../models/category_parameter_mapping.dart';
+
+// Flag to track if data has been cleared
+bool _hasDataBeenCleared = false;
 
 Future<void> clearIncompatibleData() async {
+  if (_hasDataBeenCleared) return; // Skip if already cleared once
+
   try {
-    // Delete the materials box completely to avoid type casting issues
+    // Delete boxes that need schema updates
     await Hive.deleteBoxFromDisk('materials');
-    // Delete the purchase_orders box due to POItem type changes
     await Hive.deleteBoxFromDisk('purchase_orders');
+    await Hive.deleteBoxFromDisk('quality_inspections');
+    
+    _hasDataBeenCleared = true;
   } catch (e) {
     print('Error clearing data: $e');
   }
@@ -29,7 +37,7 @@ Future<void> initializeHive() async {
   final dir = await getApplicationDocumentsDirectory();
   await Hive.initFlutter(dir.path);
 
-  // Clear incompatible data first
+  // Clear incompatible data only on first run or when needed
   // await clearIncompatibleData();
 
   // Register adapters in the correct order
@@ -47,6 +55,7 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(QualityInspectionAdapter());
   Hive.registerAdapter(InspectionItemAdapter());
   Hive.registerAdapter(QualityParameterAdapter());
+  Hive.registerAdapter(CategoryParameterMappingAdapter());
 
   // Open boxes
   await Hive.openBox<MaterialItem>('materials');
@@ -58,4 +67,5 @@ Future<void> initializeHive() async {
   await Hive.openBox<StoreInward>('store_inwards');
   await Hive.openBox<VendorMaterialRate>('vendor_material_rates');
   await Hive.openBox<QualityInspection>('quality_inspections');
+  await Hive.openBox<CategoryParameterMapping>('category_parameters');
 }

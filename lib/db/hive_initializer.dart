@@ -23,9 +23,9 @@ Future<void> clearIncompatibleData() async {
 
   try {
     // Delete boxes that need schema updates
-    await Hive.deleteBoxFromDisk('materials');
-    await Hive.deleteBoxFromDisk('purchase_orders');
     await Hive.deleteBoxFromDisk('quality_inspections');
+    // await Hive.deleteBoxFromDisk('purchase_orders');
+    // await Hive.deleteBoxFromDisk('quality_inspections');
     
     _hasDataBeenCleared = true;
   } catch (e) {
@@ -38,7 +38,7 @@ Future<void> initializeHive() async {
   await Hive.initFlutter(dir.path);
 
   // Clear incompatible data only on first run or when needed
-  // await clearIncompatibleData();
+  await clearIncompatibleData();
 
   // Register adapters in the correct order
   Hive.registerAdapter(MaterialItemAdapter());

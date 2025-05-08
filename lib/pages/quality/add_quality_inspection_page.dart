@@ -263,14 +263,18 @@ class _AddQualityInspectionPageState
         .getMappingForCategory(item.category);
 
     // Initialize parameters based on the mapping if not already set
-    if (mapping != null && item.parameters.isEmpty) {
-      item.parameters = mapping.parameters.map((param) => QualityParameter(
-        parameter: param,
-        specification: '',
-        observation: '',
-        isAcceptable: true,
-        remarks: '',
-      )).toList();
+    if (item.parameters.isEmpty) {
+      // Initialize all standard parameters with "NA" as default observation
+      item.parameters = QualityParameter.standardParameters.map((param) {
+        final isMapped = mapping?.parameters.contains(param) ?? false;
+        return QualityParameter(
+          parameter: param,
+          specification: '',
+          observation: isMapped ? '' : 'NA',  // Set "NA" for unmapped parameters
+          isAcceptable: true,
+          remarks: '',
+        );
+      }).toList();
     }
 
     return Card(
@@ -388,7 +392,7 @@ class _AddQualityInspectionPageState
             if (item.usageDecision == '100% Recheck') ...[
               const SizedBox(height: 16),
               CheckboxListTile(
-                title: const Text('Partial Recheck'),
+                title: const Text('Partial Acceptance'),
                 value: item.isPartialRecheck ?? false,
                 onChanged: (value) {
                   setState(() {

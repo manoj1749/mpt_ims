@@ -105,6 +105,14 @@ class _AddQualityInspectionPageState
       return existingInspections.isEmpty;
     }).toList();
 
+    // Reset selectedGRN if it's not in pendingInwards
+    if (selectedGRN != null && !pendingInwards.contains(selectedGRN)) {
+      setState(() {
+        selectedGRN = null;
+        _items = [];
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Quality Inspection'),

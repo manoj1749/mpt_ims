@@ -15,19 +15,25 @@ import '../models/vendor_material_rate.dart';
 import '../models/quality_inspection.dart';
 import '../models/category_parameter_mapping.dart';
 
-// Flag to track if data has been cleared
-bool _hasDataBeenCleared = false;
-
 Future<void> clearIncompatibleData() async {
-  if (_hasDataBeenCleared) return; // Skip if already cleared once
-
   try {
-    // Delete boxes that need schema updates
-    await Hive.deleteBoxFromDisk('quality_inspections');
-    // await Hive.deleteBoxFromDisk('purchase_orders');
-    // await Hive.deleteBoxFromDisk('quality_inspections');
+    // Get the schema version box
+    final versionBox = await Hive.openBox('schema_version');
+    final currentVersion = versionBox.get('version', defaultValue: 0);
+
+    // Define the latest schema version
+    const latestVersion = 1;
+
+    // If we're already at the latest version, no need to do anything
+    if (currentVersion >= latestVersion) {
+      return;
+    }
+
+    // Perform any necessary migrations here based on the current version
+    // For now, we don't need to delete any boxes as our schema is stable
     
-    _hasDataBeenCleared = true;
+    // Update the schema version
+    await versionBox.put('version', latestVersion);
   } catch (e) {
     print('Error clearing data: $e');
   }

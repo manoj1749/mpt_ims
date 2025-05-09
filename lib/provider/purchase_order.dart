@@ -8,7 +8,7 @@ final purchaseOrderBoxProvider = Provider<Box<PurchaseOrder>>((ref) {
 
 final purchaseOrderListProvider =
     StateNotifierProvider<PurchaseOrderNotifier, List<PurchaseOrder>>(
-        (ref) => PurchaseOrderNotifier(ref.read(purchaseOrderBoxProvider)));
+        (ref) => PurchaseOrderNotifier(ref.watch(purchaseOrderBoxProvider)));
 
 class PurchaseOrderNotifier extends StateNotifier<List<PurchaseOrder>> {
   final Box<PurchaseOrder> _box;

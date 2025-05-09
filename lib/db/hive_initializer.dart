@@ -14,64 +14,56 @@ import '../models/supplier.dart';
 import '../models/vendor_material_rate.dart';
 import '../models/quality_inspection.dart';
 import '../models/category_parameter_mapping.dart';
+import '../models/sale_order.dart';
+import '../models/sale_order_item.dart';
+
+Future<void> initializeHive() async {
+  await Hive.initFlutter();
+
+  // Register adapters
+  Hive.registerAdapter(CustomerAdapter());
+  Hive.registerAdapter(EmployeeAdapter());
+  Hive.registerAdapter(MaterialItemAdapter());
+  Hive.registerAdapter(POItemAdapter());
+  Hive.registerAdapter(PurchaseOrderAdapter());
+  Hive.registerAdapter(PurchaseRequestAdapter());
+  Hive.registerAdapter(PRItemAdapter());
+  Hive.registerAdapter(StoreInwardAdapter());
+  Hive.registerAdapter(InwardItemAdapter());
+  Hive.registerAdapter(SupplierAdapter());
+  Hive.registerAdapter(VendorMaterialRateAdapter());
+  Hive.registerAdapter(QualityInspectionAdapter());
+  Hive.registerAdapter(CategoryParameterMappingAdapter());
+  Hive.registerAdapter(SaleOrderAdapter());
+  Hive.registerAdapter(SaleOrderItemAdapter());
+}
 
 Future<void> clearIncompatibleData() async {
   try {
-    // Get the schema version box
-    final versionBox = await Hive.openBox('schema_version');
-    final currentVersion = versionBox.get('version', defaultValue: 0);
+    // Get the schema version
+    final box = await Hive.openBox('schemaVersion');
+    final currentVersion = box.get('version') ?? 0;
 
-    // Define the latest schema version
-    const latestVersion = 1;
+    // If schema version is less than required, clear data
+    if (currentVersion < 2) {
+      // Clear all boxes except quality inspections
+      await Future.wait([
+        Hive.deleteBoxFromDisk('customers'),
+        Hive.deleteBoxFromDisk('employees'),
+        Hive.deleteBoxFromDisk('materials'),
+        Hive.deleteBoxFromDisk('purchaseOrders'),
+        Hive.deleteBoxFromDisk('purchaseRequests'),
+        Hive.deleteBoxFromDisk('storeInwards'),
+        Hive.deleteBoxFromDisk('suppliers'),
+        Hive.deleteBoxFromDisk('vendorMaterialRates'),
+        Hive.deleteBoxFromDisk('categoryParameterMappings'),
+        Hive.deleteBoxFromDisk('saleOrders'),
+      ]);
 
-    // If we're already at the latest version, no need to do anything
-    if (currentVersion >= latestVersion) {
-      return;
+      // Update schema version
+      await box.put('version', 2);
     }
-
-    // Perform any necessary migrations here based on the current version
-    // For now, we don't need to delete any boxes as our schema is stable
-    
-    // Update the schema version
-    await versionBox.put('version', latestVersion);
   } catch (e) {
-    print('Error clearing data: $e');
+    print('Error clearing incompatible data: $e');
   }
-}
-
-Future<void> initializeHive() async {
-  final dir = await getApplicationDocumentsDirectory();
-  await Hive.initFlutter(dir.path);
-
-  // Clear incompatible data only on first run or when needed
-  await clearIncompatibleData();
-
-  // Register adapters in the correct order
-  Hive.registerAdapter(MaterialItemAdapter());
-  Hive.registerAdapter(SupplierAdapter());
-  Hive.registerAdapter(PurchaseRequestAdapter());
-  Hive.registerAdapter(PRItemAdapter());
-  Hive.registerAdapter(PurchaseOrderAdapter());
-  Hive.registerAdapter(POItemAdapter());
-  Hive.registerAdapter(VendorMaterialRateAdapter());
-  Hive.registerAdapter(EmployeeAdapter());
-  Hive.registerAdapter(CustomerAdapter());
-  Hive.registerAdapter(StoreInwardAdapter());
-  Hive.registerAdapter(InwardItemAdapter());
-  Hive.registerAdapter(QualityInspectionAdapter());
-  Hive.registerAdapter(InspectionItemAdapter());
-  Hive.registerAdapter(QualityParameterAdapter());
-  Hive.registerAdapter(CategoryParameterMappingAdapter());
-
-  // Open boxes
-  await Hive.openBox<MaterialItem>('materials');
-  await Hive.openBox<Supplier>('suppliers');
-  await Hive.openBox<PurchaseRequest>('purchase_requests');
-  await Hive.openBox<PurchaseOrder>('purchase_orders');
-  await Hive.openBox<Employee>('employees');
-  await Hive.openBox<Customer>('customers');
-  await Hive.openBox<StoreInward>('store_inwards');
-  await Hive.openBox<VendorMaterialRate>('vendor_material_rates');
-  await Hive.openBox<QualityInspection>('quality_inspections');
-  await Hive.openBox<CategoryParameterMapping>('category_parameters');
 }

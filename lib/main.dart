@@ -26,43 +26,51 @@ import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
 import 'package:mpt_ims/models/vendor_material_rate.dart';
 import 'firebase_options.dart'; // From Firebase setup
 import 'pages/login_page.dart'; // We'll create this
+import 'package:mpt_ims/models/sale_order.dart';
+import 'package:mpt_ims/provider/sale_order_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Initialize Hive and register adapters
   await initializeHive();
+
+  // Open all boxes
   final supplierBox = await Hive.openBox<Supplier>('suppliers');
   final materialBox = await Hive.openBox<MaterialItem>('materials');
-  final purchaseRequestBox =
-      await Hive.openBox<PurchaseRequest>('purchase_requests');
-  final purchaseOrderBox = await Hive.openBox<PurchaseOrder>('purchase_orders');
+  final purchaseRequestBox = await Hive.openBox<PurchaseRequest>('purchaseRequests');
+  final purchaseOrderBox = await Hive.openBox<PurchaseOrder>('purchaseOrders');
   final employeeBox = await Hive.openBox<Employee>('employees');
   final customerBox = await Hive.openBox<Customer>('customers');
-  final storeInwardBox = await Hive.openBox<StoreInward>('store_inwards');
-  final vendorMaterialRateBox =
-      await Hive.openBox<VendorMaterialRate>('vendor_material_rates');
-  final qualityInspectionBox =
-      await Hive.openBox<QualityInspection>('quality_inspections');
+  final storeInwardBox = await Hive.openBox<StoreInward>('storeInwards');
+  final vendorMaterialRateBox = await Hive.openBox<VendorMaterialRate>('vendorMaterialRates');
+  final qualityInspectionBox = await Hive.openBox<QualityInspection>('qualityInspections');
+  final saleOrderBox = await Hive.openBox<SaleOrder>('saleOrders');
 
   final user = FirebaseAuth.instance.currentUser;
 
-  runApp(ProviderScope(
-    overrides: [
-      supplierBoxProvider.overrideWithValue(supplierBox),
-      materialBoxProvider.overrideWithValue(materialBox),
-      purchaseRequestBoxProvider.overrideWithValue(purchaseRequestBox),
-      purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
-      employeeBoxProvider.overrideWithValue(employeeBox),
-      customerBoxProvider.overrideWithValue(customerBox),
-      storeInwardBoxProvider.overrideWithValue(storeInwardBox),
-      vendorMaterialRateBoxProvider.overrideWithValue(vendorMaterialRateBox),
-      qualityInspectionBoxProvider.overrideWithValue(qualityInspectionBox),
-    ],
-    child: IMSApp(isLoggedIn: user != null),
-  ));
+  runApp(
+    ProviderScope(
+      overrides: [
+        supplierBoxProvider.overrideWithValue(supplierBox),
+        materialBoxProvider.overrideWithValue(materialBox),
+        purchaseRequestBoxProvider.overrideWithValue(purchaseRequestBox),
+        purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
+        employeeBoxProvider.overrideWithValue(employeeBox),
+        customerBoxProvider.overrideWithValue(customerBox),
+        storeInwardBoxProvider.overrideWithValue(storeInwardBox),
+        vendorMaterialRateBoxProvider.overrideWithValue(vendorMaterialRateBox),
+        qualityInspectionBoxProvider.overrideWithValue(qualityInspectionBox),
+        saleOrderBoxProvider.overrideWithValue(saleOrderBox),
+      ],
+      child: IMSApp(isLoggedIn: user != null),
+    ),
+  );
 }
 
 class IMSApp extends StatelessWidget {
@@ -72,10 +80,14 @@ class IMSApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'IMS Desktop',
+      title: 'MPT IMS',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF1E1E1E),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
       ),
       home: isLoggedIn ? const AppScaffold() : const LoginPage(),
     );

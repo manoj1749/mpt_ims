@@ -12,6 +12,7 @@ import 'package:mpt_ims/pages/section_page.dart';
 import 'package:mpt_ims/pages/purchase/purchase_order_list_page.dart';
 import 'package:mpt_ims/pages/store/store_inward_list_page.dart';
 import 'package:mpt_ims/pages/quality/quality_inspection_list_page.dart';
+import 'package:mpt_ims/pages/sales/sale_order_list_page.dart';
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({super.key});
@@ -122,6 +123,9 @@ class _AppScaffoldState extends State<AppScaffold> {
         break;
       case 'Incoming Inspection':
         page = const QualityInspectionListPage();
+        break;
+      case 'Sale order Details':
+        page = const SaleOrderListPage();
         break;
       default:
         page = SectionPage(title: name);

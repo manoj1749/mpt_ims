@@ -30,4 +30,29 @@ class CustomerNotifier extends StateNotifier<List<Customer>> {
     customer.delete();
     state = box.values.toList();
   }
+
+  // Get customer by name
+  Customer? getCustomerByName(String name) {
+    return state.firstWhere(
+      (customer) => customer.name == name,
+      orElse: () => null as Customer,
+    );
+  }
+
+  // Search customers
+  List<Customer> searchCustomers(String query) {
+    final lowercaseQuery = query.toLowerCase();
+    return state.where((customer) {
+      return customer.name.toLowerCase().contains(lowercaseQuery) ||
+          customer.address1.toLowerCase().contains(lowercaseQuery) ||
+          customer.address2.toLowerCase().contains(lowercaseQuery) ||
+          customer.address3.toLowerCase().contains(lowercaseQuery) ||
+          customer.address4.toLowerCase().contains(lowercaseQuery) ||
+          customer.contact.toLowerCase().contains(lowercaseQuery) ||
+          customer.phone.toLowerCase().contains(lowercaseQuery) ||
+          customer.email.toLowerCase().contains(lowercaseQuery) ||
+          customer.customerCode.toLowerCase().contains(lowercaseQuery) ||
+          customer.gstNo.toLowerCase().contains(lowercaseQuery);
+    }).toList();
+  }
 }

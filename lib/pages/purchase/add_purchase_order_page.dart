@@ -229,10 +229,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       }
 
       // Save the PO
-      final poNotifier = ref.read(purchaseOrderProvider.notifier);
-      if (widget.index != null) {
+      if (widget.existingPO != null) {
+        final poNotifier = ref.read(purchaseOrderListProvider.notifier);
         poNotifier.updateOrder(widget.index!, newPO);
       } else {
+        final poNotifier = ref.read(purchaseOrderListProvider.notifier);
         poNotifier.addOrder(newPO);
       }
 

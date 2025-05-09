@@ -19,7 +19,7 @@ class PurchaseOrderListPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final purchaseOrders = ref.watch(purchaseOrderProvider);
+    final purchaseOrders = ref.watch(purchaseOrderListProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -424,7 +424,7 @@ class PurchaseOrderListPage extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () {
-              ref.read(purchaseOrderProvider.notifier).deleteOrder(index);
+              ref.read(purchaseOrderListProvider.notifier).deleteOrder(index);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

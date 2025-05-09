@@ -31,26 +31,24 @@ import 'package:mpt_ims/provider/sale_order_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize Hive and register adapters
+  // Initialize Hive and open all boxes
   await initializeHive();
 
-  // Open all boxes
-  final supplierBox = await Hive.openBox<Supplier>('suppliers');
-  final materialBox = await Hive.openBox<MaterialItem>('materials');
-  final purchaseRequestBox = await Hive.openBox<PurchaseRequest>('purchaseRequests');
-  final purchaseOrderBox = await Hive.openBox<PurchaseOrder>('purchaseOrders');
-  final employeeBox = await Hive.openBox<Employee>('employees');
-  final customerBox = await Hive.openBox<Customer>('customers');
-  final storeInwardBox = await Hive.openBox<StoreInward>('storeInwards');
-  final vendorMaterialRateBox = await Hive.openBox<VendorMaterialRate>('vendorMaterialRates');
-  final qualityInspectionBox = await Hive.openBox<QualityInspection>('qualityInspections');
-  final saleOrderBox = await Hive.openBox<SaleOrder>('saleOrders');
+  // Get references to boxes for providers
+  final supplierBox = Hive.box<Supplier>('suppliers');
+  final materialBox = Hive.box<MaterialItem>('materials');
+  final purchaseRequestBox = Hive.box<PurchaseRequest>('purchaseRequests');
+  final purchaseOrderBox = Hive.box<PurchaseOrder>('purchaseOrders');
+  final employeeBox = Hive.box<Employee>('employees');
+  final customerBox = Hive.box<Customer>('customers');
+  final storeInwardBox = Hive.box<StoreInward>('storeInwards');
+  final vendorMaterialRateBox = Hive.box<VendorMaterialRate>('vendorMaterialRates');
+  final qualityInspectionBox = Hive.box<QualityInspection>('qualityInspections');
+  final saleOrderBox = Hive.box<SaleOrder>('saleOrders');
 
   final user = FirebaseAuth.instance.currentUser;
 

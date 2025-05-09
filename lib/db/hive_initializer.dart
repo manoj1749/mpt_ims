@@ -18,7 +18,8 @@ import '../models/sale_order.dart';
 import '../models/sale_order_item.dart';
 
 Future<void> initializeHive() async {
-  await Hive.initFlutter();
+  final appDocumentDir = await getApplicationDocumentsDirectory();
+  Hive.init(appDocumentDir.path);
 
   // Register adapters
   Hive.registerAdapter(CustomerAdapter());
@@ -36,6 +37,21 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(CategoryParameterMappingAdapter());
   Hive.registerAdapter(SaleOrderAdapter());
   Hive.registerAdapter(SaleOrderItemAdapter());
+
+  // Open boxes
+  await Future.wait([
+    Hive.openBox<Customer>('customers'),
+    Hive.openBox<Employee>('employees'),
+    Hive.openBox<MaterialItem>('materials'),
+    Hive.openBox<PurchaseOrder>('purchaseOrders'),
+    Hive.openBox<PurchaseRequest>('purchaseRequests'),
+    Hive.openBox<StoreInward>('storeInwards'),
+    Hive.openBox<Supplier>('suppliers'),
+    Hive.openBox<VendorMaterialRate>('vendorMaterialRates'),
+    Hive.openBox<QualityInspection>('qualityInspections'),
+    Hive.openBox<CategoryParameterMapping>('categoryParameterMappings'),
+    Hive.openBox<SaleOrder>('saleOrders'),
+  ]);
 }
 
 Future<void> clearIncompatibleData() async {

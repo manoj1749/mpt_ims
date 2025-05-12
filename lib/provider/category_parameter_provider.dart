@@ -2,30 +2,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/category_parameter_mapping.dart';
 
+final categoryParameterBoxProvider = Provider<Box<CategoryParameterMapping>>((ref) {
+  return Hive.box<CategoryParameterMapping>('categoryParameterMappings');
+});
+
 final categoryParameterProvider =
     StateNotifierProvider<CategoryParameterNotifier, List<CategoryParameterMapping>>(
-        (ref) => CategoryParameterNotifier());
+        (ref) => CategoryParameterNotifier(ref.read(categoryParameterBoxProvider)));
 
 class CategoryParameterNotifier
     extends StateNotifier<List<CategoryParameterMapping>> {
-  CategoryParameterNotifier() : super([]) {
-    _loadMappings();
-  }
+  final Box<CategoryParameterMapping> box;
 
-  Future<void> _loadMappings() async {
-    final box = await Hive.openBox<CategoryParameterMapping>('category_parameters');
+  CategoryParameterNotifier(this.box) : super(box.values.toList());
+
+  Future<void> addMapping(CategoryParameterMapping mapping) async {
+    await box.add(mapping);
     state = box.values.toList();
   }
 
-  Future<void> addMapping(CategoryParameterMapping mapping) async {
-    final box = await Hive.openBox<CategoryParameterMapping>('category_parameters');
-    await box.add(mapping);
-    state = [...state, mapping];
-  }
-
   Future<void> updateMapping(CategoryParameterMapping mapping) async {
-    final box = await Hive.openBox<CategoryParameterMapping>('category_parameters');
-    
     // Find existing mapping index
     final existingIndex = box.values.toList().indexWhere(
       (m) => m.category == mapping.category,
@@ -43,7 +39,6 @@ class CategoryParameterNotifier
   }
 
   Future<void> deleteMapping(CategoryParameterMapping mapping) async {
-    final box = await Hive.openBox<CategoryParameterMapping>('category_parameters');
     await mapping.delete();
     state = state.where((m) => m.key != mapping.key).toList();
   }

@@ -387,6 +387,7 @@ class _AddQualityInspectionPageState
                 DropdownMenuItem(value: 'Lot Accepted', child: Text('Lot Accepted')),
                 DropdownMenuItem(value: 'Rejected', child: Text('Rejected')),
                 DropdownMenuItem(value: '100% Recheck', child: Text('100% Recheck')),
+                DropdownMenuItem(value: 'Conditionally Accepted', child: Text('Conditionally Accepted')),
               ],
               onChanged: (value) {
                 setState(() {
@@ -397,6 +398,78 @@ class _AddQualityInspectionPageState
                 });
               },
             ),
+            if (item.usageDecision == 'Conditionally Accepted') ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                decoration: const InputDecoration(
+                  labelText: 'Reason for Conditional Acceptance',
+                  border: OutlineInputBorder(),
+                ),
+                initialValue: item.conditionalAcceptanceReason,
+                onChanged: (value) {
+                  setState(() {
+                    item.conditionalAcceptanceReason = value;
+                  });
+                },
+                validator: (value) {
+                  if (item.usageDecision == 'Conditionally Accepted' && 
+                      (value == null || value.isEmpty)) {
+                    return 'Please provide a reason for conditional acceptance';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                decoration: const InputDecoration(
+                  labelText: 'Required Action',
+                  border: OutlineInputBorder(),
+                ),
+                initialValue: item.conditionalAcceptanceAction,
+                onChanged: (value) {
+                  setState(() {
+                    item.conditionalAcceptanceAction = value;
+                  });
+                },
+                validator: (value) {
+                  if (item.usageDecision == 'Conditionally Accepted' && 
+                      (value == null || value.isEmpty)) {
+                    return 'Please specify the required action';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                decoration: const InputDecoration(
+                  labelText: 'Action Deadline',
+                  border: OutlineInputBorder(),
+                  hintText: 'YYYY-MM-DD',
+                ),
+                initialValue: item.conditionalAcceptanceDeadline,
+                onChanged: (value) {
+                  setState(() {
+                    item.conditionalAcceptanceDeadline = value;
+                  });
+                },
+                validator: (value) {
+                  if (item.usageDecision == 'Conditionally Accepted') {
+                    if (value == null || value.isEmpty) {
+                      return 'Please specify the deadline';
+                    }
+                    try {
+                      final date = DateTime.parse(value);
+                      if (date.isBefore(DateTime.now())) {
+                        return 'Deadline cannot be in the past';
+                      }
+                    } catch (e) {
+                      return 'Please enter a valid date (YYYY-MM-DD)';
+                    }
+                  }
+                  return null;
+                },
+              ),
+            ],
             if (item.usageDecision == '100% Recheck') ...[
               const SizedBox(height: 16),
               CheckboxListTile(

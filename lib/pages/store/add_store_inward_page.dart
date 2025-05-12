@@ -103,7 +103,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     final inwardNotifier = ref.read(storeInwardProvider.notifier);
     final vendorRateNotifier = ref.read(vendorMaterialRateProvider.notifier);
     final suppliers = ref.watch(supplierListProvider);
-    final purchaseOrders = ref.watch(purchaseOrderProvider);
+    final purchaseOrders = ref.watch(purchaseOrderListProvider);
 
     // Filter POs based on selected supplier
     final supplierPOs = selectedSupplier != null

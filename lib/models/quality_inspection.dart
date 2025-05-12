@@ -68,7 +68,7 @@ class QualityInspection extends HiveObject {
 }
 
 @HiveType(typeId: 12)
-class InspectionItem {
+class InspectionItem extends HiveObject {
   @HiveField(0)
   String materialCode; // Part No
 
@@ -109,7 +109,7 @@ class InspectionItem {
   String remarks;
 
   @HiveField(13)
-  String usageDecision; // Lot Accepted / Rejected / 100% Recheck
+  String usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
 
   @HiveField(14)
   String receivedDate; // Date when material was received
@@ -122,6 +122,15 @@ class InspectionItem {
 
   @HiveField(17)
   bool? isPartialRecheck; // For 100% Recheck cases
+
+  @HiveField(18)
+  String? conditionalAcceptanceReason; // Reason for conditional acceptance
+
+  @HiveField(19)
+  String? conditionalAcceptanceAction; // Required action for conditional acceptance
+
+  @HiveField(20)
+  String? conditionalAcceptanceDeadline; // Deadline for completing the required action
 
   InspectionItem({
     required this.materialCode,
@@ -142,6 +151,9 @@ class InspectionItem {
     required this.expirationDate,
     required this.parameters,
     this.isPartialRecheck = false,
+    this.conditionalAcceptanceReason,
+    this.conditionalAcceptanceAction,
+    this.conditionalAcceptanceDeadline,
   });
 }
 

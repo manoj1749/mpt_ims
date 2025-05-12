@@ -35,9 +35,3 @@ class PurchaseOrderNotifier extends StateNotifier<List<PurchaseOrder>> {
     state = [];
   }
 }
-
-final purchaseOrderProvider =
-    StateNotifierProvider<PurchaseOrderNotifier, List<PurchaseOrder>>((ref) {
-  final box = Hive.box<PurchaseOrder>('purchase_orders');
-  return PurchaseOrderNotifier(box);
-});

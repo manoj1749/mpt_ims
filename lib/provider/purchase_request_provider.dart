@@ -27,7 +27,6 @@ class PurchaseRequestNotifier extends StateNotifier<List<PurchaseRequest>> {
   }
 
   void deleteRequest(PurchaseRequest request) {
-    final box = Hive.box<PurchaseRequest>('purchase_requests');
     final index = state.indexOf(request);
     if (index != -1) {
       box.deleteAt(index);

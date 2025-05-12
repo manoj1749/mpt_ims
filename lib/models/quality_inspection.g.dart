@@ -108,13 +108,16 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       expirationDate: fields[15] as String,
       parameters: (fields[16] as List).cast<QualityParameter>(),
       isPartialRecheck: fields[17] as bool?,
+      conditionalAcceptanceReason: fields[18] as String?,
+      conditionalAcceptanceAction: fields[19] as String?,
+      conditionalAcceptanceDeadline: fields[20] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, InspectionItem obj) {
     writer
-      ..writeByte(18)
+      ..writeByte(21)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -150,7 +153,13 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       ..writeByte(16)
       ..write(obj.parameters)
       ..writeByte(17)
-      ..write(obj.isPartialRecheck);
+      ..write(obj.isPartialRecheck)
+      ..writeByte(18)
+      ..write(obj.conditionalAcceptanceReason)
+      ..writeByte(19)
+      ..write(obj.conditionalAcceptanceAction)
+      ..writeByte(20)
+      ..write(obj.conditionalAcceptanceDeadline);
   }
 
   @override

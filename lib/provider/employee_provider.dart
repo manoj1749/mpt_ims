@@ -6,6 +6,11 @@ final employeeBoxProvider = Provider<Box<Employee>>((ref) {
   throw UnimplementedError();
 });
 
+final employeeListProvider =
+    StateNotifierProvider<EmployeeNotifier, List<Employee>>((ref) {
+  return EmployeeNotifier(ref.read(employeeBoxProvider));
+});
+
 class EmployeeNotifier extends StateNotifier<List<Employee>> {
   final Box<Employee> _box;
 
@@ -36,9 +41,3 @@ class EmployeeNotifier extends StateNotifier<List<Employee>> {
     state = _box.values.toList();
   }
 }
-
-final employeeListProvider =
-    StateNotifierProvider<EmployeeNotifier, List<Employee>>((ref) {
-  final box = Hive.box<Employee>('employees');
-  return EmployeeNotifier(box);
-});

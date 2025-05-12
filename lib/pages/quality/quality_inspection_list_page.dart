@@ -325,6 +325,9 @@ class _QualityInspectionListPageState
             case '100% Recheck':
               textColor = Colors.orange;
               break;
+            case 'Conditionally Accepted':
+              textColor = Colors.blue;
+              break;
             default:
               textColor = Colors.grey;
           }
@@ -332,6 +335,48 @@ class _QualityInspectionListPageState
             displayText,
             style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           );
+        },
+      ),
+      PlutoColumn(
+        title: 'Conditional Acceptance Reason',
+        field: 'conditionalReason',
+        type: PlutoColumnType.text(),
+        width: 200,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final item = rendererContext.row.cells['item']?.value as InspectionItem?;
+          if (item == null || item.usageDecision != 'Conditionally Accepted') {
+            return const Text('');
+          }
+          return Text(item.conditionalAcceptanceReason ?? '');
+        },
+      ),
+      PlutoColumn(
+        title: 'Required Action',
+        field: 'conditionalAction',
+        type: PlutoColumnType.text(),
+        width: 200,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final item = rendererContext.row.cells['item']?.value as InspectionItem?;
+          if (item == null || item.usageDecision != 'Conditionally Accepted') {
+            return const Text('');
+          }
+          return Text(item.conditionalAcceptanceAction ?? '');
+        },
+      ),
+      PlutoColumn(
+        title: 'Action Deadline',
+        field: 'conditionalDeadline',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final item = rendererContext.row.cells['item']?.value as InspectionItem?;
+          if (item == null || item.usageDecision != 'Conditionally Accepted') {
+            return const Text('');
+          }
+          return Text(item.conditionalAcceptanceDeadline ?? '');
         },
       ),
       PlutoColumn(
@@ -478,6 +523,9 @@ class _QualityInspectionListPageState
           'rejectedQty': safeCell(item.rejectedQty, isNumber: true),
           'pendingQty': safeCell(item.pendingQty, isNumber: true),
           'actions': safeCell(''),
+          'conditionalReason': safeCell(item.conditionalAcceptanceReason),
+          'conditionalAction': safeCell(item.conditionalAcceptanceAction),
+          'conditionalDeadline': safeCell(item.conditionalAcceptanceDeadline),
           ...parameterCells,
         };
 

@@ -163,7 +163,7 @@ class PurchaseOrderListPage extends ConsumerWidget {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      _buildInfoRow('Board No', order.boardNo),
+                                      _buildInfoRow('Job No', order.boardNo),
                                       _buildInfoRow(
                                           'Transport', order.transport),
                                       _buildInfoRow('Delivery Requirements',

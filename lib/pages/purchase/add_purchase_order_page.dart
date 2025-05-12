@@ -411,7 +411,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               ),
               TextFormField(
                 controller: _boardNoController,
-                decoration: const InputDecoration(labelText: 'Board No'),
+                decoration: const InputDecoration(labelText: 'Job No'),
               ),
               const SizedBox(height: 10),
               if (poItems.isNotEmpty)

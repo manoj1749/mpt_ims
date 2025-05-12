@@ -170,7 +170,7 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                     TextFormField(
                       controller: _boardNoController,
                       decoration: const InputDecoration(
-                        labelText: 'Board No',
+                        labelText: 'Job No',
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) =>

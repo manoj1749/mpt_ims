@@ -39,7 +39,7 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
         enableEditingMode: false,
       ),
       PlutoColumn(
-        title: 'Board No',
+        title: 'Job No',
         field: 'boardNo',
         type: PlutoColumnType.text(),
         width: 120,

@@ -21,7 +21,6 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
       orderDate: fields[1] as String,
       customerName: fields[2] as String,
       boardNo: fields[3] as String,
-      items: (fields[4] as List).cast<SaleOrderItem>(),
       status: fields[10] as String,
     );
   }
@@ -29,7 +28,7 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
   @override
   void write(BinaryWriter writer, SaleOrder obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.orderNo)
       ..writeByte(1)
@@ -38,8 +37,6 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
       ..write(obj.customerName)
       ..writeByte(3)
       ..write(obj.boardNo)
-      ..writeByte(4)
-      ..write(obj.items)
       ..writeByte(10)
       ..write(obj.status);
   }

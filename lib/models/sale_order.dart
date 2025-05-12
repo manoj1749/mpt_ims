@@ -1,9 +1,8 @@
 import 'package:hive/hive.dart';
-import 'sale_order_item.dart';
 
 part 'sale_order.g.dart';
 
-@HiveType(typeId: 16)
+@HiveType(typeId: 14)
 class SaleOrder extends HiveObject {
   @HiveField(0)
   String orderNo;
@@ -17,9 +16,6 @@ class SaleOrder extends HiveObject {
   @HiveField(3)
   String boardNo;
 
-  @HiveField(4)
-  List<SaleOrderItem> items;
-
   @HiveField(10)
   String status; // Draft, Confirmed, Delivered, Cancelled
 
@@ -28,7 +24,6 @@ class SaleOrder extends HiveObject {
     required this.orderDate,
     required this.customerName,
     required this.boardNo,
-    required this.items,
     this.status = 'Draft',
   });
 } 

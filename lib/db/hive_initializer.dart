@@ -15,7 +15,6 @@ import '../models/vendor_material_rate.dart';
 import '../models/quality_inspection.dart';
 import '../models/category_parameter_mapping.dart';
 import '../models/sale_order.dart';
-import '../models/sale_order_item.dart';
 
 Future<void> initializeHive() async {
   final appDocumentDir = await getApplicationDocumentsDirectory();
@@ -36,7 +35,9 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(QualityInspectionAdapter());
   Hive.registerAdapter(CategoryParameterMappingAdapter());
   Hive.registerAdapter(SaleOrderAdapter());
-  Hive.registerAdapter(SaleOrderItemAdapter());
+
+  // Handle schema migration
+  await clearIncompatibleData();
 
   // Open boxes
   await Future.wait([
@@ -61,23 +62,27 @@ Future<void> clearIncompatibleData() async {
     final currentVersion = box.get('version') ?? 0;
 
     // If schema version is less than required, clear data
-    if (currentVersion < 2) {
-      // Clear all boxes except quality inspections
-      await Future.wait([
-        Hive.deleteBoxFromDisk('customers'),
-        Hive.deleteBoxFromDisk('employees'),
-        Hive.deleteBoxFromDisk('materials'),
-        Hive.deleteBoxFromDisk('purchaseOrders'),
-        Hive.deleteBoxFromDisk('purchaseRequests'),
-        Hive.deleteBoxFromDisk('storeInwards'),
-        Hive.deleteBoxFromDisk('suppliers'),
-        Hive.deleteBoxFromDisk('vendorMaterialRates'),
-        Hive.deleteBoxFromDisk('categoryParameterMappings'),
-        Hive.deleteBoxFromDisk('saleOrders'),
-      ]);
+    if (currentVersion < 3) { // Increased version number for sale order schema change
+      // Delete the sale orders box since schema has changed
+      await Hive.deleteBoxFromDisk('saleOrders');
+
+      // Clear all boxes if needed
+      if (currentVersion < 2) {
+        await Future.wait([
+          Hive.deleteBoxFromDisk('customers'),
+          Hive.deleteBoxFromDisk('employees'),
+          Hive.deleteBoxFromDisk('materials'),
+          Hive.deleteBoxFromDisk('purchaseOrders'),
+          Hive.deleteBoxFromDisk('purchaseRequests'),
+          Hive.deleteBoxFromDisk('storeInwards'),
+          Hive.deleteBoxFromDisk('suppliers'),
+          Hive.deleteBoxFromDisk('vendorMaterialRates'),
+          Hive.deleteBoxFromDisk('categoryParameterMappings'),
+        ]);
+      }
 
       // Update schema version
-      await box.put('version', 2);
+      await box.put('version', 3);
     }
   } catch (e) {
     print('Error clearing incompatible data: $e');

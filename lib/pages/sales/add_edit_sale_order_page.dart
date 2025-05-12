@@ -23,18 +23,21 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
   final _boardNoController = TextEditingController();
   String? _selectedCustomer;
   List<SaleOrderItem> _items = [];
+  late String _orderNo;
 
   @override
   void initState() {
     super.initState();
     if (widget.order != null) {
       // Edit mode - populate fields
+      _orderNo = widget.order!.orderNo;
       _orderDateController.text = widget.order!.orderDate;
       _boardNoController.text = widget.order!.boardNo;
       _selectedCustomer = widget.order!.customerName;
       _items = List.from(widget.order!.items);
     } else {
       // Add mode - set defaults
+      _orderNo = ref.read(saleOrderProvider.notifier).generateOrderNumber();
       _orderDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
       _items = [];
     }
@@ -101,18 +104,15 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    if (widget.order != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: TextFormField(
-                          initialValue: widget.order!.orderNo,
-                          decoration: const InputDecoration(
-                            labelText: 'Order No',
-                            border: OutlineInputBorder(),
-                          ),
-                          enabled: false,
-                        ),
+                    TextFormField(
+                      initialValue: _orderNo,
+                      decoration: const InputDecoration(
+                        labelText: 'Order No',
+                        border: OutlineInputBorder(),
                       ),
+                      enabled: false,
+                    ),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
@@ -272,10 +272,7 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                   : () {
                       if (_formKey.currentState!.validate()) {
                         final order = SaleOrder(
-                          orderNo: widget.order?.orderNo ??
-                              ref
-                                  .read(saleOrderProvider.notifier)
-                                  .generateOrderNumber(),
+                          orderNo: _orderNo,
                           orderDate: _orderDateController.text,
                           customerName: _selectedCustomer!,
                           boardNo: _boardNoController.text,

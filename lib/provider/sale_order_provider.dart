@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
+import 'dart:math';
 import '../models/sale_order.dart';
 
 final saleOrderBoxProvider = Provider<Box<SaleOrder>>((ref) {
@@ -18,18 +19,23 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
   SaleOrderNotifier(this.box) : super(box.values.toList());
 
   String generateOrderNumber() {
-    final today = DateTime.now();
-    final dateStr = DateFormat('yyyyMMdd').format(today);
-
-    // Get all orders from today
-    final todayOrders = state.where((order) {
-      return order.orderNo.startsWith('SO$dateStr');
-    }).toList();
-
-    // Get the next sequence number
-    final nextSeq = (todayOrders.length + 1).toString().padLeft(3, '0');
-
-    return 'SO$dateStr$nextSeq';
+    // Get current academic year (assuming academic year starts in June)
+    final now = DateTime.now();
+    int academicYear = now.year;
+    if (now.month < 6) {
+      academicYear--; // If before June, use previous year
+    }
+    
+    // Get last 2 digits of current and next year
+    final currentYearStr = academicYear.toString().substring(2);
+    final nextYearStr = (academicYear + 1).toString().substring(2);
+    
+    // Generate 6 random digits
+    final random = Random();
+    final randomDigits = List.generate(6, (_) => random.nextInt(10)).join();
+    
+    // Combine to form order number (e.g., 2425010198)
+    return '$currentYearStr$nextYearStr$randomDigits';
   }
 
   void addOrder(SaleOrder order) {

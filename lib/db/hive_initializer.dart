@@ -62,36 +62,45 @@ Future<void> clearIncompatibleData() async {
     final currentVersion = box.get('version') ?? 0;
 
     // If schema version is less than required, clear data
-    if (currentVersion < 6) { // Increased version number for removing sale order status
-      // Delete the sale orders box since schema has changed
-      await Hive.deleteBoxFromDisk('saleOrders');
-
-      // Clear all boxes if needed for older versions
-      if (currentVersion < 5) {
-        await Hive.deleteBoxFromDisk('purchaseRequests');
-        
-        if (currentVersion < 4) {
-          await Hive.deleteBoxFromDisk('saleOrders');
-          
-          if (currentVersion < 3) {
-            await Future.wait([
-              Hive.deleteBoxFromDisk('customers'),
-              Hive.deleteBoxFromDisk('employees'),
-              Hive.deleteBoxFromDisk('materials'),
-              Hive.deleteBoxFromDisk('purchaseOrders'),
-              Hive.deleteBoxFromDisk('storeInwards'),
-              Hive.deleteBoxFromDisk('suppliers'),
-              Hive.deleteBoxFromDisk('vendorMaterialRates'),
-              Hive.deleteBoxFromDisk('categoryParameterMappings'),
-            ]);
-          }
-        }
-      }
+    if (currentVersion < 7) { // Increased version number for PR and PO item changes
+      // Delete all boxes since we've made significant model changes
+      await Future.wait([
+        Hive.deleteBoxFromDisk('customers'),
+        Hive.deleteBoxFromDisk('employees'),
+        Hive.deleteBoxFromDisk('materials'),
+        Hive.deleteBoxFromDisk('purchaseOrders'),
+        Hive.deleteBoxFromDisk('purchaseRequests'),
+        Hive.deleteBoxFromDisk('storeInwards'),
+        Hive.deleteBoxFromDisk('suppliers'),
+        Hive.deleteBoxFromDisk('vendorMaterialRates'),
+        Hive.deleteBoxFromDisk('qualityInspections'),
+        Hive.deleteBoxFromDisk('categoryParameterMappings'),
+        Hive.deleteBoxFromDisk('saleOrders'),
+      ]);
 
       // Update schema version
-      await box.put('version', 6);
+      await box.put('version', 7);
     }
   } catch (e) {
     print('Error clearing incompatible data: $e');
+    // If there's an error, try to delete all boxes
+    try {
+      await Future.wait([
+        Hive.deleteBoxFromDisk('customers'),
+        Hive.deleteBoxFromDisk('employees'),
+        Hive.deleteBoxFromDisk('materials'),
+        Hive.deleteBoxFromDisk('purchaseOrders'),
+        Hive.deleteBoxFromDisk('purchaseRequests'),
+        Hive.deleteBoxFromDisk('storeInwards'),
+        Hive.deleteBoxFromDisk('suppliers'),
+        Hive.deleteBoxFromDisk('vendorMaterialRates'),
+        Hive.deleteBoxFromDisk('qualityInspections'),
+        Hive.deleteBoxFromDisk('categoryParameterMappings'),
+        Hive.deleteBoxFromDisk('saleOrders'),
+        Hive.deleteBoxFromDisk('schemaVersion'),
+      ]);
+    } catch (e) {
+      print('Error deleting boxes: $e');
+    }
   }
 }

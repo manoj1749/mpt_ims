@@ -62,18 +62,18 @@ Future<void> clearIncompatibleData() async {
     final currentVersion = box.get('version') ?? 0;
 
     // If schema version is less than required, clear data
-    if (currentVersion < 5) { // Increased version number for sale order date fields
+    if (currentVersion < 6) { // Increased version number for removing sale order status
       // Delete the sale orders box since schema has changed
       await Hive.deleteBoxFromDisk('saleOrders');
 
       // Clear all boxes if needed for older versions
-      if (currentVersion < 4) {
+      if (currentVersion < 5) {
         await Hive.deleteBoxFromDisk('purchaseRequests');
         
-        if (currentVersion < 3) {
+        if (currentVersion < 4) {
           await Hive.deleteBoxFromDisk('saleOrders');
           
-          if (currentVersion < 2) {
+          if (currentVersion < 3) {
             await Future.wait([
               Hive.deleteBoxFromDisk('customers'),
               Hive.deleteBoxFromDisk('employees'),
@@ -89,7 +89,7 @@ Future<void> clearIncompatibleData() async {
       }
 
       // Update schema version
-      await box.put('version', 5);
+      await box.put('version', 6);
     }
   } catch (e) {
     print('Error clearing incompatible data: $e');

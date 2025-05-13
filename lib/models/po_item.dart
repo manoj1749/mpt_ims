@@ -26,16 +26,13 @@ class POItem extends HiveObject {
   String seiplRate;
 
   @HiveField(7)
-  String rateDifference;
-
-  @HiveField(8)
-  String totalRateDifference;
-
-  @HiveField(9)
   String marginPerUnit;
 
-  @HiveField(10)
+  @HiveField(8)
   String totalMargin;
+
+  @HiveField(9)
+  Map<String, double> prQuantities = {}; // Store PR-wise quantities: PR No -> Quantity
 
   POItem({
     required this.materialCode,
@@ -45,11 +42,12 @@ class POItem extends HiveObject {
     required this.costPerUnit,
     required this.totalCost,
     required this.seiplRate,
-    this.rateDifference = '0.0',
-    this.totalRateDifference = '0.0',
-    this.marginPerUnit = '0.0',
-    this.totalMargin = '0.0',
-  });
+    required this.marginPerUnit,
+    required this.totalMargin,
+    Map<String, double>? prQuantities,
+  }) {
+    this.prQuantities = prQuantities ?? {};
+  }
 
   void updateQuantity(String newQuantity) {
     quantity = newQuantity;
@@ -58,7 +56,6 @@ class POItem extends HiveObject {
     final margin = double.parse(marginPerUnit);
     totalCost = (qty * cost).toString();
     totalMargin = (qty * margin).toString();
-    totalRateDifference = (qty * double.parse(rateDifference)).toString();
   }
 
   void updateCostPerUnit(String newCostPerUnit) {
@@ -68,9 +65,46 @@ class POItem extends HiveObject {
     final qty = double.parse(quantity);
 
     totalCost = (qty * cost).toString();
-    rateDifference = (seipl - cost).toString();
-    totalRateDifference = (qty * (seipl - cost)).toString();
     marginPerUnit = (seipl - cost).toString();
     totalMargin = (qty * (seipl - cost)).toString();
+  }
+
+  // Calculate total rate difference as a number
+  double get totalRateDifferenceValue {
+    final qty = double.parse(quantity);
+    final cost = double.parse(costPerUnit);
+    final seipl = double.parse(seiplRate);
+    return (seipl - cost) * qty;
+  }
+
+  // Return total rate difference as a formatted string
+  String get totalRateDifference {
+    return totalRateDifferenceValue.toString();
+  }
+
+  POItem copyWith({
+    String? materialCode,
+    String? materialDescription,
+    String? unit,
+    String? quantity,
+    String? costPerUnit,
+    String? totalCost,
+    String? seiplRate,
+    String? marginPerUnit,
+    String? totalMargin,
+    Map<String, double>? prQuantities,
+  }) {
+    return POItem(
+      materialCode: materialCode ?? this.materialCode,
+      materialDescription: materialDescription ?? this.materialDescription,
+      unit: unit ?? this.unit,
+      quantity: quantity ?? this.quantity,
+      costPerUnit: costPerUnit ?? this.costPerUnit,
+      totalCost: totalCost ?? this.totalCost,
+      seiplRate: seiplRate ?? this.seiplRate,
+      marginPerUnit: marginPerUnit ?? this.marginPerUnit,
+      totalMargin: totalMargin ?? this.totalMargin,
+      prQuantities: prQuantities ?? Map<String, double>.from(this.prQuantities),
+    );
   }
 }

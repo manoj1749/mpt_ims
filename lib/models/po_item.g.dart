@@ -24,17 +24,16 @@ class POItemAdapter extends TypeAdapter<POItem> {
       costPerUnit: fields[4] as String,
       totalCost: fields[5] as String,
       seiplRate: fields[6] as String,
-      rateDifference: fields[7] as String,
-      totalRateDifference: fields[8] as String,
-      marginPerUnit: fields[9] as String,
-      totalMargin: fields[10] as String,
+      marginPerUnit: fields[7] as String,
+      totalMargin: fields[8] as String,
+      prQuantities: (fields[9] as Map?)?.cast<String, double>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, POItem obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -50,13 +49,11 @@ class POItemAdapter extends TypeAdapter<POItem> {
       ..writeByte(6)
       ..write(obj.seiplRate)
       ..writeByte(7)
-      ..write(obj.rateDifference)
-      ..writeByte(8)
-      ..write(obj.totalRateDifference)
-      ..writeByte(9)
       ..write(obj.marginPerUnit)
-      ..writeByte(10)
-      ..write(obj.totalMargin);
+      ..writeByte(8)
+      ..write(obj.totalMargin)
+      ..writeByte(9)
+      ..write(obj.prQuantities);
   }
 
   @override

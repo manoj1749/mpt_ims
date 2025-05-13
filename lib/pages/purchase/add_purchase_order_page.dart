@@ -5,21 +5,21 @@ import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../models/material_item.dart';
-import '../../models/purchase_request.dart';
-import '../../models/pr_item.dart';
-import '../../provider/material_provider.dart';
-import '../../models/supplier.dart';
 import '../../models/po_item.dart';
-import '../../models/purchase_order.dart';
+import '../../models/supplier.dart';
+import '../../models/material_item.dart';
+import '../../models/pr_item.dart';
+import '../../models/purchase_request.dart';
+import '../../models/purchase_order.dart' as po;
 import '../../provider/supplier_provider.dart';
+import '../../provider/material_provider.dart';
 import '../../provider/purchase_request_provider.dart';
 import '../../provider/purchase_order.dart';
 import '../../provider/vendor_material_rate_provider.dart';
 import 'package:collection/collection.dart';
 
 class AddPurchaseOrderPage extends ConsumerStatefulWidget {
-  final PurchaseOrder? existingPO;
+  final po.PurchaseOrder? existingPO;
   final int? index;
 
   const AddPurchaseOrderPage({
@@ -36,13 +36,14 @@ class AddPurchaseOrderPage extends ConsumerStatefulWidget {
 class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   final _formKey = GlobalKey<FormState>();
   Supplier? selectedSupplier;
-  List<POItem> selectedItems = [];
+  List<POItem> poItems = [];
   final Map<String, TextEditingController> qtyControllers = {};
   final Map<String, TextEditingController> maxQtyControllers = {};
   final TextEditingController _boardNoController = TextEditingController();
   final TextEditingController _transportController = TextEditingController();
   final TextEditingController _deliveryRequirementsController =
       TextEditingController();
+  Map<String, Map<String, TextEditingController>> prQtyControllers = {};
 
   // Group PRs by material code
   Map<String, List<PRItem>> _groupPRsByMaterial(List<PurchaseRequest> prs) {
@@ -72,17 +73,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       selectedSupplier = ref
           .read(supplierListProvider)
           .firstWhere((s) => s.name == widget.existingPO!.supplierName);
-      selectedItems = widget.existingPO!.items;
-      for (var item in selectedItems) {
-        qtyControllers[item.materialCode] =
-            TextEditingController(text: item.quantity);
-        maxQtyControllers[item.materialCode] =
-            TextEditingController(text: item.quantity);
-      }
       _boardNoController.text = widget.existingPO!.boardNo;
       _transportController.text = widget.existingPO!.transport;
       _deliveryRequirementsController.text =
           widget.existingPO!.deliveryRequirements;
+      poItems = List<POItem>.from(widget.existingPO!.items);
     }
   }
 
@@ -97,6 +92,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     for (var controller in maxQtyControllers.values) {
       controller.dispose();
     }
+    for (var materialControllers in prQtyControllers.values) {
+      for (var controller in materialControllers.values) {
+        controller.dispose();
+      }
+    }
     super.dispose();
   }
 
@@ -104,7 +104,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     return items.fold(0.0, (sum, item) => sum + double.parse(item.totalCost));
   }
 
-  POItem _createPOItem(MaterialItem material, double totalRemainingQty) {
+  POItem _createPOItem(MaterialItem material, List<PRItem> prItems) {
     final rates = ref
         .read(vendorMaterialRateProvider.notifier)
         .getRatesForMaterial(material.slNo);
@@ -121,109 +121,199 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     final seiplRate = double.parse(vendorRate.seiplRate);
     final marginPerUnit = costPerUnit - seiplRate;
 
+    // Calculate total quantity from PR-wise quantities
+    final prQuantities = <String, double>{};
+    double totalQty = 0;
+    
+    for (var prItem in prItems) {
+      final remainingQty = double.parse(prItem.quantity) - prItem.totalOrderedQuantity;
+      if (remainingQty > 0) {
+        final controller = prQtyControllers[material.partNo]?[prItem.prNo] ??
+            TextEditingController(text: remainingQty.toString());
+        prQtyControllers
+            .putIfAbsent(material.partNo, () => {})
+            .putIfAbsent(prItem.prNo, () => controller);
+            
+        final orderQty = double.tryParse(controller.text) ?? 0;
+        if (orderQty > 0) {
+          prQuantities[prItem.prNo] = orderQty;
+          totalQty += orderQty;
+        }
+      }
+    }
+
     return POItem(
       materialCode: material.partNo,
       materialDescription: material.description,
       unit: material.unit,
-      quantity: totalRemainingQty.toString(),
+      quantity: totalQty.toString(),
       costPerUnit: costPerUnit.toString(),
-      totalCost: (totalRemainingQty * costPerUnit).toString(),
+      totalCost: (totalQty * costPerUnit).toString(),
       seiplRate: seiplRate.toString(),
       marginPerUnit: marginPerUnit.toString(),
-      totalMargin: (marginPerUnit * totalRemainingQty).toString(),
+      totalMargin: (marginPerUnit * totalQty).toString(),
+      prQuantities: prQuantities,
     );
   }
 
-  void _savePurchaseOrder() {
+  Widget _buildItemCard(MaterialItem material, List<PRItem> prItems) {
+    final poItem = _createPOItem(material, prItems);
+    
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              material.description,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text('Material Code: ${material.partNo}'),
+            Text('Unit: ${material.unit}'),
+            const SizedBox(height: 16),
+            const Text(
+              'Purchase Requests',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...prItems.map((prItem) {
+              final remainingQty = double.parse(prItem.quantity) - prItem.totalOrderedQuantity;
+              if (remainingQty <= 0) return const SizedBox.shrink();
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Text('PR: ${prItem.prNo}'),
+                    ),
+                    Expanded(
+                      child: Text('Need: ${remainingQty.toStringAsFixed(2)}'),
+                    ),
+                    Expanded(
+                      child: TextFormField(
+                        controller: prQtyControllers[material.partNo]![prItem.prNo],
+                        decoration: const InputDecoration(
+                          labelText: 'Order Qty',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return null;
+                          final qty = double.tryParse(value);
+                          if (qty == null) return 'Invalid number';
+                          if (qty < 0) return 'Cannot be negative';
+                          if (qty > remainingQty) {
+                            return 'Exceeds needed qty';
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          setState(() {
+                            // This will trigger rebuild and update totals
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const Divider(),
+            Row(
+              children: [
+                const Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Total Order Quantity:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    poItem.quantity,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Cost per Unit: ₹${poItem.costPerUnit}'),
+                ),
+                Expanded(
+                  child: Text('Total Cost: ₹${poItem.totalCost}'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onSavePressed() {
     if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
       final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-      for (var item in selectedItems) {
-        final qtyText = qtyControllers[item.materialCode]?.text ?? '0';
-        item.updateQuantity(qtyText);
-      }
-
-      // First update all items with their latest quantities and calculations
-      final updatedItems = selectedItems.map((item) {
-        final qty = int.parse(item.quantity);
-        final cost = double.parse(item.costPerUnit);
-        final seipl = double.parse(item.seiplRate);
-        final margin = cost - seipl;
-
-        final totalCost = (qty * cost).toStringAsFixed(2);
-        final totalMargin = (qty * margin).toStringAsFixed(2);
-        final rateDiff = (cost - seipl).toStringAsFixed(2);
-        final totalRateDiff = (qty * (cost - seipl)).toStringAsFixed(2);
-        return POItem(
-          materialCode: item.materialCode,
-          materialDescription: item.materialDescription,
-          unit: item.unit,
-          quantity: qty.toString(),
-          costPerUnit: cost.toStringAsFixed(2),
-          totalCost: totalCost,
-          seiplRate: seipl.toStringAsFixed(2),
-          rateDifference: rateDiff,
-          totalRateDifference: totalRateDiff,
-          marginPerUnit: margin.toStringAsFixed(2),
-          totalMargin: totalMargin,
-        );
-      }).toList();
-
-      // Calculate totals with proper rounding
-      final subtotal = updatedItems.fold(
-        0.0,
-        (sum, item) => sum + double.parse(item.totalCost),
-      );
-      const igst = 0.0; // Add tax calculation logic if needed
-      const cgst = 0.0;
-      const sgst = 0.0;
+      // Calculate tax amounts
+      final subtotal = poItems.fold(
+          0.0, (sum, item) => sum + double.parse(item.totalCost));
+      final igst = subtotal * 0.18; // 18% IGST
+      final cgst = subtotal * 0.09; // 9% CGST
+      final sgst = subtotal * 0.09; // 9% SGST
       final grandTotal = subtotal + igst + cgst + sgst;
 
-      final newPO = PurchaseOrder(
-        poNo: widget.existingPO?.poNo ??
-            'PO${DateTime.now().millisecondsSinceEpoch}',
+      final newPO = po.PurchaseOrder(
+        poNo: widget.existingPO?.poNo ?? 'PO${DateTime.now().millisecondsSinceEpoch}',
         poDate: widget.existingPO?.poDate ?? now,
         supplierName: selectedSupplier!.name,
         boardNo: _boardNoController.text,
         transport: _transportController.text,
         deliveryRequirements: _deliveryRequirementsController.text,
-        items: updatedItems,
-        total: double.parse(subtotal.toStringAsFixed(2)),
-        igst: double.parse(igst.toStringAsFixed(2)),
-        cgst: double.parse(cgst.toStringAsFixed(2)),
-        sgst: double.parse(sgst.toStringAsFixed(2)),
-        grandTotal: double.parse(grandTotal.toStringAsFixed(2)),
+        items: List<POItem>.from(poItems),
+        total: subtotal,
+        igst: igst,
+        cgst: cgst,
+        sgst: sgst,
+        grandTotal: grandTotal,
       );
 
-      // Update PR quantities and status with proper integer handling
+      // Update PR quantities and status
       final purchaseRequests = ref.read(purchaseRequestListProvider);
       final prNotifier = ref.read(purchaseRequestListProvider.notifier);
 
-      for (var pr in purchaseRequests) {
-        if (pr.supplierName == selectedSupplier!.name) {
-          bool prUpdated = false;
+      for (var poItem in poItems) {
+        for (var entry in poItem.prQuantities.entries) {
+          final prNo = entry.key;
+          final orderQty = entry.value;
 
-          for (var prItem in pr.items) {
-            final poItem = updatedItems.firstWhereOrNull(
-              (po) => po.materialCode == prItem.materialCode,
-            );
-
-            if (poItem != null) {
-              // Convert quantity to integer before updating PR
-              final orderedQty = int.parse(poItem.quantity);
-              prItem.addOrderedQuantity(
-                newPO.poNo,
-                orderedQty.toDouble(),
+          // Find the PR and update its item quantities
+          for (var pr in purchaseRequests) {
+            if (pr.prNo == prNo) {
+              final prItem = pr.items.firstWhere(
+                (item) => item.materialCode == poItem.materialCode,
+                orElse: () => throw Exception('PR item not found'),
               );
-              prUpdated = true;
-            }
-          }
 
-          if (prUpdated) {
-            pr.updateStatus();
-            final index = purchaseRequests.indexOf(pr);
-            prNotifier.updateRequest(index, pr);
+              if (orderQty > 0) {
+                prItem.addOrderedQuantity(newPO.poNo, orderQty);
+                pr.updateStatus();
+                final index = purchaseRequests.indexOf(pr);
+                prNotifier.updateRequest(index, pr);
+              }
+            }
           }
         }
       }
@@ -245,69 +335,39 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   Widget build(BuildContext context) {
     final suppliers = ref.watch(supplierListProvider);
     final purchaseRequests = ref.watch(purchaseRequestListProvider);
-
-    final filteredPRs = selectedSupplier == null
-        ? <PurchaseRequest>[]
-        : purchaseRequests
-            .where((pr) =>
-                pr.supplierName == selectedSupplier!.name && !pr.isFullyOrdered)
-            .toList();
-
-    final groupedItems = _groupPRsByMaterial(filteredPRs);
     final materials = ref.watch(materialListProvider);
 
-    final poItems = <String, POItem>{};
-
-    for (var entry in groupedItems.entries) {
-      final materialCode = entry.key;
-      final items = entry.value;
-      final totalRemainingQty = _calculateTotalRemainingQuantity(items);
-
-      if (totalRemainingQty <= 0) continue; // Skip if no remaining quantity
-
-      MaterialItem? findMaterialByCode(List<MaterialItem> list, String code) {
-        for (final item in list) {
-          if (item.partNo == code) return item;
+    // Group PR items by material code
+    final materialPRItems = <String, List<PRItem>>{};
+    
+    if (selectedSupplier != null) {
+      for (var pr in purchaseRequests) {
+        if (pr.supplierName == selectedSupplier!.name && !pr.isFullyOrdered) {
+          for (var item in pr.items) {
+            if (!item.isFullyOrdered) {
+              materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
+            }
+          }
         }
-        return null;
-      }
-
-      final material = findMaterialByCode(materials, materialCode);
-      if (material == null) continue;
-
-      try {
-        poItems[materialCode] = _createPOItem(material, totalRemainingQty);
-
-        // Initialize controller if not exists
-        qtyControllers[materialCode] ??= TextEditingController(
-          text: totalRemainingQty.toString(),
-        );
-        maxQtyControllers[materialCode] ??= TextEditingController(
-          text: totalRemainingQty.toString(),
-        );
-      } catch (e) {
-        // Show a snackbar with the error message
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(e.toString()),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-              action: SnackBarAction(
-                label: 'Add Rate',
-                textColor: Colors.white,
-                onPressed: () {
-                  // TODO: Navigate to add rate page
-                  // This will be implemented when the add rate functionality is ready
-                },
-              ),
-            ),
-          );
-        });
       }
     }
 
-    selectedItems = poItems.values.toList();
+    // Calculate totals
+    double subtotal = 0;
+    final poItems = <POItem>[];
+    
+    for (var entry in materialPRItems.entries) {
+      final material = materials.firstWhere(
+        (m) => m.partNo == entry.key,
+        orElse: () => throw Exception('Material not found: ${entry.key}'),
+      );
+      
+      final poItem = _createPOItem(material, entry.value);
+      if (double.parse(poItem.quantity) > 0) {
+        poItems.add(poItem);
+        subtotal += double.parse(poItem.totalCost);
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text("Purchase Order Creation")),
@@ -483,9 +543,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                             separatorBuilder: (_, __) =>
                                 const Divider(height: 32),
                             itemBuilder: (_, index) {
-                              final item = poItems.values.elementAt(index);
+                              final item = poItems.elementAt(index);
                               final prItems =
-                                  groupedItems[item.materialCode] ?? [];
+                                  materialPRItems[item.materialCode] ?? [];
                               final totalNeededQty =
                                   _calculateTotalRemainingQuantity(prItems);
 
@@ -499,271 +559,10 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                 text: totalNeededQty.toString(),
                               );
 
-                              return Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[900],
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      flex: 2,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 4,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Theme.of(context)
-                                                      .primaryColor
-                                                      .withOpacity(0.2),
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                                child: Text(
-                                                  item.materialCode,
-                                                  style: TextStyle(
-                                                    color: Theme.of(context)
-                                                        .primaryColor,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            item.materialDescription,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            "Qty Needed",
-                                            style: TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            "$totalNeededQty ${item.unit}",
-                                            style: const TextStyle(
-                                              color: Colors.amberAccent,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          const Text(
-                                            "Order Qty",
-                                            style: TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          TextFormField(
-                                            controller: qtyControllers[
-                                                item.materialCode],
-                                            keyboardType: TextInputType.number,
-                                            validator: (value) {
-                                              if (value == null ||
-                                                  value.isEmpty) {
-                                                return 'Quantity is required';
-                                              }
-                                              final inputQty =
-                                                  int.tryParse(value);
-                                              if (inputQty == null) {
-                                                return 'Please enter a valid number';
-                                              }
-                                              if (inputQty <= 0) {
-                                                return 'Quantity must be greater than 0';
-                                              }
-                                              final maxQty = int.parse(
-                                                  totalNeededQty
-                                                      .toStringAsFixed(0));
-                                              if (inputQty > maxQty) {
-                                                return 'Cannot exceed required quantity ($maxQty)';
-                                              }
-                                              return null;
-                                            },
-                                            onSaved: (value) {
-                                              if (value == null ||
-                                                  value.isEmpty) return;
-                                              final qty = int.tryParse(value);
-                                              if (qty == null) return;
-
-                                              setState(() {
-                                                final maxQty = int.parse(
-                                                    maxQtyControllers[
-                                                            item.materialCode]!
-                                                        .text
-                                                        .split('.')[0]);
-
-                                                final limitedQty =
-                                                    min(qty, maxQty).toString();
-                                                if (value != limitedQty) {
-                                                  qtyControllers[
-                                                          item.materialCode]
-                                                      ?.text = limitedQty;
-                                                }
-                                                item.updateQuantity(limitedQty);
-                                              });
-                                            },
-                                            decoration: InputDecoration(
-                                              isDense: true,
-                                              contentPadding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 6,
-                                              ),
-                                              border: OutlineInputBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                              ),
-                                              errorStyle: const TextStyle(
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            "Rate Details",
-                                            style: TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          RichText(
-                                            text: TextSpan(
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 13,
-                                              ),
-                                              children: [
-                                                const TextSpan(
-                                                  text: "Cost/Unit: ",
-                                                  style: TextStyle(
-                                                      color: Colors.white70),
-                                                ),
-                                                TextSpan(
-                                                  text:
-                                                      "₹${item.costPerUnit}\n",
-                                                  style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                                ),
-                                                const TextSpan(
-                                                  text: "SEIPL: ",
-                                                  style: TextStyle(
-                                                      color: Colors.white70),
-                                                ),
-                                                TextSpan(
-                                                  text: "₹${item.seiplRate}",
-                                                  style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            "Cost Summary",
-                                            style: TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          ListenableBuilder(
-                                            listenable: qtyControllers[
-                                                item.materialCode]!,
-                                            builder: (context, child) {
-                                              final qty = double.tryParse(
-                                                      qtyControllers[item
-                                                                  .materialCode]
-                                                              ?.text ??
-                                                          '0') ??
-                                                  0.0;
-                                              final cost = double.parse(
-                                                  item.costPerUnit);
-                                              final totalCost = qty * cost;
-
-                                              return RichText(
-                                                text: TextSpan(
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 13,
-                                                  ),
-                                                  children: [
-                                                    const TextSpan(
-                                                      text: "Total: ",
-                                                      style: TextStyle(
-                                                          color:
-                                                              Colors.white70),
-                                                    ),
-                                                    TextSpan(
-                                                      text:
-                                                          "₹${totalCost.toStringAsFixed(2)}\n",
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 15,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
+                              return _buildItemCard(materials.firstWhere(
+                                (m) => m.partNo == item.materialCode,
+                                orElse: () => throw Exception('Material not found'),
+                              ), prItems);
                             },
                           ),
                         ),
@@ -782,7 +581,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                             ),
                             builder: (context, _) {
                               double total = 0;
-                              for (var item in poItems.values) {
+                              for (var item in poItems) {
                                 final qty = double.tryParse(
                                         qtyControllers[item.materialCode]
                                                 ?.text ??
@@ -823,7 +622,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               const SizedBox(height: 10),
               Center(
                 child: ElevatedButton(
-                  onPressed: _savePurchaseOrder,
+                  onPressed: _onSavePressed,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 48, vertical: 16),

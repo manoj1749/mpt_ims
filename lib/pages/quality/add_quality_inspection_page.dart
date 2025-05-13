@@ -8,6 +8,7 @@ import '../../provider/quality_inspection_provider.dart';
 import '../../provider/store_inward_provider.dart';
 import '../../provider/category_parameter_provider.dart';
 import '../../provider/material_provider.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 
 class AddQualityInspectionPage extends ConsumerStatefulWidget {
   const AddQualityInspectionPage({super.key});
@@ -129,18 +130,20 @@ class _AddQualityInspectionPageState
               // GRN Dropdown
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: DropdownButtonFormField<StoreInward>(
-                  value: selectedGRN,
+                child: DropdownButtonFormField2<StoreInward>(
                   decoration: const InputDecoration(
                     labelText: 'Select GRN',
                     border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                   ),
+                  isExpanded: true,
+                  value: selectedGRN,
                   items: pendingInwards.map((grn) {
-                    return DropdownMenuItem(
+                    return DropdownMenuItem<StoreInward>(
                       value: grn,
-                      child: Text('${grn.grnNo} (${grn.supplierName})'),
+                      child: Text(
+                        '${grn.grnNo} (${grn.supplierName})',
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -149,6 +152,19 @@ class _AddQualityInspectionPageState
                     }
                   },
                   validator: (value) => value == null ? 'Required' : null,
+                  dropdownStyleData: DropdownStyleData(
+                    maxHeight: 300,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  menuItemStyleData: const MenuItemStyleData(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  buttonStyleData: const ButtonStyleData(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    height: 40,
+                  ),
                 ),
               ),
 
@@ -377,17 +393,18 @@ class _AddQualityInspectionPageState
               ],
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
+            DropdownButtonFormField2<String>(
               decoration: const InputDecoration(
                 labelText: 'Usage Decision',
                 border: OutlineInputBorder(),
               ),
+              isExpanded: true,
               value: item.usageDecision,
               items: const [
-                DropdownMenuItem(value: 'Lot Accepted', child: Text('Lot Accepted')),
-                DropdownMenuItem(value: 'Rejected', child: Text('Rejected')),
-                DropdownMenuItem(value: '100% Recheck', child: Text('100% Recheck')),
-                DropdownMenuItem(value: 'Conditionally Accepted', child: Text('Conditionally Accepted')),
+                DropdownMenuItem<String>(value: 'Lot Accepted', child: Text('Lot Accepted')),
+                DropdownMenuItem<String>(value: 'Rejected', child: Text('Rejected')),
+                DropdownMenuItem<String>(value: '100% Recheck', child: Text('100% Recheck')),
+                DropdownMenuItem<String>(value: 'Conditionally Accepted', child: Text('Conditionally Accepted')),
               ],
               onChanged: (value) {
                 setState(() {
@@ -397,6 +414,21 @@ class _AddQualityInspectionPageState
                   }
                 });
               },
+              validator: (value) =>
+                  value == null ? 'Please select a usage decision' : null,
+              dropdownStyleData: DropdownStyleData(
+                maxHeight: 200,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              menuItemStyleData: const MenuItemStyleData(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+              ),
+              buttonStyleData: const ButtonStyleData(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                height: 40,
+              ),
             ),
             if (item.usageDecision == 'Conditionally Accepted') ...[
               const SizedBox(height: 16),

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../models/sale_order.dart';
 import '../../provider/sale_order_provider.dart';
 import '../../provider/customer_provider.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 
 class AddEditSaleOrderPage extends ConsumerStatefulWidget {
   final SaleOrder? order;
@@ -136,16 +137,20 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: DropdownButtonFormField<String>(
+                          child: DropdownButtonFormField2<String>(
                             value: _selectedCustomer,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Customer',
                               border: OutlineInputBorder(),
                             ),
                             items: customers.map((customer) {
-                              return DropdownMenuItem(
+                              return DropdownMenuItem<String>(
                                 value: customer.name,
-                                child: Text(customer.name),
+                                child: Text(
+                                  customer.name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               );
                             }).toList(),
                             onChanged: (value) {
@@ -294,12 +299,16 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                     endDate: _endDateController.text.isEmpty ? null : _endDateController.text,
                   );
 
+                  final notifier = ref.read(saleOrderProvider.notifier);
                   if (widget.order != null) {
-                    ref.read(saleOrderProvider.notifier).updateOrder(order);
+                    notifier.updateOrder(order);
                   } else {
-                    ref.read(saleOrderProvider.notifier).addOrder(order);
+                    notifier.addOrder(order);
                   }
 
+                  // Invalidate the provider to force a refresh
+                  ref.invalidate(saleOrderProvider);
+                  
                   Navigator.pop(context);
                 }
               },

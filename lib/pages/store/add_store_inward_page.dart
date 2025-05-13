@@ -12,6 +12,7 @@ import '../../models/supplier.dart';
 import '../../provider/supplier_provider.dart';
 import '../../models/purchase_order.dart';
 import '../../provider/purchase_order.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 
 class AddStoreInwardPage extends ConsumerStatefulWidget {
   const AddStoreInwardPage({super.key});
@@ -125,30 +126,46 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               // Supplier Dropdown
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: DropdownButtonFormField<Supplier>(
-                  value: selectedSupplier,
+                child: DropdownButtonFormField2<Supplier>(
+                  isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Supplier',
+                    labelText: 'Select Supplier',
                     border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                   ),
+                  value: selectedSupplier,
                   items: suppliers.map((supplier) {
-                    return DropdownMenuItem(
+                    return DropdownMenuItem<Supplier>(
                       value: supplier,
-                      child: Text(supplier.name),
+                      child: Text(
+                        supplier.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     );
                   }).toList(),
-                  onChanged: (value) {
+                  onChanged: (val) {
                     setState(() {
-                      selectedSupplier = value;
+                      selectedSupplier = val;
                       selectedPO = null;
                       _poNoController.clear();
                       _poDateController.clear();
                       _invoiceAmountController.clear();
                     });
                   },
-                  validator: (value) => value == null ? 'Required' : null,
+                  validator: (val) =>
+                      val == null ? 'Please select a supplier' : null,
+                  dropdownStyleData: DropdownStyleData(
+                    maxHeight: 300,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  menuItemStyleData: const MenuItemStyleData(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  buttonStyleData: const ButtonStyleData(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    height: 40,
+                  ),
                 ),
               ),
 
@@ -156,28 +173,43 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               if (selectedSupplier != null && supplierPOs.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: DropdownButtonFormField<String>(
-                    value: selectedPO?.poNo,
+                  child: DropdownButtonFormField2<String>(
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Purchase Order',
                       border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                     ),
+                    value: selectedPO?.poNo,
                     items: supplierPOs.map((po) {
-                      return DropdownMenuItem(
+                      return DropdownMenuItem<String>(
                         value: po.poNo,
-                        child: Text('${po.poNo} (${po.poDate})'),
+                        child: Text(
+                          '${po.poNo} (${po.poDate})',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        final po =
-                            supplierPOs.firstWhere((po) => po.poNo == value);
+                    onChanged: (val) {
+                      if (val != null) {
+                        final po = supplierPOs.firstWhere((po) => po.poNo == val);
                         _onPOSelected(po);
                       }
                     },
-                    validator: (value) => value == null ? 'Required' : null,
+                    validator: (val) =>
+                        val == null ? 'Please select a purchase order' : null,
+                    dropdownStyleData: DropdownStyleData(
+                      maxHeight: 300,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    menuItemStyleData: const MenuItemStyleData(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    buttonStyleData: const ButtonStyleData(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      height: 40,
+                    ),
                   ),
                 ),
 
@@ -474,26 +506,58 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               Consumer(
                 builder: (context, ref, child) {
                   final materials = ref.watch(materialListProvider);
-                  return DropdownButtonFormField<MaterialItem>(
+                  final availableMaterials = selectedPO != null
+                      ? selectedPO!.items
+                          .map((item) => materials.firstWhere(
+                              (m) => m.partNo == item.materialCode))
+                          .toList()
+                      : materials;
+
+                  return DropdownButtonFormField2<MaterialItem>(
+                    isExpanded: true,
                     decoration: const InputDecoration(
-                      labelText: 'Select Material',
+                      labelText: 'Material',
                       border: OutlineInputBorder(),
                     ),
-                    items: materials.map((material) {
-                      return DropdownMenuItem(
+                    value: selectedMaterial,
+                    items: availableMaterials.map((material) {
+                      return DropdownMenuItem<MaterialItem>(
                         value: material,
-                        child:
-                            Text('${material.slNo} - ${material.description}'),
+                        child: Text(
+                          '${material.partNo} - ${material.description}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }).toList(),
-                    onChanged: (material) {
-                      if (material != null) {
-                        selectedMaterial = material;
-                        materialCodeController.text = material.partNo;
-                        materialDescController.text = material.description;
-                        unitController.text = material.unit;
-                      }
+                    onChanged: (val) {
+                      setState(() {
+                        selectedMaterial = val;
+                        if (val != null) {
+                          materialCodeController.text = val.partNo;
+                          materialDescController.text = val.description;
+                          unitController.text = val.unit;
+                        } else {
+                          materialCodeController.clear();
+                          materialDescController.clear();
+                          unitController.clear();
+                        }
+                      });
                     },
+                    validator: (val) =>
+                        val == null ? 'Please select a material' : null,
+                    dropdownStyleData: DropdownStyleData(
+                      maxHeight: 300,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    menuItemStyleData: const MenuItemStyleData(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    buttonStyleData: const ButtonStyleData(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      height: 40,
+                    ),
                   );
                 },
               ),

@@ -8,7 +8,7 @@ part of 'sale_order.dart';
 
 class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
   @override
-  final int typeId = 16;
+  final int typeId = 14;
 
   @override
   SaleOrder read(BinaryReader reader) {
@@ -21,6 +21,9 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
       orderDate: fields[1] as String,
       customerName: fields[2] as String,
       boardNo: fields[3] as String,
+      jobStartDate: fields[4] as String,
+      targetDate: fields[5] as String,
+      endDate: fields[6] as String?,
       status: fields[10] as String,
     );
   }
@@ -28,7 +31,7 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
   @override
   void write(BinaryWriter writer, SaleOrder obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.orderNo)
       ..writeByte(1)
@@ -37,6 +40,12 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
       ..write(obj.customerName)
       ..writeByte(3)
       ..write(obj.boardNo)
+      ..writeByte(4)
+      ..write(obj.jobStartDate)
+      ..writeByte(5)
+      ..write(obj.targetDate)
+      ..writeByte(6)
+      ..write(obj.endDate)
       ..writeByte(10)
       ..write(obj.status);
   }

@@ -17,6 +17,9 @@ class AddEditSaleOrderPage extends ConsumerStatefulWidget {
 class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
   final _formKey = GlobalKey<FormState>();
   final _orderDateController = TextEditingController();
+  final _jobStartDateController = TextEditingController();
+  final _targetDateController = TextEditingController();
+  final _endDateController = TextEditingController();
   final _boardNoController = TextEditingController();
   String? _selectedCustomer;
   late String _orderNo;
@@ -28,20 +31,55 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
       // Edit mode - populate fields
       _orderNo = widget.order!.orderNo;
       _orderDateController.text = widget.order!.orderDate;
+      _jobStartDateController.text = widget.order!.jobStartDate;
+      _targetDateController.text = widget.order!.targetDate;
+      _endDateController.text = widget.order!.endDate ?? '';
       _boardNoController.text = widget.order!.boardNo;
       _selectedCustomer = widget.order!.customerName;
     } else {
       // Add mode - set defaults
       _orderNo = ref.read(saleOrderProvider.notifier).generateOrderNumber();
-      _orderDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      _orderDateController.text = now;
+      _jobStartDateController.text = now;
+      _targetDateController.text = '';
     }
   }
 
   @override
   void dispose() {
     _orderDateController.dispose();
+    _jobStartDateController.dispose();
+    _targetDateController.dispose();
+    _endDateController.dispose();
     _boardNoController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectDate(BuildContext context, TextEditingController controller, {DateTime? minDate, DateTime? maxDate}) async {
+    final DateTime now = DateTime.now();
+    final DateTime initialDate = DateTime.tryParse(controller.text) ?? now;
+    
+    // Ensure initialDate is between firstDate and lastDate
+    DateTime effectiveInitialDate = initialDate;
+    if (minDate != null && initialDate.isBefore(minDate)) {
+      effectiveInitialDate = minDate;
+    }
+    if (maxDate != null && initialDate.isAfter(maxDate)) {
+      effectiveInitialDate = maxDate;
+    }
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: effectiveInitialDate,
+      firstDate: minDate ?? DateTime(2000),
+      lastDate: maxDate ?? DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        controller.text = DateFormat('yyyy-MM-dd').format(picked);
+      });
+    }
   }
 
   @override
@@ -58,7 +96,6 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Order details section
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -92,20 +129,7 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                               border: OutlineInputBorder(),
                             ),
                             readOnly: true,
-                            onTap: () async {
-                              final date = await showDatePicker(
-                                context: context,
-                                initialDate: DateTime.now(),
-                                firstDate: DateTime(2000),
-                                lastDate: DateTime(2100),
-                              );
-                              if (date != null) {
-                                setState(() {
-                                  _orderDateController.text =
-                                      DateFormat('yyyy-MM-dd').format(date);
-                                });
-                              }
-                            },
+                            onTap: () => _selectDate(context, _orderDateController),
                             validator: (value) =>
                                 value?.isEmpty == true ? 'Required' : null,
                           ),
@@ -149,9 +173,114 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Job Schedule',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _jobStartDateController,
+                      decoration: const InputDecoration(
+                        labelText: 'Job Start Date',
+                        border: OutlineInputBorder(),
+                      ),
+                      readOnly: true,
+                      onTap: () => _selectDate(context, _jobStartDateController),
+                      validator: (value) {
+                        if (value?.isEmpty == true) return 'Required';
+                        final startDate = DateTime.tryParse(value!);
+                        if (startDate == null) return 'Invalid date';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _targetDateController,
+                      decoration: const InputDecoration(
+                        labelText: 'Target Date',
+                        border: OutlineInputBorder(),
+                      ),
+                      readOnly: true,
+                      onTap: () {
+                        final startDate = DateTime.tryParse(_jobStartDateController.text);
+                        if (startDate == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please select Job Start Date first'),
+                            ),
+                          );
+                          return;
+                        }
+                        _selectDate(
+                          context, 
+                          _targetDateController,
+                          minDate: startDate,
+                        );
+                      },
+                      validator: (value) {
+                        if (value?.isEmpty == true) return 'Required';
+                        final targetDate = DateTime.tryParse(value!);
+                        if (targetDate == null) return 'Invalid date';
+                        
+                        final startDate = DateTime.tryParse(_jobStartDateController.text);
+                        if (startDate != null && targetDate.isBefore(startDate)) {
+                          return 'Target date must be after start date';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _endDateController,
+                      decoration: const InputDecoration(
+                        labelText: 'End Date (Optional)',
+                        border: OutlineInputBorder(),
+                        helperText: 'Leave empty if job is not completed',
+                      ),
+                      readOnly: true,
+                      onTap: () {
+                        final targetDate = DateTime.tryParse(_targetDateController.text);
+                        if (targetDate == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please select Target Date first'),
+                            ),
+                          );
+                          return;
+                        }
+                        _selectDate(
+                          context, 
+                          _endDateController,
+                          minDate: targetDate,
+                        );
+                      },
+                      validator: (value) {
+                        if (value?.isEmpty == true) return null; // Optional field
+                        final endDate = DateTime.tryParse(value!);
+                        if (endDate == null) return 'Invalid date';
+                        
+                        final targetDate = DateTime.tryParse(_targetDateController.text);
+                        if (targetDate != null && endDate.isBefore(targetDate)) {
+                          return 'End date must be after target date';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 32),
-
-            // Save button
             FilledButton(
               onPressed: () {
                 if (_formKey.currentState!.validate()) {
@@ -160,6 +289,9 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                     orderDate: _orderDateController.text,
                     customerName: _selectedCustomer!,
                     boardNo: _boardNoController.text,
+                    jobStartDate: _jobStartDateController.text,
+                    targetDate: _targetDateController.text,
+                    endDate: _endDateController.text.isEmpty ? null : _endDateController.text,
                   );
 
                   if (widget.order != null) {

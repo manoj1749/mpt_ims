@@ -46,6 +46,37 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
         enableEditingMode: false,
       ),
       PlutoColumn(
+        title: 'Start Date',
+        field: 'jobStartDate',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Target Date',
+        field: 'targetDate',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'End Date',
+        field: 'endDate',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final endDate = rendererContext.cell.value?.toString() ?? '';
+          return Text(
+            endDate,
+            style: TextStyle(
+              color: endDate.isEmpty ? Colors.grey : Colors.green,
+              fontWeight: endDate.isEmpty ? FontWeight.normal : FontWeight.bold,
+            ),
+          );
+        },
+      ),
+      PlutoColumn(
         title: 'Status',
         field: 'status',
         type: PlutoColumnType.text(),
@@ -133,6 +164,9 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
         'orderDate': PlutoCell(value: order.orderDate),
         'customerName': PlutoCell(value: order.customerName),
         'boardNo': PlutoCell(value: order.boardNo),
+        'jobStartDate': PlutoCell(value: order.jobStartDate),
+        'targetDate': PlutoCell(value: order.targetDate),
+        'endDate': PlutoCell(value: order.endDate ?? ''),
         'status': PlutoCell(value: order.status),
         'actions': PlutoCell(value: ''),
       });
@@ -154,9 +188,7 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
             ),
             TextButton(
               onPressed: () {
-                ref
-                    .read(saleOrderProvider.notifier)
-                    .deleteOrder(order);
+                ref.read(saleOrderProvider.notifier).deleteOrder(order);
                 Navigator.of(context).pop();
               },
               style: TextButton.styleFrom(

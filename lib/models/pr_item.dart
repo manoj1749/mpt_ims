@@ -69,7 +69,8 @@ class PRItem extends HiveObject {
       quantity: quantity ?? this.quantity,
       remarks: remarks ?? this.remarks,
       prNo: prNo ?? this.prNo,
-      orderedQuantities: orderedQuantities ?? Map<String, double>.from(this.orderedQuantities),
+      orderedQuantities:
+          orderedQuantities ?? Map<String, double>.from(this.orderedQuantities),
     );
   }
 }

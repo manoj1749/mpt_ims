@@ -32,7 +32,8 @@ class POItem extends HiveObject {
   String totalMargin;
 
   @HiveField(9)
-  Map<String, double> prQuantities = {}; // Store PR-wise quantities: PR No -> Quantity
+  Map<String, double> prQuantities =
+      {}; // Store PR-wise quantities: PR No -> Quantity
 
   POItem({
     required this.materialCode,

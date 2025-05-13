@@ -124,16 +124,17 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     // Calculate total quantity from PR-wise quantities
     final prQuantities = <String, double>{};
     double totalQty = 0;
-    
+
     for (var prItem in prItems) {
-      final remainingQty = double.parse(prItem.quantity) - prItem.totalOrderedQuantity;
+      final remainingQty =
+          double.parse(prItem.quantity) - prItem.totalOrderedQuantity;
       if (remainingQty > 0) {
         final controller = prQtyControllers[material.partNo]?[prItem.prNo] ??
             TextEditingController(text: remainingQty.toString());
         prQtyControllers
             .putIfAbsent(material.partNo, () => {})
             .putIfAbsent(prItem.prNo, () => controller);
-            
+
         final orderQty = double.tryParse(controller.text) ?? 0;
         if (orderQty > 0) {
           prQuantities[prItem.prNo] = orderQty;
@@ -158,7 +159,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
   Widget _buildItemCard(MaterialItem material, List<PRItem> prItems) {
     final poItem = _createPOItem(material, prItems);
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -185,7 +186,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
             ),
             const SizedBox(height: 8),
             ...prItems.map((prItem) {
-              final remainingQty = double.parse(prItem.quantity) - prItem.totalOrderedQuantity;
+              final remainingQty =
+                  double.parse(prItem.quantity) - prItem.totalOrderedQuantity;
               if (remainingQty <= 0) return const SizedBox.shrink();
 
               return Padding(
@@ -201,7 +203,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     ),
                     Expanded(
                       child: TextFormField(
-                        controller: prQtyControllers[material.partNo]![prItem.prNo],
+                        controller:
+                            prQtyControllers[material.partNo]![prItem.prNo],
                         decoration: const InputDecoration(
                           labelText: 'Order Qty',
                           border: OutlineInputBorder(),
@@ -268,15 +271,16 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
       // Calculate tax amounts
-      final subtotal = poItems.fold(
-          0.0, (sum, item) => sum + double.parse(item.totalCost));
+      final subtotal =
+          poItems.fold(0.0, (sum, item) => sum + double.parse(item.totalCost));
       final igst = subtotal * 0.18; // 18% IGST
       final cgst = subtotal * 0.09; // 9% CGST
       final sgst = subtotal * 0.09; // 9% SGST
       final grandTotal = subtotal + igst + cgst + sgst;
 
       final newPO = po.PurchaseOrder(
-        poNo: widget.existingPO?.poNo ?? 'PO${DateTime.now().millisecondsSinceEpoch}',
+        poNo: widget.existingPO?.poNo ??
+            'PO${DateTime.now().millisecondsSinceEpoch}',
         poDate: widget.existingPO?.poDate ?? now,
         supplierName: selectedSupplier!.name,
         boardNo: _boardNoController.text,
@@ -339,13 +343,15 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
     // Group PR items by material code
     final materialPRItems = <String, List<PRItem>>{};
-    
+
     if (selectedSupplier != null) {
       for (var pr in purchaseRequests) {
         if (pr.supplierName == selectedSupplier!.name && !pr.isFullyOrdered) {
           for (var item in pr.items) {
             if (!item.isFullyOrdered) {
-              materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
+              materialPRItems
+                  .putIfAbsent(item.materialCode, () => [])
+                  .add(item);
             }
           }
         }
@@ -355,13 +361,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     // Calculate totals
     double subtotal = 0;
     final poItems = <POItem>[];
-    
+
     for (var entry in materialPRItems.entries) {
       final material = materials.firstWhere(
         (m) => m.partNo == entry.key,
         orElse: () => throw Exception('Material not found: ${entry.key}'),
       );
-      
+
       final poItem = _createPOItem(material, entry.value);
       if (double.parse(poItem.quantity) > 0) {
         poItems.add(poItem);
@@ -559,10 +565,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                 text: totalNeededQty.toString(),
                               );
 
-                              return _buildItemCard(materials.firstWhere(
-                                (m) => m.partNo == item.materialCode,
-                                orElse: () => throw Exception('Material not found'),
-                              ), prItems);
+                              return _buildItemCard(
+                                  materials.firstWhere(
+                                    (m) => m.partNo == item.materialCode,
+                                    orElse: () =>
+                                        throw Exception('Material not found'),
+                                  ),
+                                  prItems);
                             },
                           ),
                         ),

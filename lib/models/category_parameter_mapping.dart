@@ -18,4 +18,4 @@ class CategoryParameterMapping extends HiveObject {
     required this.parameters,
     required this.requiresExpiryDate,
   });
-} 
+}

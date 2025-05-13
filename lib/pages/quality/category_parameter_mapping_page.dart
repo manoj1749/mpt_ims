@@ -100,7 +100,8 @@ class _CategoryParameterMappingPageState
                               children: [
                                 Text(
                                   category,
-                                  style: Theme.of(context).textTheme.titleMedium,
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium,
                                 ),
                                 const SizedBox(height: 16),
                                 const Text('Select Parameters to Check:'),
@@ -111,18 +112,20 @@ class _CategoryParameterMappingPageState
                                   children: QualityParameter.standardParameters
                                       .map((param) => FilterChip(
                                             label: Text(param),
-                                            selected:
-                                                mapping.parameters.contains(param),
+                                            selected: mapping.parameters
+                                                .contains(param),
                                             onSelected: (selected) {
                                               setState(() {
                                                 if (selected) {
                                                   mapping.parameters.add(param);
                                                 } else {
-                                                  mapping.parameters.remove(param);
+                                                  mapping.parameters
+                                                      .remove(param);
                                                 }
                                                 ref
-                                                    .read(categoryParameterProvider
-                                                        .notifier)
+                                                    .read(
+                                                        categoryParameterProvider
+                                                            .notifier)
                                                     .updateMapping(mapping);
                                               });
                                             },
@@ -139,8 +142,8 @@ class _CategoryParameterMappingPageState
                                     setState(() {
                                       mapping.requiresExpiryDate = value;
                                       ref
-                                          .read(
-                                              categoryParameterProvider.notifier)
+                                          .read(categoryParameterProvider
+                                              .notifier)
                                           .updateMapping(mapping);
                                     });
                                   },
@@ -157,4 +160,4 @@ class _CategoryParameterMappingPageState
       ),
     );
   }
-} 
+}

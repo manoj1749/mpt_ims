@@ -48,17 +48,19 @@ class _AddQualityInspectionPageState
 
   void _onGRNSelected(StoreInward grn) {
     final materials = ref.read(materialListProvider);
-    
+
     setState(() {
       selectedGRN = grn;
       _items = grn.items.map((item) {
         final costPerUnit = double.tryParse(item.costPerUnit) ?? 0.0;
-        
+
         // Find the material to get its category
         final material = materials.firstWhere(
           (m) => m.slNo == item.materialCode || m.partNo == item.materialCode,
           orElse: () => materials.firstWhere(
-            (m) => m.description.toLowerCase() == item.materialDescription.toLowerCase(),
+            (m) =>
+                m.description.toLowerCase() ==
+                item.materialDescription.toLowerCase(),
             orElse: () => MaterialItem(
               slNo: item.materialCode,
               description: item.materialDescription,
@@ -69,7 +71,7 @@ class _AddQualityInspectionPageState
             ),
           ),
         );
-        
+
         return InspectionItem(
           materialCode: item.materialCode,
           materialDescription: item.materialDescription,
@@ -203,9 +205,7 @@ class _AddQualityInspectionPageState
                           ),
                         )
                       else
-                        ..._items
-                            .map((item) => _buildItemCard(item))
-                            ,
+                        ..._items.map((item) => _buildItemCard(item)),
                     ],
                   ),
                 ),
@@ -283,7 +283,8 @@ class _AddQualityInspectionPageState
 
   Widget _buildItemCard(InspectionItem item) {
     // Get the parameter mapping for this item's category
-    final mapping = ref.watch(categoryParameterProvider.notifier)
+    final mapping = ref
+        .watch(categoryParameterProvider.notifier)
         .getMappingForCategory(item.category);
 
     // Initialize parameters based on the mapping if not already set
@@ -294,7 +295,7 @@ class _AddQualityInspectionPageState
         return QualityParameter(
           parameter: param,
           specification: '',
-          observation: isMapped ? '' : 'NA',  // Set "NA" for unmapped parameters
+          observation: isMapped ? '' : 'NA', // Set "NA" for unmapped parameters
           isAcceptable: true,
           remarks: '',
         );
@@ -355,7 +356,8 @@ class _AddQualityInspectionPageState
                       );
                       if (date != null) {
                         setState(() {
-                          item.receivedDate = DateFormat('yyyy-MM-dd').format(date);
+                          item.receivedDate =
+                              DateFormat('yyyy-MM-dd').format(date);
                         });
                       }
                     },
@@ -370,7 +372,8 @@ class _AddQualityInspectionPageState
                         labelText: 'Expiration Date',
                         border: OutlineInputBorder(),
                       ),
-                      controller: TextEditingController(text: item.expirationDate),
+                      controller:
+                          TextEditingController(text: item.expirationDate),
                       onTap: () async {
                         final date = await showDatePicker(
                           context: context,
@@ -380,7 +383,8 @@ class _AddQualityInspectionPageState
                         );
                         if (date != null) {
                           setState(() {
-                            item.expirationDate = DateFormat('yyyy-MM-dd').format(date);
+                            item.expirationDate =
+                                DateFormat('yyyy-MM-dd').format(date);
                           });
                         }
                       },
@@ -401,10 +405,15 @@ class _AddQualityInspectionPageState
               isExpanded: true,
               value: item.usageDecision,
               items: const [
-                DropdownMenuItem<String>(value: 'Lot Accepted', child: Text('Lot Accepted')),
-                DropdownMenuItem<String>(value: 'Rejected', child: Text('Rejected')),
-                DropdownMenuItem<String>(value: '100% Recheck', child: Text('100% Recheck')),
-                DropdownMenuItem<String>(value: 'Conditionally Accepted', child: Text('Conditionally Accepted')),
+                DropdownMenuItem<String>(
+                    value: 'Lot Accepted', child: Text('Lot Accepted')),
+                DropdownMenuItem<String>(
+                    value: 'Rejected', child: Text('Rejected')),
+                DropdownMenuItem<String>(
+                    value: '100% Recheck', child: Text('100% Recheck')),
+                DropdownMenuItem<String>(
+                    value: 'Conditionally Accepted',
+                    child: Text('Conditionally Accepted')),
               ],
               onChanged: (value) {
                 setState(() {
@@ -444,7 +453,7 @@ class _AddQualityInspectionPageState
                   });
                 },
                 validator: (value) {
-                  if (item.usageDecision == 'Conditionally Accepted' && 
+                  if (item.usageDecision == 'Conditionally Accepted' &&
                       (value == null || value.isEmpty)) {
                     return 'Please provide a reason for conditional acceptance';
                   }
@@ -464,7 +473,7 @@ class _AddQualityInspectionPageState
                   });
                 },
                 validator: (value) {
-                  if (item.usageDecision == 'Conditionally Accepted' && 
+                  if (item.usageDecision == 'Conditionally Accepted' &&
                       (value == null || value.isEmpty)) {
                     return 'Please specify the required action';
                   }
@@ -618,7 +627,8 @@ class _AddQualityInspectionPageState
                                 onChanged: (value) {
                                   setState(() {
                                     existingParam.observation = value;
-                                    if (!item.parameters.contains(existingParam)) {
+                                    if (!item.parameters
+                                        .contains(existingParam)) {
                                       item.parameters.add(existingParam);
                                     }
                                   });
@@ -634,7 +644,8 @@ class _AddQualityInspectionPageState
                                 onChanged: (value) {
                                   setState(() {
                                     existingParam.isAcceptable = value;
-                                    if (!item.parameters.contains(existingParam)) {
+                                    if (!item.parameters
+                                        .contains(existingParam)) {
                                       item.parameters.add(existingParam);
                                     }
                                   });

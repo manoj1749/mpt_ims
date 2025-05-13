@@ -36,4 +36,4 @@ class SaleOrder extends HiveObject {
   });
 
   bool get isCompleted => endDate != null;
-} 
+}

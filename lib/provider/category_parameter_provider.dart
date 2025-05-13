@@ -2,13 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/category_parameter_mapping.dart';
 
-final categoryParameterBoxProvider = Provider<Box<CategoryParameterMapping>>((ref) {
+final categoryParameterBoxProvider =
+    Provider<Box<CategoryParameterMapping>>((ref) {
   return Hive.box<CategoryParameterMapping>('categoryParameterMappings');
 });
 
-final categoryParameterProvider =
-    StateNotifierProvider<CategoryParameterNotifier, List<CategoryParameterMapping>>(
-        (ref) => CategoryParameterNotifier(ref.read(categoryParameterBoxProvider)));
+final categoryParameterProvider = StateNotifierProvider<
+        CategoryParameterNotifier, List<CategoryParameterMapping>>(
+    (ref) => CategoryParameterNotifier(ref.read(categoryParameterBoxProvider)));
 
 class CategoryParameterNotifier
     extends StateNotifier<List<CategoryParameterMapping>> {
@@ -24,8 +25,8 @@ class CategoryParameterNotifier
   Future<void> updateMapping(CategoryParameterMapping mapping) async {
     // Find existing mapping index
     final existingIndex = box.values.toList().indexWhere(
-      (m) => m.category == mapping.category,
-    );
+          (m) => m.category == mapping.category,
+        );
 
     if (existingIndex == -1) {
       // This is a new mapping
@@ -52,4 +53,4 @@ class CategoryParameterNotifier
       return null;
     }
   }
-} 
+}

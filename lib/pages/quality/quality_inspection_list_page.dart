@@ -20,7 +20,7 @@ class _QualityInspectionListPageState
 
   List<PlutoColumn> _getColumns() {
     final standardParams = QualityParameter.standardParameters;
-        // Define base columns
+    // Define base columns
     final baseColumns = [
       'poNo',
       'supplier',
@@ -233,44 +233,45 @@ class _QualityInspectionListPageState
       ),
       // Quality Parameters
       ...standardParams.map((param) {
-        final fieldName = param.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+        final fieldName =
+            param.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
         return PlutoColumn(
-            title: param,
+          title: param,
           field: fieldName,
-            type: PlutoColumnType.text(),
-            width: 120,
-            enableEditingMode: false,
-            renderer: (rendererContext) {
+          type: PlutoColumnType.text(),
+          width: 120,
+          enableEditingMode: false,
+          renderer: (rendererContext) {
             final value = rendererContext.cell.value;
             if (value == null) {
               return const Text('NA');
             }
-            
+
             if (value is! QualityParameter) {
               return Text(value.toString());
             }
 
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
                     value.observation.isEmpty ? 'NA' : value.observation,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  Container(
-                    width: 16,
-                    height: 16,
-                    margin: const EdgeInsets.only(left: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+                ),
+                Container(
+                  width: 16,
+                  height: 16,
+                  margin: const EdgeInsets.only(left: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
                     color: value.isAcceptable ? Colors.green : Colors.red,
-                    ),
                   ),
-                ],
-              );
-            },
+                ),
+              ],
+            );
+          },
         );
       }),
       PlutoColumn(
@@ -344,7 +345,8 @@ class _QualityInspectionListPageState
         width: 200,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final item = rendererContext.row.cells['item']?.value as InspectionItem?;
+          final item =
+              rendererContext.row.cells['item']?.value as InspectionItem?;
           if (item == null || item.usageDecision != 'Conditionally Accepted') {
             return const Text('');
           }
@@ -358,7 +360,8 @@ class _QualityInspectionListPageState
         width: 200,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final item = rendererContext.row.cells['item']?.value as InspectionItem?;
+          final item =
+              rendererContext.row.cells['item']?.value as InspectionItem?;
           if (item == null || item.usageDecision != 'Conditionally Accepted') {
             return const Text('');
           }
@@ -372,7 +375,8 @@ class _QualityInspectionListPageState
         width: 150,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final item = rendererContext.row.cells['item']?.value as InspectionItem?;
+          final item =
+              rendererContext.row.cells['item']?.value as InspectionItem?;
           if (item == null || item.usageDecision != 'Conditionally Accepted') {
             return const Text('');
           }
@@ -431,7 +435,7 @@ class _QualityInspectionListPageState
                   final inspection = rendererContext
                       .row.cells['inspection']?.value as QualityInspection?;
                   if (inspection != null) {
-                  _confirmDelete(context, inspection);
+                    _confirmDelete(context, inspection);
                   }
                 },
                 color: Colors.red[400],
@@ -453,7 +457,6 @@ class _QualityInspectionListPageState
   List<PlutoRow> _getRows(List<QualityInspection> inspections) {
     return inspections.expand((inspection) {
       return inspection.items.map((item) {
-        
         // Ensure item.parameters is initialized
         if (item.parameters.isEmpty) {
           item.parameters = QualityParameter.standardParameters.map((param) {
@@ -470,8 +473,9 @@ class _QualityInspectionListPageState
         // Create a map for parameter cells
         final parameterCells = Map.fromEntries(
           QualityParameter.standardParameters.map((param) {
-            final fieldName = param.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
-            
+            final fieldName =
+                param.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+
             // Find existing parameter or create a new one
             final parameter = item.parameters.firstWhere(
               (p) => p.parameter == param,
@@ -489,7 +493,6 @@ class _QualityInspectionListPageState
           }),
         );
 
-        
         // Helper function to create a PlutoCell with null safety
         PlutoCell safeCell(dynamic value, {bool isNumber = false}) {
           if (value == null) return PlutoCell(value: isNumber ? 0 : 'NA');
@@ -500,7 +503,7 @@ class _QualityInspectionListPageState
         // Ensure all required fields have non-null values
         final cells = {
           'inspection': PlutoCell(value: inspection),
-            'item': PlutoCell(value: item),
+          'item': PlutoCell(value: item),
           'poNo': safeCell(inspection.poNo),
           'supplier': safeCell(inspection.supplierName),
           'partNo': safeCell(item.materialCode),
@@ -526,7 +529,7 @@ class _QualityInspectionListPageState
           'conditionalReason': safeCell(item.conditionalAcceptanceReason),
           'conditionalAction': safeCell(item.conditionalAcceptanceAction),
           'conditionalDeadline': safeCell(item.conditionalAcceptanceDeadline),
-            ...parameterCells,
+          ...parameterCells,
         };
 
         return PlutoRow(cells: cells);
@@ -675,7 +678,7 @@ class _QualityInspectionListPageState
                           rows: _getRows(inspections),
                           onLoaded: (PlutoGridOnLoadedEvent event) {
                             setState(() {
-                            stateManager = event.stateManager;
+                              stateManager = event.stateManager;
                               stateManager?.setShowColumnFilter(true);
                             });
                           },

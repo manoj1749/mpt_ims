@@ -191,7 +191,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                     }).toList(),
                     onChanged: (val) {
                       if (val != null) {
-                        final po = supplierPOs.firstWhere((po) => po.poNo == val);
+                        final po =
+                            supplierPOs.firstWhere((po) => po.poNo == val);
                         _onPOSelected(po);
                       }
                     },
@@ -266,95 +267,83 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                           ),
                         )
                       else
-                        ..._items
-                            .map((item) => Card(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                        ..._items.map((item) => Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.materialDescription,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text('Material Code: ${item.materialCode}'),
+                                    Text('Unit: ${item.unit}'),
+                                    Text('Ordered Qty: ${item.orderedQty}'),
+                                    const SizedBox(height: 16),
+                                    Row(
                                       children: [
-                                        Text(
-                                          item.materialDescription,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
+                                        Expanded(
+                                          child: TextFormField(
+                                            decoration: const InputDecoration(
+                                              labelText: 'Accepted Qty',
+                                              border: OutlineInputBorder(),
+                                            ),
+                                            keyboardType: TextInputType.number,
+                                            initialValue:
+                                                item.acceptedQty.toString(),
+                                            onChanged: (value) {
+                                              final accepted =
+                                                  double.tryParse(value) ?? 0;
+                                              setState(() {
+                                                item.acceptedQty = accepted;
+                                                item.rejectedQty =
+                                                    item.receivedQty - accepted;
+                                              });
+                                            },
                                           ),
                                         ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                            'Material Code: ${item.materialCode}'),
-                                        Text('Unit: ${item.unit}'),
-                                        Text('Ordered Qty: ${item.orderedQty}'),
-                                        const SizedBox(height: 16),
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: TextFormField(
-                                                decoration:
-                                                    const InputDecoration(
-                                                  labelText: 'Accepted Qty',
-                                                  border: OutlineInputBorder(),
-                                                ),
-                                                keyboardType:
-                                                    TextInputType.number,
-                                                initialValue:
-                                                    item.acceptedQty.toString(),
-                                                onChanged: (value) {
-                                                  final accepted =
-                                                      double.tryParse(value) ??
-                                                          0;
-                                                  setState(() {
-                                                    item.acceptedQty = accepted;
-                                                    item.rejectedQty =
-                                                        item.receivedQty -
-                                                            accepted;
-                                                  });
-                                                },
-                                              ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: TextFormField(
+                                            decoration: const InputDecoration(
+                                              labelText: 'Rejected Qty',
+                                              border: OutlineInputBorder(),
                                             ),
-                                            const SizedBox(width: 16),
-                                            Expanded(
-                                              child: TextFormField(
-                                                decoration:
-                                                    const InputDecoration(
-                                                  labelText: 'Rejected Qty',
-                                                  border: OutlineInputBorder(),
-                                                ),
-                                                keyboardType:
-                                                    TextInputType.number,
-                                                initialValue:
-                                                    item.rejectedQty.toString(),
-                                                onChanged: (value) {
-                                                  final rejected =
-                                                      double.tryParse(value) ??
-                                                          0;
-                                                  setState(() {
-                                                    item.rejectedQty = rejected;
-                                                    item.acceptedQty =
-                                                        item.receivedQty -
-                                                            rejected;
-                                                  });
-                                                },
-                                              ),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  Icons.delete_outline),
-                                              onPressed: () {
-                                                setState(() {
-                                                  _items.remove(item);
-                                                });
-                                              },
-                                              color: Colors.red[400],
-                                            ),
-                                          ],
+                                            keyboardType: TextInputType.number,
+                                            initialValue:
+                                                item.rejectedQty.toString(),
+                                            onChanged: (value) {
+                                              final rejected =
+                                                  double.tryParse(value) ?? 0;
+                                              setState(() {
+                                                item.rejectedQty = rejected;
+                                                item.acceptedQty =
+                                                    item.receivedQty - rejected;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon:
+                                              const Icon(Icons.delete_outline),
+                                          onPressed: () {
+                                            setState(() {
+                                              _items.remove(item);
+                                            });
+                                          },
+                                          color: Colors.red[400],
                                         ),
                                       ],
                                     ),
-                                  ),
-                                ))
-                            ,
+                                  ],
+                                ),
+                              ),
+                            )),
                     ],
                   ),
                 ),
@@ -508,8 +497,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   final materials = ref.watch(materialListProvider);
                   final availableMaterials = selectedPO != null
                       ? selectedPO!.items
-                          .map((item) => materials.firstWhere(
-                              (m) => m.partNo == item.materialCode))
+                          .map((item) => materials
+                              .firstWhere((m) => m.partNo == item.materialCode))
                           .toList()
                       : materials;
 

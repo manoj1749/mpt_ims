@@ -48,29 +48,32 @@ void main() async {
   final employeeBox = Hive.box<Employee>('employees');
   final customerBox = Hive.box<Customer>('customers');
   final storeInwardBox = Hive.box<StoreInward>('storeInwards');
-  final vendorMaterialRateBox = Hive.box<VendorMaterialRate>('vendorMaterialRates');
-  final qualityInspectionBox = Hive.box<QualityInspection>('qualityInspections');
+  final vendorMaterialRateBox =
+      Hive.box<VendorMaterialRate>('vendorMaterialRates');
+  final qualityInspectionBox =
+      Hive.box<QualityInspection>('qualityInspections');
   final saleOrderBox = Hive.box<SaleOrder>('saleOrders');
-  final categoryParameterBox = Hive.box<CategoryParameterMapping>('categoryParameterMappings');
+  final categoryParameterBox =
+      Hive.box<CategoryParameterMapping>('categoryParameterMappings');
 
   final user = FirebaseAuth.instance.currentUser;
 
   runApp(
     ProviderScope(
-    overrides: [
-      supplierBoxProvider.overrideWithValue(supplierBox),
-      materialBoxProvider.overrideWithValue(materialBox),
-      purchaseRequestBoxProvider.overrideWithValue(purchaseRequestBox),
-      purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
-      employeeBoxProvider.overrideWithValue(employeeBox),
-      customerBoxProvider.overrideWithValue(customerBox),
-      storeInwardBoxProvider.overrideWithValue(storeInwardBox),
-      vendorMaterialRateBoxProvider.overrideWithValue(vendorMaterialRateBox),
-      qualityInspectionBoxProvider.overrideWithValue(qualityInspectionBox),
+      overrides: [
+        supplierBoxProvider.overrideWithValue(supplierBox),
+        materialBoxProvider.overrideWithValue(materialBox),
+        purchaseRequestBoxProvider.overrideWithValue(purchaseRequestBox),
+        purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
+        employeeBoxProvider.overrideWithValue(employeeBox),
+        customerBoxProvider.overrideWithValue(customerBox),
+        storeInwardBoxProvider.overrideWithValue(storeInwardBox),
+        vendorMaterialRateBoxProvider.overrideWithValue(vendorMaterialRateBox),
+        qualityInspectionBoxProvider.overrideWithValue(qualityInspectionBox),
         saleOrderBoxProvider.overrideWithValue(saleOrderBox),
         categoryParameterBoxProvider.overrideWithValue(categoryParameterBox),
-    ],
-    child: IMSApp(isLoggedIn: user != null),
+      ],
+      child: IMSApp(isLoggedIn: user != null),
     ),
   );
 }

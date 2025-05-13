@@ -12,7 +12,8 @@ class AddEditSaleOrderPage extends ConsumerStatefulWidget {
   const AddEditSaleOrderPage({super.key, this.order});
 
   @override
-  ConsumerState<AddEditSaleOrderPage> createState() => _AddEditSaleOrderPageState();
+  ConsumerState<AddEditSaleOrderPage> createState() =>
+      _AddEditSaleOrderPageState();
 }
 
 class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
@@ -57,10 +58,12 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
     super.dispose();
   }
 
-  Future<void> _selectDate(BuildContext context, TextEditingController controller, {DateTime? minDate, DateTime? maxDate}) async {
+  Future<void> _selectDate(
+      BuildContext context, TextEditingController controller,
+      {DateTime? minDate, DateTime? maxDate}) async {
     final DateTime now = DateTime.now();
     final DateTime initialDate = DateTime.tryParse(controller.text) ?? now;
-    
+
     // Ensure initialDate is between firstDate and lastDate
     DateTime effectiveInitialDate = initialDate;
     if (minDate != null && initialDate.isBefore(minDate)) {
@@ -92,7 +95,8 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
         boardNo: _boardNoController.text,
         jobStartDate: _jobStartDateController.text,
         targetDate: _targetDateController.text,
-        endDate: _endDateController.text.isEmpty ? null : _endDateController.text,
+        endDate:
+            _endDateController.text.isEmpty ? null : _endDateController.text,
       );
 
       if (widget.order != null) {
@@ -116,7 +120,8 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.order == null ? 'Create Sale Order' : 'Edit Sale Order'),
+          title: Text(
+              widget.order == null ? 'Create Sale Order' : 'Edit Sale Order'),
           elevation: 0,
         ),
         body: Form(
@@ -157,7 +162,8 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                                 border: OutlineInputBorder(),
                               ),
                               readOnly: true,
-                              onTap: () => _selectDate(context, _orderDateController),
+                              onTap: () =>
+                                  _selectDate(context, _orderDateController),
                               validator: (value) =>
                                   value?.isEmpty == true ? 'Required' : null,
                             ),
@@ -227,7 +233,8 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                           border: OutlineInputBorder(),
                         ),
                         readOnly: true,
-                        onTap: () => _selectDate(context, _jobStartDateController),
+                        onTap: () =>
+                            _selectDate(context, _jobStartDateController),
                         validator: (value) {
                           if (value?.isEmpty == true) return 'Required';
                           final startDate = DateTime.tryParse(value!);
@@ -244,17 +251,19 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                         ),
                         readOnly: true,
                         onTap: () {
-                          final startDate = DateTime.tryParse(_jobStartDateController.text);
+                          final startDate =
+                              DateTime.tryParse(_jobStartDateController.text);
                           if (startDate == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Please select Job Start Date first'),
+                                content:
+                                    Text('Please select Job Start Date first'),
                               ),
                             );
                             return;
                           }
                           _selectDate(
-                            context, 
+                            context,
                             _targetDateController,
                             minDate: startDate,
                           );
@@ -263,9 +272,11 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                           if (value?.isEmpty == true) return 'Required';
                           final targetDate = DateTime.tryParse(value!);
                           if (targetDate == null) return 'Invalid date';
-                          
-                          final startDate = DateTime.tryParse(_jobStartDateController.text);
-                          if (startDate != null && targetDate.isBefore(startDate)) {
+
+                          final startDate =
+                              DateTime.tryParse(_jobStartDateController.text);
+                          if (startDate != null &&
+                              targetDate.isBefore(startDate)) {
                             return 'Target date must be after start date';
                           }
                           return null;
@@ -281,28 +292,33 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                         ),
                         readOnly: true,
                         onTap: () {
-                          final targetDate = DateTime.tryParse(_targetDateController.text);
+                          final targetDate =
+                              DateTime.tryParse(_targetDateController.text);
                           if (targetDate == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Please select Target Date first'),
+                                content:
+                                    Text('Please select Target Date first'),
                               ),
                             );
                             return;
                           }
                           _selectDate(
-                            context, 
+                            context,
                             _endDateController,
                             minDate: targetDate,
                           );
                         },
                         validator: (value) {
-                          if (value?.isEmpty == true) return null; // Optional field
+                          if (value?.isEmpty == true)
+                            return null; // Optional field
                           final endDate = DateTime.tryParse(value!);
                           if (endDate == null) return 'Invalid date';
-                          
-                          final targetDate = DateTime.tryParse(_targetDateController.text);
-                          if (targetDate != null && endDate.isBefore(targetDate)) {
+
+                          final targetDate =
+                              DateTime.tryParse(_targetDateController.text);
+                          if (targetDate != null &&
+                              endDate.isBefore(targetDate)) {
                             return 'End date must be after target date';
                           }
                           return null;
@@ -315,7 +331,8 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
               const SizedBox(height: 32),
               FilledButton(
                 onPressed: _saveOrder,
-                child: Text(widget.order == null ? 'Create Order' : 'Update Order'),
+                child: Text(
+                    widget.order == null ? 'Create Order' : 'Update Order'),
               ),
             ],
           ),
@@ -323,4 +340,4 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
       ),
     );
   }
-} 
+}

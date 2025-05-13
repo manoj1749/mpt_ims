@@ -109,7 +109,8 @@ class InspectionItem extends HiveObject {
   String remarks;
 
   @HiveField(13)
-  String usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
+  String
+      usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
 
   @HiveField(14)
   String receivedDate; // Date when material was received
@@ -127,10 +128,12 @@ class InspectionItem extends HiveObject {
   String? conditionalAcceptanceReason; // Reason for conditional acceptance
 
   @HiveField(19)
-  String? conditionalAcceptanceAction; // Required action for conditional acceptance
+  String?
+      conditionalAcceptanceAction; // Required action for conditional acceptance
 
   @HiveField(20)
-  String? conditionalAcceptanceDeadline; // Deadline for completing the required action
+  String?
+      conditionalAcceptanceDeadline; // Deadline for completing the required action
 
   InspectionItem({
     required this.materialCode,

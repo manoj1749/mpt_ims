@@ -130,7 +130,8 @@ class _AddPurchaseRequestPageState
                         labelText: 'Required By',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Required' : null,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -144,7 +145,8 @@ class _AddPurchaseRequestPageState
                       items: saleOrders.map((order) {
                         return DropdownMenuItem<String>(
                           value: order.boardNo,
-                          child: Text('${order.boardNo} - ${order.customerName}'),
+                          child:
+                              Text('${order.boardNo} - ${order.customerName}'),
                         );
                       }).toList(),
                       onChanged: (value) {
@@ -154,7 +156,8 @@ class _AddPurchaseRequestPageState
                             final selectedOrder = saleOrders.firstWhere(
                               (order) => order.boardNo == value,
                             );
-                            _requiredByController.text = selectedOrder.customerName;
+                            _requiredByController.text =
+                                selectedOrder.customerName;
                           } else {
                             _requiredByController.text = '';
                           }

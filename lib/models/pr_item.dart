@@ -46,10 +46,30 @@ class PRItem extends HiveObject {
     required this.materialDescription,
     required this.unit,
     required this.quantity,
-    required this.remarks,
+    this.remarks = '',
     required this.prNo,
     Map<String, double>? orderedQuantities,
   }) {
     this.orderedQuantities = orderedQuantities ?? {};
+  }
+
+  PRItem copyWith({
+    String? materialCode,
+    String? materialDescription,
+    String? unit,
+    String? quantity,
+    String? remarks,
+    String? prNo,
+    Map<String, double>? orderedQuantities,
+  }) {
+    return PRItem(
+      materialCode: materialCode ?? this.materialCode,
+      materialDescription: materialDescription ?? this.materialDescription,
+      unit: unit ?? this.unit,
+      quantity: quantity ?? this.quantity,
+      remarks: remarks ?? this.remarks,
+      prNo: prNo ?? this.prNo,
+      orderedQuantities: orderedQuantities ?? Map<String, double>.from(this.orderedQuantities),
+    );
   }
 }

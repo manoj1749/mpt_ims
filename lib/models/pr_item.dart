@@ -23,6 +23,9 @@ class PRItem extends HiveObject {
   Map<String, double> orderedQuantities =
       {}; // Map of PO number to ordered quantity
 
+  @HiveField(6)
+  String prNo; // Reference to parent PR number
+
   double get totalOrderedQuantity =>
       orderedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
 
@@ -35,6 +38,7 @@ class PRItem extends HiveObject {
 
   void addOrderedQuantity(String poNo, double quantity) {
     orderedQuantities[poNo] = quantity;
+    save();
   }
 
   PRItem({
@@ -43,6 +47,7 @@ class PRItem extends HiveObject {
     required this.unit,
     required this.quantity,
     required this.remarks,
+    required this.prNo,
     Map<String, double>? orderedQuantities,
   }) {
     this.orderedQuantities = orderedQuantities ?? {};

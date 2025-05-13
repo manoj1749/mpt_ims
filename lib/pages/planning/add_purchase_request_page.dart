@@ -378,6 +378,9 @@ class _AddPurchaseRequestPageState
                       final now =
                           DateFormat('yyyy-MM-dd').format(DateTime.now());
 
+                      final prNo = widget.existingRequest?.prNo ??
+                          'PR${DateTime.now().millisecondsSinceEpoch}';
+
                       final items = _items.map((item) {
                         final material = materials.firstWhere(
                           (m) => m.description == item.selectedMaterial,
@@ -389,12 +392,12 @@ class _AddPurchaseRequestPageState
                           unit: material.unit,
                           quantity: item.quantity!,
                           remarks: item.remarks ?? '',
+                          prNo: prNo,
                         );
                       }).toList();
 
                       final newRequest = PurchaseRequest(
-                        prNo: widget.existingRequest?.prNo ??
-                            'PR${DateTime.now().millisecondsSinceEpoch}',
+                        prNo: prNo,
                         date: widget.existingRequest?.date ?? now,
                         requiredBy: _requiredByController.text,
                         supplierName:

@@ -25,9 +25,6 @@ class SaleOrder extends HiveObject {
   @HiveField(6)
   String? endDate;
 
-  @HiveField(10)
-  String status; // Draft, Confirmed, Delivered, Cancelled
-
   SaleOrder({
     required this.orderNo,
     required this.orderDate,
@@ -36,7 +33,6 @@ class SaleOrder extends HiveObject {
     required this.jobStartDate,
     required this.targetDate,
     this.endDate,
-    this.status = 'Draft',
   });
 
   bool get isCompleted => endDate != null;

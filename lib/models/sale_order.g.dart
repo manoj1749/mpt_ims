@@ -24,14 +24,13 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
       jobStartDate: fields[4] as String,
       targetDate: fields[5] as String,
       endDate: fields[6] as String?,
-      status: fields[10] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, SaleOrder obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.orderNo)
       ..writeByte(1)
@@ -45,9 +44,7 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
       ..writeByte(5)
       ..write(obj.targetDate)
       ..writeByte(6)
-      ..write(obj.endDate)
-      ..writeByte(10)
-      ..write(obj.status);
+      ..write(obj.endDate);
   }
 
   @override

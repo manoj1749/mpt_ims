@@ -77,34 +77,6 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
         },
       ),
       PlutoColumn(
-        title: 'Status',
-        field: 'status',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          final status = rendererContext.cell.value?.toString() ?? '';
-          Color textColor;
-          switch (status) {
-            case 'Confirmed':
-              textColor = Colors.green;
-              break;
-            case 'Delivered':
-              textColor = Colors.blue;
-              break;
-            case 'Cancelled':
-              textColor = Colors.red;
-              break;
-            default:
-              textColor = Colors.grey;
-          }
-          return Text(
-            status,
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-          );
-        },
-      ),
-      PlutoColumn(
         title: 'Actions',
         field: 'actions',
         type: PlutoColumnType.text(),
@@ -167,7 +139,6 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
         'jobStartDate': PlutoCell(value: order.jobStartDate),
         'targetDate': PlutoCell(value: order.targetDate),
         'endDate': PlutoCell(value: order.endDate ?? ''),
-        'status': PlutoCell(value: order.status),
         'actions': PlutoCell(value: ''),
       });
     }).toList();

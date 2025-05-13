@@ -53,11 +53,6 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
     state = box.values.toList();
   }
 
-  // Get orders by status
-  List<SaleOrder> getOrdersByStatus(String status) {
-    return state.where((order) => order.status == status).toList();
-  }
-
   // Get orders by customer
   List<SaleOrder> getOrdersByCustomer(String customerName) {
     return state

@@ -124,6 +124,10 @@ class PurchaseRequestListPage extends ConsumerWidget {
                                     const SizedBox(width: 16),
                                     Text('Required By: ${pr.requiredBy}'),
                                     const SizedBox(width: 16),
+                                    if (pr.jobNo != null) ...[
+                                      Text('Job No: ${pr.jobNo}'),
+                                      const SizedBox(width: 16),
+                                    ],
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,

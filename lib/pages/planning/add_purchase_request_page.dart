@@ -8,6 +8,7 @@ import '../../provider/material_provider.dart';
 import '../../provider/purchase_request_provider.dart';
 import '../../provider/vendor_material_rate_provider.dart';
 import '../../models/vendor_material_rate.dart';
+import '../../provider/sale_order_provider.dart';
 
 class AddPurchaseRequestPage extends ConsumerStatefulWidget {
   final PurchaseRequest? existingRequest;
@@ -24,14 +25,16 @@ class _AddPurchaseRequestPageState
     extends ConsumerState<AddPurchaseRequestPage> {
   final _formKey = GlobalKey<FormState>();
   final List<PRItemFormData> _items = [];
-  String? _requiredBy;
+  final _requiredByController = TextEditingController();
+  String? _selectedJobNo;
   final Map<String, String?> _selectedVendors = {};
 
   @override
   void initState() {
     super.initState();
     if (widget.existingRequest != null) {
-      _requiredBy = widget.existingRequest!.requiredBy;
+      _requiredByController.text = widget.existingRequest!.requiredBy;
+      _selectedJobNo = widget.existingRequest!.jobNo;
       for (var item in widget.existingRequest!.items) {
         _items.add(PRItemFormData(
           selectedMaterial: item.materialDescription,
@@ -50,6 +53,7 @@ class _AddPurchaseRequestPageState
 
   @override
   void dispose() {
+    _requiredByController.dispose();
     for (var item in _items) {
       item.dispose();
     }
@@ -99,6 +103,7 @@ class _AddPurchaseRequestPageState
   @override
   Widget build(BuildContext context) {
     final materials = ref.watch(materialListProvider);
+    final saleOrders = ref.watch(saleOrderProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -115,15 +120,51 @@ class _AddPurchaseRequestPageState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextFormField(
-                initialValue: _requiredBy,
-                decoration: const InputDecoration(
-                  labelText: 'Required By',
-                  hintText: 'Enter date or name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                onSaved: (v) => _requiredBy = v,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _requiredByController,
+                      enabled: false,
+                      decoration: const InputDecoration(
+                        labelText: 'Required By',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: DropdownButtonFormField2<String>(
+                      value: _selectedJobNo,
+                      decoration: const InputDecoration(
+                        labelText: 'Job No',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: saleOrders.map((order) {
+                        return DropdownMenuItem<String>(
+                          value: order.boardNo,
+                          child: Text('${order.boardNo} - ${order.customerName}'),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedJobNo = value;
+                          if (value != null) {
+                            final selectedOrder = saleOrders.firstWhere(
+                              (order) => order.boardNo == value,
+                            );
+                            _requiredByController.text = selectedOrder.customerName;
+                          } else {
+                            _requiredByController.text = '';
+                          }
+                        });
+                      },
+                      validator: (value) => null, // Job number is optional
+                      isExpanded: true,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 32),
               ..._items.asMap().entries.map((entry) {
@@ -355,11 +396,12 @@ class _AddPurchaseRequestPageState
                         prNo: widget.existingRequest?.prNo ??
                             'PR${DateTime.now().millisecondsSinceEpoch}',
                         date: widget.existingRequest?.date ?? now,
-                        requiredBy: _requiredBy!,
+                        requiredBy: _requiredByController.text,
                         supplierName:
                             _selectedVendors[_items[0].selectedMaterial]!,
                         items: items,
                         status: 'Requested',
+                        jobNo: _selectedJobNo,
                       );
 
                       final notifier =

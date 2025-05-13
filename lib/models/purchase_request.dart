@@ -23,6 +23,9 @@ class PurchaseRequest extends HiveObject {
   @HiveField(5)
   List<PRItem> items = [];
 
+  @HiveField(6)
+  String? jobNo;
+
   String get status => _status ?? 'Draft';
 
   set status(String value) {
@@ -49,6 +52,7 @@ class PurchaseRequest extends HiveObject {
     String? status,
     required this.supplierName,
     List<PRItem>? items,
+    this.jobNo,
   }) {
     _status = status;
     if (items != null) {

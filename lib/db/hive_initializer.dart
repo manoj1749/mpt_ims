@@ -62,27 +62,34 @@ Future<void> clearIncompatibleData() async {
     final currentVersion = box.get('version') ?? 0;
 
     // If schema version is less than required, clear data
-    if (currentVersion < 3) { // Increased version number for sale order schema change
+    if (currentVersion < 5) { // Increased version number for sale order date fields
       // Delete the sale orders box since schema has changed
       await Hive.deleteBoxFromDisk('saleOrders');
 
-      // Clear all boxes if needed
-      if (currentVersion < 2) {
-        await Future.wait([
-          Hive.deleteBoxFromDisk('customers'),
-          Hive.deleteBoxFromDisk('employees'),
-          Hive.deleteBoxFromDisk('materials'),
-          Hive.deleteBoxFromDisk('purchaseOrders'),
-          Hive.deleteBoxFromDisk('purchaseRequests'),
-          Hive.deleteBoxFromDisk('storeInwards'),
-          Hive.deleteBoxFromDisk('suppliers'),
-          Hive.deleteBoxFromDisk('vendorMaterialRates'),
-          Hive.deleteBoxFromDisk('categoryParameterMappings'),
-        ]);
+      // Clear all boxes if needed for older versions
+      if (currentVersion < 4) {
+        await Hive.deleteBoxFromDisk('purchaseRequests');
+        
+        if (currentVersion < 3) {
+          await Hive.deleteBoxFromDisk('saleOrders');
+          
+          if (currentVersion < 2) {
+            await Future.wait([
+              Hive.deleteBoxFromDisk('customers'),
+              Hive.deleteBoxFromDisk('employees'),
+              Hive.deleteBoxFromDisk('materials'),
+              Hive.deleteBoxFromDisk('purchaseOrders'),
+              Hive.deleteBoxFromDisk('storeInwards'),
+              Hive.deleteBoxFromDisk('suppliers'),
+              Hive.deleteBoxFromDisk('vendorMaterialRates'),
+              Hive.deleteBoxFromDisk('categoryParameterMappings'),
+            ]);
+          }
+        }
       }
 
       // Update schema version
-      await box.put('version', 3);
+      await box.put('version', 5);
     }
   } catch (e) {
     print('Error clearing incompatible data: $e');

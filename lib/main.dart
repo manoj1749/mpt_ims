@@ -57,20 +57,20 @@ void main() async {
 
   runApp(
     ProviderScope(
-      overrides: [
-        supplierBoxProvider.overrideWithValue(supplierBox),
-        materialBoxProvider.overrideWithValue(materialBox),
-        purchaseRequestBoxProvider.overrideWithValue(purchaseRequestBox),
-        purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
-        employeeBoxProvider.overrideWithValue(employeeBox),
-        customerBoxProvider.overrideWithValue(customerBox),
-        storeInwardBoxProvider.overrideWithValue(storeInwardBox),
-        vendorMaterialRateBoxProvider.overrideWithValue(vendorMaterialRateBox),
-        qualityInspectionBoxProvider.overrideWithValue(qualityInspectionBox),
+    overrides: [
+      supplierBoxProvider.overrideWithValue(supplierBox),
+      materialBoxProvider.overrideWithValue(materialBox),
+      purchaseRequestBoxProvider.overrideWithValue(purchaseRequestBox),
+      purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
+      employeeBoxProvider.overrideWithValue(employeeBox),
+      customerBoxProvider.overrideWithValue(customerBox),
+      storeInwardBoxProvider.overrideWithValue(storeInwardBox),
+      vendorMaterialRateBoxProvider.overrideWithValue(vendorMaterialRateBox),
+      qualityInspectionBoxProvider.overrideWithValue(qualityInspectionBox),
         saleOrderBoxProvider.overrideWithValue(saleOrderBox),
         categoryParameterBoxProvider.overrideWithValue(categoryParameterBox),
-      ],
-      child: IMSApp(isLoggedIn: user != null),
+    ],
+    child: IMSApp(isLoggedIn: user != null),
     ),
   );
 }

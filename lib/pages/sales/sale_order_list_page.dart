@@ -88,15 +88,21 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
             children: [
               IconButton(
                 icon: const Icon(Icons.edit_outlined, size: 20),
-                onPressed: () {
-                  final order = rendererContext.row.cells['order']?.value as SaleOrder?;
+                onPressed: () async {
+                  final order =
+                      rendererContext.row.cells['order']?.value as SaleOrder?;
                   if (order != null) {
-                    Navigator.push(
+                    final result = await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => AddEditSaleOrderPage(order: order),
+                        builder: (context) =>
+                            AddEditSaleOrderPage(order: order),
                       ),
                     );
+                    if (result == true) {
+                      // Force refresh the state
+                      ref.invalidate(saleOrderProvider);
+                    }
                   }
                 },
                 color: Colors.blue[400],
@@ -109,7 +115,8 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () {
-                  final order = rendererContext.row.cells['order']?.value as SaleOrder?;
+                  final order =
+                      rendererContext.row.cells['order']?.value as SaleOrder?;
                   if (order != null) {
                     _confirmDelete(context, order);
                   }
@@ -161,6 +168,8 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
               onPressed: () {
                 ref.read(saleOrderProvider.notifier).deleteOrder(order);
                 Navigator.of(context).pop();
+                // Force refresh the state
+                ref.invalidate(saleOrderProvider);
               },
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red[400],
@@ -177,6 +186,12 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
   Widget build(BuildContext context) {
     final orders = ref.watch(saleOrderProvider);
 
+    if (stateManager != null) {
+      final rows = _getRows(orders);
+      stateManager!.removeAllRows();
+      stateManager!.appendRows(rows);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sale Orders'),
@@ -192,13 +207,17 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const AddEditSaleOrderPage(),
+              builder: (_) => const AddEditSaleOrderPage(),
             ),
           );
+          if (result == true) {
+            // Force refresh the state
+            ref.invalidate(saleOrderProvider);
+          }
         },
         child: const Icon(Icons.add),
       ),
@@ -222,12 +241,18 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
                   ),
                   const SizedBox(height: 8),
                   FilledButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddEditSaleOrderPage(),
-                      ),
-                    ),
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AddEditSaleOrderPage(),
+                        ),
+                      );
+                      if (result == true) {
+                        // Force refresh the state
+                        ref.invalidate(saleOrderProvider);
+                      }
+                    },
                     child: const Text('Create New Order'),
                   ),
                 ],
@@ -308,4 +333,4 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
             ),
     );
   }
-} 
+}

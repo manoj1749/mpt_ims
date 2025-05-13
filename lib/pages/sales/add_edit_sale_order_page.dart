@@ -83,238 +83,242 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
     }
   }
 
+  void _saveOrder() {
+    if (_formKey.currentState!.validate()) {
+      final order = SaleOrder(
+        orderNo: _orderNo,
+        orderDate: _orderDateController.text,
+        customerName: _selectedCustomer!,
+        boardNo: _boardNoController.text,
+        jobStartDate: _jobStartDateController.text,
+        targetDate: _targetDateController.text,
+        endDate: _endDateController.text.isEmpty ? null : _endDateController.text,
+      );
+
+      if (widget.order != null) {
+        ref.read(saleOrderProvider.notifier).updateOrder(order);
+      } else {
+        ref.read(saleOrderProvider.notifier).addOrder(order);
+      }
+
+      Navigator.pop(context, true); // Return true to indicate success
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final customers = ref.watch(customerListProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.order == null ? 'Create Sale Order' : 'Edit Sale Order'),
-        elevation: 0,
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Order Details',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      initialValue: _orderNo,
-                      decoration: const InputDecoration(
-                        labelText: 'Order No',
-                        border: OutlineInputBorder(),
-                      ),
-                      enabled: false,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _orderDateController,
-                            decoration: const InputDecoration(
-                              labelText: 'Order Date',
-                              border: OutlineInputBorder(),
-                            ),
-                            readOnly: true,
-                            onTap: () => _selectDate(context, _orderDateController),
-                            validator: (value) =>
-                                value?.isEmpty == true ? 'Required' : null,
-                          ),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, false); // Return false to indicate no changes
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.order == null ? 'Create Sale Order' : 'Edit Sale Order'),
+          elevation: 0,
+        ),
+        body: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Order Details',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: DropdownButtonFormField2<String>(
-                            value: _selectedCustomer,
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Customer',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: customers.map((customer) {
-                              return DropdownMenuItem<String>(
-                                value: customer.name,
-                                child: Text(
-                                  customer.name,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedCustomer = value;
-                              });
-                            },
-                            validator: (value) =>
-                                value == null ? 'Required' : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _boardNoController,
-                      decoration: const InputDecoration(
-                        labelText: 'Job No',
-                        border: OutlineInputBorder(),
                       ),
-                      validator: (value) =>
-                          value?.isEmpty == true ? 'Required' : null,
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        initialValue: _orderNo,
+                        decoration: const InputDecoration(
+                          labelText: 'Order No',
+                          border: OutlineInputBorder(),
+                        ),
+                        enabled: false,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _orderDateController,
+                              decoration: const InputDecoration(
+                                labelText: 'Order Date',
+                                border: OutlineInputBorder(),
+                              ),
+                              readOnly: true,
+                              onTap: () => _selectDate(context, _orderDateController),
+                              validator: (value) =>
+                                  value?.isEmpty == true ? 'Required' : null,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: DropdownButtonFormField2<String>(
+                              value: _selectedCustomer,
+                              isExpanded: true,
+                              decoration: const InputDecoration(
+                                labelText: 'Customer',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: customers.map((customer) {
+                                return DropdownMenuItem<String>(
+                                  value: customer.name,
+                                  child: Text(
+                                    customer.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedCustomer = value;
+                                });
+                              },
+                              validator: (value) =>
+                                  value == null ? 'Required' : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _boardNoController,
+                        decoration: const InputDecoration(
+                          labelText: 'Job No',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) =>
+                            value?.isEmpty == true ? 'Required' : null,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Job Schedule',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Job Schedule',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _jobStartDateController,
-                      decoration: const InputDecoration(
-                        labelText: 'Job Start Date',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _jobStartDateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Job Start Date',
+                          border: OutlineInputBorder(),
+                        ),
+                        readOnly: true,
+                        onTap: () => _selectDate(context, _jobStartDateController),
+                        validator: (value) {
+                          if (value?.isEmpty == true) return 'Required';
+                          final startDate = DateTime.tryParse(value!);
+                          if (startDate == null) return 'Invalid date';
+                          return null;
+                        },
                       ),
-                      readOnly: true,
-                      onTap: () => _selectDate(context, _jobStartDateController),
-                      validator: (value) {
-                        if (value?.isEmpty == true) return 'Required';
-                        final startDate = DateTime.tryParse(value!);
-                        if (startDate == null) return 'Invalid date';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _targetDateController,
-                      decoration: const InputDecoration(
-                        labelText: 'Target Date',
-                        border: OutlineInputBorder(),
-                      ),
-                      readOnly: true,
-                      onTap: () {
-                        final startDate = DateTime.tryParse(_jobStartDateController.text);
-                        if (startDate == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please select Job Start Date first'),
-                            ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _targetDateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Target Date',
+                          border: OutlineInputBorder(),
+                        ),
+                        readOnly: true,
+                        onTap: () {
+                          final startDate = DateTime.tryParse(_jobStartDateController.text);
+                          if (startDate == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please select Job Start Date first'),
+                              ),
+                            );
+                            return;
+                          }
+                          _selectDate(
+                            context, 
+                            _targetDateController,
+                            minDate: startDate,
                           );
-                          return;
-                        }
-                        _selectDate(
-                          context, 
-                          _targetDateController,
-                          minDate: startDate,
-                        );
-                      },
-                      validator: (value) {
-                        if (value?.isEmpty == true) return 'Required';
-                        final targetDate = DateTime.tryParse(value!);
-                        if (targetDate == null) return 'Invalid date';
-                        
-                        final startDate = DateTime.tryParse(_jobStartDateController.text);
-                        if (startDate != null && targetDate.isBefore(startDate)) {
-                          return 'Target date must be after start date';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _endDateController,
-                      decoration: const InputDecoration(
-                        labelText: 'End Date (Optional)',
-                        border: OutlineInputBorder(),
-                        helperText: 'Leave empty if job is not completed',
+                        },
+                        validator: (value) {
+                          if (value?.isEmpty == true) return 'Required';
+                          final targetDate = DateTime.tryParse(value!);
+                          if (targetDate == null) return 'Invalid date';
+                          
+                          final startDate = DateTime.tryParse(_jobStartDateController.text);
+                          if (startDate != null && targetDate.isBefore(startDate)) {
+                            return 'Target date must be after start date';
+                          }
+                          return null;
+                        },
                       ),
-                      readOnly: true,
-                      onTap: () {
-                        final targetDate = DateTime.tryParse(_targetDateController.text);
-                        if (targetDate == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please select Target Date first'),
-                            ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _endDateController,
+                        decoration: const InputDecoration(
+                          labelText: 'End Date (Optional)',
+                          border: OutlineInputBorder(),
+                          helperText: 'Leave empty if job is not completed',
+                        ),
+                        readOnly: true,
+                        onTap: () {
+                          final targetDate = DateTime.tryParse(_targetDateController.text);
+                          if (targetDate == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please select Target Date first'),
+                              ),
+                            );
+                            return;
+                          }
+                          _selectDate(
+                            context, 
+                            _endDateController,
+                            minDate: targetDate,
                           );
-                          return;
-                        }
-                        _selectDate(
-                          context, 
-                          _endDateController,
-                          minDate: targetDate,
-                        );
-                      },
-                      validator: (value) {
-                        if (value?.isEmpty == true) return null; // Optional field
-                        final endDate = DateTime.tryParse(value!);
-                        if (endDate == null) return 'Invalid date';
-                        
-                        final targetDate = DateTime.tryParse(_targetDateController.text);
-                        if (targetDate != null && endDate.isBefore(targetDate)) {
-                          return 'End date must be after target date';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
+                        },
+                        validator: (value) {
+                          if (value?.isEmpty == true) return null; // Optional field
+                          final endDate = DateTime.tryParse(value!);
+                          if (endDate == null) return 'Invalid date';
+                          
+                          final targetDate = DateTime.tryParse(_targetDateController.text);
+                          if (targetDate != null && endDate.isBefore(targetDate)) {
+                            return 'End date must be after target date';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 32),
-            FilledButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  final order = SaleOrder(
-                    orderNo: _orderNo,
-                    orderDate: _orderDateController.text,
-                    customerName: _selectedCustomer!,
-                    boardNo: _boardNoController.text,
-                    jobStartDate: _jobStartDateController.text,
-                    targetDate: _targetDateController.text,
-                    endDate: _endDateController.text.isEmpty ? null : _endDateController.text,
-                  );
-
-                  final notifier = ref.read(saleOrderProvider.notifier);
-                  if (widget.order != null) {
-                    notifier.updateOrder(order);
-                  } else {
-                    notifier.addOrder(order);
-                  }
-
-                  // Invalidate the provider to force a refresh
-                  ref.invalidate(saleOrderProvider);
-                  
-                  Navigator.pop(context);
-                }
-              },
-              child: Text(widget.order == null ? 'Create Order' : 'Update Order'),
-            ),
-          ],
+              const SizedBox(height: 32),
+              FilledButton(
+                onPressed: _saveOrder,
+                child: Text(widget.order == null ? 'Create Order' : 'Update Order'),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -44,8 +44,11 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
   }
 
   void updateOrder(SaleOrder order) {
-    order.save();
-    state = box.values.toList();
+    final index = state.indexWhere((o) => o.orderNo == order.orderNo);
+    if (index != -1) {
+      box.putAt(index, order);
+      state = box.values.toList();
+    }
   }
 
   void deleteOrder(SaleOrder order) {

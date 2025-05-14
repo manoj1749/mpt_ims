@@ -1,3 +1,5 @@
+// ignore_for_file: cast_from_null_always_fails
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/customer.dart';

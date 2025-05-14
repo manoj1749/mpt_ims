@@ -21,30 +21,6 @@ class _QualityInspectionListPageState
   List<PlutoColumn> _getColumns() {
     final standardParams = QualityParameter.standardParameters;
     // Define base columns
-    final baseColumns = [
-      'poNo',
-      'supplier',
-      'partNo',
-      'description',
-      'qty',
-      'unit',
-      'costPerUnit',
-      'totalCost',
-      'billNo',
-      'billDate',
-      'receivedDate',
-      'expirationDate',
-      'grDate',
-      'category',
-      'sampleSize',
-      'manufacturingDate',
-      'remarks',
-      'usageDecision',
-      'acceptedQty',
-      'rejectedQty',
-      'pendingQty',
-      'actions',
-    ];
     final columns = [
       // Base columns
       PlutoColumn(

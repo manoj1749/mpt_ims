@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -310,8 +312,9 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                           );
                         },
                         validator: (value) {
-                          if (value?.isEmpty == true)
+                          if (value?.isEmpty == true) {
                             return null; // Optional field
+                          }
                           final endDate = DateTime.tryParse(value!);
                           if (endDate == null) return 'Invalid date';
 

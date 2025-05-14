@@ -2,6 +2,7 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:mpt_ims/pages/accounts/category_settings_page.dart';
 import 'package:mpt_ims/pages/accounts/customer_list_page.dart';
 import 'package:mpt_ims/pages/accounts/supplier_master.dart';
 import 'package:mpt_ims/pages/design/material_master.dart';
@@ -45,6 +46,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       'Invoice receipt',
       'Supplier Master',
       'Customer Master',
+      'Category Settings',
       'Bank statement entry',
       "Expense's entry",
       "Payment's entry",
@@ -102,6 +104,9 @@ class _AppScaffoldState extends State<AppScaffold> {
     switch (name) {
       case 'Supplier Master':
         page = const SupplierMasterPage();
+        break;
+      case 'Category Settings':
+        page = const CategorySettingsPage();
         break;
       case 'Material Master Creation':
         page = const MaterialMasterPage();

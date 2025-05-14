@@ -56,18 +56,11 @@ class MaterialItem extends HiveObject {
   String getLowestSupplierRate(WidgetRef ref) {
     final rates = getRankedVendors(ref);
     if (rates.isEmpty) return '';
-    // Use sale rate instead of supplier rate for best rate calculation
+    // Use sale rate for best rate calculation
     return rates
         .map((r) => double.tryParse(r.saleRate) ?? double.infinity)
         .reduce(min)
         .toString();
-  }
-
-  // Get SEIPL Rate of the preferred vendor
-  String getPreferredVendorSeiplRate(WidgetRef ref) {
-    final rates = getRankedVendors(ref);
-    if (rates.isEmpty) return '';
-    return rates.first.seiplRate;
   }
 
   // Get Sale Rate of the preferred vendor
@@ -81,7 +74,7 @@ class MaterialItem extends HiveObject {
     final rates = ref
         .watch(vendorMaterialRateProvider.notifier)
         .getRatesForMaterial(slNo);
-    // Sort by sale rate instead of supplier rate
+    // Sort by sale rate
     rates.sort((a, b) =>
         (double.parse(a.saleRate)).compareTo(double.parse(b.saleRate)));
     return rates;

@@ -13,9 +13,6 @@ class VendorMaterialRate extends HiveObject {
   @HiveField(2)
   String supplierRate; // Rate at which supplier provides
 
-  @HiveField(3)
-  String seiplRate; // SEIPL's rate
-
   @HiveField(4)
   String saleRate; // Rate at which it's sold
 
@@ -59,7 +56,6 @@ class VendorMaterialRate extends HiveObject {
     required this.materialId,
     required this.vendorId,
     required this.supplierRate,
-    required this.seiplRate,
     required this.saleRate,
     required this.lastPurchaseDate,
     required this.remarks,
@@ -81,7 +77,7 @@ class VendorMaterialRate extends HiveObject {
   // Helper methods to calculate values
   double get stockValue {
     final stock = double.tryParse(avlStock) ?? 0;
-    final rate = double.tryParse(seiplRate) ?? 0;
+    final rate = double.tryParse(saleRate) ?? 0;
     return stock * rate;
   }
 
@@ -93,14 +89,14 @@ class VendorMaterialRate extends HiveObject {
 
   double get billedValue {
     final qty = double.tryParse(totalReceivedQty) ?? 0;
-    final rate = double.tryParse(seiplRate) ?? 0;
+    final rate = double.tryParse(saleRate) ?? 0;
     return qty * rate;
   }
 
   // Get inspection stock value
   double get inspectionStockValue {
     final stock = double.tryParse(inspectionStock) ?? 0;
-    final rate = double.tryParse(seiplRate) ?? 0;
+    final rate = double.tryParse(saleRate) ?? 0;
     return stock * rate;
   }
 
@@ -116,7 +112,6 @@ class VendorMaterialRate extends HiveObject {
     String? materialId,
     String? vendorId,
     String? supplierRate,
-    String? seiplRate,
     String? saleRate,
     String? lastPurchaseDate,
     String? remarks,
@@ -135,7 +130,6 @@ class VendorMaterialRate extends HiveObject {
       materialId: materialId ?? this.materialId,
       vendorId: vendorId ?? this.vendorId,
       supplierRate: supplierRate ?? this.supplierRate,
-      seiplRate: seiplRate ?? this.seiplRate,
       saleRate: saleRate ?? this.saleRate,
       lastPurchaseDate: lastPurchaseDate ?? this.lastPurchaseDate,
       remarks: remarks ?? this.remarks,

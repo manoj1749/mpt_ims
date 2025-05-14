@@ -121,9 +121,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
           'Please add rate for ${material.description} for vendor ${selectedSupplier!.name} before creating PO');
     }
 
-    final costPerUnit = double.parse(vendorRate.saleRate);
-    final seiplRate = double.parse(vendorRate.seiplRate);
-    final marginPerUnit = costPerUnit - seiplRate;
+    final costPerUnit = double.parse(vendorRate.supplierRate);
+    final saleRate = double.parse(vendorRate.saleRate);
+    final marginPerUnit = saleRate - costPerUnit;
 
     // Calculate total quantity from PR-wise quantities
     final prQuantities = <String, double>{};
@@ -154,7 +154,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       quantity: totalQty.toString(),
       costPerUnit: costPerUnit.toString(),
       totalCost: (totalQty * costPerUnit).toString(),
-      seiplRate: seiplRate.toString(),
+      saleRate: saleRate.toString(),
       marginPerUnit: marginPerUnit.toString(),
       totalMargin: (marginPerUnit * totalQty).toString(),
       prQuantities: prQuantities,

@@ -23,7 +23,7 @@ class POItem extends HiveObject {
   String totalCost;
 
   @HiveField(6)
-  String seiplRate;
+  String saleRate;
 
   @HiveField(7)
   String marginPerUnit;
@@ -42,7 +42,7 @@ class POItem extends HiveObject {
     required this.quantity,
     required this.costPerUnit,
     required this.totalCost,
-    required this.seiplRate,
+    required this.saleRate,
     required this.marginPerUnit,
     required this.totalMargin,
     Map<String, double>? prQuantities,
@@ -62,20 +62,20 @@ class POItem extends HiveObject {
   void updateCostPerUnit(String newCostPerUnit) {
     costPerUnit = newCostPerUnit;
     final cost = double.parse(newCostPerUnit);
-    final seipl = double.parse(seiplRate);
+    final sale = double.parse(saleRate);
     final qty = double.parse(quantity);
 
     totalCost = (qty * cost).toString();
-    marginPerUnit = (seipl - cost).toString();
-    totalMargin = (qty * (seipl - cost)).toString();
+    marginPerUnit = (sale - cost).toString();
+    totalMargin = (qty * (sale - cost)).toString();
   }
 
   // Calculate total rate difference as a number
   double get totalRateDifferenceValue {
     final qty = double.parse(quantity);
     final cost = double.parse(costPerUnit);
-    final seipl = double.parse(seiplRate);
-    return (seipl - cost) * qty;
+    final sale = double.parse(saleRate);
+    return (sale - cost) * qty;
   }
 
   // Return total rate difference as a formatted string
@@ -90,7 +90,7 @@ class POItem extends HiveObject {
     String? quantity,
     String? costPerUnit,
     String? totalCost,
-    String? seiplRate,
+    String? saleRate,
     String? marginPerUnit,
     String? totalMargin,
     Map<String, double>? prQuantities,
@@ -102,7 +102,7 @@ class POItem extends HiveObject {
       quantity: quantity ?? this.quantity,
       costPerUnit: costPerUnit ?? this.costPerUnit,
       totalCost: totalCost ?? this.totalCost,
-      seiplRate: seiplRate ?? this.seiplRate,
+      saleRate: saleRate ?? this.saleRate,
       marginPerUnit: marginPerUnit ?? this.marginPerUnit,
       totalMargin: totalMargin ?? this.totalMargin,
       prQuantities: prQuantities ?? Map<String, double>.from(this.prQuantities),

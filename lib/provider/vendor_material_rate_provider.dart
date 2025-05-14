@@ -84,7 +84,7 @@ class VendorMaterialRateNotifier
         inspectionStock: (currentInspectionStock - quantity).toString(),
         avlStock: (currentAvailableStock + quantity).toString(),
         avlStockValue: ((currentAvailableStock + quantity) *
-                (double.tryParse(rate.seiplRate) ?? 0))
+                (double.tryParse(rate.saleRate) ?? 0))
             .toString(),
       );
 

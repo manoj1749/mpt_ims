@@ -32,7 +32,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   final _formKey = GlobalKey<FormState>();
   late MaterialItem item;
   final _supplierRateController = TextEditingController();
-  final _seiplRateController = TextEditingController();
   final _saleRateController = TextEditingController();
   final _remarksController = TextEditingController();
   final _receivedQtyController = TextEditingController();
@@ -94,7 +93,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   @override
   void dispose() {
     _supplierRateController.dispose();
-    _seiplRateController.dispose();
     _saleRateController.dispose();
     _remarksController.dispose();
     _receivedQtyController.dispose();
@@ -236,7 +234,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
 
     // Reset all controllers for new rate
     _supplierRateController.text = existingRate?.supplierRate ?? '';
-    _seiplRateController.text = existingRate?.seiplRate ?? '';
     _saleRateController.text = existingRate?.saleRate ?? '';
     _receivedQtyController.text = existingRate?.totalReceivedQty ?? '0';
     _issuedQtyController.text = existingRate?.issuedQty ?? '0';
@@ -256,16 +253,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                 controller: _supplierRateController,
                 decoration: const InputDecoration(
                   labelText: 'Supplier Rate *',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _seiplRateController,
-                decoration: const InputDecoration(
-                  labelText: 'SEIPL Rate *',
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
@@ -345,13 +332,12 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     if (result == true && _supplierRateController.text.isNotEmpty) {
       final receivedQty = double.tryParse(_receivedQtyController.text) ?? 0;
       final supplierRate = double.tryParse(_supplierRateController.text) ?? 0;
-      final seiplRate = double.tryParse(_seiplRateController.text) ?? 0;
+      final saleRate = double.tryParse(_saleRateController.text) ?? 0;
 
       final newRate = VendorMaterialRate(
         materialId: item.slNo,
         vendorId: vendor.name,
         supplierRate: _supplierRateController.text,
-        seiplRate: _seiplRateController.text,
         saleRate: _saleRateController.text,
         lastPurchaseDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
         remarks: _remarksController.text,
@@ -359,12 +345,12 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         issuedQty: _issuedQtyController.text,
         receivedQty: _receivedQtyController.text,
         avlStock: _stockController.text,
-        avlStockValue: (double.tryParse(_stockController.text) ?? 0 * seiplRate)
+        avlStockValue: (double.tryParse(_stockController.text) ?? 0 * saleRate)
             .toString(),
         billingQtyDiff: '0',
         totalReceivedCost: (receivedQty * supplierRate).toString(),
-        totalBilledCost: (receivedQty * seiplRate).toString(),
-        costDiff: ((receivedQty * seiplRate) - (receivedQty * supplierRate))
+        totalBilledCost: (receivedQty * saleRate).toString(),
+        costDiff: ((receivedQty * saleRate) - (receivedQty * supplierRate))
             .toString(),
         inspectionStock: _inspectionStockController.text,
       );
@@ -448,7 +434,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text('Supplier Rate: ₹${rate.supplierRate}'),
-                                Text('SEIPL Rate: ₹${rate.seiplRate}'),
                                 Text('Sale Rate: ₹${rate.saleRate}'),
                                 Text('Stock: ${rate.avlStock} ${item.unit}'),
                                 Text(

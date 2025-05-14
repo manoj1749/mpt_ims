@@ -20,7 +20,6 @@ class VendorMaterialRateAdapter extends TypeAdapter<VendorMaterialRate> {
       materialId: fields[0] as String,
       vendorId: fields[1] as String,
       supplierRate: fields[2] as String,
-      seiplRate: fields[3] as String,
       saleRate: fields[4] as String,
       lastPurchaseDate: fields[5] as String,
       remarks: fields[6] as String,
@@ -40,15 +39,13 @@ class VendorMaterialRateAdapter extends TypeAdapter<VendorMaterialRate> {
   @override
   void write(BinaryWriter writer, VendorMaterialRate obj) {
     writer
-      ..writeByte(17)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.materialId)
       ..writeByte(1)
       ..write(obj.vendorId)
       ..writeByte(2)
       ..write(obj.supplierRate)
-      ..writeByte(3)
-      ..write(obj.seiplRate)
       ..writeByte(4)
       ..write(obj.saleRate)
       ..writeByte(5)

@@ -23,7 +23,7 @@ class POItemAdapter extends TypeAdapter<POItem> {
       quantity: fields[3] as String,
       costPerUnit: fields[4] as String,
       totalCost: fields[5] as String,
-      seiplRate: fields[6] as String,
+      saleRate: fields[6] as String,
       marginPerUnit: fields[7] as String,
       totalMargin: fields[8] as String,
       prQuantities: (fields[9] as Map?)?.cast<String, double>(),
@@ -47,7 +47,7 @@ class POItemAdapter extends TypeAdapter<POItem> {
       ..writeByte(5)
       ..write(obj.totalCost)
       ..writeByte(6)
-      ..write(obj.seiplRate)
+      ..write(obj.saleRate)
       ..writeByte(7)
       ..write(obj.marginPerUnit)
       ..writeByte(8)

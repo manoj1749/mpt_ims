@@ -104,13 +104,6 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         enableEditingMode: false,
       ),
       PlutoColumn(
-        title: 'SEIPL Rate',
-        field: 'seiplRate',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
         title: 'Sale Rate',
         field: 'saleRate',
         type: PlutoColumnType.text(),
@@ -186,8 +179,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
               .firstOrNull;
 
           if (material == null) {
-            return const SizedBox
-                .shrink(); // Return empty widget if material not found
+            return const SizedBox.shrink();
           }
 
           return Row(
@@ -271,10 +263,6 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                   ? '-'
                   : '₹${m.getLowestSupplierRate(ref)}'),
           'vendorCount': PlutoCell(value: m.getVendorCount(ref)),
-          'seiplRate': PlutoCell(
-              value: m.getPreferredVendorSeiplRate(ref).isEmpty
-                  ? '-'
-                  : '₹${m.getPreferredVendorSeiplRate(ref)}'),
           'saleRate': PlutoCell(
               value: m.getPreferredVendorSaleRate(ref).isEmpty
                   ? '-'
@@ -492,7 +480,9 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
 
   void _showVendorDetails(
       BuildContext context, MaterialItem material, WidgetRef ref) {
-    final rates = material.getRankedVendors(ref);
+    final rates = ref
+        .read(vendorMaterialRateProvider.notifier)
+        .getRatesForMaterial(material.slNo);
 
     showDialog(
       context: context,
@@ -508,7 +498,6 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                   children: [
                     Expanded(child: Text('Vendor')),
                     Expanded(child: Text('Supplier Rate')),
-                    Expanded(child: Text('SEIPL Rate')),
                     Expanded(child: Text('Sale Rate')),
                     Expanded(child: Text('Stock')),
                     Expanded(child: Text('Stock Value')),
@@ -524,7 +513,6 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                     children: [
                       Expanded(child: Text(rate.vendorId)),
                       Expanded(child: Text('₹${rate.supplierRate}')),
-                      Expanded(child: Text('₹${rate.seiplRate}')),
                       Expanded(child: Text('₹${rate.saleRate}')),
                       Expanded(
                           child: Text('${rate.avlStock} ${material.unit}')),

@@ -3,243 +3,203 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mpt_ims/models/supplier.dart';
 import 'package:mpt_ims/provider/supplier_provider.dart';
 import 'package:mpt_ims/pages/accounts/add_supplier_page.dart';
-import 'package:pluto_grid/pluto_grid.dart';
 
-class SupplierMasterPage extends ConsumerWidget {
+class SupplierMasterPage extends ConsumerStatefulWidget {
   const SupplierMasterPage({super.key});
 
-  List<PlutoColumn> _getColumns(BuildContext context, WidgetRef ref) {
-    return [
-      PlutoColumn(
-        title: 'Name',
-        field: 'name',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Vendor Code',
-        field: 'vendorCode',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Contact Person',
-        field: 'contact',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Phone',
-        field: 'phone',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Email',
-        field: 'email',
-        type: PlutoColumnType.text(),
-        width: 180,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Alt. Email',
-        field: 'email1',
-        type: PlutoColumnType.text(),
-        width: 180,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Address',
-        field: 'address',
-        type: PlutoColumnType.text(),
-        width: 250,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'State',
-        field: 'state',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'State Code',
-        field: 'stateCode',
-        type: PlutoColumnType.text(),
-        width: 100,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'PAN',
-        field: 'pan',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'GST No',
-        field: 'gstNo',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'IGST',
-        field: 'igst',
-        type: PlutoColumnType.text(),
-        width: 80,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'CGST',
-        field: 'cgst',
-        type: PlutoColumnType.text(),
-        width: 80,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'SGST',
-        field: 'sgst',
-        type: PlutoColumnType.text(),
-        width: 80,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Total GST',
-        field: 'totalGst',
-        type: PlutoColumnType.text(),
-        width: 100,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Bank',
-        field: 'bank',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Branch',
-        field: 'branch',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Account No',
-        field: 'account',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'IFSC',
-        field: 'ifsc',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Payment Terms',
-        field: 'paymentTerms',
-        type: PlutoColumnType.text(),
-        width: 200,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Actions',
-        field: 'actions',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          final supplier = rendererContext.row.cells['name']!.value as String;
-          final supplierData = ref
-              .read(supplierListProvider)
-              .firstWhere((s) => s.name == supplier);
+  @override
+  ConsumerState<SupplierMasterPage> createState() => _SupplierMasterPageState();
+}
 
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          AddSupplierPage(supplierToEdit: supplierData),
-                    ),
-                  );
-                },
-                color: Colors.blue,
-                tooltip: 'Edit',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () => _confirmDeleteSupplier(
-                  context,
-                  ref,
-                  supplierData,
-                ),
-                color: Colors.red[400],
-                tooltip: 'Delete',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-            ],
-          );
-        },
+class _SupplierMasterPageState extends ConsumerState<SupplierMasterPage> {
+  Set<int> expandedRows = {};
+
+  // Fixed widths for columns
+  final double slNoWidth = 80.0;
+  final double nameWidth = 300.0;
+  final double codeWidth = 200.0;
+
+  Widget _buildDataCell(String text,
+      {bool isHeader = false, required double width}) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        border: Border(
+          right: BorderSide(color: Colors.grey[300]!),
+          bottom: BorderSide(color: Colors.grey[300]!),
+        ),
       ),
-    ];
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+          fontSize: 14,
+        ),
+      ),
+    );
   }
 
-  List<PlutoRow> _getRows(List<Supplier> suppliers) {
-    return suppliers.map((s) {
-      return PlutoRow(
-        cells: {
-          'name': PlutoCell(value: s.name),
-          'vendorCode': PlutoCell(value: s.vendorCode),
-          'contact': PlutoCell(value: s.contact),
-          'phone': PlutoCell(value: s.phone),
-          'email': PlutoCell(value: s.email),
-          'email1': PlutoCell(value: s.email1),
-          'address': PlutoCell(
-            value: [s.address1, s.address2, s.address3, s.address4]
-                .where((addr) => addr.isNotEmpty)
-                .join(', '),
+  Widget _buildExcelCell(String text,
+      {double width = 150, bool center = false}) {
+    return Container(
+      width: width,
+      height: 44,
+      alignment: center ? Alignment.center : Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade700, width: 1),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExcelRowLabel(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 160,
+            child: Text(
+              label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w500, color: Colors.white),
+            ),
           ),
-          'state': PlutoCell(value: s.state),
-          'stateCode': PlutoCell(value: s.stateCode),
-          'pan': PlutoCell(value: s.pan),
-          'gstNo': PlutoCell(value: s.gstNo),
-          'igst': PlutoCell(value: '${s.igst}%'),
-          'cgst': PlutoCell(value: '${s.cgst}%'),
-          'sgst': PlutoCell(value: '${s.sgst}%'),
-          'totalGst': PlutoCell(value: '${s.totalGst}%'),
-          'bank': PlutoCell(value: s.bank),
-          'branch': PlutoCell(value: s.branch),
-          'account': PlutoCell(value: s.account),
-          'ifsc': PlutoCell(value: s.ifsc),
-          'paymentTerms': PlutoCell(value: s.paymentTerms),
-          'actions': PlutoCell(value: ''),
-        },
-      );
-    }).toList();
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  void _confirmDeleteSupplier(
-      BuildContext context, WidgetRef ref, Supplier supplier) {
+  Widget _buildExcelRow(Supplier supplier, int index) {
+    final isExpanded = expandedRows.contains(index);
+
+    return Column(
+      children: [
+        InkWell(
+          onTap: () {
+            setState(() {
+              if (isExpanded) {
+                expandedRows.remove(index);
+              } else {
+                expandedRows.add(index);
+              }
+            });
+          },
+          child: Container(
+            color: index.isEven
+                ? const Color(0xFF121212)
+                : const Color(0xFF1E1E1E),
+            child: Row(
+              children: [
+                _buildExcelCell('${index + 1}', width: 80, center: true),
+                _buildExcelCell(supplier.name, width: 300),
+                _buildExcelCell(
+                    supplier.vendorCode.isNotEmpty ? supplier.vendorCode : '--',
+                    width: 180),
+                Container(
+                  width: 40,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade700),
+                  ),
+                  child: Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (isExpanded)
+          Container(
+            color: const Color(0xFF1A1A1A),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildExcelRowLabel(
+                    "Address",
+                    [
+                      supplier.address1,
+                      supplier.address2,
+                      supplier.address3,
+                      supplier.address4
+                    ].where((e) => e.isNotEmpty).join(', ')),
+                _buildExcelRowLabel("State", supplier.state),
+                _buildExcelRowLabel("State Code", supplier.stateCode),
+                _buildExcelRowLabel("PAN", supplier.pan),
+                _buildExcelRowLabel("GST No", supplier.gstNo),
+                _buildExcelRowLabel("IGST %", '${supplier.igst}'),
+                _buildExcelRowLabel("CGST %", '${supplier.cgst}'),
+                _buildExcelRowLabel("SGST %", '${supplier.sgst}'),
+                _buildExcelRowLabel("Total GST", '${supplier.totalGst}'),
+                _buildExcelRowLabel("Contact Person", supplier.contact),
+                _buildExcelRowLabel("Phone", supplier.phone),
+                _buildExcelRowLabel("Email", supplier.email),
+                _buildExcelRowLabel("Alt Email", supplier.email1),
+                _buildExcelRowLabel("Bank", supplier.bank),
+                _buildExcelRowLabel("Branch", supplier.branch),
+                _buildExcelRowLabel("Account No", supplier.account),
+                _buildExcelRowLabel("IFSC Code", supplier.ifsc),
+                _buildExcelRowLabel("Payment Terms", supplier.paymentTerms),
+
+                const SizedBox(height: 12),
+
+                // ✅ Edit & Delete buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.edit, color: Colors.white),
+                      label: const Text("Edit",
+                          style: TextStyle(color: Colors.white)),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AddSupplierPage(
+                              supplierToEdit: supplier,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      label: const Text("Delete",
+                          style: TextStyle(color: Colors.red)),
+                      onPressed: () => _confirmDeleteSupplier(supplier),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _confirmDeleteSupplier(Supplier supplier) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -250,7 +210,7 @@ class SupplierMasterPage extends ConsumerWidget {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          FilledButton.tonal(
+          TextButton(
             onPressed: () {
               ref.read(supplierListProvider.notifier).deleteSupplier(supplier);
               Navigator.pop(context);
@@ -258,7 +218,7 @@ class SupplierMasterPage extends ConsumerWidget {
                 const SnackBar(content: Text('Supplier deleted')),
               );
             },
-            style: FilledButton.styleFrom(
+            style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
             child: const Text('Delete'),
@@ -269,41 +229,28 @@ class SupplierMasterPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final suppliers = ref.watch(supplierListProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Supplier Master'),
-        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: Implement search
-            },
-            tooltip: 'Search Suppliers',
+            icon: const Icon(Icons.add),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AddSupplierPage()),
+            ),
+            tooltip: 'Add Supplier',
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AddSupplierPage()),
-        ),
-        child: const Icon(Icons.add),
       ),
       body: suppliers.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.business_outlined,
-                    size: 64,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 16),
                   Text(
                     'No suppliers yet',
                     style: TextStyle(
@@ -312,7 +259,7 @@ class SupplierMasterPage extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  FilledButton(
+                  ElevatedButton(
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -323,68 +270,31 @@ class SupplierMasterPage extends ConsumerWidget {
                 ],
               ),
             )
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          : Column(
+              children: [
+                Container(
+                  color: Colors.black,
+                  child: Row(
                     children: [
-                      Text(
-                        '${suppliers.length} Suppliers',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(width: 16),
-                      FilledButton.tonal(
-                        onPressed: () {
-                          // TODO: Implement filtering
-                        },
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.filter_list, size: 20),
-                            SizedBox(width: 8),
-                            Text('Filter'),
-                          ],
-                        ),
-                      ),
+                      _buildDataCell('Sl No', isHeader: true, width: slNoWidth),
+                      _buildDataCell('Supplier Name',
+                          isHeader: true, width: nameWidth),
+                      _buildDataCell('Supplier Code',
+                          isHeader: true, width: codeWidth),
+                      const SizedBox(width: 36),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: PlutoGrid(
-                      columns: _getColumns(context, ref),
-                      rows: _getRows(suppliers),
-                      onLoaded: (PlutoGridOnLoadedEvent event) {
-                        event.stateManager.setShowColumnFilter(true);
-                      },
-                      configuration: PlutoGridConfiguration(
-                        columnFilter: const PlutoGridColumnFilterConfig(
-                          filters: [
-                            ...FilterHelper.defaultFilters,
-                          ],
-                        ),
-                        style: PlutoGridStyleConfig(
-                          gridBorderColor: Colors.grey[700]!,
-                          gridBackgroundColor: Colors.grey[900]!,
-                          borderColor: Colors.grey[700]!,
-                          iconColor: Colors.grey[300]!,
-                          rowColor: Colors.grey[850]!,
-                          oddRowColor: Colors.grey[800]!,
-                          evenRowColor: Colors.grey[850]!,
-                          activatedColor: Colors.blue[900]!,
-                          cellTextStyle: const TextStyle(color: Colors.white),
-                          columnTextStyle: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          rowHeight: 45,
-                        ),
-                      ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: suppliers.length,
+                    itemBuilder: (context, index) => _buildExcelRow(
+                      suppliers[index],
+                      index,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
     );
   }

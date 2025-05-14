@@ -3,246 +3,167 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/customer.dart';
 import '../../provider/customer_provider.dart';
 import 'add_customer_page.dart';
-import 'package:pluto_grid/pluto_grid.dart';
 
-class CustomerListPage extends ConsumerWidget {
+class CustomerListPage extends ConsumerStatefulWidget {
   const CustomerListPage({super.key});
 
-  List<PlutoColumn> _getColumns(BuildContext context, WidgetRef ref) {
-    return [
-      PlutoColumn(
-        title: 'Name',
-        field: 'name',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Customer Code',
-        field: 'customerCode',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Contact Person',
-        field: 'contact',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Phone',
-        field: 'phone',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Email',
-        field: 'email',
-        type: PlutoColumnType.text(),
-        width: 180,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Alt. Email',
-        field: 'email1',
-        type: PlutoColumnType.text(),
-        width: 180,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Address',
-        field: 'address',
-        type: PlutoColumnType.text(),
-        width: 250,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'State',
-        field: 'state',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'State Code',
-        field: 'stateCode',
-        type: PlutoColumnType.text(),
-        width: 100,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'PAN',
-        field: 'pan',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'GST No',
-        field: 'gstNo',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'IGST',
-        field: 'igst',
-        type: PlutoColumnType.text(),
-        width: 80,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'CGST',
-        field: 'cgst',
-        type: PlutoColumnType.text(),
-        width: 80,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'SGST',
-        field: 'sgst',
-        type: PlutoColumnType.text(),
-        width: 80,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Total GST',
-        field: 'totalGst',
-        type: PlutoColumnType.text(),
-        width: 100,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Bank',
-        field: 'bank',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Branch',
-        field: 'branch',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Account No',
-        field: 'account',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'IFSC',
-        field: 'ifsc',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Payment Terms',
-        field: 'paymentTerms',
-        type: PlutoColumnType.text(),
-        width: 200,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Actions',
-        field: 'actions',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          final customer = rendererContext.row.cells['name']!.value as String;
-          final customerData = ref
-              .read(customerListProvider)
-              .firstWhere((c) => c.name == customer);
+  @override
+  ConsumerState<CustomerListPage> createState() => _CustomerListPageState();
+}
 
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddCustomerPage(
-                        customerToEdit: customerData,
-                        index: ref
-                            .read(customerListProvider)
-                            .indexOf(customerData),
-                      ),
-                    ),
-                  );
-                },
-                color: Colors.blue,
-                tooltip: 'Edit',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () => _confirmDelete(
-                  context,
-                  ref,
-                  customerData,
-                ),
-                color: Colors.red[400],
-                tooltip: 'Delete',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-            ],
-          );
-        },
+class _CustomerListPageState extends ConsumerState<CustomerListPage> {
+  Set<int> expandedRows = {};
+
+  final double slNoWidth = 80.0;
+  final double nameWidth = 300.0;
+  final double codeWidth = 200.0;
+
+  Widget _buildExcelCell(String text, {double width = 150, bool center = false}) {
+    return Container(
+      width: width,
+      height: 44,
+      alignment: center ? Alignment.center : Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade700, width: 1),
       ),
-    ];
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+        ),
+      ),
+    );
   }
 
-  List<PlutoRow> _getRows(List<Customer> customers) {
-    return customers.map((c) {
-      return PlutoRow(
-        cells: {
-          'name': PlutoCell(value: c.name),
-          'customerCode': PlutoCell(value: c.customerCode),
-          'contact': PlutoCell(value: c.contact),
-          'phone': PlutoCell(value: c.phone),
-          'email': PlutoCell(value: c.email),
-          'email1': PlutoCell(value: c.email1),
-          'address': PlutoCell(
-            value: [c.address1, c.address2, c.address3, c.address4]
-                .where((addr) => addr.isNotEmpty)
-                .join(', '),
+  Widget _buildExcelRowLabel(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 160,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
+            ),
           ),
-          'state': PlutoCell(value: c.state),
-          'stateCode': PlutoCell(value: c.stateCode),
-          'pan': PlutoCell(value: c.pan),
-          'gstNo': PlutoCell(value: c.gstNo),
-          'igst': PlutoCell(value: '${c.igst}%'),
-          'cgst': PlutoCell(value: '${c.cgst}%'),
-          'sgst': PlutoCell(value: '${c.sgst}%'),
-          'totalGst': PlutoCell(value: '${c.totalGst}%'),
-          'bank': PlutoCell(value: c.bank),
-          'branch': PlutoCell(value: c.branch),
-          'account': PlutoCell(value: c.account),
-          'ifsc': PlutoCell(value: c.ifsc),
-          'paymentTerms': PlutoCell(value: c.paymentTerms),
-          'actions': PlutoCell(value: ''),
-        },
-      );
-    }).toList();
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref, Customer customer) {
+  Widget _buildExpandableRow(Customer customer, int index) {
+    final isExpanded = expandedRows.contains(index);
+
+    return Column(
+      children: [
+        InkWell(
+          onTap: () {
+            setState(() {
+              if (isExpanded) {
+                expandedRows.remove(index);
+              } else {
+                expandedRows.add(index);
+              }
+            });
+          },
+          child: Container(
+            color: index.isEven ? const Color(0xFF121212) : const Color(0xFF1E1E1E),
+            child: Row(
+              children: [
+                _buildExcelCell('${index + 1}', width: slNoWidth, center: true),
+                _buildExcelCell(customer.name, width: nameWidth),
+                _buildExcelCell(customer.customerCode.isNotEmpty ? customer.customerCode : '--', width: codeWidth),
+                Container(
+                  width: 40,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade700),
+                  ),
+                  child: Icon(
+                    isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (isExpanded)
+          Container(
+            color: const Color(0xFF1A1A1A),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildExcelRowLabel("Address", [
+                  customer.address1,
+                  customer.address2,
+                  customer.address3,
+                  customer.address4
+                ].where((s) => s.isNotEmpty).join(', ')),
+                _buildExcelRowLabel("State", customer.state),
+                _buildExcelRowLabel("State Code", customer.stateCode),
+                _buildExcelRowLabel("PAN", customer.pan),
+                _buildExcelRowLabel("GST No", customer.gstNo),
+                _buildExcelRowLabel("IGST %", '${customer.igst}'),
+                _buildExcelRowLabel("CGST %", '${customer.cgst}'),
+                _buildExcelRowLabel("SGST %", '${customer.sgst}'),
+                _buildExcelRowLabel("Total GST", '${customer.totalGst}'),
+                _buildExcelRowLabel("Contact Person", customer.contact),
+                _buildExcelRowLabel("Phone", customer.phone),
+                _buildExcelRowLabel("Email", customer.email),
+                _buildExcelRowLabel("Alt Email", customer.email1),
+                _buildExcelRowLabel("Bank", customer.bank),
+                _buildExcelRowLabel("Branch", customer.branch),
+                _buildExcelRowLabel("Account No", customer.account),
+                _buildExcelRowLabel("IFSC Code", customer.ifsc),
+                _buildExcelRowLabel("Payment Terms", customer.paymentTerms),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.edit, color: Colors.white),
+                      label: const Text("Edit", style: TextStyle(color: Colors.white)),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AddCustomerPage(
+                              customerToEdit: customer,
+                              index: ref.read(customerListProvider).indexOf(customer),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      label: const Text("Delete", style: TextStyle(color: Colors.red)),
+                      onPressed: () => _confirmDelete(context, customer),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _confirmDelete(BuildContext context, Customer customer) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -253,7 +174,7 @@ class CustomerListPage extends ConsumerWidget {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          FilledButton.tonal(
+          TextButton(
             onPressed: () {
               ref.read(customerListProvider.notifier).deleteCustomer(customer);
               Navigator.pop(context);
@@ -261,9 +182,7 @@ class CustomerListPage extends ConsumerWidget {
                 const SnackBar(content: Text('Customer deleted')),
               );
             },
-            style: FilledButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -272,41 +191,28 @@ class CustomerListPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final customers = ref.watch(customerListProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Customer Master'),
-        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: Implement search
-            },
-            tooltip: 'Search Customers',
+            icon: const Icon(Icons.add),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AddCustomerPage()),
+            ),
+            tooltip: 'Add Customer',
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AddCustomerPage()),
-        ),
-        child: const Icon(Icons.add),
       ),
       body: customers.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.people_outline,
-                    size: 64,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 16),
                   Text(
                     'No customers yet',
                     style: TextStyle(
@@ -315,79 +221,45 @@ class CustomerListPage extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  FilledButton(
+                  ElevatedButton(
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                          builder: (_) => const AddCustomerPage()),
+                      MaterialPageRoute(builder: (_) => const AddCustomerPage()),
                     ),
                     child: const Text('Add New Customer'),
                   ),
                 ],
               ),
             )
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          : Column(
+              children: [
+                Container(
+                  color: Colors.black,
+                  child: Row(
                     children: [
-                      Text(
-                        '${customers.length} Customers',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(width: 16),
-                      FilledButton.tonal(
-                        onPressed: () {
-                          // TODO: Implement filtering
-                        },
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.filter_list, size: 20),
-                            SizedBox(width: 8),
-                            Text('Filter'),
-                          ],
+                      _buildExcelCell('Sl No', width: slNoWidth, center: true),
+                      _buildExcelCell('Customer Name', width: nameWidth),
+                      _buildExcelCell('Customer Code', width: codeWidth),
+                      Container(
+                        width: 40,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade700),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: PlutoGrid(
-                      columns: _getColumns(context, ref),
-                      rows: _getRows(customers),
-                      onLoaded: (PlutoGridOnLoadedEvent event) {
-                        event.stateManager.setShowColumnFilter(true);
-                      },
-                      configuration: PlutoGridConfiguration(
-                        columnFilter: const PlutoGridColumnFilterConfig(
-                          filters: [
-                            ...FilterHelper.defaultFilters,
-                          ],
-                        ),
-                        style: PlutoGridStyleConfig(
-                          gridBorderColor: Colors.grey[700]!,
-                          gridBackgroundColor: Colors.grey[900]!,
-                          borderColor: Colors.grey[700]!,
-                          iconColor: Colors.grey[300]!,
-                          rowColor: Colors.grey[850]!,
-                          oddRowColor: Colors.grey[800]!,
-                          evenRowColor: Colors.grey[850]!,
-                          activatedColor: Colors.blue[900]!,
-                          cellTextStyle: const TextStyle(color: Colors.white),
-                          columnTextStyle: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          rowHeight: 45,
-                        ),
-                      ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: customers.length,
+                    itemBuilder: (context, index) => _buildExpandableRow(
+                      customers[index],
+                      index,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
     );
   }

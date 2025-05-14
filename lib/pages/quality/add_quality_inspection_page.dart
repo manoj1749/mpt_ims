@@ -8,6 +8,7 @@ import '../../provider/quality_inspection_provider.dart';
 import '../../provider/store_inward_provider.dart';
 import '../../provider/category_parameter_provider.dart';
 import '../../provider/material_provider.dart';
+import '../../provider/universal_parameter_provider.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 
 class AddQualityInspectionPage extends ConsumerStatefulWidget {
@@ -287,13 +288,16 @@ class _AddQualityInspectionPageState
         .watch(categoryParameterProvider.notifier)
         .getMappingForCategory(item.category);
 
+    // Get the universal parameters
+    final universalParams = ref.watch(universalParameterProvider);
+
     // Initialize parameters based on the mapping if not already set
     if (item.parameters.isEmpty) {
-      // Initialize all standard parameters with "NA" as default observation
-      item.parameters = QualityParameter.standardParameters.map((param) {
-        final isMapped = mapping?.parameters.contains(param) ?? false;
+      // Initialize parameters with "NA" as default observation for unmapped parameters
+      item.parameters = universalParams.map((param) {
+        final isMapped = mapping?.parameters.contains(param.name) ?? false;
         return QualityParameter(
-          parameter: param,
+          parameter: param.name,
           specification: '',
           observation: isMapped ? '' : 'NA', // Set "NA" for unmapped parameters
           isAcceptable: true,
@@ -592,11 +596,11 @@ class _AddQualityInspectionPageState
                 ),
               ),
               const SizedBox(height: 8),
-              ...mapping.parameters.map((param) {
+              ...mapping.parameters.map((paramName) {
                 final existingParam = item.parameters.firstWhere(
-                  (p) => p.parameter == param,
+                  (p) => p.parameter == paramName,
                   orElse: () => QualityParameter(
-                    parameter: param,
+                    parameter: paramName,
                     specification: '',
                     observation: '',
                     isAcceptable: true,
@@ -611,7 +615,7 @@ class _AddQualityInspectionPageState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          param,
+                          paramName,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
@@ -627,8 +631,7 @@ class _AddQualityInspectionPageState
                                 onChanged: (value) {
                                   setState(() {
                                     existingParam.observation = value;
-                                    if (!item.parameters
-                                        .contains(existingParam)) {
+                                    if (!item.parameters.contains(existingParam)) {
                                       item.parameters.add(existingParam);
                                     }
                                   });
@@ -644,8 +647,7 @@ class _AddQualityInspectionPageState
                                 onChanged: (value) {
                                   setState(() {
                                     existingParam.isAcceptable = value;
-                                    if (!item.parameters
-                                        .contains(existingParam)) {
+                                    if (!item.parameters.contains(existingParam)) {
                                       item.parameters.add(existingParam);
                                     }
                                   });

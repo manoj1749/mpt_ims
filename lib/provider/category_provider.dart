@@ -1,32 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive/hive.dart';
 import '../models/category.dart';
+
+final categoryBoxProvider =
+    Provider<Box<Category>>((ref) => throw UnimplementedError());
 
 final categoryListProvider =
     StateNotifierProvider<CategoryListNotifier, List<Category>>((ref) {
-  return CategoryListNotifier();
+  final box = ref.watch(categoryBoxProvider);
+  return CategoryListNotifier(box);
 });
 
 class CategoryListNotifier extends StateNotifier<List<Category>> {
-  CategoryListNotifier() : super([]) {
-    _loadCategories();
-  }
+  final Box<Category> box;
 
-  Future<void> _loadCategories() async {
-    final box = await Hive.openBox<Category>('categories');
+  CategoryListNotifier(this.box) : super(box.values.toList());
+
+  Future<void> addCategory(String name) async {
+    final category = Category(name: name);
+    await box.add(category);
     state = box.values.toList();
   }
 
-  Future<void> addCategory(String name) async {
-    final box = await Hive.openBox<Category>('categories');
-    final category = Category(name: name);
-    await box.add(category);
-    state = [...state, category];
-  }
-
   Future<void> deleteCategory(Category category) async {
-    final box = await Hive.openBox<Category>('categories');
     await category.delete();
-    state = state.where((c) => c != category).toList();
+    state = box.values.toList();
   }
 }

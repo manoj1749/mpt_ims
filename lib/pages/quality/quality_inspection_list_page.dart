@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/quality_inspection.dart';
 import '../../provider/quality_inspection_provider.dart';
+import '../../provider/universal_parameter_provider.dart';
 import 'add_quality_inspection_page.dart';
-import 'category_parameter_mapping_page.dart';
 
 class QualityInspectionListPage extends ConsumerStatefulWidget {
   const QualityInspectionListPage({super.key});
@@ -19,7 +19,8 @@ class _QualityInspectionListPageState
   PlutoGridStateManager? stateManager;
 
   List<PlutoColumn> _getColumns() {
-    final standardParams = QualityParameter.standardParameters;
+    final universalParams = ref.watch(universalParameterProvider);
+    
     // Define base columns
     final columns = [
       // Base columns
@@ -208,11 +209,11 @@ class _QualityInspectionListPageState
         },
       ),
       // Quality Parameters
-      ...standardParams.map((param) {
+      ...universalParams.map((param) {
         final fieldName =
-            param.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+            param.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
         return PlutoColumn(
-          title: param,
+          title: param.name,
           field: fieldName,
           type: PlutoColumnType.text(),
           width: 120,
@@ -431,13 +432,15 @@ class _QualityInspectionListPageState
   }
 
   List<PlutoRow> _getRows(List<QualityInspection> inspections) {
+    final universalParams = ref.watch(universalParameterProvider);
+    
     return inspections.expand((inspection) {
       return inspection.items.map((item) {
         // Ensure item.parameters is initialized
         if (item.parameters.isEmpty) {
-          item.parameters = QualityParameter.standardParameters.map((param) {
+          item.parameters = universalParams.map((param) {
             return QualityParameter(
-              parameter: param,
+              parameter: param.name,
               specification: '',
               observation: 'NA',
               isAcceptable: true,
@@ -448,15 +451,15 @@ class _QualityInspectionListPageState
 
         // Create a map for parameter cells
         final parameterCells = Map.fromEntries(
-          QualityParameter.standardParameters.map((param) {
+          universalParams.map((param) {
             final fieldName =
-                param.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+                param.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
 
             // Find existing parameter or create a new one
             final parameter = item.parameters.firstWhere(
-              (p) => p.parameter == param,
+              (p) => p.parameter == param.name,
               orElse: () => QualityParameter(
-                parameter: param,
+                parameter: param.name,
                 specification: '',
                 observation: 'NA',
                 isAcceptable: true,
@@ -553,18 +556,6 @@ class _QualityInspectionListPageState
         title: const Text('Quality Inspection List'),
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CategoryParameterMappingPage(),
-                ),
-              );
-            },
-            tooltip: 'Configure Quality Parameters',
-          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {

@@ -26,10 +26,18 @@ import 'package:mpt_ims/provider/quality_inspection_provider.dart';
 import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
 import 'package:mpt_ims/provider/category_parameter_provider.dart';
 import 'package:mpt_ims/models/vendor_material_rate.dart';
+import 'package:mpt_ims/models/category.dart';
+import 'package:mpt_ims/models/sub_category.dart';
+import 'package:mpt_ims/models/quality.dart';
+import 'package:mpt_ims/provider/category_provider.dart';
+import 'package:mpt_ims/provider/sub_category_provider.dart';
+import 'package:mpt_ims/provider/quality_provider.dart';
+import 'package:mpt_ims/provider/universal_parameter_provider.dart';
 import 'firebase_options.dart'; // From Firebase setup
 import 'pages/login_page.dart'; // We'll create this
 import 'package:mpt_ims/models/sale_order.dart';
 import 'package:mpt_ims/provider/sale_order_provider.dart';
+import 'package:mpt_ims/models/universal_parameter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +63,10 @@ void main() async {
   final saleOrderBox = Hive.box<SaleOrder>('saleOrders');
   final categoryParameterBox =
       Hive.box<CategoryParameterMapping>('categoryParameterMappings');
+  final categoryBox = Hive.box<Category>('categories');
+  final subCategoryBox = Hive.box<SubCategory>('subCategories');
+  final qualityBox = Hive.box<Quality>('qualities');
+  final universalParameterBox = Hive.box<UniversalParameter>('universal_parameters');
 
   final user = FirebaseAuth.instance.currentUser;
 
@@ -72,6 +84,10 @@ void main() async {
         qualityInspectionBoxProvider.overrideWithValue(qualityInspectionBox),
         saleOrderBoxProvider.overrideWithValue(saleOrderBox),
         categoryParameterBoxProvider.overrideWithValue(categoryParameterBox),
+        categoryBoxProvider.overrideWithValue(categoryBox),
+        subCategoryBoxProvider.overrideWithValue(subCategoryBox),
+        qualityBoxProvider.overrideWithValue(qualityBox),
+        universalParameterBoxProvider.overrideWithValue(universalParameterBox),
       ],
       child: IMSApp(isLoggedIn: user != null),
     ),

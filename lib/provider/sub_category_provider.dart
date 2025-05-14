@@ -1,33 +1,30 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive/hive.dart';
 import '../models/sub_category.dart';
+
+final subCategoryBoxProvider =
+    Provider<Box<SubCategory>>((ref) => throw UnimplementedError());
 
 final subCategoryListProvider =
     StateNotifierProvider<SubCategoryListNotifier, List<SubCategory>>((ref) {
-  return SubCategoryListNotifier();
+  final box = ref.watch(subCategoryBoxProvider);
+  return SubCategoryListNotifier(box);
 });
 
 class SubCategoryListNotifier extends StateNotifier<List<SubCategory>> {
-  SubCategoryListNotifier() : super([]) {
-    _loadSubCategories();
-  }
+  final Box<SubCategory> box;
 
-  Future<void> _loadSubCategories() async {
-    final box = await Hive.openBox<SubCategory>('subCategories');
+  SubCategoryListNotifier(this.box) : super(box.values.toList());
+
+  Future<void> addSubCategory(String name, String categoryName) async {
+    final subCategory = SubCategory(name: name, categoryName: categoryName);
+    await box.add(subCategory);
     state = box.values.toList();
   }
 
-  Future<void> addSubCategory(String name, String categoryName) async {
-    final box = await Hive.openBox<SubCategory>('subCategories');
-    final subCategory = SubCategory(name: name, categoryName: categoryName);
-    await box.add(subCategory);
-    state = [...state, subCategory];
-  }
-
   Future<void> deleteSubCategory(SubCategory subCategory) async {
-    final box = await Hive.openBox<SubCategory>('subCategories');
     await subCategory.delete();
-    state = state.where((c) => c != subCategory).toList();
+    state = box.values.toList();
   }
 
   List<SubCategory> getSubCategoriesForCategory(String categoryName) {

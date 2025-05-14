@@ -9,6 +9,10 @@ import 'package:mpt_ims/pages/accounts/add_supplier_page.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
 import 'package:mpt_ims/provider/supplier_provider.dart';
 import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
+import 'package:mpt_ims/provider/category_provider.dart';
+import 'package:mpt_ims/provider/sub_category_provider.dart';
+import 'package:mpt_ims/models/category.dart';
+import 'package:mpt_ims/models/sub_category.dart';
 
 class AddMaterialPage extends ConsumerStatefulWidget {
   final MaterialItem? materialToEdit;
@@ -36,8 +40,12 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   final _stockController = TextEditingController();
   late TextEditingController _inspectionStockController;
 
-  // Add controllers for all text fields
+  // Add controllers for all text fields except category and subCategory
   final Map<String, TextEditingController> _controllers = {};
+
+  // Selected category and subcategory
+  Category? _selectedCategory;
+  SubCategory? _selectedSubCategory;
 
   @override
   void initState() {
@@ -58,9 +66,29 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _controllers['description'] = TextEditingController(text: item.description);
     _controllers['partNo'] = TextEditingController(text: item.partNo);
     _controllers['unit'] = TextEditingController(text: item.unit);
-    _controllers['category'] = TextEditingController(text: item.category);
-    _controllers['subCategory'] = TextEditingController(text: item.subCategory);
     _inspectionStockController = TextEditingController(text: '0');
+
+    // Set initial category and subcategory if editing
+    if (widget.materialToEdit != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final categories = ref.read(categoryListProvider);
+        final subCategories = ref.read(subCategoryListProvider);
+
+        setState(() {
+          _selectedCategory = categories.firstWhere(
+            (c) => c.name == item.category,
+            orElse: () => Category(name: ''),
+          );
+
+          if (_selectedCategory != null && _selectedCategory!.name.isNotEmpty) {
+            _selectedSubCategory = subCategories.firstWhere(
+              (sc) => sc.name == item.subCategory && sc.categoryName == item.category,
+              orElse: () => SubCategory(name: '', categoryName: ''),
+            );
+          }
+        });
+      });
+    }
   }
 
   @override
@@ -90,8 +118,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         item.description = _controllers['description']!.text;
         item.partNo = _controllers['partNo']!.text;
         item.unit = _controllers['unit']!.text;
-        item.category = _controllers['category']!.text;
-        item.subCategory = _controllers['subCategory']!.text;
+        item.category = _selectedCategory?.name ?? '';
+        item.subCategory = _selectedSubCategory?.name ?? '';
 
         if (widget.index != null) {
           // Update existing material
@@ -137,6 +165,61 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         keyboardType: type,
         validator: (value) =>
             value == null || value.isEmpty ? 'Required' : null,
+      ),
+    );
+  }
+
+  Widget _buildCategoryDropdown() {
+    final categories = ref.watch(categoryListProvider);
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: DropdownButtonFormField<Category>(
+        value: _selectedCategory,
+        decoration: const InputDecoration(
+          labelText: 'Category',
+          border: OutlineInputBorder(),
+        ),
+        items: categories.map((category) {
+          return DropdownMenuItem(
+            value: category,
+            child: Text(category.name),
+          );
+        }).toList(),
+        onChanged: (Category? newValue) {
+          setState(() {
+            _selectedCategory = newValue;
+            _selectedSubCategory = null; // Reset subcategory when category changes
+          });
+        },
+        validator: (value) => value == null || value.name.isEmpty ? 'Required' : null,
+      ),
+    );
+  }
+
+  Widget _buildSubCategoryDropdown() {
+    final subCategories = _getFilteredSubCategories();
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: DropdownButtonFormField<SubCategory>(
+        value: _selectedSubCategory,
+        decoration: const InputDecoration(
+          labelText: 'Sub Category',
+          border: OutlineInputBorder(),
+        ),
+        items: subCategories.map((subCategory) {
+          return DropdownMenuItem(
+            value: subCategory,
+            child: Text(subCategory.name),
+          );
+        }).toList(),
+        onChanged: _selectedCategory == null ? null : (SubCategory? newValue) {
+          setState(() {
+            _selectedSubCategory = newValue;
+          });
+        },
+        validator: (value) => value == null || value.name.isEmpty ? 'Required' : null,
       ),
     );
   }
@@ -434,8 +517,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                     _buildTextField('Description', 'description'),
                     _buildTextField('Part No', 'partNo'),
                     _buildTextField('Unit', 'unit'),
-                    _buildTextField('Category', 'category'),
-                    _buildTextField('Sub Category', 'subCategory'),
+                    _buildCategoryDropdown(),
+                    _buildSubCategoryDropdown(),
                   ],
                 ),
               ),
@@ -448,5 +531,13 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         ),
       ),
     );
+  }
+
+  // Helper method to get filtered subcategories
+  List<SubCategory> _getFilteredSubCategories() {
+    if (_selectedCategory == null) return [];
+    return ref.read(subCategoryListProvider)
+        .where((sc) => sc.categoryName == _selectedCategory!.name)
+        .toList();
   }
 }

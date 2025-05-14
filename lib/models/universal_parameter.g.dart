@@ -1,28 +1,28 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'quality.dart';
+part of 'universal_parameter.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class QualityAdapter extends TypeAdapter<Quality> {
+class UniversalParameterAdapter extends TypeAdapter<UniversalParameter> {
   @override
-  final int typeId = 18;
+  final int typeId = 19;
 
   @override
-  Quality read(BinaryReader reader) {
+  UniversalParameter read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Quality(
+    return UniversalParameter(
       name: fields[0] as String,
     );
   }
 
   @override
-  void write(BinaryWriter writer, Quality obj) {
+  void write(BinaryWriter writer, UniversalParameter obj) {
     writer
       ..writeByte(1)
       ..writeByte(0)
@@ -35,7 +35,7 @@ class QualityAdapter extends TypeAdapter<Quality> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is QualityAdapter &&
+      other is UniversalParameterAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

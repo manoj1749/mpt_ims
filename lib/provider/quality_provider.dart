@@ -1,32 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive/hive.dart';
 import '../models/quality.dart';
+
+final qualityBoxProvider =
+    Provider<Box<Quality>>((ref) => throw UnimplementedError());
 
 final qualityListProvider =
     StateNotifierProvider<QualityListNotifier, List<Quality>>((ref) {
-  return QualityListNotifier();
+  final box = ref.watch(qualityBoxProvider);
+  return QualityListNotifier(box);
 });
 
 class QualityListNotifier extends StateNotifier<List<Quality>> {
-  QualityListNotifier() : super([]) {
-    _loadQualities();
-  }
+  final Box<Quality> box;
 
-  Future<void> _loadQualities() async {
-    final box = await Hive.openBox<Quality>('qualities');
+  QualityListNotifier(this.box) : super(box.values.toList());
+
+  Future<void> addQuality(String name) async {
+    final quality = Quality(name: name);
+    await box.add(quality);
     state = box.values.toList();
   }
 
-  Future<void> addQuality(String name) async {
-    final box = await Hive.openBox<Quality>('qualities');
-    final quality = Quality(name: name);
-    await box.add(quality);
-    state = [...state, quality];
-  }
-
   Future<void> deleteQuality(Quality quality) async {
-    final box = await Hive.openBox<Quality>('qualities');
     await quality.delete();
-    state = state.where((q) => q != quality).toList();
+    state = box.values.toList();
   }
 }

@@ -38,7 +38,6 @@ class PRItem extends HiveObject {
 
   void addOrderedQuantity(String poNo, double quantity) {
     orderedQuantities[poNo] = quantity;
-    save();
   }
 
   PRItem({

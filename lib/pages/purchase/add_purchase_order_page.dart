@@ -1,6 +1,5 @@
-// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member, unused_local_variable
 
-import 'dart:math';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +8,6 @@ import '../../models/po_item.dart';
 import '../../models/supplier.dart';
 import '../../models/material_item.dart';
 import '../../models/pr_item.dart';
-import '../../models/purchase_request.dart';
 import '../../models/purchase_order.dart' as po;
 import '../../provider/supplier_provider.dart';
 import '../../provider/material_provider.dart';
@@ -46,18 +44,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   Map<String, Map<String, TextEditingController>> prQtyControllers = {};
 
   // Group PRs by material code
-  Map<String, List<PRItem>> _groupPRsByMaterial(List<PurchaseRequest> prs) {
-    final grouped = <String, List<PRItem>>{};
-    for (var pr in prs) {
-      for (var item in pr.items) {
-        if (!item.isFullyOrdered) {
-          // Only include items that aren't fully ordered
-          grouped.putIfAbsent(item.materialCode, () => []).add(item);
-        }
-      }
-    }
-    return grouped;
-  }
 
   // Calculate total remaining quantity for a material
   double _calculateTotalRemainingQuantity(List<PRItem> items) {
@@ -77,7 +63,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       _transportController.text = widget.existingPO!.transport;
       _deliveryRequirementsController.text =
           widget.existingPO!.deliveryRequirements;
-      poItems = List<POItem>.from(widget.existingPO!.items);
     }
   }
 
@@ -98,10 +83,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       }
     }
     super.dispose();
-  }
-
-  double calculateTotal(List<POItem> items) {
-    return items.fold(0.0, (sum, item) => sum + double.parse(item.totalCost));
   }
 
   POItem _createPOItem(MaterialItem material, List<PRItem> prItems) {
@@ -161,103 +142,124 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     final poItem = _createPOItem(material, prItems);
 
     return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              material.description,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text('Material Code: ${material.partNo}'),
-            Text('Unit: ${material.unit}'),
-            const SizedBox(height: 16),
-            const Text(
-              'Purchase Requests',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...prItems.map((prItem) {
-              final remainingQty =
-                  double.parse(prItem.quantity) - prItem.totalOrderedQuantity;
-              if (remainingQty <= 0) return const SizedBox.shrink();
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: Text('PR: ${prItem.prNo}'),
-                    ),
-                    Expanded(
-                      child: Text('Need: ${remainingQty.toStringAsFixed(2)}'),
-                    ),
-                    Expanded(
-                      child: TextFormField(
-                        controller:
-                            prQtyControllers[material.partNo]![prItem.prNo],
-                        decoration: const InputDecoration(
-                          labelText: 'Order Qty',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) return null;
-                          final qty = double.tryParse(value);
-                          if (qty == null) return 'Invalid number';
-                          if (qty < 0) return 'Cannot be negative';
-                          if (qty > remainingQty) {
-                            return 'Exceeds needed qty';
-                          }
-                          return null;
-                        },
-                        onChanged: (value) {
-                          setState(() {
-                            // This will trigger rebuild and update totals
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-            const Divider(),
             Row(
               children: [
-                const Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Total Order Quantity:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        material.description,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        'Code: ${material.partNo} | Unit: ${material.unit}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
                   ),
                 ),
                 Expanded(
                   child: Text(
-                    poItem.quantity,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    'Rate: ₹${poItem.costPerUnit}',
+                    style: const TextStyle(fontSize: 12),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
+            const Divider(height: 16),
+            Table(
+              columnWidths: const {
+                0: FlexColumnWidth(2),
+                1: FlexColumnWidth(1),
+                2: FlexColumnWidth(1.5),
+              },
               children: [
-                Expanded(
-                  child: Text('Cost per Unit: ₹${poItem.costPerUnit}'),
+                const TableRow(
+                  children: [
+                    Text('PR No',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
+                    Text('Need',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
+                    Text('Order Qty',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
+                  ],
                 ),
-                Expanded(
-                  child: Text('Total Cost: ₹${poItem.totalCost}'),
-                ),
+                ...prItems
+                    .map((prItem) {
+                      final remainingQty = double.parse(prItem.quantity) -
+                          prItem.totalOrderedQuantity;
+                      if (remainingQty <= 0)
+                        return const TableRow(
+                            children: [SizedBox(), SizedBox(), SizedBox()]);
+
+                      return TableRow(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(prItem.prNo,
+                                style: const TextStyle(fontSize: 12)),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(remainingQty.toStringAsFixed(2),
+                                style: const TextStyle(fontSize: 12)),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: SizedBox(
+                              height: 32,
+                              child: TextFormField(
+                                controller: prQtyControllers[material.partNo]![
+                                    prItem.prNo],
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 8),
+                                  border: OutlineInputBorder(),
+                                ),
+                                style: const TextStyle(fontSize: 12),
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty)
+                                    return null;
+                                  final qty = double.tryParse(value);
+                                  if (qty == null) return 'Invalid';
+                                  if (qty < 0) return 'Invalid';
+                                  if (qty > remainingQty) return 'Exceeds';
+                                  return null;
+                                },
+                                onChanged: (value) {
+                                  final qty = double.tryParse(value);
+                                  if (qty != null && qty > remainingQty) {
+                                    prQtyControllers[material.partNo]
+                                            ?[prItem.prNo]
+                                        ?.text = remainingQty.toString();
+                                  }
+                                  setState(() {});
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    })
+                    .where(
+                        (row) => row.children.any((cell) => cell is! SizedBox))
+                    .toList(),
               ],
             ),
           ],
@@ -269,13 +271,48 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   void _onSavePressed() {
     if (_formKey.currentState!.validate()) {
       final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final materials = ref.read(materialListProvider);
+      final purchaseRequests = ref.read(purchaseRequestListProvider);
 
-      // Calculate tax amounts
-      final subtotal =
-          poItems.fold(0.0, (sum, item) => sum + double.parse(item.totalCost));
-      final igst = subtotal * 0.18; // 18% IGST
-      final cgst = subtotal * 0.09; // 9% CGST
-      final sgst = subtotal * 0.09; // 9% SGST
+      // Create updated POItems with current quantities
+      final updatedPOItems = <POItem>[];
+
+      // Group PR items by material code for the selected supplier
+      final materialPRItems = <String, List<PRItem>>{};
+      for (var pr in purchaseRequests) {
+        if (pr.supplierName == selectedSupplier!.name && !pr.isFullyOrdered) {
+          for (var item in pr.items) {
+            if (!item.isFullyOrdered) {
+              materialPRItems
+                  .putIfAbsent(item.materialCode, () => [])
+                  .add(item);
+            }
+          }
+        }
+      }
+
+      for (var entry in materialPRItems.entries) {
+        final material = materials.firstWhere(
+          (m) => m.partNo == entry.key,
+          orElse: () => throw Exception('Material not found: ${entry.key}'),
+        );
+        final prItems = entry.value;
+
+        final poItem = _createPOItem(material, prItems);
+
+        if (double.parse(poItem.quantity) > 0) {
+          updatedPOItems.add(poItem);
+        }
+      }
+
+      // Calculate tax amounts based on updated items
+      final subtotal = updatedPOItems.fold(
+          0.0, (sum, item) => sum + double.parse(item.totalCost));
+
+      // Use supplier's GST rates
+      final igst = subtotal * (double.tryParse(selectedSupplier!.igst.replaceAll('%', ''))! / 100);
+      final cgst = subtotal * (double.tryParse(selectedSupplier!.cgst.replaceAll('%', ''))! / 100);
+      final sgst = subtotal * (double.tryParse(selectedSupplier!.sgst.replaceAll('%', ''))! / 100);
       final grandTotal = subtotal + igst + cgst + sgst;
 
       final newPO = po.PurchaseOrder(
@@ -286,7 +323,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         boardNo: _boardNoController.text,
         transport: _transportController.text,
         deliveryRequirements: _deliveryRequirementsController.text,
-        items: List<POItem>.from(poItems),
+        items: updatedPOItems,
         total: subtotal,
         igst: igst,
         cgst: cgst,
@@ -295,10 +332,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       );
 
       // Update PR quantities and status
-      final purchaseRequests = ref.read(purchaseRequestListProvider);
       final prNotifier = ref.read(purchaseRequestListProvider.notifier);
 
-      for (var poItem in poItems) {
+      for (var poItem in updatedPOItems) {
         for (var entry in poItem.prQuantities.entries) {
           final prNo = entry.key;
           final orderQty = entry.value;
@@ -483,122 +519,87 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               if (poItems.isNotEmpty)
                 Expanded(
                   child: Card(
-                    elevation: 4,
+                    elevation: 2,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
                             color: Theme.of(context).primaryColor,
                             borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(16),
-                              topRight: Radius.circular(16),
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
                             ),
                           ),
-                          child: const Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  "Material Details",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  "Quantity",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  "Rates",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  "Cost",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          child: const Text(
+                            "Purchase Order Items",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                         Expanded(
-                          child: ListView.separated(
-                            padding: const EdgeInsets.all(16),
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(8),
                             itemCount: poItems.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 32),
                             itemBuilder: (_, index) {
                               final item = poItems.elementAt(index);
                               final prItems =
                                   materialPRItems[item.materialCode] ?? [];
-                              final totalNeededQty =
-                                  _calculateTotalRemainingQuantity(prItems);
-
-                              // Initialize controller if not exists
-                              qtyControllers[item.materialCode] ??=
-                                  TextEditingController(
-                                text: totalNeededQty.toString(),
+                              final material = materials.firstWhere(
+                                (m) => m.partNo == item.materialCode,
+                                orElse: () =>
+                                    throw Exception('Material not found'),
                               );
-                              maxQtyControllers[item.materialCode] ??=
-                                  TextEditingController(
-                                text: totalNeededQty.toString(),
-                              );
-
-                              return _buildItemCard(
-                                  materials.firstWhere(
-                                    (m) => m.partNo == item.materialCode,
-                                    orElse: () =>
-                                        throw Exception('Material not found'),
-                                  ),
-                                  prItems);
+                              return _buildItemCard(material, prItems);
                             },
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: Colors.grey[900],
                             borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(16),
-                              bottomRight: Radius.circular(16),
+                              bottomLeft: Radius.circular(8),
+                              bottomRight: Radius.circular(8),
                             ),
                           ),
                           child: ListenableBuilder(
-                            listenable: Listenable.merge(
-                              qtyControllers.values.toList(),
-                            ),
+                            listenable: Listenable.merge([
+                              ...qtyControllers.values,
+                              ...prQtyControllers.values
+                                  .expand((controllers) => controllers.values),
+                            ]),
                             builder: (context, _) {
                               double total = 0;
                               for (var item in poItems) {
-                                final qty = double.tryParse(
-                                        qtyControllers[item.materialCode]
-                                                ?.text ??
-                                            '0') ??
-                                    0.0;
-                                final cost = double.parse(item.costPerUnit);
-                                final totalCost = qty * cost;
-                                total += totalCost;
+                                final material = materials.firstWhere(
+                                  (m) => m.partNo == item.materialCode,
+                                  orElse: () =>
+                                      throw Exception('Material not found'),
+                                );
+                                final prItems =
+                                    materialPRItems[item.materialCode] ?? [];
+
+                                double itemTotal = 0;
+                                for (var prItem in prItems) {
+                                  final qty = double.tryParse(
+                                          prQtyControllers[item.materialCode]
+                                                      ?[prItem.prNo]
+                                                  ?.text ??
+                                              '0') ??
+                                      0.0;
+                                  final cost = double.parse(item.costPerUnit);
+                                  itemTotal += qty * cost;
+                                }
+                                total += itemTotal;
                               }
 
                               return Row(
@@ -608,7 +609,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                     "Total Order Value: ",
                                     style: TextStyle(
                                       color: Colors.grey[400],
-                                      fontSize: 16,
+                                      fontSize: 14,
                                     ),
                                   ),
                                   Text(
@@ -616,7 +617,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 20,
+                                      fontSize: 16,
                                     ),
                                   ),
                                 ],

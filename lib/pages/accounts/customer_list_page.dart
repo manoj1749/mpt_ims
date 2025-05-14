@@ -18,7 +18,8 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
   final double nameWidth = 300.0;
   final double codeWidth = 200.0;
 
-  Widget _buildExcelCell(String text, {double width = 150, bool center = false}) {
+  Widget _buildExcelCell(String text,
+      {double width = 150, bool center = false}) {
     return Container(
       width: width,
       height: 44,
@@ -46,7 +47,8 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
             width: 160,
             child: Text(
               label,
-              style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
+              style: const TextStyle(
+                  fontWeight: FontWeight.w500, color: Colors.white),
             ),
           ),
           Expanded(
@@ -76,12 +78,18 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
             });
           },
           child: Container(
-            color: index.isEven ? const Color(0xFF121212) : const Color(0xFF1E1E1E),
+            color: index.isEven
+                ? const Color(0xFF121212)
+                : const Color(0xFF1E1E1E),
             child: Row(
               children: [
                 _buildExcelCell('${index + 1}', width: slNoWidth, center: true),
                 _buildExcelCell(customer.name, width: nameWidth),
-                _buildExcelCell(customer.customerCode.isNotEmpty ? customer.customerCode : '--', width: codeWidth),
+                _buildExcelCell(
+                    customer.customerCode.isNotEmpty
+                        ? customer.customerCode
+                        : '--',
+                    width: codeWidth),
                 Container(
                   width: 40,
                   height: 44,
@@ -90,7 +98,9 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
                     border: Border.all(color: Colors.grey.shade700),
                   ),
                   child: Icon(
-                    isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
                     color: Colors.white,
                     size: 20,
                   ),
@@ -106,12 +116,14 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildExcelRowLabel("Address", [
-                  customer.address1,
-                  customer.address2,
-                  customer.address3,
-                  customer.address4
-                ].where((s) => s.isNotEmpty).join(', ')),
+                _buildExcelRowLabel(
+                    "Address",
+                    [
+                      customer.address1,
+                      customer.address2,
+                      customer.address3,
+                      customer.address4
+                    ].where((s) => s.isNotEmpty).join(', ')),
                 _buildExcelRowLabel("State", customer.state),
                 _buildExcelRowLabel("State Code", customer.stateCode),
                 _buildExcelRowLabel("PAN", customer.pan),
@@ -135,14 +147,17 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
                   children: [
                     TextButton.icon(
                       icon: const Icon(Icons.edit, color: Colors.white),
-                      label: const Text("Edit", style: TextStyle(color: Colors.white)),
+                      label: const Text("Edit",
+                          style: TextStyle(color: Colors.white)),
                       onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => AddCustomerPage(
                               customerToEdit: customer,
-                              index: ref.read(customerListProvider).indexOf(customer),
+                              index: ref
+                                  .read(customerListProvider)
+                                  .indexOf(customer),
                             ),
                           ),
                         );
@@ -151,7 +166,8 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
                     const SizedBox(width: 8),
                     TextButton.icon(
                       icon: const Icon(Icons.delete, color: Colors.red),
-                      label: const Text("Delete", style: TextStyle(color: Colors.red)),
+                      label: const Text("Delete",
+                          style: TextStyle(color: Colors.red)),
                       onPressed: () => _confirmDelete(context, customer),
                     ),
                   ],
@@ -224,7 +240,8 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
                   ElevatedButton(
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const AddCustomerPage()),
+                      MaterialPageRoute(
+                          builder: (_) => const AddCustomerPage()),
                     ),
                     child: const Text('Add New Customer'),
                   ),

@@ -14,4 +14,4 @@ class SubCategory extends HiveObject {
     required this.name,
     required this.categoryName,
   });
-} 
+}

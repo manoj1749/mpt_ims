@@ -33,4 +33,4 @@ class SubCategoryListNotifier extends StateNotifier<List<SubCategory>> {
   List<SubCategory> getSubCategoriesForCategory(String categoryName) {
     return state.where((sc) => sc.categoryName == categoryName).toList();
   }
-} 
+}

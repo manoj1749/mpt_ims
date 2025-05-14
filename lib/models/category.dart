@@ -8,4 +8,4 @@ class Category extends HiveObject {
   String name;
 
   Category({required this.name});
-} 
+}

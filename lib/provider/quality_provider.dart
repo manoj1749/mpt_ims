@@ -29,4 +29,4 @@ class QualityListNotifier extends StateNotifier<List<Quality>> {
     await quality.delete();
     state = state.where((q) => q != quality).toList();
   }
-} 
+}

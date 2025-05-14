@@ -11,7 +11,8 @@ class CategorySettingsPage extends ConsumerStatefulWidget {
   const CategorySettingsPage({super.key});
 
   @override
-  ConsumerState<CategorySettingsPage> createState() => _CategorySettingsPageState();
+  ConsumerState<CategorySettingsPage> createState() =>
+      _CategorySettingsPageState();
 }
 
 class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
@@ -44,10 +45,10 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
       builder: (context) => AlertDialog(
         title: Text('Add $title'),
         content: TextField(
-          controller: title == 'Category' 
-              ? _categoryController 
-              : title == 'Sub-Category' 
-                  ? _subCategoryController 
+          controller: title == 'Category'
+              ? _categoryController
+              : title == 'Sub-Category'
+                  ? _subCategoryController
                   : _qualityController,
           decoration: InputDecoration(
             hintText: hint,
@@ -61,10 +62,10 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
           ),
           TextButton(
             onPressed: () {
-              final text = title == 'Category' 
-                  ? _categoryController.text 
-                  : title == 'Sub-Category' 
-                      ? _subCategoryController.text 
+              final text = title == 'Category'
+                  ? _categoryController.text
+                  : title == 'Sub-Category'
+                      ? _subCategoryController.text
                       : _qualityController.text;
               if (text.isNotEmpty) {
                 onAdd(text);
@@ -85,7 +86,9 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
     );
   }
 
-  Widget _buildSection(String title, List<dynamic> items, Function(String) onAdd, {Function(dynamic)? onDelete}) {
+  Widget _buildSection(
+      String title, List<dynamic> items, Function(String) onAdd,
+      {Function(dynamic)? onDelete}) {
     return Card(
       margin: const EdgeInsets.all(8),
       child: Column(
@@ -137,8 +140,9 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                     icon: const Icon(Icons.delete_outline, color: Colors.red),
                     onPressed: onDelete != null ? () => onDelete(item) : null,
                   ),
-                  onTap: title == 'Category' 
-                      ? () => setState(() => _selectedCategory = item as Category)
+                  onTap: title == 'Category'
+                      ? () =>
+                          setState(() => _selectedCategory = item as Category)
                       : null,
                   selected: title == 'Category' && item == _selectedCategory,
                 );
@@ -156,7 +160,9 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
     final qualities = ref.watch(qualityListProvider);
 
     final filteredSubCategories = _selectedCategory != null
-        ? subCategories.where((sc) => sc.categoryName == _selectedCategory!.name).toList()
+        ? subCategories
+            .where((sc) => sc.categoryName == _selectedCategory!.name)
+            .toList()
         : subCategories;
 
     return Scaffold(
@@ -170,14 +176,18 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
             'Category',
             categories,
             (name) => ref.read(categoryListProvider.notifier).addCategory(name),
-            onDelete: (category) => ref.read(categoryListProvider.notifier).deleteCategory(category),
+            onDelete: (category) => ref
+                .read(categoryListProvider.notifier)
+                .deleteCategory(category),
           ),
           _buildSection(
             'Sub-Category',
             _selectedCategory != null ? filteredSubCategories : [],
-            (name) => ref.read(subCategoryListProvider.notifier)
+            (name) => ref
+                .read(subCategoryListProvider.notifier)
                 .addSubCategory(name, _selectedCategory?.name ?? ''),
-            onDelete: (subCategory) => ref.read(subCategoryListProvider.notifier)
+            onDelete: (subCategory) => ref
+                .read(subCategoryListProvider.notifier)
                 .deleteSubCategory(subCategory),
           ),
           if (_selectedCategory == null)
@@ -185,17 +195,19 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
               padding: EdgeInsets.symmetric(horizontal: 8),
               child: Text(
                 'Select a category to manage its sub-categories',
-                style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                style:
+                    TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
               ),
             ),
           _buildSection(
             'Quality',
             qualities,
             (name) => ref.read(qualityListProvider.notifier).addQuality(name),
-            onDelete: (quality) => ref.read(qualityListProvider.notifier).deleteQuality(quality),
+            onDelete: (quality) =>
+                ref.read(qualityListProvider.notifier).deleteQuality(quality),
           ),
         ],
       ),
     );
   }
-} 
+}

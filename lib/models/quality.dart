@@ -8,4 +8,4 @@ class Quality extends HiveObject {
   String name;
 
   Quality({required this.name});
-} 
+}

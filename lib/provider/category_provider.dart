@@ -29,4 +29,4 @@ class CategoryListNotifier extends StateNotifier<List<Category>> {
     await category.delete();
     state = state.where((c) => c != category).toList();
   }
-} 
+}

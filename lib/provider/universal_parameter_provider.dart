@@ -7,7 +7,8 @@ final universalParameterBoxProvider = Provider<Box<UniversalParameter>>((ref) {
   throw UnimplementedError();
 });
 
-class UniversalParameterNotifier extends StateNotifier<List<UniversalParameter>> {
+class UniversalParameterNotifier
+    extends StateNotifier<List<UniversalParameter>> {
   final Box<UniversalParameter> _box;
 
   UniversalParameterNotifier(this._box) : super([]) {
@@ -30,7 +31,9 @@ class UniversalParameterNotifier extends StateNotifier<List<UniversalParameter>>
   }
 }
 
-final universalParameterProvider = StateNotifierProvider<UniversalParameterNotifier, List<UniversalParameter>>((ref) {
+final universalParameterProvider =
+    StateNotifierProvider<UniversalParameterNotifier, List<UniversalParameter>>(
+        (ref) {
   final box = ref.watch(universalParameterBoxProvider);
   return UniversalParameterNotifier(box);
-}); 
+});

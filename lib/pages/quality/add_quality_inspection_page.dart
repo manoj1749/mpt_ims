@@ -631,7 +631,8 @@ class _AddQualityInspectionPageState
                                 onChanged: (value) {
                                   setState(() {
                                     existingParam.observation = value;
-                                    if (!item.parameters.contains(existingParam)) {
+                                    if (!item.parameters
+                                        .contains(existingParam)) {
                                       item.parameters.add(existingParam);
                                     }
                                   });
@@ -647,7 +648,8 @@ class _AddQualityInspectionPageState
                                 onChanged: (value) {
                                   setState(() {
                                     existingParam.isAcceptable = value;
-                                    if (!item.parameters.contains(existingParam)) {
+                                    if (!item.parameters
+                                        .contains(existingParam)) {
                                       item.parameters.add(existingParam);
                                     }
                                   });

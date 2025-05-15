@@ -66,7 +66,8 @@ void main() async {
   final categoryBox = Hive.box<Category>('categories');
   final subCategoryBox = Hive.box<SubCategory>('subCategories');
   final qualityBox = Hive.box<Quality>('qualities');
-  final universalParameterBox = Hive.box<UniversalParameter>('universal_parameters');
+  final universalParameterBox =
+      Hive.box<UniversalParameter>('universal_parameters');
 
   final user = FirebaseAuth.instance.currentUser;
 

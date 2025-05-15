@@ -16,7 +16,8 @@ class CategorySettingsPage extends ConsumerStatefulWidget {
   const CategorySettingsPage({super.key});
 
   @override
-  ConsumerState<CategorySettingsPage> createState() => _CategorySettingsPageState();
+  ConsumerState<CategorySettingsPage> createState() =>
+      _CategorySettingsPageState();
 }
 
 class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
@@ -34,10 +35,10 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
   }
 
   void _showAddDialog(String title, String hint, Function(String) onAdd) {
-    final controller = title == 'Category' 
-        ? _categoryController 
-        : title == 'Sub-Category' 
-            ? _subCategoryController 
+    final controller = title == 'Category'
+        ? _categoryController
+        : title == 'Sub-Category'
+            ? _subCategoryController
             : _parameterController;
 
     showDialog(
@@ -72,7 +73,9 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
     );
   }
 
-  Widget _buildSection(String title, List<dynamic> items, Function(String) onAdd, {Function(dynamic)? onDelete}) {
+  Widget _buildSection(
+      String title, List<dynamic> items, Function(String) onAdd,
+      {Function(dynamic)? onDelete}) {
     return Card(
       margin: const EdgeInsets.all(8),
       child: Column(
@@ -124,8 +127,9 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                     icon: const Icon(Icons.delete_outline, color: Colors.red),
                     onPressed: onDelete != null ? () => onDelete(item) : null,
                   ),
-                  onTap: title == 'Category' 
-                      ? () => setState(() => _selectedCategory = item as Category)
+                  onTap: title == 'Category'
+                      ? () =>
+                          setState(() => _selectedCategory = item as Category)
                       : null,
                   selected: title == 'Category' && item == _selectedCategory,
                 );
@@ -165,7 +169,9 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                     'Quality Parameter',
                     'Enter parameter name',
                     (name) {
-                      ref.read(universalParameterProvider.notifier).addParameter(name);
+                      ref
+                          .read(universalParameterProvider.notifier)
+                          .addParameter(name);
                     },
                   ),
                 ),
@@ -198,12 +204,16 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                       return Chip(
                         label: Text(param.name),
                         onDeleted: () {
-                          ref.read(universalParameterProvider.notifier).removeParameter(param);
+                          ref
+                              .read(universalParameterProvider.notifier)
+                              .removeParameter(param);
                           // Remove this parameter from all category mappings
                           for (var mapping in mappings) {
                             if (mapping.parameters.contains(param.name)) {
                               mapping.parameters.remove(param.name);
-                              ref.read(categoryParameterProvider.notifier).updateMapping(mapping);
+                              ref
+                                  .read(categoryParameterProvider.notifier)
+                                  .updateMapping(mapping);
                             }
                           }
                         },
@@ -214,7 +224,8 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                 if (_selectedCategory == null)
                   const Text(
                     'Select a category to manage its parameters',
-                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                    style: TextStyle(
+                        color: Colors.grey, fontStyle: FontStyle.italic),
                   )
                 else ...[
                   Text(
@@ -238,7 +249,7 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                         final isSelected = mappings.any((m) =>
                             m.category == _selectedCategory!.name &&
                             m.parameters.contains(param.name));
-                        
+
                         return FilterChip(
                           label: Text(param.name),
                           selected: isSelected,
@@ -257,7 +268,8 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                             } else {
                               mapping.parameters.remove(param.name);
                             }
-                            ref.read(categoryParameterProvider.notifier)
+                            ref
+                                .read(categoryParameterProvider.notifier)
                                 .updateMapping(mapping);
                           },
                         );
@@ -267,8 +279,7 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                   SwitchListTile(
                     title: const Text('Requires Expiry Date'),
                     subtitle: const Text(
-                      'Enable if materials in this category need expiration date tracking'
-                    ),
+                        'Enable if materials in this category need expiration date tracking'),
                     value: mappings
                         .firstWhere(
                           (m) => m.category == _selectedCategory!.name,
@@ -289,7 +300,8 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                         ),
                       );
                       mapping.requiresExpiryDate = value;
-                      ref.read(categoryParameterProvider.notifier)
+                      ref
+                          .read(categoryParameterProvider.notifier)
                           .updateMapping(mapping);
                     },
                   ),
@@ -308,7 +320,9 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
     final subCategories = ref.watch(subCategoryListProvider);
 
     final filteredSubCategories = _selectedCategory != null
-        ? subCategories.where((sc) => sc.categoryName == _selectedCategory!.name).toList()
+        ? subCategories
+            .where((sc) => sc.categoryName == _selectedCategory!.name)
+            .toList()
         : subCategories;
 
     return Scaffold(
@@ -322,14 +336,18 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
             'Category',
             categories,
             (name) => ref.read(categoryListProvider.notifier).addCategory(name),
-            onDelete: (category) => ref.read(categoryListProvider.notifier).deleteCategory(category),
+            onDelete: (category) => ref
+                .read(categoryListProvider.notifier)
+                .deleteCategory(category),
           ),
           _buildSection(
             'Sub-Category',
             _selectedCategory != null ? filteredSubCategories : [],
-            (name) => ref.read(subCategoryListProvider.notifier)
+            (name) => ref
+                .read(subCategoryListProvider.notifier)
                 .addSubCategory(name, _selectedCategory?.name ?? ''),
-            onDelete: (subCategory) => ref.read(subCategoryListProvider.notifier)
+            onDelete: (subCategory) => ref
+                .read(subCategoryListProvider.notifier)
                 .deleteSubCategory(subCategory),
           ),
           if (_selectedCategory == null)
@@ -337,7 +355,8 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
               padding: EdgeInsets.symmetric(horizontal: 8),
               child: Text(
                 'Select a category to manage its sub-categories',
-                style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                style:
+                    TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
               ),
             ),
           _buildQualityParameterSection(),

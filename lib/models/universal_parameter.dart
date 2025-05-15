@@ -8,4 +8,4 @@ class UniversalParameter extends HiveObject {
   String name;
 
   UniversalParameter({required this.name});
-} 
+}

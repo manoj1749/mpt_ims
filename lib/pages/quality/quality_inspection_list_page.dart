@@ -20,7 +20,7 @@ class _QualityInspectionListPageState
 
   List<PlutoColumn> _getColumns() {
     final universalParams = ref.watch(universalParameterProvider);
-    
+
     // Define base columns
     final columns = [
       // Base columns
@@ -433,7 +433,7 @@ class _QualityInspectionListPageState
 
   List<PlutoRow> _getRows(List<QualityInspection> inspections) {
     final universalParams = ref.watch(universalParameterProvider);
-    
+
     return inspections.expand((inspection) {
       return inspection.items.map((item) {
         // Ensure item.parameters is initialized

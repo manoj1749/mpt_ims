@@ -81,7 +81,9 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
 
           if (_selectedCategory != null && _selectedCategory!.name.isNotEmpty) {
             _selectedSubCategory = subCategories.firstWhere(
-              (sc) => sc.name == item.subCategory && sc.categoryName == item.category,
+              (sc) =>
+                  sc.name == item.subCategory &&
+                  sc.categoryName == item.category,
               orElse: () => SubCategory(name: '', categoryName: ''),
             );
           }
@@ -169,7 +171,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
 
   Widget _buildCategoryDropdown() {
     final categories = ref.watch(categoryListProvider);
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownButtonFormField<Category>(
@@ -187,17 +189,19 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         onChanged: (Category? newValue) {
           setState(() {
             _selectedCategory = newValue;
-            _selectedSubCategory = null; // Reset subcategory when category changes
+            _selectedSubCategory =
+                null; // Reset subcategory when category changes
           });
         },
-        validator: (value) => value == null || value.name.isEmpty ? 'Required' : null,
+        validator: (value) =>
+            value == null || value.name.isEmpty ? 'Required' : null,
       ),
     );
   }
 
   Widget _buildSubCategoryDropdown() {
     final subCategories = _getFilteredSubCategories();
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownButtonFormField<SubCategory>(
@@ -212,12 +216,15 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
             child: Text(subCategory.name),
           );
         }).toList(),
-        onChanged: _selectedCategory == null ? null : (SubCategory? newValue) {
-          setState(() {
-            _selectedSubCategory = newValue;
-          });
-        },
-        validator: (value) => value == null || value.name.isEmpty ? 'Required' : null,
+        onChanged: _selectedCategory == null
+            ? null
+            : (SubCategory? newValue) {
+                setState(() {
+                  _selectedSubCategory = newValue;
+                });
+              },
+        validator: (value) =>
+            value == null || value.name.isEmpty ? 'Required' : null,
       ),
     );
   }
@@ -345,8 +352,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         issuedQty: _issuedQtyController.text,
         receivedQty: _receivedQtyController.text,
         avlStock: _stockController.text,
-        avlStockValue: (double.tryParse(_stockController.text) ?? 0 * saleRate)
-            .toString(),
+        avlStockValue:
+            (double.tryParse(_stockController.text) ?? 0 * saleRate).toString(),
         billingQtyDiff: '0',
         totalReceivedCost: (receivedQty * supplierRate).toString(),
         totalBilledCost: (receivedQty * saleRate).toString(),
@@ -521,7 +528,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   // Helper method to get filtered subcategories
   List<SubCategory> _getFilteredSubCategories() {
     if (_selectedCategory == null) return [];
-    return ref.read(subCategoryListProvider)
+    return ref
+        .read(subCategoryListProvider)
         .where((sc) => sc.categoryName == _selectedCategory!.name)
         .toList();
   }

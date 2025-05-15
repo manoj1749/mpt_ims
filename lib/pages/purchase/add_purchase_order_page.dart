@@ -48,10 +48,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   // Store Job Numbers from PRs
   Set<String> jobNumbers = {};
 
-  // Calculate total remaining quantity for a material
-  double _calculateTotalRemainingQuantity(List<PRItem> items) {
-    return items.fold(0.0, (sum, item) => sum + item.remainingQuantity);
-  }
 
   // Allocate ordered quantity across PRs
 
@@ -376,8 +372,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                 keyboardType: TextInputType.number,
                                 validator: (value) {
                                   if (!isSelected) return null;
-                                  if (value == null || value.isEmpty)
+                                  if (value == null || value.isEmpty) {
                                     return null;
+                                  }
                                   final qty = double.tryParse(value);
                                   if (qty == null) return 'Invalid';
                                   if (qty < 0) return 'Invalid';
@@ -403,7 +400,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     })
                     .where(
                         (row) => row.children.any((cell) => cell is! SizedBox))
-                    .toList(),
+                    ,
               ],
             ),
           ],

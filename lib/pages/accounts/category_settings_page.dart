@@ -2,15 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../provider/category_provider.dart';
 import '../../provider/sub_category_provider.dart';
-import '../../provider/quality_provider.dart';
 import '../../provider/category_parameter_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
 import '../../models/category.dart';
-import '../../models/sub_category.dart';
-import '../../models/quality.dart';
-import '../../models/quality_inspection.dart';
 import '../../models/category_parameter_mapping.dart';
-import '../../models/universal_parameter.dart';
 
 class CategorySettingsPage extends ConsumerStatefulWidget {
   const CategorySettingsPage({super.key});

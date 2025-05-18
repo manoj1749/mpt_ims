@@ -153,19 +153,6 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   },
                   validator: (val) =>
                       val == null ? 'Please select a supplier' : null,
-                  dropdownStyleData: DropdownStyleData(
-                    maxHeight: 300,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  menuItemStyleData: const MenuItemStyleData(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                  buttonStyleData: const ButtonStyleData(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    height: 40,
-                  ),
                 ),
               ),
 
@@ -198,19 +185,6 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                     },
                     validator: (val) =>
                         val == null ? 'Please select a purchase order' : null,
-                    dropdownStyleData: DropdownStyleData(
-                      maxHeight: 300,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    menuItemStyleData: const MenuItemStyleData(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    buttonStyleData: const ButtonStyleData(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      height: 40,
-                    ),
                   ),
                 ),
 

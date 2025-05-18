@@ -422,6 +422,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
             else
               ListView.builder(
                 shrinkWrap: true,
+                physics: const ClampingScrollPhysics(),
                 itemCount: vendors.length,
                 itemBuilder: (context, index) {
                   final vendor = vendors[index];
@@ -517,7 +518,9 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildVendorRatesSection(vendors),
+              child: SingleChildScrollView(
+                child: _buildVendorRatesSection(vendors),
+              ),
             ),
           ],
         ),

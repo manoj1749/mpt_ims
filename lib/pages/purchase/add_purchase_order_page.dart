@@ -112,14 +112,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     // Check if the supplier has a rate for this material
     final vendorRate =
         rates.where((r) => r.vendorId == selectedSupplier!.name).firstOrNull;
-    if (vendorRate == null) {
-      throw Exception(
-          'Please add rate for ${material.description} for vendor ${selectedSupplier!.name} before creating PO');
-    }
-
-    final costPerUnit = double.parse(vendorRate.supplierRate);
-    final saleRate = double.parse(vendorRate.saleRate);
-    final marginPerUnit = saleRate - costPerUnit;
+    
+    // Default values if no rate is found
+    final costPerUnit = vendorRate != null ? double.parse(vendorRate.saleRate) : 0.0;
+    final saleRate = vendorRate != null ? double.parse(vendorRate.saleRate) : 0.0;
+    final marginPerUnit = 0.0; // No margin since we're using sale rate as cost
 
     // Calculate total quantity from PR-wise quantities
     final prQuantities = <String, double>{};
@@ -428,9 +425,18 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     // Group PR items by material code for the selected supplier
     final materialPRItems = <String, List<PRItem>>{};
     for (var pr in purchaseRequests) {
-      if (pr.supplierName == selectedSupplier!.name) {
-        for (var item in pr.items) {
-          materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
+      for (var item in pr.items) {
+        if (item.supplierName == selectedSupplier!.name) {
+          // Get the material to check preferred vendor
+          final material = materials.firstWhere(
+            (m) => m.partNo == item.materialCode,
+            orElse: () => throw Exception('Material not found: ${item.materialCode}'),
+          );
+          
+          // Only add if this supplier is the preferred vendor for this material
+          if (material.getPreferredVendorName(ref) == selectedSupplier!.name) {
+            materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
+          }
         }
       }
     }
@@ -580,15 +586,23 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     final purchaseRequests = ref.watch(purchaseRequestListProvider);
     final materials = ref.watch(materialListProvider);
 
-    // Group PR items by material code
+    // Group PR items by material code for the selected supplier
     final materialPRItems = <String, List<PRItem>>{};
 
     if (selectedSupplier != null) {
       for (var pr in purchaseRequests) {
-        if (pr.supplierName == selectedSupplier!.name) {
-          for (var item in pr.items) {
-            // Remove the check for fully ordered items that aren't in this PO
-            materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
+        for (var item in pr.items) {
+          if (item.supplierName == selectedSupplier!.name) {
+            // Get the material to check preferred vendor
+            final material = materials.firstWhere(
+              (m) => m.partNo == item.materialCode,
+              orElse: () => throw Exception('Material not found: ${item.materialCode}'),
+            );
+            
+            // Only add if this supplier is the preferred vendor for this material
+            if (material.getPreferredVendorName(ref) == selectedSupplier!.name) {
+              materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
+            }
           }
         }
       }
@@ -597,6 +611,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     // Calculate totals
     double subtotal = 0;
     final poItems = <POItem>[];
+    final materialsWithoutRates = <String>[];
 
     for (var entry in materialPRItems.entries) {
       final material = materials.firstWhere(
@@ -604,11 +619,39 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         orElse: () => throw Exception('Material not found: ${entry.key}'),
       );
 
+      // Check if material has a rate
+      final rates = ref
+          .read(vendorMaterialRateProvider.notifier)
+          .getRatesForMaterial(material.slNo);
+      final hasRate = rates.any((r) => r.vendorId == selectedSupplier!.name);
+      
+      if (!hasRate) {
+        materialsWithoutRates.add(material.description);
+      }
+
       final poItem = _createPOItem(material, entry.value);
       if (double.parse(poItem.quantity) > 0) {
         poItems.add(poItem);
         subtotal += double.parse(poItem.totalCost);
       }
+    }
+
+    // Show warning for materials without rates using post-frame callback
+    if (materialsWithoutRates.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Note: Only showing materials where ${selectedSupplier!.name} is the preferred vendor. Materials from other vendors will not appear here.',
+            ),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              onPressed: () {},
+            ),
+          ),
+        );
+      });
     }
 
     return Scaffold(

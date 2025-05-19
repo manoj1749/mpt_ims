@@ -21,8 +21,9 @@ class PRItemAdapter extends TypeAdapter<PRItem> {
       materialDescription: fields[1] as String,
       unit: fields[2] as String,
       quantity: fields[3] as String,
-      remarks: fields[4] as String,
+      remarks: fields[4] as String?,
       prNo: fields[6] as String,
+      supplierName: fields[7] as String,
       orderedQuantities: (fields[5] as Map?)?.cast<String, double>(),
     );
   }
@@ -30,7 +31,7 @@ class PRItemAdapter extends TypeAdapter<PRItem> {
   @override
   void write(BinaryWriter writer, PRItem obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class PRItemAdapter extends TypeAdapter<PRItem> {
       ..writeByte(5)
       ..write(obj.orderedQuantities)
       ..writeByte(6)
-      ..write(obj.prNo);
+      ..write(obj.prNo)
+      ..writeByte(7)
+      ..write(obj.supplierName);
   }
 
   @override

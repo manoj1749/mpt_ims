@@ -28,6 +28,7 @@ class _AddPurchaseRequestPageState
   final _requiredByController = TextEditingController();
   String? _selectedJobNo;
   final Map<String, String?> _selectedVendors = {};
+  bool _initialized = false;
 
   @override
   void initState() {
@@ -43,11 +44,22 @@ class _AddPurchaseRequestPageState
           partNoController: TextEditingController(text: item.materialCode),
           unitController: TextEditingController(text: item.unit),
         ));
-        _selectedVendors[item.materialDescription] =
-            widget.existingRequest!.supplierName;
       }
     } else {
       _addNewItem();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    if (!_initialized && widget.existingRequest != null) {
+      for (var item in widget.existingRequest!.items) {
+        // Initialize vendor selections from the item's supplier
+        _selectedVendors[item.materialDescription] = item.supplierName;
+      }
+      _initialized = true;
     }
   }
 
@@ -87,17 +99,63 @@ class _AddPurchaseRequestPageState
     final rates = ref
         .read(vendorMaterialRateProvider.notifier)
         .getRatesForMaterial(materialId);
-    rates.sort(
-        (a, b) => double.parse(a.saleRate).compareTo(double.parse(b.saleRate)));
     return rates;
   }
 
   String? _validateMaterialVendors(String materialId, String description) {
     final rates = _getVendorRates(materialId);
-    if (rates.isEmpty) {
-      return 'No vendors available for $description';
-    }
     return null;
+  }
+
+  List<DropdownMenuItem<String>> _buildVendorDropdownItems(String materialId, String materialDescription) {
+    final rates = _getVendorRates(materialId);
+    final preferredVendor = ref.read(materialListProvider)
+        .firstWhere((m) => m.slNo == materialId)
+        .getPreferredVendorName(ref);
+
+    // Create a map to store unique vendors and their best rates
+    final vendorMap = <String, VendorMaterialRate>{};
+    
+    // Keep only the best rate for each vendor
+    for (var rate in rates) {
+      if (!vendorMap.containsKey(rate.vendorId) || 
+          double.parse(rate.saleRate) < double.parse(vendorMap[rate.vendorId]!.saleRate)) {
+        vendorMap[rate.vendorId] = rate;
+      }
+    }
+
+    // Convert to dropdown items
+    return vendorMap.values.map((rate) {
+      final isPreferred = rate.vendorId == preferredVendor;
+      
+      return DropdownMenuItem<String>(
+        value: rate.vendorId,
+        child: Row(
+          children: [
+            if (isPreferred)
+              const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: Icon(Icons.star, color: Colors.amber, size: 16),
+              ),
+            Expanded(
+              child: Text(
+                rate.vendorId,
+                style: TextStyle(
+                  fontWeight: isPreferred ? FontWeight.bold : null,
+                ),
+              ),
+            ),
+            Text(
+              '₹${rate.saleRate}',
+              style: TextStyle(
+                color: isPreferred ? Colors.green : null,
+                fontWeight: isPreferred ? FontWeight.bold : null,
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
   }
 
   @override
@@ -272,44 +330,16 @@ class _AddPurchaseRequestPageState
                             labelText: 'Vendor',
                             border: OutlineInputBorder(),
                           ),
-                          items: _getVendorRates(
-                            materials
-                                .firstWhere((m) =>
-                                    m.description == item.selectedMaterial)
-                                .slNo,
-                          ).map((rate) {
-                            final isLowestRate = rate ==
-                                _getVendorRates(
-                                  materials
-                                      .firstWhere((m) =>
-                                          m.description ==
-                                          item.selectedMaterial)
-                                      .slNo,
-                                ).first;
-                            return DropdownMenuItem<String>(
-                              value: rate.vendorId,
-                              child: Row(
-                                children: [
-                                  Expanded(child: Text(rate.vendorId)),
-                                  Text(
-                                    '₹${rate.saleRate}',
-                                    style: TextStyle(
-                                      color: isLowestRate ? Colors.green : null,
-                                      fontWeight:
-                                          isLowestRate ? FontWeight.bold : null,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
+                          items: _buildVendorDropdownItems(
+                            materials.firstWhere((m) => m.description == item.selectedMaterial).slNo,
+                            item.selectedMaterial!,
+                          ),
                           onChanged: (val) {
                             setState(() {
                               _selectedVendors[item.selectedMaterial!] = val;
                             });
                           },
-                          validator: (val) =>
-                              val == null || val.isEmpty ? 'Required' : null,
+                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
                         ),
                       ],
                       const SizedBox(height: 16),
@@ -378,41 +408,61 @@ class _AddPurchaseRequestPageState
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
                       _formKey.currentState!.save();
-                      final now =
-                          DateFormat('yyyy-MM-dd').format(DateTime.now());
+                      final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
                       final prNo = widget.existingRequest?.prNo ??
                           'PR${DateTime.now().millisecondsSinceEpoch}';
 
-                      final items = _items.map((item) {
+                      // Process all items (both new and existing)
+                      final allItems = <PRItem>[];
+                      
+                      // First, process the form items
+                      for (var item in _items) {
+                        if (item.selectedMaterial == null) continue;
+
                         final material = materials.firstWhere(
                           (m) => m.description == item.selectedMaterial,
                         );
 
-                        return PRItem(
+                        final supplierName = _selectedVendors[item.selectedMaterial]!;
+
+                        final prItem = PRItem(
                           materialCode: material.partNo,
                           materialDescription: material.description,
                           unit: material.unit,
                           quantity: item.quantity!,
                           remarks: item.remarks ?? '',
                           prNo: prNo,
+                          supplierName: supplierName,
                         );
-                      }).toList();
+
+                        // Check if this is a modification of an existing item
+                        if (widget.existingRequest != null) {
+                          final existingItemIndex = widget.existingRequest!.items.indexWhere(
+                            (existing) => existing.materialCode == prItem.materialCode
+                          );
+
+                          if (existingItemIndex != -1) {
+                            // Preserve ordered quantities from existing item
+                            prItem.orderedQuantities = 
+                                Map<String, double>.from(widget.existingRequest!.items[existingItemIndex].orderedQuantities);
+                          }
+                        }
+
+                        allItems.add(prItem);
+                      }
 
                       final newRequest = PurchaseRequest(
                         prNo: prNo,
                         date: widget.existingRequest?.date ?? now,
                         requiredBy: _requiredByController.text,
-                        supplierName:
-                            _selectedVendors[_items[0].selectedMaterial]!,
-                        items: items,
-                        status: 'Requested',
+                        items: allItems,
+                        status: widget.existingRequest?.status ?? 'Requested',
                         jobNo: _selectedJobNo,
                       );
 
-                      final notifier =
-                          ref.read(purchaseRequestListProvider.notifier);
-                      if (widget.existingRequest != null) {
+                      final notifier = ref.read(purchaseRequestListProvider.notifier);
+                      if (widget.existingRequest != null && widget.index != null) {
                         notifier.updateRequest(widget.index!, newRequest);
                       } else {
                         notifier.addRequest(newRequest);

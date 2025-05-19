@@ -17,9 +17,6 @@ class PurchaseRequest extends HiveObject {
   @HiveField(3)
   String? _status;
 
-  @HiveField(4)
-  String supplierName;
-
   @HiveField(5)
   List<PRItem> items = [];
 
@@ -50,7 +47,6 @@ class PurchaseRequest extends HiveObject {
     required this.date,
     required this.requiredBy,
     String? status,
-    required this.supplierName,
     List<PRItem>? items,
     this.jobNo,
   }) {

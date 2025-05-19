@@ -17,7 +17,7 @@ class PRItem extends HiveObject {
   String quantity;
 
   @HiveField(4)
-  String remarks;
+  String? remarks;
 
   @HiveField(5)
   Map<String, double> orderedQuantities =
@@ -25,6 +25,9 @@ class PRItem extends HiveObject {
 
   @HiveField(6)
   String prNo; // Reference to parent PR number
+
+  @HiveField(7)
+  String supplierName; // The preferred/selected supplier for this item
 
   double get totalOrderedQuantity =>
       orderedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
@@ -45,8 +48,9 @@ class PRItem extends HiveObject {
     required this.materialDescription,
     required this.unit,
     required this.quantity,
-    this.remarks = '',
+    this.remarks,
     required this.prNo,
+    required this.supplierName,
     Map<String, double>? orderedQuantities,
   }) {
     this.orderedQuantities = orderedQuantities ?? {};
@@ -59,6 +63,7 @@ class PRItem extends HiveObject {
     String? quantity,
     String? remarks,
     String? prNo,
+    String? supplierName,
     Map<String, double>? orderedQuantities,
   }) {
     return PRItem(
@@ -68,6 +73,7 @@ class PRItem extends HiveObject {
       quantity: quantity ?? this.quantity,
       remarks: remarks ?? this.remarks,
       prNo: prNo ?? this.prNo,
+      supplierName: supplierName ?? this.supplierName,
       orderedQuantities:
           orderedQuantities ?? Map<String, double>.from(this.orderedQuantities),
     );

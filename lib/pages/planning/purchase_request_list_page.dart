@@ -199,7 +199,7 @@ class PurchaseRequestListPage extends ConsumerWidget {
                                                 ),
                                               ),
                                             ),
-                                            DataCell(Text(item.remarks)),
+                                            DataCell(Text(item.remarks ?? '')),
                                           ],
                                         );
                                       }).toList(),

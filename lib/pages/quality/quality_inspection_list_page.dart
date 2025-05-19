@@ -18,23 +18,31 @@ class _QualityInspectionListPageState
     extends ConsumerState<QualityInspectionListPage> {
   PlutoGridStateManager? stateManager;
 
+  void _navigateToAddInspection(BuildContext context) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AddQualityInspectionPage(),
+      ),
+    );
+    // Refresh the grid after returning from add/edit page
+    if (stateManager != null) {
+      final inspections = ref.read(qualityInspectionProvider);
+      stateManager!.removeAllRows();
+      stateManager!.appendRows(_getRows(inspections));
+    }
+  }
+
   List<PlutoColumn> _getColumns() {
     final universalParams = ref.watch(universalParameterProvider);
 
-    // Define base columns
-    final columns = [
-      // Base columns
+    return [
       PlutoColumn(
         title: 'PO No',
         field: 'poNo',
         type: PlutoColumnType.text(),
         width: 120,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
       ),
       PlutoColumn(
         title: 'Supplier',
@@ -42,11 +50,6 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.text(),
         width: 150,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
       ),
       PlutoColumn(
         title: 'Part No',
@@ -54,11 +57,6 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.text(),
         width: 120,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
       ),
       PlutoColumn(
         title: 'Description',
@@ -66,23 +64,41 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.text(),
         width: 200,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
       ),
       PlutoColumn(
-        title: 'Qty',
-        field: 'qty',
+        title: 'Received Qty',
+        field: 'receivedQty',
         type: PlutoColumnType.number(),
-        width: 100,
+        width: 120,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '0',
-          );
-        },
+      ),
+      PlutoColumn(
+        title: 'Accepted Qty',
+        field: 'acceptedQty',
+        type: PlutoColumnType.number(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Rejected Qty',
+        field: 'rejectedQty',
+        type: PlutoColumnType.number(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Pending Qty',
+        field: 'pendingQty',
+        type: PlutoColumnType.number(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Usage Decision',
+        field: 'usageDecision',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
       ),
       PlutoColumn(
         title: 'Unit',
@@ -90,11 +106,6 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.text(),
         width: 80,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
       ),
       PlutoColumn(
         title: 'Cost/Unit',
@@ -103,11 +114,8 @@ class _QualityInspectionListPageState
         width: 120,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final value = rendererContext.cell.value;
-          return Text(
-            value != null ? '₹$value' : '₹0',
-            style: const TextStyle(fontFamily: 'monospace'),
-          );
+          final value = rendererContext.cell.value as num;
+          return Text('₹${value.toStringAsFixed(2)}');
         },
       ),
       PlutoColumn(
@@ -117,11 +125,8 @@ class _QualityInspectionListPageState
         width: 120,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final value = rendererContext.cell.value;
-          return Text(
-            value != null ? '₹$value' : '₹0',
-            style: const TextStyle(fontFamily: 'monospace'),
-          );
+          final value = rendererContext.cell.value as num;
+          return Text('₹${value.toStringAsFixed(2)}');
         },
       ),
       PlutoColumn(
@@ -130,11 +135,6 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.text(),
         width: 120,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
       ),
       PlutoColumn(
         title: 'Bill Date',
@@ -142,11 +142,6 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.text(),
         width: 120,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
       ),
       PlutoColumn(
         title: 'Received Date',
@@ -154,23 +149,6 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.text(),
         width: 120,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Expiration Date',
-        field: 'expirationDate',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
       ),
       PlutoColumn(
         title: 'GR Date',
@@ -178,11 +156,6 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.text(),
         width: 120,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
       ),
       PlutoColumn(
         title: 'Category',
@@ -190,11 +163,6 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.text(),
         width: 120,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
       ),
       PlutoColumn(
         title: 'Sample Size',
@@ -202,13 +170,8 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.number(),
         width: 120,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '0',
-          );
-        },
       ),
-      // Quality Parameters
+
       ...universalParams.map((param) {
         final fieldName =
             param.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
@@ -252,168 +215,23 @@ class _QualityInspectionListPageState
         );
       }),
       PlutoColumn(
-        title: 'Manufacturing Date/Shelf Life',
-        field: 'manufacturingDate',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Remarks',
-        field: 'remarks',
-        type: PlutoColumnType.text(),
-        width: 200,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? 'NA',
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Usage Decision',
-        field: 'usageDecision',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          final item =
-              rendererContext.row.cells['item']?.value as InspectionItem?;
-          if (item == null) return const Text('');
-
-          String displayText = item.usageDecision;
-          if (item.usageDecision == '100% Recheck' &&
-              (item.isPartialRecheck ?? false)) {
-            displayText = '100% Recheck (Partial)';
-          }
-
-          Color textColor;
-          switch (item.usageDecision) {
-            case 'Lot Accepted':
-              textColor = Colors.green;
-              break;
-            case 'Rejected':
-              textColor = Colors.red;
-              break;
-            case '100% Recheck':
-              textColor = Colors.orange;
-              break;
-            case 'Conditionally Accepted':
-              textColor = Colors.blue;
-              break;
-            default:
-              textColor = Colors.grey;
-          }
-          return Text(
-            displayText,
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Conditional Acceptance Reason',
-        field: 'conditionalReason',
-        type: PlutoColumnType.text(),
-        width: 200,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          final item =
-              rendererContext.row.cells['item']?.value as InspectionItem?;
-          if (item == null || item.usageDecision != 'Conditionally Accepted') {
-            return const Text('');
-          }
-          return Text(item.conditionalAcceptanceReason ?? '');
-        },
-      ),
-      PlutoColumn(
-        title: 'Required Action',
-        field: 'conditionalAction',
-        type: PlutoColumnType.text(),
-        width: 200,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          final item =
-              rendererContext.row.cells['item']?.value as InspectionItem?;
-          if (item == null || item.usageDecision != 'Conditionally Accepted') {
-            return const Text('');
-          }
-          return Text(item.conditionalAcceptanceAction ?? '');
-        },
-      ),
-      PlutoColumn(
-        title: 'Action Deadline',
-        field: 'conditionalDeadline',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          final item =
-              rendererContext.row.cells['item']?.value as InspectionItem?;
-          if (item == null || item.usageDecision != 'Conditionally Accepted') {
-            return const Text('');
-          }
-          return Text(item.conditionalAcceptanceDeadline ?? '');
-        },
-      ),
-      PlutoColumn(
-        title: 'Accepted Qty',
-        field: 'acceptedQty',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '0',
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Rejected Qty',
-        field: 'rejectedQty',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '0',
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Pending Qty',
-        field: 'pendingQty',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value?.toString() ?? '0',
-          );
-        },
-      ),
-      PlutoColumn(
         title: 'Actions',
         field: 'actions',
         type: PlutoColumnType.text(),
         width: 100,
         enableEditingMode: false,
         renderer: (rendererContext) {
+          final inspection = rendererContext.row.cells['inspection']!.value as QualityInspection;
+          final item = rendererContext.row.cells['item']!.value as InspectionItem;
+          final poNo = rendererContext.row.cells['poNo']!.value as String;
+
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () {
-                  final inspection = rendererContext
-                      .row.cells['inspection']?.value as QualityInspection?;
-                  if (inspection != null) {
-                    _confirmDelete(context, inspection);
-                  }
+                  _confirmDelete(context, inspection);
                 },
                 color: Colors.red[400],
                 tooltip: 'Delete',
@@ -427,91 +245,50 @@ class _QualityInspectionListPageState
         },
       ),
     ];
-
-    return columns;
   }
 
   List<PlutoRow> _getRows(List<QualityInspection> inspections) {
-    final universalParams = ref.watch(universalParameterProvider);
-
     return inspections.expand((inspection) {
-      return inspection.items.map((item) {
-        // Ensure item.parameters is initialized
-        if (item.parameters.isEmpty) {
-          item.parameters = universalParams.map((param) {
-            return QualityParameter(
-              parameter: param.name,
-              specification: '',
-              observation: 'NA',
-              isAcceptable: true,
-              remarks: '',
-            );
-          }).toList();
-        }
+      return inspection.items.expand((item) {
+        return item.poQuantities.entries.map((poEntry) {
+          final poNo = poEntry.key;
+          final poQty = poEntry.value;
 
-        // Create a map for parameter cells
-        final parameterCells = Map.fromEntries(
-          universalParams.map((param) {
+          // Create parameter cells
+          final parameterCells = <String, PlutoCell>{};
+          for (var param in item.parameters) {
             final fieldName =
-                param.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+                param.parameter.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+            parameterCells[fieldName] = PlutoCell(value: param);
+          }
 
-            // Find existing parameter or create a new one
-            final parameter = item.parameters.firstWhere(
-              (p) => p.parameter == param.name,
-              orElse: () => QualityParameter(
-                parameter: param.name,
-                specification: '',
-                observation: 'NA',
-                isAcceptable: true,
-                remarks: '',
-              ),
-            );
+          final cells = {
+            'inspection': PlutoCell(value: inspection),
+            'item': PlutoCell(value: item),
+            'poNo': PlutoCell(value: poNo),
+            'supplier': PlutoCell(value: inspection.supplierName),
+            'partNo': PlutoCell(value: item.materialCode),
+            'description': PlutoCell(value: item.materialDescription),
+            'receivedQty': PlutoCell(value: poQty.receivedQty),
+            'acceptedQty': PlutoCell(value: poQty.acceptedQty),
+            'rejectedQty': PlutoCell(value: poQty.rejectedQty),
+            'pendingQty': PlutoCell(value: item.getPendingQuantityForPO(poNo)),
+            'usageDecision': PlutoCell(value: poQty.usageDecision),
+            'unit': PlutoCell(value: item.unit),
+            'costPerUnit': PlutoCell(value: item.costPerUnit),
+            'totalCost': PlutoCell(value: item.costPerUnit * poQty.receivedQty),
+            'billNo': PlutoCell(value: inspection.billNo),
+            'billDate': PlutoCell(value: inspection.billDate),
+            'receivedDate': PlutoCell(value: item.receivedDate),
+            'grDate': PlutoCell(value: inspection.grnDate),
+            'category': PlutoCell(value: item.category),
+            'sampleSize': PlutoCell(value: item.sampleSize),
+            'actions': PlutoCell(value: ''),
+            ...parameterCells,
+          };
 
-            // Create a new PlutoCell with the parameter
-            return MapEntry(fieldName, PlutoCell(value: parameter));
-          }),
-        );
-
-        // Helper function to create a PlutoCell with null safety
-        PlutoCell safeCell(dynamic value, {bool isNumber = false}) {
-          if (value == null) return PlutoCell(value: isNumber ? 0 : 'NA');
-          if (value is String && value.isEmpty) return PlutoCell(value: 'NA');
-          return PlutoCell(value: value);
-        }
-
-        // Ensure all required fields have non-null values
-        final cells = {
-          'inspection': PlutoCell(value: inspection),
-          'item': PlutoCell(value: item),
-          'poNo': safeCell(inspection.poNo),
-          'supplier': safeCell(inspection.supplierName),
-          'partNo': safeCell(item.materialCode),
-          'description': safeCell(item.materialDescription),
-          'qty': safeCell(item.receivedQty, isNumber: true),
-          'unit': safeCell(item.unit),
-          'costPerUnit': safeCell(item.costPerUnit, isNumber: true),
-          'totalCost': safeCell(item.totalCost, isNumber: true),
-          'billNo': safeCell(inspection.billNo),
-          'billDate': safeCell(inspection.billDate),
-          'receivedDate': safeCell(item.receivedDate),
-          'expirationDate': safeCell(item.expirationDate),
-          'grDate': safeCell(inspection.grnDate),
-          'category': safeCell(item.category),
-          'sampleSize': safeCell(item.sampleSize, isNumber: true),
-          'manufacturingDate': safeCell(''),
-          'remarks': safeCell(item.remarks),
-          'usageDecision': safeCell(item.usageDecision),
-          'acceptedQty': safeCell(item.acceptedQty, isNumber: true),
-          'rejectedQty': safeCell(item.rejectedQty, isNumber: true),
-          'pendingQty': safeCell(item.pendingQty, isNumber: true),
-          'actions': safeCell(''),
-          'conditionalReason': safeCell(item.conditionalAcceptanceReason),
-          'conditionalAction': safeCell(item.conditionalAcceptanceAction),
-          'conditionalDeadline': safeCell(item.conditionalAcceptanceDeadline),
-          ...parameterCells,
-        };
-
-        return PlutoRow(cells: cells);
+          return PlutoRow(cells: cells);
+        });
       });
     }).toList();
   }
@@ -549,6 +326,7 @@ class _QualityInspectionListPageState
 
   @override
   Widget build(BuildContext context) {
+    // Watch the provider to automatically update when changes occur
     final inspections = ref.watch(qualityInspectionProvider);
 
     return Scaffold(
@@ -566,14 +344,7 @@ class _QualityInspectionListPageState
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddQualityInspectionPage(),
-            ),
-          );
-        },
+        onPressed: () => _navigateToAddInspection(context),
         child: const Icon(Icons.add),
       ),
       body: inspections.isEmpty
@@ -596,12 +367,7 @@ class _QualityInspectionListPageState
                   ),
                   const SizedBox(height: 8),
                   FilledButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddQualityInspectionPage(),
-                      ),
-                    ),
+                    onPressed: () => _navigateToAddInspection(context),
                     child: const Text('Add New Inspection'),
                   ),
                 ],

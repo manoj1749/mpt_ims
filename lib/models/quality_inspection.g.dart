@@ -28,7 +28,6 @@ class QualityInspectionAdapter extends TypeAdapter<QualityInspection> {
       grnDate: fields[8] as String,
       inspectedBy: fields[9] as String,
       approvedBy: fields[10] as String,
-      remarks: fields[11] as String,
       items: (fields[12] as List).cast<InspectionItem>(),
       status: fields[13] as String,
     );
@@ -37,7 +36,7 @@ class QualityInspectionAdapter extends TypeAdapter<QualityInspection> {
   @override
   void write(BinaryWriter writer, QualityInspection obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.inspectionNo)
       ..writeByte(1)
@@ -60,8 +59,6 @@ class QualityInspectionAdapter extends TypeAdapter<QualityInspection> {
       ..write(obj.inspectedBy)
       ..writeByte(10)
       ..write(obj.approvedBy)
-      ..writeByte(11)
-      ..write(obj.remarks)
       ..writeByte(12)
       ..write(obj.items)
       ..writeByte(13)
@@ -102,7 +99,6 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       acceptedQty: fields[9] as double,
       rejectedQty: fields[10] as double,
       pendingQty: fields[11] as double,
-      remarks: fields[12] as String,
       usageDecision: fields[13] as String,
       receivedDate: fields[14] as String,
       expirationDate: fields[15] as String,
@@ -111,6 +107,7 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       conditionalAcceptanceReason: fields[18] as String?,
       conditionalAcceptanceAction: fields[19] as String?,
       conditionalAcceptanceDeadline: fields[20] as String?,
+      poQuantities: (fields[21] as Map?)?.cast<String, InspectionPOQuantity>(),
     );
   }
 
@@ -142,8 +139,6 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       ..write(obj.rejectedQty)
       ..writeByte(11)
       ..write(obj.pendingQty)
-      ..writeByte(12)
-      ..write(obj.remarks)
       ..writeByte(13)
       ..write(obj.usageDecision)
       ..writeByte(14)
@@ -159,7 +154,9 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       ..writeByte(19)
       ..write(obj.conditionalAcceptanceAction)
       ..writeByte(20)
-      ..write(obj.conditionalAcceptanceDeadline);
+      ..write(obj.conditionalAcceptanceDeadline)
+      ..writeByte(21)
+      ..write(obj.poQuantities);
   }
 
   @override
@@ -169,6 +166,49 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is InspectionItemAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class InspectionPOQuantityAdapter extends TypeAdapter<InspectionPOQuantity> {
+  @override
+  final int typeId = 20;
+
+  @override
+  InspectionPOQuantity read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return InspectionPOQuantity(
+      receivedQty: fields[0] as double,
+      acceptedQty: fields[1] as double,
+      rejectedQty: fields[2] as double,
+      usageDecision: fields[3] as String,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, InspectionPOQuantity obj) {
+    writer
+      ..writeByte(4)
+      ..writeByte(0)
+      ..write(obj.receivedQty)
+      ..writeByte(1)
+      ..write(obj.acceptedQty)
+      ..writeByte(2)
+      ..write(obj.rejectedQty)
+      ..writeByte(3)
+      ..write(obj.usageDecision);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InspectionPOQuantityAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
@@ -188,14 +228,13 @@ class QualityParameterAdapter extends TypeAdapter<QualityParameter> {
       specification: fields[1] as String,
       observation: fields[2] as String,
       isAcceptable: fields[3] as bool,
-      remarks: fields[4] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, QualityParameter obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.parameter)
       ..writeByte(1)
@@ -203,9 +242,7 @@ class QualityParameterAdapter extends TypeAdapter<QualityParameter> {
       ..writeByte(2)
       ..write(obj.observation)
       ..writeByte(3)
-      ..write(obj.isAcceptable)
-      ..writeByte(4)
-      ..write(obj.remarks);
+      ..write(obj.isAcceptable);
   }
 
   @override

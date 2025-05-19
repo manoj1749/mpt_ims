@@ -40,9 +40,6 @@ class QualityInspection extends HiveObject {
   @HiveField(10)
   String approvedBy;
 
-  @HiveField(11)
-  String remarks;
-
   @HiveField(12)
   List<InspectionItem> items;
 
@@ -61,7 +58,6 @@ class QualityInspection extends HiveObject {
     required this.grnDate,
     required this.inspectedBy,
     required this.approvedBy,
-    required this.remarks,
     required this.items,
     this.status = 'Pending',
   });
@@ -82,7 +78,7 @@ class InspectionItem extends HiveObject {
   String category;
 
   @HiveField(4)
-  double receivedQty; // Qty
+  double receivedQty; // Total Qty
 
   @HiveField(5)
   double costPerUnit; // Cost/Unit
@@ -105,12 +101,8 @@ class InspectionItem extends HiveObject {
   @HiveField(11)
   double pendingQty;
 
-  @HiveField(12)
-  String remarks;
-
   @HiveField(13)
-  String
-      usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
+  String usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
 
   @HiveField(14)
   String receivedDate; // Date when material was received
@@ -128,12 +120,13 @@ class InspectionItem extends HiveObject {
   String? conditionalAcceptanceReason; // Reason for conditional acceptance
 
   @HiveField(19)
-  String?
-      conditionalAcceptanceAction; // Required action for conditional acceptance
+  String? conditionalAcceptanceAction; // Required action for conditional acceptance
 
   @HiveField(20)
-  String?
-      conditionalAcceptanceDeadline; // Deadline for completing the required action
+  String? conditionalAcceptanceDeadline; // Deadline for completing the required action
+
+  @HiveField(21)
+  Map<String, InspectionPOQuantity> poQuantities = {}; // Store PO-wise quantities and decisions
 
   InspectionItem({
     required this.materialCode,
@@ -148,7 +141,6 @@ class InspectionItem extends HiveObject {
     required this.acceptedQty,
     required this.rejectedQty,
     required this.pendingQty,
-    required this.remarks,
     required this.usageDecision,
     required this.receivedDate,
     required this.expirationDate,
@@ -157,7 +149,96 @@ class InspectionItem extends HiveObject {
     this.conditionalAcceptanceReason,
     this.conditionalAcceptanceAction,
     this.conditionalAcceptanceDeadline,
+    Map<String, InspectionPOQuantity>? poQuantities,
+  }) {
+    this.poQuantities = poQuantities ?? {};
+  }
+
+  // Helper method to get total received quantity for a specific PO
+  double getReceivedQuantityForPO(String poNo) {
+    return poQuantities[poNo]?.receivedQty ?? 0.0;
+  }
+
+  // Helper method to get total accepted quantity for a specific PO
+  double getAcceptedQuantityForPO(String poNo) {
+    return poQuantities[poNo]?.acceptedQty ?? 0.0;
+  }
+
+  // Helper method to get total rejected quantity for a specific PO
+  double getRejectedQuantityForPO(String poNo) {
+    return poQuantities[poNo]?.rejectedQty ?? 0.0;
+  }
+
+  // Helper method to get pending quantity for a specific PO
+  double getPendingQuantityForPO(String poNo) {
+    final poQty = poQuantities[poNo];
+    if (poQty == null) return 0.0;
+    return poQty.receivedQty - (poQty.acceptedQty + poQty.rejectedQty);
+  }
+
+  // Helper method to update quantities for a specific PO
+  void updatePOQuantities(String poNo, {
+    double? receivedQty,
+    double? acceptedQty,
+    double? rejectedQty,
+    String? usageDecision,
+  }) {
+    final poQty = poQuantities[poNo] ?? InspectionPOQuantity(
+      receivedQty: 0,
+      acceptedQty: 0,
+      rejectedQty: 0,
+      usageDecision: this.usageDecision,
+    );
+
+    poQuantities[poNo] = poQty.copyWith(
+      receivedQty: receivedQty ?? poQty.receivedQty,
+      acceptedQty: acceptedQty ?? poQty.acceptedQty,
+      rejectedQty: rejectedQty ?? poQty.rejectedQty,
+      usageDecision: usageDecision ?? poQty.usageDecision,
+    );
+
+    // Update total quantities
+    this.receivedQty = poQuantities.values.fold(0.0, (sum, qty) => sum + qty.receivedQty);
+    this.acceptedQty = poQuantities.values.fold(0.0, (sum, qty) => sum + qty.acceptedQty);
+    this.rejectedQty = poQuantities.values.fold(0.0, (sum, qty) => sum + qty.rejectedQty);
+    this.pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
+  }
+}
+
+@HiveType(typeId: 20)
+class InspectionPOQuantity {
+  @HiveField(0)
+  double receivedQty;
+
+  @HiveField(1)
+  double acceptedQty;
+
+  @HiveField(2)
+  double rejectedQty;
+
+  @HiveField(3)
+  String usageDecision;
+
+  InspectionPOQuantity({
+    required this.receivedQty,
+    required this.acceptedQty,
+    required this.rejectedQty,
+    required this.usageDecision,
   });
+
+  InspectionPOQuantity copyWith({
+    double? receivedQty,
+    double? acceptedQty,
+    double? rejectedQty,
+    String? usageDecision,
+  }) {
+    return InspectionPOQuantity(
+      receivedQty: receivedQty ?? this.receivedQty,
+      acceptedQty: acceptedQty ?? this.acceptedQty,
+      rejectedQty: rejectedQty ?? this.rejectedQty,
+      usageDecision: usageDecision ?? this.usageDecision,
+    );
+  }
 }
 
 @HiveType(typeId: 13)
@@ -173,9 +254,6 @@ class QualityParameter {
 
   @HiveField(3)
   bool isAcceptable;
-
-  @HiveField(4)
-  String remarks;
 
   // Standard Quality Parameters - Exact names as per sheet
   static const String visualCheck = 'Visual Check';
@@ -213,6 +291,5 @@ class QualityParameter {
     required this.specification,
     required this.observation,
     required this.isAcceptable,
-    required this.remarks,
   });
 }

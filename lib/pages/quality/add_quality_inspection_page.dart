@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 import '../../models/quality_inspection.dart';
-import '../../models/store_inward.dart';
-import '../../models/material_item.dart';
 import '../../provider/quality_inspection_provider.dart';
+import '../../provider/material_provider.dart';
+import '../../models/material_item.dart';
+import '../../models/supplier.dart';
+import '../../provider/supplier_provider.dart';
+import '../../models/store_inward.dart';
 import '../../provider/store_inward_provider.dart';
 import '../../provider/category_parameter_provider.dart';
-import '../../provider/material_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
-import 'package:dropdown_button2/dropdown_button2.dart';
+import '../../models/universal_parameter.dart';
+import '../../models/category_parameter_mapping.dart';
 
 class AddQualityInspectionPage extends ConsumerStatefulWidget {
   const AddQualityInspectionPage({super.key});
@@ -25,10 +29,10 @@ class _AddQualityInspectionPageState
   final _inspectionDateController = TextEditingController();
   final _inspectedByController = TextEditingController();
   final _approvedByController = TextEditingController();
-  final _remarksController = TextEditingController();
 
-  StoreInward? selectedGRN;
+  Supplier? selectedSupplier;
   List<InspectionItem> _items = [];
+  Map<String, Map<String, bool>> selectedPOs = {};
 
   @override
   void initState() {
@@ -43,55 +47,90 @@ class _AddQualityInspectionPageState
     _inspectionDateController.dispose();
     _inspectedByController.dispose();
     _approvedByController.dispose();
-    _remarksController.dispose();
     super.dispose();
   }
 
-  void _onGRNSelected(StoreInward grn) {
+  void _onSupplierSelected(Supplier supplier) {
     final materials = ref.read(materialListProvider);
+    final inwards = ref.watch(storeInwardProvider);
+    final inspections = ref.watch(qualityInspectionProvider);
+
+    // Get all GRNs for this supplier that haven't been fully inspected
+    final supplierGRNs = inwards.where((inward) {
+      if (inward.supplierName != supplier.name) return false;
+
+      // Check if there's no inspection for this GRN
+      final existingInspections = inspections
+          .where((inspection) => inspection.grnNo == inward.grnNo)
+          .toList();
+      return existingInspections.isEmpty;
+    }).toList();
+
+    // Group items by material
+    final materialItems = <String, List<InwardItem>>{};
+    for (var grn in supplierGRNs) {
+      for (var item in grn.items) {
+        materialItems.putIfAbsent(item.materialCode, () => []).add(item);
+      }
+    }
 
     setState(() {
-      selectedGRN = grn;
-      _items = grn.items.map((item) {
-        final costPerUnit = double.tryParse(item.costPerUnit) ?? 0.0;
+      selectedSupplier = supplier;
+      _items = materialItems.entries.map((entry) {
+        final materialCode = entry.key;
+        final items = entry.value;
+        final firstItem = items.first;
 
         // Find the material to get its category
         final material = materials.firstWhere(
-          (m) => m.slNo == item.materialCode || m.partNo == item.materialCode,
+          (m) => m.slNo == materialCode || m.partNo == materialCode,
           orElse: () => materials.firstWhere(
             (m) =>
                 m.description.toLowerCase() ==
-                item.materialDescription.toLowerCase(),
+                firstItem.materialDescription.toLowerCase(),
             orElse: () => MaterialItem(
-              slNo: item.materialCode,
-              description: item.materialDescription,
-              partNo: item.materialCode,
-              unit: item.unit,
+              slNo: materialCode,
+              description: firstItem.materialDescription,
+              partNo: materialCode,
+              unit: firstItem.unit,
               category: 'General',
               subCategory: '',
             ),
           ),
         );
 
+        // Initialize PO quantities
+        final poQuantities = <String, InspectionPOQuantity>{};
+        for (var item in items) {
+          for (var entry in item.poQuantities.entries) {
+            poQuantities[entry.key] = InspectionPOQuantity(
+              receivedQty: entry.value,
+              acceptedQty: 0,
+              rejectedQty: 0,
+              usageDecision: 'Lot Accepted',
+            );
+          }
+        }
+
         return InspectionItem(
-          materialCode: item.materialCode,
-          materialDescription: item.materialDescription,
-          unit: item.unit,
+          materialCode: materialCode,
+          materialDescription: firstItem.materialDescription,
+          unit: firstItem.unit,
           category: material.category,
-          receivedQty: item.receivedQty,
-          costPerUnit: costPerUnit,
-          totalCost: costPerUnit * item.receivedQty,
+          receivedQty: items.fold(0.0, (sum, item) => sum + item.receivedQty),
+          costPerUnit: double.tryParse(firstItem.costPerUnit) ?? 0.0,
+          totalCost: items.fold(0.0, (sum, item) => sum + (double.tryParse(item.costPerUnit) ?? 0.0) * item.receivedQty),
           sampleSize: 0,
           inspectedQty: 0,
           acceptedQty: 0,
           rejectedQty: 0,
-          pendingQty: item.receivedQty,
-          remarks: '',
+          pendingQty: items.fold(0.0, (sum, item) => sum + item.receivedQty),
           usageDecision: 'Lot Accepted',
           receivedDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
           expirationDate: '',
           parameters: [],
           isPartialRecheck: false,
+          poQuantities: poQuantities,
         );
       }).toList();
     });
@@ -99,23 +138,7 @@ class _AddQualityInspectionPageState
 
   @override
   Widget build(BuildContext context) {
-    final inwards = ref.watch(storeInwardProvider);
-    final pendingInwards = inwards.where((inward) {
-      // Check if there's no inspection for this GRN
-      final existingInspections = ref
-          .watch(qualityInspectionProvider)
-          .where((inspection) => inspection.grnNo == inward.grnNo)
-          .toList();
-      return existingInspections.isEmpty;
-    }).toList();
-
-    // Reset selectedGRN if it's not in pendingInwards
-    if (selectedGRN != null && !pendingInwards.contains(selectedGRN)) {
-      setState(() {
-        selectedGRN = null;
-        _items = [];
-      });
-    }
+    final suppliers = ref.watch(supplierListProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -130,28 +153,28 @@ class _AddQualityInspectionPageState
               buildTextField(_inspectionDateController, 'Inspection Date',
                   isDate: true),
 
-              // GRN Dropdown
+              // Supplier Dropdown
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: DropdownButtonFormField2<StoreInward>(
+                child: DropdownButtonFormField2<Supplier>(
                   decoration: const InputDecoration(
-                    labelText: 'Select GRN',
+                    labelText: 'Select Supplier',
                     border: OutlineInputBorder(),
                   ),
                   isExpanded: true,
-                  value: selectedGRN,
-                  items: pendingInwards.map((grn) {
-                    return DropdownMenuItem<StoreInward>(
-                      value: grn,
+                  value: selectedSupplier,
+                  items: suppliers.map((supplier) {
+                    return DropdownMenuItem<Supplier>(
+                      value: supplier,
                       child: Text(
-                        '${grn.grnNo} (${grn.supplierName})',
+                        supplier.name,
                         overflow: TextOverflow.ellipsis,
                       ),
                     );
                   }).toList(),
                   onChanged: (value) {
                     if (value != null) {
-                      _onGRNSelected(value);
+                      _onSupplierSelected(value);
                     }
                   },
                   validator: (value) => value == null ? 'Required' : null,
@@ -164,74 +187,105 @@ class _AddQualityInspectionPageState
                   menuItemStyleData: const MenuItemStyleData(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                   ),
-                  buttonStyleData: const ButtonStyleData(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    height: 40,
-                  ),
                 ),
               ),
 
               buildTextField(_inspectedByController, 'Inspected By'),
               buildTextField(_approvedByController, 'Approved By'),
-              buildTextField(_remarksController, 'Remarks', maxLines: 3),
+
               const SizedBox(height: 20),
 
-              // Items Section
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Items',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+              // Material Groups
+              if (_items.isEmpty && selectedSupplier != null)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'No pending materials for inspection',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
                       ),
-                      const SizedBox(height: 16),
-                      if (_items.isEmpty)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 32),
-                            child: Text(
-                              'No items to inspect.\nSelect a GRN to load items.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        ..._items.map((item) => _buildItemCard(item)),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+                )
+              else
+                ..._items.map((item) => _buildItemCard(item)),
+
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () {
-                  if (_formKey.currentState!.validate() &&
-                      selectedGRN != null) {
+                  if (_formKey.currentState!.validate() && selectedSupplier != null) {
+                    // Validate all items
+                    bool isValid = true;
+                    String errorMessage = '';
+
+                    for (var item in _items) {
+                      for (var poEntry in item.poQuantities.entries) {
+                        final poQty = poEntry.value;
+                        
+                        // Check if quantities are valid for partial recheck
+                        if (poQty.usageDecision == '100% Recheck' && item.isPartialRecheck == true) {
+                          if (poQty.acceptedQty + poQty.rejectedQty != poQty.receivedQty) {
+                            isValid = false;
+                            errorMessage = 'Total of accepted and rejected quantities must equal received quantity for ${item.materialDescription}';
+                            break;
+                          }
+
+                          // Check if conditional acceptance has remarks
+                          if (item.conditionalAcceptanceReason != null && item.conditionalAcceptanceReason!.isEmpty) {
+                            isValid = false;
+                            errorMessage = 'Please enter conditional remarks for ${item.materialDescription}';
+                            break;
+                          }
+                        }
+
+                        // For Lot Accepted, ensure accepted qty equals received qty
+                        if (poQty.usageDecision == 'Lot Accepted' && poQty.acceptedQty != poQty.receivedQty) {
+                          item.updatePOQuantities(
+                            poEntry.key,
+                            acceptedQty: poQty.receivedQty,
+                            rejectedQty: 0,
+                          );
+                        }
+
+                        // For Rejected, ensure rejected qty equals received qty
+                        if (poQty.usageDecision == 'Rejected' && poQty.rejectedQty != poQty.receivedQty) {
+                          item.updatePOQuantities(
+                            poEntry.key,
+                            acceptedQty: 0,
+                            rejectedQty: poQty.receivedQty,
+                          );
+                        }
+                      }
+                      if (!isValid) break;
+                    }
+
+                    if (!isValid) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(errorMessage),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
                     // Create quality inspection record
                     final inspection = QualityInspection(
                       inspectionNo: ref
                           .read(qualityInspectionProvider.notifier)
                           .generateInspectionNumber(),
                       inspectionDate: _inspectionDateController.text,
-                      grnNo: selectedGRN!.grnNo,
-                      supplierName: selectedGRN!.supplierName,
-                      poNo: selectedGRN!.poNo,
-                      billNo: selectedGRN!.invoiceNo,
-                      billDate: selectedGRN!.invoiceDate,
-                      receivedDate: selectedGRN!.grnDate,
-                      grnDate: selectedGRN!.grnDate,
+                      grnNo: '', // Will be populated when saving
+                      supplierName: selectedSupplier!.name,
+                      poNo: '', // Will be populated when saving
+                      billNo: '', // Will be populated when saving
+                      billDate: '', // Will be populated when saving
+                      receivedDate: _inspectionDateController.text,
+                      grnDate: _inspectionDateController.text,
                       inspectedBy: _inspectedByController.text,
                       approvedBy: _approvedByController.text,
-                      remarks: _remarksController.text,
                       items: _items,
                       status: 'Pending',
                     );
@@ -252,437 +306,510 @@ class _AddQualityInspectionPageState
   }
 
   Widget buildTextField(TextEditingController controller, String label,
-      {bool isDate = false, int maxLines = 1}) {
+      {bool isDate = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
         controller: controller,
-        readOnly: isDate,
-        maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
         ),
+        readOnly: isDate,
         onTap: isDate
             ? () async {
-                DateTime? picked = await showDatePicker(
+                final date = await showDatePicker(
                   context: context,
                   initialDate: DateTime.now(),
                   firstDate: DateTime(2000),
                   lastDate: DateTime(2100),
                 );
-                if (picked != null) {
-                  controller.text = DateFormat('yyyy-MM-dd').format(picked);
+                if (date != null) {
+                  controller.text = DateFormat('yyyy-MM-dd').format(date);
                 }
               }
             : null,
-        validator: (value) =>
-            value == null || value.isEmpty ? 'Required' : null,
+        validator: (value) => value == null || value.isEmpty ? 'Required' : null,
       ),
     );
   }
 
   Widget _buildItemCard(InspectionItem item) {
-    // Get the parameter mapping for this item's category
-    final mapping = ref
-        .watch(categoryParameterProvider.notifier)
-        .getMappingForCategory(item.category);
-
-    // Get the universal parameters
+    // Get standard parameters from provider
     final universalParams = ref.watch(universalParameterProvider);
+    final categoryParams = ref.watch(categoryParameterProvider);
 
-    // Initialize parameters based on the mapping if not already set
+    // Get category-specific parameters
+    final categorySpecificParams = categoryParams
+        .where((mapping) => mapping.category == item.category)
+        .expand((mapping) => mapping.parameters)
+        .toList();
+
+    // Initialize parameters if not already done
     if (item.parameters.isEmpty) {
-      // Initialize parameters with "NA" as default observation for unmapped parameters
-      item.parameters = universalParams.map((param) {
-        final isMapped = mapping?.parameters.contains(param.name) ?? false;
-        return QualityParameter(
-          parameter: param.name,
-          specification: '',
-          observation: isMapped ? '' : 'NA', // Set "NA" for unmapped parameters
-          isAcceptable: true,
-          remarks: '',
-        );
-      }).toList();
+      item.parameters = [
+        ...universalParams.map((param) => QualityParameter(
+              parameter: param.name,
+              specification: '',
+              observation: categorySpecificParams.contains(param.name) ? '' : 'NA',
+              isAcceptable: true,
+            )),
+        ...categorySpecificParams
+            .where((paramName) =>
+                !universalParams.any((up) => up.name == paramName))
+            .map((paramName) => QualityParameter(
+                  parameter: paramName,
+                  specification: '',
+                  observation: '',
+                  isAcceptable: true,
+                ))
+      ];
     }
 
     return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              item.materialDescription,
-              style: const TextStyle(
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.materialDescription,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        'Code: ${item.materialCode} | Unit: ${item.unit}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'Cost/Unit: ₹${item.costPerUnit}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+            const Text(
+              'PO-wise Inspection',
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: 14,
               ),
             ),
             const SizedBox(height: 8),
-            Text('Material Code: ${item.materialCode}'),
-            Text('Unit: ${item.unit}'),
-            Text('Category: ${item.category}'),
-            Text('Received Qty: ${item.receivedQty}'),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Sample Size',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                    initialValue: item.sampleSize.toString(),
-                    onChanged: (value) {
-                      final size = double.tryParse(value) ?? 0;
-                      setState(() {
-                        item.sampleSize = size;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Received Date',
-                      border: OutlineInputBorder(),
-                    ),
-                    controller: TextEditingController(text: item.receivedDate),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                      );
-                      if (date != null) {
-                        setState(() {
-                          item.receivedDate =
-                              DateFormat('yyyy-MM-dd').format(date);
-                        });
-                      }
-                    },
-                    readOnly: true,
-                  ),
-                ),
-                if (mapping?.requiresExpiryDate ?? false) ...[
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      decoration: const InputDecoration(
-                        labelText: 'Expiration Date',
-                        border: OutlineInputBorder(),
-                      ),
-                      controller:
-                          TextEditingController(text: item.expirationDate),
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2100),
-                        );
-                        if (date != null) {
-                          setState(() {
-                            item.expirationDate =
-                                DateFormat('yyyy-MM-dd').format(date);
-                          });
-                        }
-                      },
-                      readOnly: true,
-                      validator: (value) =>
-                          value == null || value.isEmpty ? 'Required' : null,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField2<String>(
-              decoration: const InputDecoration(
-                labelText: 'Usage Decision',
-                border: OutlineInputBorder(),
-              ),
-              isExpanded: true,
-              value: item.usageDecision,
-              items: const [
-                DropdownMenuItem<String>(
-                    value: 'Lot Accepted', child: Text('Lot Accepted')),
-                DropdownMenuItem<String>(
-                    value: 'Rejected', child: Text('Rejected')),
-                DropdownMenuItem<String>(
-                    value: '100% Recheck', child: Text('100% Recheck')),
-                DropdownMenuItem<String>(
-                    value: 'Conditionally Accepted',
-                    child: Text('Conditionally Accepted')),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  item.usageDecision = value!;
-                  if (value != '100% Recheck') {
-                    item.isPartialRecheck = false;
-                  }
-                });
+            Table(
+              columnWidths: const {
+                0: FlexColumnWidth(2), // PO No
+                1: FlexColumnWidth(1), // Received
+                2: FlexColumnWidth(1), // Accepted
+                3: FlexColumnWidth(1), // Rejected
+                4: FlexColumnWidth(1.5), // Usage Decision
               },
-              validator: (value) =>
-                  value == null ? 'Please select a usage decision' : null,
-              dropdownStyleData: DropdownStyleData(
-                maxHeight: 200,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              menuItemStyleData: const MenuItemStyleData(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-              ),
-              buttonStyleData: const ButtonStyleData(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                height: 40,
-              ),
-            ),
-            if (item.usageDecision == 'Conditionally Accepted') ...[
-              const SizedBox(height: 16),
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'Reason for Conditional Acceptance',
-                  border: OutlineInputBorder(),
-                ),
-                initialValue: item.conditionalAcceptanceReason,
-                onChanged: (value) {
-                  setState(() {
-                    item.conditionalAcceptanceReason = value;
-                  });
-                },
-                validator: (value) {
-                  if (item.usageDecision == 'Conditionally Accepted' &&
-                      (value == null || value.isEmpty)) {
-                    return 'Please provide a reason for conditional acceptance';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'Required Action',
-                  border: OutlineInputBorder(),
-                ),
-                initialValue: item.conditionalAcceptanceAction,
-                onChanged: (value) {
-                  setState(() {
-                    item.conditionalAcceptanceAction = value;
-                  });
-                },
-                validator: (value) {
-                  if (item.usageDecision == 'Conditionally Accepted' &&
-                      (value == null || value.isEmpty)) {
-                    return 'Please specify the required action';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'Action Deadline',
-                  border: OutlineInputBorder(),
-                  hintText: 'YYYY-MM-DD',
-                ),
-                initialValue: item.conditionalAcceptanceDeadline,
-                onChanged: (value) {
-                  setState(() {
-                    item.conditionalAcceptanceDeadline = value;
-                  });
-                },
-                validator: (value) {
-                  if (item.usageDecision == 'Conditionally Accepted') {
-                    if (value == null || value.isEmpty) {
-                      return 'Please specify the deadline';
-                    }
-                    try {
-                      final date = DateTime.parse(value);
-                      if (date.isBefore(DateTime.now())) {
-                        return 'Deadline cannot be in the past';
-                      }
-                    } catch (e) {
-                      return 'Please enter a valid date (YYYY-MM-DD)';
-                    }
-                  }
-                  return null;
-                },
-              ),
-            ],
-            if (item.usageDecision == '100% Recheck') ...[
-              const SizedBox(height: 16),
-              CheckboxListTile(
-                title: const Text('Partial Acceptance'),
-                value: item.isPartialRecheck ?? false,
-                onChanged: (value) {
-                  setState(() {
-                    item.isPartialRecheck = value;
-                    if (!(value ?? false)) {
-                      item.inspectedQty = 0;
-                      item.acceptedQty = 0;
-                      item.rejectedQty = 0;
-                    }
-                  });
-                },
-              ),
-              if (item.isPartialRecheck ?? false) ...[
-                const SizedBox(height: 16),
-                Row(
+              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+              children: [
+                const TableRow(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey, width: 0.5),
+                    ),
+                  ),
                   children: [
-                    Expanded(
-                      child: TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Inspected Qty',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                        initialValue: item.inspectedQty.toString(),
-                        onChanged: (value) {
-                          setState(() {
-                            item.inspectedQty = double.tryParse(value) ?? 0;
-                          });
-                        },
-                      ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      child: Text('PO No',
+                          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Accepted Qty',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                        initialValue: item.acceptedQty.toString(),
-                        onChanged: (value) {
-                          setState(() {
-                            item.acceptedQty = double.tryParse(value) ?? 0;
-                          });
-                        },
-                      ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      child: Text('Received',
+                          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Rejected Qty',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                        initialValue: item.rejectedQty.toString(),
-                        onChanged: (value) {
-                          setState(() {
-                            item.rejectedQty = double.tryParse(value) ?? 0;
-                          });
-                        },
-                      ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      child: Text('Accepted',
+                          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      child: Text('Rejected',
+                          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      child: Text('Usage Decision',
+                          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
                     ),
                   ],
                 ),
-              ],
-            ],
-            if (mapping != null && mapping.parameters.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const Text(
-                'Quality Parameters',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...mapping.parameters.map((paramName) {
-                final existingParam = item.parameters.firstWhere(
-                  (p) => p.parameter == paramName,
-                  orElse: () => QualityParameter(
-                    parameter: paramName,
-                    specification: '',
-                    observation: '',
-                    isAcceptable: true,
-                    remarks: '',
-                  ),
-                );
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          paramName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                ...item.poQuantities.entries.map((entry) {
+                  final poNo = entry.key;
+                  final poQty = entry.value;
+                  
+                  return TableRow(
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey, width: 0.2),
+                      ),
+                    ),
+                    children: [
+                      // PO No
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        child: Text(poNo, style: const TextStyle(fontSize: 12)),
+                      ),
+                      // Received Qty
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        child: Text(
+                          poQty.receivedQty.toStringAsFixed(2),
+                          style: const TextStyle(fontSize: 12),
                         ),
-                        const SizedBox(height: 8),
-                        Row(
+                      ),
+                      // Accepted Qty
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        child: Text(
+                          poQty.acceptedQty.toStringAsFixed(2),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      // Rejected Qty
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        child: Text(
+                          poQty.rejectedQty.toStringAsFixed(2),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      // Usage Decision
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: TextFormField(
+                            SizedBox(
+                              height: 36,
+                              child: DropdownButtonFormField2<String>(
                                 decoration: const InputDecoration(
-                                  labelText: 'Observation',
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                   border: OutlineInputBorder(),
                                 ),
-                                initialValue: existingParam.observation,
+                                isExpanded: true,
+                                value: poQty.usageDecision,
+                                items: const [
+                                  DropdownMenuItem<String>(
+                                      value: 'Lot Accepted', child: Text('Lot Accepted', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem<String>(
+                                      value: 'Rejected', child: Text('Rejected', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem<String>(
+                                      value: '100% Recheck', child: Text('100% Recheck', style: TextStyle(fontSize: 12))),
+                                ],
                                 onChanged: (value) {
                                   setState(() {
-                                    existingParam.observation = value;
-                                    if (!item.parameters
-                                        .contains(existingParam)) {
-                                      item.parameters.add(existingParam);
+                                    // Reset partial and conditional acceptance when changing decision
+                                    item.isPartialRecheck = false;
+                                    item.conditionalAcceptanceReason = null;
+                                    
+                                    // Update quantities based on decision
+                                    if (value == 'Lot Accepted') {
+                                      item.updatePOQuantities(
+                                        poNo,
+                                        acceptedQty: poQty.receivedQty,
+                                        rejectedQty: 0,
+                                        usageDecision: value,
+                                      );
+                                    } else if (value == 'Rejected') {
+                                      item.updatePOQuantities(
+                                        poNo,
+                                        acceptedQty: 0,
+                                        rejectedQty: poQty.receivedQty,
+                                        usageDecision: value,
+                                      );
+                                    } else {
+                                      item.updatePOQuantities(
+                                        poNo,
+                                        usageDecision: value,
+                                      );
                                     }
                                   });
                                 },
+                                dropdownStyleData: DropdownStyleData(
+                                  maxHeight: 200,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                menuItemStyleData: const MenuItemStyleData(
+                                  padding: EdgeInsets.symmetric(horizontal: 16),
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 200,
-                              child: SwitchListTile(
-                                title: const Text('Acceptable'),
-                                value: existingParam.isAcceptable,
-                                onChanged: (value) {
-                                  setState(() {
-                                    existingParam.isAcceptable = value;
-                                    if (!item.parameters
-                                        .contains(existingParam)) {
-                                      item.parameters.add(existingParam);
-                                    }
-                                  });
-                                },
-                                contentPadding: EdgeInsets.zero,
-                                dense: true,
+                            if (poQty.usageDecision == '100% Recheck') ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        SizedBox(
+                                          height: 24,
+                                          width: 24,
+                                          child: Checkbox(
+                                            value: item.isPartialRecheck,
+                                            onChanged: (value) {
+                                              setState(() {
+                                                item.isPartialRecheck = value;
+                                                if (value == false) {
+                                                  item.conditionalAcceptanceReason = null;
+                                                  // Reset quantities
+                                                  item.updatePOQuantities(
+                                                    poNo,
+                                                    acceptedQty: 0,
+                                                    rejectedQty: 0,
+                                                  );
+                                                }
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text('Partial Acceptance', style: TextStyle(fontSize: 12)),
+                                      ],
+                                    ),
+                                    if (item.isPartialRecheck == true) ...[
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: TextFormField(
+                                              decoration: const InputDecoration(
+                                                labelText: 'Accepted Qty',
+                                                isDense: true,
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              initialValue: poQty.acceptedQty.toString(),
+                                              style: const TextStyle(fontSize: 12),
+                                              keyboardType: TextInputType.number,
+                                              validator: (value) {
+                                                if (value == null || value.isEmpty) {
+                                                  return 'Required';
+                                                }
+                                                final qty = double.tryParse(value);
+                                                if (qty == null) {
+                                                  return 'Invalid number';
+                                                }
+                                                if (qty < 0 || qty > poQty.receivedQty) {
+                                                  return 'Invalid quantity';
+                                                }
+                                                return null;
+                                              },
+                                              onChanged: (value) {
+                                                final qty = double.tryParse(value) ?? 0;
+                                                if (qty >= 0 && qty <= poQty.receivedQty) {
+                                                  setState(() {
+                                                    item.updatePOQuantities(
+                                                      poNo,
+                                                      acceptedQty: qty,
+                                                      rejectedQty: poQty.receivedQty - qty,
+                                                    );
+                                                  });
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: TextFormField(
+                                              decoration: const InputDecoration(
+                                                labelText: 'Rejected Qty',
+                                                isDense: true,
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              initialValue: poQty.rejectedQty.toString(),
+                                              style: const TextStyle(fontSize: 12),
+                                              keyboardType: TextInputType.number,
+                                              validator: (value) {
+                                                if (value == null || value.isEmpty) {
+                                                  return 'Required';
+                                                }
+                                                final qty = double.tryParse(value);
+                                                if (qty == null) {
+                                                  return 'Invalid number';
+                                                }
+                                                if (qty < 0 || qty > poQty.receivedQty) {
+                                                  return 'Invalid quantity';
+                                                }
+                                                return null;
+                                              },
+                                              onChanged: (value) {
+                                                final qty = double.tryParse(value) ?? 0;
+                                                if (qty >= 0 && qty <= poQty.receivedQty) {
+                                                  setState(() {
+                                                    item.updatePOQuantities(
+                                                      poNo,
+                                                      rejectedQty: qty,
+                                                      acceptedQty: poQty.receivedQty - qty,
+                                                    );
+                                                  });
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          SizedBox(
+                                            height: 24,
+                                            width: 24,
+                                            child: Checkbox(
+                                              value: item.conditionalAcceptanceReason != null,
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  if (value == true) {
+                                                    item.conditionalAcceptanceReason = '';
+                                                  } else {
+                                                    item.conditionalAcceptanceReason = null;
+                                                  }
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          const Text('Conditional Acceptance', style: TextStyle(fontSize: 12)),
+                                        ],
+                                      ),
+                                      if (item.conditionalAcceptanceReason != null) ...[
+                                        const SizedBox(height: 8),
+                                        TextFormField(
+                                          decoration: const InputDecoration(
+                                            labelText: 'Conditional Remark',
+                                            isDense: true,
+                                            border: OutlineInputBorder(),
+                                            hintText: 'Enter conditions for acceptance',
+                                          ),
+                                          initialValue: item.conditionalAcceptanceReason,
+                                          style: const TextStyle(fontSize: 12),
+                                          maxLines: 2,
+                                          validator: (value) {
+                                            if (value == null || value.isEmpty) {
+                                              return 'Please enter conditional remarks';
+                                            }
+                                            return null;
+                                          },
+                                          onChanged: (value) {
+                                            setState(() {
+                                              item.conditionalAcceptanceReason = value;
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    ],
+                                  ],
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ],
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ],
+            ),
             const SizedBox(height: 16),
-            Row(
+            const Text(
+              'Quality Parameters',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Table(
+              columnWidths: const {
+                0: FlexColumnWidth(2), // Parameter
+                1: FlexColumnWidth(2), // Observation
+                2: FlexColumnWidth(1), // Acceptable
+              },
               children: [
-                Expanded(
-                  child: TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Remarks',
-                      border: OutlineInputBorder(),
-                    ),
-                    initialValue: item.remarks,
-                    onChanged: (value) {
-                      setState(() {
-                        item.remarks = value;
-                      });
-                    },
-                  ),
+                const TableRow(
+                  children: [
+                    Text('Parameter',
+                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                    Text('Observation',
+                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                    Text('Acceptable',
+                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                  ],
                 ),
+                ...item.parameters.map((param) {
+                  return TableRow(
+                    children: [
+                      // Parameter
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(param.parameter,
+                            style: const TextStyle(fontSize: 12)),
+                      ),
+                      // Observation
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: SizedBox(
+                          height: 32,
+                          child: TextFormField(
+                            initialValue: param.observation,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              border: OutlineInputBorder(),
+                            ),
+                            style: const TextStyle(fontSize: 12),
+                            onChanged: (value) {
+                              setState(() {
+                                param.observation = value;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      // Acceptable
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Checkbox(
+                          value: param.isAcceptable,
+                          onChanged: (value) {
+                            setState(() {
+                              param.isAcceptable = value ?? true;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
               ],
             ),
           ],

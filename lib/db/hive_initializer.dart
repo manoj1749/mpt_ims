@@ -31,15 +31,16 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(PurchaseRequestAdapter()); // typeId: 5
   Hive.registerAdapter(PRItemAdapter()); // typeId: 6
   Hive.registerAdapter(StoreInwardAdapter()); // typeId: 7
-  Hive.registerAdapter(SupplierAdapter()); // typeId: 8
-  Hive.registerAdapter(VendorMaterialRateAdapter()); // typeId: 9
-  Hive.registerAdapter(QualityInspectionAdapter()); // typeId: 10
-  Hive.registerAdapter(CategoryParameterMappingAdapter()); // typeId: 11
-  Hive.registerAdapter(SaleOrderAdapter()); // typeId: 12
-  Hive.registerAdapter(CategoryAdapter()); // typeId: 13
-  Hive.registerAdapter(SubCategoryAdapter()); // typeId: 14
-  Hive.registerAdapter(QualityAdapter()); // typeId: 15
-  Hive.registerAdapter(UniversalParameterAdapter()); // typeId: 16
+  Hive.registerAdapter(InwardItemAdapter()); // typeId: 8
+  Hive.registerAdapter(SupplierAdapter()); // typeId: 9
+  Hive.registerAdapter(VendorMaterialRateAdapter()); // typeId: 10
+  Hive.registerAdapter(QualityInspectionAdapter()); // typeId: 11
+  Hive.registerAdapter(CategoryParameterMappingAdapter()); // typeId: 12
+  Hive.registerAdapter(SaleOrderAdapter()); // typeId: 13
+  Hive.registerAdapter(CategoryAdapter()); // typeId: 14
+  Hive.registerAdapter(SubCategoryAdapter()); // typeId: 15
+  Hive.registerAdapter(QualityAdapter()); // typeId: 16
+  Hive.registerAdapter(UniversalParameterAdapter()); // typeId: 17
 
   // Handle schema migration
   await clearIncompatibleData();

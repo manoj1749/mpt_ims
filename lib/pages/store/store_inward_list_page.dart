@@ -220,7 +220,6 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
     ];
   }
 
-
   Future<void> _confirmDelete(BuildContext context, StoreInward inward) async {
     final confirmed = await showDialog<bool>(
       context: context,

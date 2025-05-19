@@ -79,7 +79,8 @@ class InwardItem {
   String costPerUnit;
 
   @HiveField(8)
-  Map<String, double> poQuantities = {}; // Store PO-wise quantities: PO No -> Quantity
+  Map<String, double> poQuantities =
+      {}; // Store PO-wise quantities: PO No -> Quantity
 
   InwardItem({
     required this.materialCode,

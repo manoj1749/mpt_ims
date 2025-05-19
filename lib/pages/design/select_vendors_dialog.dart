@@ -12,7 +12,8 @@ class SelectVendorsDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<SelectVendorsDialog> createState() => _SelectVendorsDialogState();
+  ConsumerState<SelectVendorsDialog> createState() =>
+      _SelectVendorsDialogState();
 }
 
 class _SelectVendorsDialogState extends ConsumerState<SelectVendorsDialog> {
@@ -35,8 +36,10 @@ class _SelectVendorsDialogState extends ConsumerState<SelectVendorsDialog> {
   @override
   Widget build(BuildContext context) {
     final vendors = ref.watch(supplierListProvider);
-    final filteredVendors = vendors.where((vendor) =>
-        vendor.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    final filteredVendors = vendors
+        .where((vendor) =>
+            vendor.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
 
     return Dialog(
       child: Padding(
@@ -124,4 +127,4 @@ class _SelectVendorsDialogState extends ConsumerState<SelectVendorsDialog> {
       ),
     );
   }
-} 
+}

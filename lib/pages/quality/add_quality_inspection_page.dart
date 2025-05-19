@@ -119,7 +119,12 @@ class _AddQualityInspectionPageState
           category: material.category,
           receivedQty: items.fold(0.0, (sum, item) => sum + item.receivedQty),
           costPerUnit: double.tryParse(firstItem.costPerUnit) ?? 0.0,
-          totalCost: items.fold(0.0, (sum, item) => sum + (double.tryParse(item.costPerUnit) ?? 0.0) * item.receivedQty),
+          totalCost: items.fold(
+              0.0,
+              (sum, item) =>
+                  sum +
+                  (double.tryParse(item.costPerUnit) ?? 0.0) *
+                      item.receivedQty),
           sampleSize: 0,
           inspectedQty: 0,
           acceptedQty: 0,
@@ -215,7 +220,8 @@ class _AddQualityInspectionPageState
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () {
-                  if (_formKey.currentState!.validate() && selectedSupplier != null) {
+                  if (_formKey.currentState!.validate() &&
+                      selectedSupplier != null) {
                     // Validate all items
                     bool isValid = true;
                     String errorMessage = '';
@@ -223,25 +229,31 @@ class _AddQualityInspectionPageState
                     for (var item in _items) {
                       for (var poEntry in item.poQuantities.entries) {
                         final poQty = poEntry.value;
-                        
+
                         // Check if quantities are valid for partial recheck
-                        if (poQty.usageDecision == '100% Recheck' && item.isPartialRecheck == true) {
-                          if (poQty.acceptedQty + poQty.rejectedQty != poQty.receivedQty) {
+                        if (poQty.usageDecision == '100% Recheck' &&
+                            item.isPartialRecheck == true) {
+                          if (poQty.acceptedQty + poQty.rejectedQty !=
+                              poQty.receivedQty) {
                             isValid = false;
-                            errorMessage = 'Total of accepted and rejected quantities must equal received quantity for ${item.materialDescription}';
+                            errorMessage =
+                                'Total of accepted and rejected quantities must equal received quantity for ${item.materialDescription}';
                             break;
                           }
 
                           // Check if conditional acceptance has remarks
-                          if (item.conditionalAcceptanceReason != null && item.conditionalAcceptanceReason!.isEmpty) {
+                          if (item.conditionalAcceptanceReason != null &&
+                              item.conditionalAcceptanceReason!.isEmpty) {
                             isValid = false;
-                            errorMessage = 'Please enter conditional remarks for ${item.materialDescription}';
+                            errorMessage =
+                                'Please enter conditional remarks for ${item.materialDescription}';
                             break;
                           }
                         }
 
                         // For Lot Accepted, ensure accepted qty equals received qty
-                        if (poQty.usageDecision == 'Lot Accepted' && poQty.acceptedQty != poQty.receivedQty) {
+                        if (poQty.usageDecision == 'Lot Accepted' &&
+                            poQty.acceptedQty != poQty.receivedQty) {
                           item.updatePOQuantities(
                             poEntry.key,
                             acceptedQty: poQty.receivedQty,
@@ -250,7 +262,8 @@ class _AddQualityInspectionPageState
                         }
 
                         // For Rejected, ensure rejected qty equals received qty
-                        if (poQty.usageDecision == 'Rejected' && poQty.rejectedQty != poQty.receivedQty) {
+                        if (poQty.usageDecision == 'Rejected' &&
+                            poQty.rejectedQty != poQty.receivedQty) {
                           item.updatePOQuantities(
                             poEntry.key,
                             acceptedQty: 0,
@@ -329,7 +342,8 @@ class _AddQualityInspectionPageState
                 }
               }
             : null,
-        validator: (value) => value == null || value.isEmpty ? 'Required' : null,
+        validator: (value) =>
+            value == null || value.isEmpty ? 'Required' : null,
       ),
     );
   }
@@ -351,7 +365,8 @@ class _AddQualityInspectionPageState
         ...universalParams.map((param) => QualityParameter(
               parameter: param.name,
               specification: '',
-              observation: categorySpecificParams.contains(param.name) ? '' : 'NA',
+              observation:
+                  categorySpecificParams.contains(param.name) ? '' : 'NA',
               isAcceptable: true,
             )),
         ...categorySpecificParams
@@ -429,36 +444,46 @@ class _AddQualityInspectionPageState
                   ),
                   children: [
                     Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      padding:
+                          EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                       child: Text('PO No',
-                          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w500, fontSize: 12)),
                     ),
                     Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      padding:
+                          EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                       child: Text('Received',
-                          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w500, fontSize: 12)),
                     ),
                     Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      padding:
+                          EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                       child: Text('Accepted',
-                          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w500, fontSize: 12)),
                     ),
                     Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      padding:
+                          EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                       child: Text('Rejected',
-                          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w500, fontSize: 12)),
                     ),
                     Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      padding:
+                          EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                       child: Text('Usage Decision',
-                          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w500, fontSize: 12)),
                     ),
                   ],
                 ),
                 ...item.poQuantities.entries.map((entry) {
                   final poNo = entry.key;
                   final poQty = entry.value;
-                  
+
                   return TableRow(
                     decoration: const BoxDecoration(
                       border: Border(
@@ -468,12 +493,14 @@ class _AddQualityInspectionPageState
                     children: [
                       // PO No
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 8),
                         child: Text(poNo, style: const TextStyle(fontSize: 12)),
                       ),
                       // Received Qty
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 8),
                         child: Text(
                           poQty.receivedQty.toStringAsFixed(2),
                           style: const TextStyle(fontSize: 12),
@@ -481,7 +508,8 @@ class _AddQualityInspectionPageState
                       ),
                       // Accepted Qty
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 8),
                         child: Text(
                           poQty.acceptedQty.toStringAsFixed(2),
                           style: const TextStyle(fontSize: 12),
@@ -489,7 +517,8 @@ class _AddQualityInspectionPageState
                       ),
                       // Rejected Qty
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 8),
                         child: Text(
                           poQty.rejectedQty.toStringAsFixed(2),
                           style: const TextStyle(fontSize: 12),
@@ -497,7 +526,8 @@ class _AddQualityInspectionPageState
                       ),
                       // Usage Decision
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -506,25 +536,32 @@ class _AddQualityInspectionPageState
                               child: DropdownButtonFormField2<String>(
                                 decoration: const InputDecoration(
                                   isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 8),
                                   border: OutlineInputBorder(),
                                 ),
                                 isExpanded: true,
                                 value: poQty.usageDecision,
                                 items: const [
                                   DropdownMenuItem<String>(
-                                      value: 'Lot Accepted', child: Text('Lot Accepted', style: TextStyle(fontSize: 12))),
+                                      value: 'Lot Accepted',
+                                      child: Text('Lot Accepted',
+                                          style: TextStyle(fontSize: 12))),
                                   DropdownMenuItem<String>(
-                                      value: 'Rejected', child: Text('Rejected', style: TextStyle(fontSize: 12))),
+                                      value: 'Rejected',
+                                      child: Text('Rejected',
+                                          style: TextStyle(fontSize: 12))),
                                   DropdownMenuItem<String>(
-                                      value: '100% Recheck', child: Text('100% Recheck', style: TextStyle(fontSize: 12))),
+                                      value: '100% Recheck',
+                                      child: Text('100% Recheck',
+                                          style: TextStyle(fontSize: 12))),
                                 ],
                                 onChanged: (value) {
                                   setState(() {
                                     // Reset partial and conditional acceptance when changing decision
                                     item.isPartialRecheck = false;
                                     item.conditionalAcceptanceReason = null;
-                                    
+
                                     // Update quantities based on decision
                                     if (value == 'Lot Accepted') {
                                       item.updatePOQuantities(
@@ -563,7 +600,8 @@ class _AddQualityInspectionPageState
                               const SizedBox(height: 8),
                               Container(
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300),
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 padding: const EdgeInsets.all(8),
@@ -581,7 +619,8 @@ class _AddQualityInspectionPageState
                                               setState(() {
                                                 item.isPartialRecheck = value;
                                                 if (value == false) {
-                                                  item.conditionalAcceptanceReason = null;
+                                                  item.conditionalAcceptanceReason =
+                                                      null;
                                                   // Reset quantities
                                                   item.updatePOQuantities(
                                                     poNo,
@@ -594,7 +633,8 @@ class _AddQualityInspectionPageState
                                           ),
                                         ),
                                         const SizedBox(width: 8),
-                                        const Text('Partial Acceptance', style: TextStyle(fontSize: 12)),
+                                        const Text('Partial Acceptance',
+                                            style: TextStyle(fontSize: 12)),
                                       ],
                                     ),
                                     if (item.isPartialRecheck == true) ...[
@@ -608,30 +648,40 @@ class _AddQualityInspectionPageState
                                                 isDense: true,
                                                 border: OutlineInputBorder(),
                                               ),
-                                              initialValue: poQty.acceptedQty.toString(),
-                                              style: const TextStyle(fontSize: 12),
-                                              keyboardType: TextInputType.number,
+                                              initialValue:
+                                                  poQty.acceptedQty.toString(),
+                                              style:
+                                                  const TextStyle(fontSize: 12),
+                                              keyboardType:
+                                                  TextInputType.number,
                                               validator: (value) {
-                                                if (value == null || value.isEmpty) {
+                                                if (value == null ||
+                                                    value.isEmpty) {
                                                   return 'Required';
                                                 }
-                                                final qty = double.tryParse(value);
+                                                final qty =
+                                                    double.tryParse(value);
                                                 if (qty == null) {
                                                   return 'Invalid number';
                                                 }
-                                                if (qty < 0 || qty > poQty.receivedQty) {
+                                                if (qty < 0 ||
+                                                    qty > poQty.receivedQty) {
                                                   return 'Invalid quantity';
                                                 }
                                                 return null;
                                               },
                                               onChanged: (value) {
-                                                final qty = double.tryParse(value) ?? 0;
-                                                if (qty >= 0 && qty <= poQty.receivedQty) {
+                                                final qty =
+                                                    double.tryParse(value) ?? 0;
+                                                if (qty >= 0 &&
+                                                    qty <= poQty.receivedQty) {
                                                   setState(() {
                                                     item.updatePOQuantities(
                                                       poNo,
                                                       acceptedQty: qty,
-                                                      rejectedQty: poQty.receivedQty - qty,
+                                                      rejectedQty:
+                                                          poQty.receivedQty -
+                                                              qty,
                                                     );
                                                   });
                                                 }
@@ -646,30 +696,40 @@ class _AddQualityInspectionPageState
                                                 isDense: true,
                                                 border: OutlineInputBorder(),
                                               ),
-                                              initialValue: poQty.rejectedQty.toString(),
-                                              style: const TextStyle(fontSize: 12),
-                                              keyboardType: TextInputType.number,
+                                              initialValue:
+                                                  poQty.rejectedQty.toString(),
+                                              style:
+                                                  const TextStyle(fontSize: 12),
+                                              keyboardType:
+                                                  TextInputType.number,
                                               validator: (value) {
-                                                if (value == null || value.isEmpty) {
+                                                if (value == null ||
+                                                    value.isEmpty) {
                                                   return 'Required';
                                                 }
-                                                final qty = double.tryParse(value);
+                                                final qty =
+                                                    double.tryParse(value);
                                                 if (qty == null) {
                                                   return 'Invalid number';
                                                 }
-                                                if (qty < 0 || qty > poQty.receivedQty) {
+                                                if (qty < 0 ||
+                                                    qty > poQty.receivedQty) {
                                                   return 'Invalid quantity';
                                                 }
                                                 return null;
                                               },
                                               onChanged: (value) {
-                                                final qty = double.tryParse(value) ?? 0;
-                                                if (qty >= 0 && qty <= poQty.receivedQty) {
+                                                final qty =
+                                                    double.tryParse(value) ?? 0;
+                                                if (qty >= 0 &&
+                                                    qty <= poQty.receivedQty) {
                                                   setState(() {
                                                     item.updatePOQuantities(
                                                       poNo,
                                                       rejectedQty: qty,
-                                                      acceptedQty: poQty.receivedQty - qty,
+                                                      acceptedQty:
+                                                          poQty.receivedQty -
+                                                              qty,
                                                     );
                                                   });
                                                 }
@@ -685,43 +745,53 @@ class _AddQualityInspectionPageState
                                             height: 24,
                                             width: 24,
                                             child: Checkbox(
-                                              value: item.conditionalAcceptanceReason != null,
+                                              value:
+                                                  item.conditionalAcceptanceReason !=
+                                                      null,
                                               onChanged: (value) {
                                                 setState(() {
                                                   if (value == true) {
-                                                    item.conditionalAcceptanceReason = '';
+                                                    item.conditionalAcceptanceReason =
+                                                        '';
                                                   } else {
-                                                    item.conditionalAcceptanceReason = null;
+                                                    item.conditionalAcceptanceReason =
+                                                        null;
                                                   }
                                                 });
                                               },
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          const Text('Conditional Acceptance', style: TextStyle(fontSize: 12)),
+                                          const Text('Conditional Acceptance',
+                                              style: TextStyle(fontSize: 12)),
                                         ],
                                       ),
-                                      if (item.conditionalAcceptanceReason != null) ...[
+                                      if (item.conditionalAcceptanceReason !=
+                                          null) ...[
                                         const SizedBox(height: 8),
                                         TextFormField(
                                           decoration: const InputDecoration(
                                             labelText: 'Conditional Remark',
                                             isDense: true,
                                             border: OutlineInputBorder(),
-                                            hintText: 'Enter conditions for acceptance',
+                                            hintText:
+                                                'Enter conditions for acceptance',
                                           ),
-                                          initialValue: item.conditionalAcceptanceReason,
+                                          initialValue:
+                                              item.conditionalAcceptanceReason,
                                           style: const TextStyle(fontSize: 12),
                                           maxLines: 2,
                                           validator: (value) {
-                                            if (value == null || value.isEmpty) {
+                                            if (value == null ||
+                                                value.isEmpty) {
                                               return 'Please enter conditional remarks';
                                             }
                                             return null;
                                           },
                                           onChanged: (value) {
                                             setState(() {
-                                              item.conditionalAcceptanceReason = value;
+                                              item.conditionalAcceptanceReason =
+                                                  value;
                                             });
                                           },
                                         ),
@@ -758,11 +828,14 @@ class _AddQualityInspectionPageState
                 const TableRow(
                   children: [
                     Text('Parameter',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Observation',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Acceptable',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                   ],
                 ),
                 ...item.parameters.map((param) {
@@ -783,7 +856,8 @@ class _AddQualityInspectionPageState
                             initialValue: param.observation,
                             decoration: const InputDecoration(
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 8),
                               border: OutlineInputBorder(),
                             ),
                             style: const TextStyle(fontSize: 12),

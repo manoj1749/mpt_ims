@@ -48,7 +48,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   // Store Job Numbers from PRs
   Set<String> jobNumbers = {};
 
-
   // Allocate ordered quantity across PRs
 
   @override
@@ -112,10 +111,12 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     // Check if the supplier has a rate for this material
     final vendorRate =
         rates.where((r) => r.vendorId == selectedSupplier!.name).firstOrNull;
-    
+
     // Default values if no rate is found
-    final costPerUnit = vendorRate != null ? double.parse(vendorRate.saleRate) : 0.0;
-    final saleRate = vendorRate != null ? double.parse(vendorRate.saleRate) : 0.0;
+    final costPerUnit =
+        vendorRate != null ? double.parse(vendorRate.saleRate) : 0.0;
+    final saleRate =
+        vendorRate != null ? double.parse(vendorRate.saleRate) : 0.0;
     final marginPerUnit = 0.0; // No margin since we're using sale rate as cost
 
     // Calculate total quantity from PR-wise quantities
@@ -278,126 +279,118 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                             fontWeight: FontWeight.w500, fontSize: 12)),
                   ],
                 ),
-                ...prItems
-                    .map((prItem) {
-                      final totalQty = double.parse(prItem.quantity);
-                      final orderedQty = prItem.totalOrderedQuantity;
-                      final remainingQty = totalQty - orderedQty;
+                ...prItems.map((prItem) {
+                  final totalQty = double.parse(prItem.quantity);
+                  final orderedQty = prItem.totalOrderedQuantity;
+                  final remainingQty = totalQty - orderedQty;
 
-                      final isInExistingPO = widget.existingPO?.items.any(
-                              (item) =>
-                                  item.prQuantities.containsKey(prItem.prNo)) ??
-                          false;
+                  final isInExistingPO = widget.existingPO?.items.any((item) =>
+                          item.prQuantities.containsKey(prItem.prNo)) ??
+                      false;
 
-                      if (remainingQty <= 0 && !isInExistingPO) {
-                        return const TableRow(children: [
-                          SizedBox(),
-                          SizedBox(),
-                          SizedBox(),
-                          SizedBox(),
-                          SizedBox()
-                        ]);
-                      }
+                  if (remainingQty <= 0 && !isInExistingPO) {
+                    return const TableRow(children: [
+                      SizedBox(),
+                      SizedBox(),
+                      SizedBox(),
+                      SizedBox(),
+                      SizedBox()
+                    ]);
+                  }
 
-                      final isSelected =
-                          selectedPRs[material.partNo]?[prItem.prNo] ?? true;
+                  final isSelected =
+                      selectedPRs[material.partNo]?[prItem.prNo] ?? true;
 
-                      return TableRow(
-                        children: [
-                          // Checkbox
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Checkbox(
-                              value: isSelected,
-                              onChanged: (bool? value) {
-                                setState(() {
-                                  selectedPRs[material.partNo]![prItem.prNo] =
-                                      value ?? false;
-                                  if (value == true) {
-                                    // When checking, set to remaining quantity
-                                    prQtyControllers[material.partNo]
-                                            ?[prItem.prNo]
-                                        ?.text = remainingQty.toString();
-                                  } else {
-                                    // When unchecking, set to 0
-                                    prQtyControllers[material.partNo]
-                                            ?[prItem.prNo]
-                                        ?.text = '0';
-                                  }
-                                  _updateJobNumbers(); // Update job numbers when selection changes
-                                });
-                              },
+                  return TableRow(
+                    children: [
+                      // Checkbox
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Checkbox(
+                          value: isSelected,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              selectedPRs[material.partNo]![prItem.prNo] =
+                                  value ?? false;
+                              if (value == true) {
+                                // When checking, set to remaining quantity
+                                prQtyControllers[material.partNo]?[prItem.prNo]
+                                    ?.text = remainingQty.toString();
+                              } else {
+                                // When unchecking, set to 0
+                                prQtyControllers[material.partNo]?[prItem.prNo]
+                                    ?.text = '0';
+                              }
+                              _updateJobNumbers(); // Update job numbers when selection changes
+                            });
+                          },
+                        ),
+                      ),
+                      // PR No
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(prItem.prNo,
+                            style: const TextStyle(fontSize: 12)),
+                      ),
+                      // Need
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(totalQty.toStringAsFixed(2),
+                            style: const TextStyle(fontSize: 12)),
+                      ),
+                      // Ordered
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(orderedQty.toStringAsFixed(2),
+                            style: const TextStyle(fontSize: 12)),
+                      ),
+                      // Order Qty
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: SizedBox(
+                          height: 32,
+                          child: TextFormField(
+                            controller:
+                                prQtyControllers[material.partNo]![prItem.prNo],
+                            enabled: isSelected,
+                            decoration: InputDecoration(
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 8),
+                              border: const OutlineInputBorder(),
+                              filled: !isSelected,
+                              fillColor: !isSelected ? Colors.grey[200] : null,
                             ),
+                            style: const TextStyle(fontSize: 12),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (!isSelected) return null;
+                              if (value == null || value.isEmpty) {
+                                return null;
+                              }
+                              final qty = double.tryParse(value);
+                              if (qty == null) return 'Invalid';
+                              if (qty < 0) return 'Invalid';
+                              if (qty > remainingQty) return 'Exceeds';
+                              return null;
+                            },
+                            onChanged: (value) {
+                              if (!isSelected) return;
+                              final qty = double.tryParse(value);
+                              if (qty != null && qty > remainingQty) {
+                                prQtyControllers[material.partNo]?[prItem.prNo]
+                                    ?.text = remainingQty.toString();
+                              }
+                              _updateJobNumbers(); // Update job numbers when quantity changes
+                              setState(() {});
+                            },
                           ),
-                          // PR No
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Text(prItem.prNo,
-                                style: const TextStyle(fontSize: 12)),
-                          ),
-                          // Need
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Text(totalQty.toStringAsFixed(2),
-                                style: const TextStyle(fontSize: 12)),
-                          ),
-                          // Ordered
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Text(orderedQty.toStringAsFixed(2),
-                                style: const TextStyle(fontSize: 12)),
-                          ),
-                          // Order Qty
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: SizedBox(
-                              height: 32,
-                              child: TextFormField(
-                                controller: prQtyControllers[material.partNo]![
-                                    prItem.prNo],
-                                enabled: isSelected,
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 8),
-                                  border: const OutlineInputBorder(),
-                                  filled: !isSelected,
-                                  fillColor:
-                                      !isSelected ? Colors.grey[200] : null,
-                                ),
-                                style: const TextStyle(fontSize: 12),
-                                keyboardType: TextInputType.number,
-                                validator: (value) {
-                                  if (!isSelected) return null;
-                                  if (value == null || value.isEmpty) {
-                                    return null;
-                                  }
-                                  final qty = double.tryParse(value);
-                                  if (qty == null) return 'Invalid';
-                                  if (qty < 0) return 'Invalid';
-                                  if (qty > remainingQty) return 'Exceeds';
-                                  return null;
-                                },
-                                onChanged: (value) {
-                                  if (!isSelected) return;
-                                  final qty = double.tryParse(value);
-                                  if (qty != null && qty > remainingQty) {
-                                    prQtyControllers[material.partNo]
-                                            ?[prItem.prNo]
-                                        ?.text = remainingQty.toString();
-                                  }
-                                  _updateJobNumbers(); // Update job numbers when quantity changes
-                                  setState(() {});
-                                },
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    })
-                    .where(
-                        (row) => row.children.any((cell) => cell is! SizedBox))
-                    ,
+                        ),
+                      ),
+                    ],
+                  );
+                }).where(
+                    (row) => row.children.any((cell) => cell is! SizedBox)),
               ],
             ),
           ],
@@ -430,9 +423,10 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
           // Get the material to check preferred vendor
           final material = materials.firstWhere(
             (m) => m.partNo == item.materialCode,
-            orElse: () => throw Exception('Material not found: ${item.materialCode}'),
+            orElse: () =>
+                throw Exception('Material not found: ${item.materialCode}'),
           );
-          
+
           // Only add if this supplier is the preferred vendor for this material
           if (material.getPreferredVendorName(ref) == selectedSupplier!.name) {
             materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
@@ -596,12 +590,16 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
             // Get the material to check preferred vendor
             final material = materials.firstWhere(
               (m) => m.partNo == item.materialCode,
-              orElse: () => throw Exception('Material not found: ${item.materialCode}'),
+              orElse: () =>
+                  throw Exception('Material not found: ${item.materialCode}'),
             );
-            
+
             // Only add if this supplier is the preferred vendor for this material
-            if (material.getPreferredVendorName(ref) == selectedSupplier!.name) {
-              materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
+            if (material.getPreferredVendorName(ref) ==
+                selectedSupplier!.name) {
+              materialPRItems
+                  .putIfAbsent(item.materialCode, () => [])
+                  .add(item);
             }
           }
         }
@@ -624,7 +622,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
           .read(vendorMaterialRateProvider.notifier)
           .getRatesForMaterial(material.slNo);
       final hasRate = rates.any((r) => r.vendorId == selectedSupplier!.name);
-      
+
       if (!hasRate) {
         materialsWithoutRates.add(material.description);
       }

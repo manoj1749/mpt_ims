@@ -77,7 +77,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     for (var po in pos) {
       final poItem = po.items.firstWhere(
         (item) => item.materialCode == material.partNo,
-        orElse: () => throw Exception('Material not found in PO: ${material.partNo}'),
+        orElse: () =>
+            throw Exception('Material not found in PO: ${material.partNo}'),
       );
 
       final orderedQty = double.parse(poItem.quantity);
@@ -121,7 +122,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     }
 
     // Get all store inwards for this material and supplier from the watched provider
-    final materialInwards = ref.watch(storeInwardProvider.notifier)
+    final materialInwards = ref
+        .watch(storeInwardProvider.notifier)
         .getInwardsByMaterial(material.partNo)
         .where((inward) => inward.supplierName == selectedSupplier!.name)
         .toList();
@@ -130,7 +132,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     final poReceivedQty = <String, double>{};
     for (var po in pos) {
       // Use the provider's helper method to get total received quantity
-      poReceivedQty[po.poNo] = ref.read(storeInwardProvider.notifier)
+      poReceivedQty[po.poNo] = ref
+          .read(storeInwardProvider.notifier)
           .getTotalReceivedQuantity(material.partNo, po.poNo);
     }
 
@@ -184,13 +187,17 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   children: [
                     Text(''), // Checkbox header
                     Text('PO No',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Ordered',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Received',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Inward Qty',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                   ],
                 ),
                 ...pos.map((po) {
@@ -199,7 +206,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   );
                   final orderedQty = double.parse(poItem.quantity);
                   final receivedQty = poReceivedQty[po.poNo] ?? 0;
-                  final isSelected = selectedPOs[material.partNo]?[po.poNo] ?? true;
+                  final isSelected =
+                      selectedPOs[material.partNo]?[po.poNo] ?? true;
 
                   return TableRow(
                     children: [
@@ -209,15 +217,18 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         child: Checkbox(
                           value: isSelected,
                           onChanged: (bool? value) {
-    setState(() {
-                              selectedPOs[material.partNo]![po.poNo] = value ?? false;
+                            setState(() {
+                              selectedPOs[material.partNo]![po.poNo] =
+                                  value ?? false;
                               if (value == true) {
                                 // When checking, set to remaining quantity
                                 final remainingQty = orderedQty - receivedQty;
-                                poQtyControllers[material.partNo]?[po.poNo]?.text = remainingQty.toString();
+                                poQtyControllers[material.partNo]?[po.poNo]
+                                    ?.text = remainingQty.toString();
                               } else {
                                 // When unchecking, set to 0
-                                poQtyControllers[material.partNo]?[po.poNo]?.text = '0';
+                                poQtyControllers[material.partNo]?[po.poNo]
+                                    ?.text = '0';
                               }
                             });
                           },
@@ -226,7 +237,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                       // PO No
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(po.poNo, style: const TextStyle(fontSize: 12)),
+                        child:
+                            Text(po.poNo, style: const TextStyle(fontSize: 12)),
                       ),
                       // Ordered
                       Padding(
@@ -248,12 +260,13 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         child: SizedBox(
                           height: 32,
                           child: TextFormField(
-                            controller: poQtyControllers[material.partNo]![po.poNo],
+                            controller:
+                                poQtyControllers[material.partNo]![po.poNo],
                             enabled: isSelected,
                             decoration: InputDecoration(
                               isDense: true,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 8),
                               border: const OutlineInputBorder(),
                               filled: !isSelected,
                               fillColor: !isSelected ? Colors.grey[200] : null,
@@ -269,7 +282,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               if (qty == null) return 'Invalid';
                               if (qty < 0) return 'Invalid';
                               final remainingQty = orderedQty - receivedQty;
-                              if (qty > remainingQty) return 'Exceeds remaining';
+                              if (qty > remainingQty)
+                                return 'Exceeds remaining';
                               return null;
                             },
                             onChanged: (value) {
@@ -277,7 +291,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               final qty = double.tryParse(value) ?? 0;
                               final remainingQty = orderedQty - receivedQty;
                               if (qty > remainingQty) {
-                                poQtyControllers[material.partNo]?[po.poNo]?.text = remainingQty.toString();
+                                poQtyControllers[material.partNo]?[po.poNo]
+                                    ?.text = remainingQty.toString();
                               }
                               setState(() {});
                             },
@@ -396,9 +411,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         grnDate: _grnDateController.text,
         poNo: items.first.poQuantities.keys.join(', '),
         supplierName: selectedSupplier!.name,
-        poDate: pos.firstWhere(
-          (po) => po.poNo == items.first.poQuantities.keys.first,
-        ).poDate,
+        poDate: pos
+            .firstWhere(
+              (po) => po.poNo == items.first.poQuantities.keys.first,
+            )
+            .poDate,
         invoiceNo: _invoiceNoController.text,
         invoiceDate: _invoiceDateController.text,
         invoiceAmount: _invoiceAmountController.text,
@@ -417,7 +434,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           selectedPOs.clear();
           poQtyControllers.clear();
           receivedQtyControllers.clear();
-          
+
           // Reset form fields
           _invoiceNoController.clear();
           _invoiceDateController.clear();
@@ -447,7 +464,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     final suppliers = ref.watch(supplierListProvider);
     final materials = ref.watch(materialListProvider);
     final purchaseOrders = ref.watch(purchaseOrderListProvider);
-    final storeInwards = ref.watch(storeInwardProvider); // Add this to watch store inwards
+    final storeInwards =
+        ref.watch(storeInwardProvider); // Add this to watch store inwards
 
     // Filter POs by selected supplier and group by material
     final materialPOItems = <String, List<PurchaseOrder>>{};
@@ -455,17 +473,17 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       for (var po in purchaseOrders) {
         if (po.supplierName == selectedSupplier!.name) {
           for (var item in po.items) {
-            materialPOItems
-                .putIfAbsent(item.materialCode, () => [])
-                .add(po);
+            materialPOItems.putIfAbsent(item.materialCode, () => []).add(po);
           }
         }
       }
     }
 
     // Get all store inwards for the selected supplier
-    final supplierInwards = selectedSupplier != null 
-        ? storeInwards.where((inward) => inward.supplierName == selectedSupplier!.name).toList()
+    final supplierInwards = selectedSupplier != null
+        ? storeInwards
+            .where((inward) => inward.supplierName == selectedSupplier!.name)
+            .toList()
         : <StoreInward>[];
 
     return Scaffold(
@@ -477,39 +495,39 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           : Form(
               key: _formKey,
               child: Padding(
-        padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
-            children: [
+                      children: [
                         Expanded(
-                child: DropdownButtonFormField2<Supplier>(
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Select Supplier',
-                    border: OutlineInputBorder(),
+                          child: DropdownButtonFormField2<Supplier>(
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Select Supplier',
+                              border: OutlineInputBorder(),
                               contentPadding: EdgeInsets.symmetric(vertical: 0),
-                  ),
+                            ),
                             hint: const Text("Select Supplier"),
-                  value: selectedSupplier,
+                            value: selectedSupplier,
                             items: suppliers
                                 .map((supplier) => DropdownMenuItem<Supplier>(
-                      value: supplier,
-                      child: Text(
-                        supplier.name,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                                      value: supplier,
+                                      child: Text(
+                                        supplier.name,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ))
                                 .toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      selectedSupplier = val;
+                            onChanged: (val) {
+                              setState(() {
+                                selectedSupplier = val;
                                 // Clear selections when supplier changes
                                 selectedPOs.clear();
                                 poQtyControllers.clear();
-                    });
-                  },
+                              });
+                            },
                             dropdownStyleData: DropdownStyleData(
                               maxHeight: 300,
                               decoration: BoxDecoration(
@@ -527,9 +545,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
                                   "GRN No: GRN${DateTime.now().millisecondsSinceEpoch}"),
                               Text(
@@ -543,11 +561,13 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                     Row(
                       children: [
                         Expanded(
-                          child: buildTextField(_invoiceNoController, 'Invoice No'),
+                          child: buildTextField(
+                              _invoiceNoController, 'Invoice No'),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: buildTextField(_invoiceDateController, 'Invoice Date',
+                          child: buildTextField(
+                              _invoiceDateController, 'Invoice Date',
                               isDate: true),
                         ),
                       ],
@@ -555,15 +575,17 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                     Row(
                       children: [
                         Expanded(
-                          child: buildTextField(_receivedByController, 'Received By'),
+                          child: buildTextField(
+                              _receivedByController, 'Received By'),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: buildTextField(_checkedByController, 'Checked By'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
+                          child: buildTextField(
+                              _checkedByController, 'Checked By'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                     if (selectedSupplier != null) ...[
                       if (materialPOItems.isEmpty)
                         const Center(
@@ -585,9 +607,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                                child: Column(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
+                              children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 8),
@@ -607,25 +629,26 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                     ),
                                   ),
                                 ),
-                                        Expanded(
+                                Expanded(
                                   child: ListView.builder(
                                     padding: const EdgeInsets.all(8),
                                     itemCount: materialPOItems.length,
                                     itemBuilder: (_, index) {
-                                      final entry =
-                                          materialPOItems.entries.elementAt(index);
+                                      final entry = materialPOItems.entries
+                                          .elementAt(index);
                                       final material = materials.firstWhere(
                                         (m) => m.partNo == entry.key,
-                                        orElse: () =>
-                                            throw Exception('Material not found'),
+                                        orElse: () => throw Exception(
+                                            'Material not found'),
                                       );
-                                      return _buildItemCard(material, entry.value);
+                                      return _buildItemCard(
+                                          material, entry.value);
                                     },
                                   ),
-                                    ),
-                                  ],
                                 ),
-                              ),
+                              ],
+                            ),
+                          ),
                         ),
                     ],
                     const SizedBox(height: 10),
@@ -648,11 +671,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             ),
                           ),
                         ),
+                      ),
+                  ],
+                ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 

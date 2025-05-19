@@ -20,48 +20,49 @@ import '../models/quality.dart';
 import '../models/universal_parameter.dart';
 
 Future<void> initializeHive() async {
+  // Initialize Hive
   await Hive.initFlutter();
 
-  // Register adapters in order of their typeIds
-  Hive.registerAdapter(CustomerAdapter()); // typeId: 0
-  Hive.registerAdapter(EmployeeAdapter()); // typeId: 1
-  Hive.registerAdapter(MaterialItemAdapter()); // typeId: 2
-  Hive.registerAdapter(POItemAdapter()); // typeId: 3
-  Hive.registerAdapter(PurchaseOrderAdapter()); // typeId: 4
-  Hive.registerAdapter(PurchaseRequestAdapter()); // typeId: 5
-  Hive.registerAdapter(PRItemAdapter()); // typeId: 6
-  Hive.registerAdapter(StoreInwardAdapter()); // typeId: 7
-  Hive.registerAdapter(InwardItemAdapter()); // typeId: 8
-  Hive.registerAdapter(SupplierAdapter()); // typeId: 9
-  Hive.registerAdapter(VendorMaterialRateAdapter()); // typeId: 10
-  Hive.registerAdapter(QualityInspectionAdapter()); // typeId: 11
-  Hive.registerAdapter(CategoryParameterMappingAdapter()); // typeId: 12
-  Hive.registerAdapter(SaleOrderAdapter()); // typeId: 13
-  Hive.registerAdapter(CategoryAdapter()); // typeId: 14
-  Hive.registerAdapter(SubCategoryAdapter()); // typeId: 15
-  Hive.registerAdapter(QualityAdapter()); // typeId: 16
-  Hive.registerAdapter(UniversalParameterAdapter()); // typeId: 17
+  // Register adapters
+  Hive.registerAdapter(SupplierAdapter());
+  Hive.registerAdapter(MaterialItemAdapter());
+  Hive.registerAdapter(CustomerAdapter());
+  Hive.registerAdapter(PurchaseOrderAdapter());
+  Hive.registerAdapter(POItemAdapter());
+  Hive.registerAdapter(StoreInwardAdapter());
+  Hive.registerAdapter(InwardItemAdapter());
+  Hive.registerAdapter(PurchaseRequestAdapter());
+  Hive.registerAdapter(PRItemAdapter());
+  Hive.registerAdapter(VendorMaterialRateAdapter());
+  Hive.registerAdapter(QualityInspectionAdapter());
+  Hive.registerAdapter(InspectionItemAdapter());
+  Hive.registerAdapter(QualityParameterAdapter());
+  Hive.registerAdapter(InspectionPOQuantityAdapter());
+  Hive.registerAdapter(CategoryParameterMappingAdapter());
+  Hive.registerAdapter(SaleOrderAdapter());
+  Hive.registerAdapter(CategoryAdapter());
+  Hive.registerAdapter(SubCategoryAdapter());
+  Hive.registerAdapter(QualityAdapter());
+  Hive.registerAdapter(UniversalParameterAdapter());
+  Hive.registerAdapter(EmployeeAdapter());
 
-  // Handle schema migration
-  await clearIncompatibleData();
-
-  // Open boxes
+  // Open boxes with schema version
   await Future.wait([
     Hive.openBox<Supplier>('suppliers'),
     Hive.openBox<MaterialItem>('materials'),
-    Hive.openBox<PurchaseRequest>('purchaseRequests'),
-    Hive.openBox<PurchaseOrder>('purchaseOrders'),
-    Hive.openBox<Employee>('employees'),
     Hive.openBox<Customer>('customers'),
+    Hive.openBox<PurchaseOrder>('purchaseOrders'),
     Hive.openBox<StoreInward>('storeInwards'),
+    Hive.openBox<PurchaseRequest>('purchaseRequests'),
     Hive.openBox<VendorMaterialRate>('vendorMaterialRates'),
     Hive.openBox<QualityInspection>('qualityInspections'),
-    Hive.openBox<SaleOrder>('saleOrders'),
     Hive.openBox<CategoryParameterMapping>('categoryParameterMappings'),
+    Hive.openBox<SaleOrder>('saleOrders'),
     Hive.openBox<Category>('categories'),
     Hive.openBox<SubCategory>('subCategories'),
     Hive.openBox<Quality>('qualities'),
-    Hive.openBox<UniversalParameter>('universal_parameters'),
+    Hive.openBox<UniversalParameter>('universalParameters'),
+    Hive.openBox<Employee>('employees'),
   ]);
 }
 
@@ -72,8 +73,7 @@ Future<void> clearIncompatibleData() async {
     final currentVersion = box.get('version') ?? 0;
 
     // If schema version is less than required, clear data
-    if (currentVersion < 8) {
-      // Increased version for universal parameters
+    if (currentVersion < 9) { // Increment version for PRItem remarks field change
       // Delete all boxes since we've made significant model changes
       await Future.wait([
         Hive.deleteBoxFromDisk('customers'),
@@ -94,7 +94,7 @@ Future<void> clearIncompatibleData() async {
       ]);
 
       // Update schema version
-      await box.put('version', 8);
+      await box.put('version', 9);
     }
   } catch (e) {
     print('Error clearing incompatible data: $e');

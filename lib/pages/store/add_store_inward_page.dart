@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/store_inward.dart';
 import '../../provider/store_inward_provider.dart';
-import '../../provider/vendor_material_rate_provider.dart';
 import '../../provider/material_provider.dart';
 import '../../models/material_item.dart';
 import '../../models/supplier.dart';
@@ -29,11 +28,13 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
   final _invoiceAmountController = TextEditingController();
   final _receivedByController = TextEditingController();
   final _checkedByController = TextEditingController();
-  
+
   Supplier? selectedSupplier;
   Map<String, Map<String, TextEditingController>> poQtyControllers = {};
+  Map<String, Map<String, TextEditingController>> receivedQtyControllers = {};
   Map<String, Map<String, bool>> selectedPOs = {};
   final List<InwardItem> _items = [];
+  bool _isLoading = false;
 
   // Map to store material slNo for each materialCode
   final Map<String, String> _materialSlNoMap = {};
@@ -58,6 +59,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         controller.dispose();
       }
     }
+    for (var materialControllers in receivedQtyControllers.values) {
+      for (var controller in materialControllers.values) {
+        controller.dispose();
+      }
+    }
     super.dispose();
   }
 
@@ -75,13 +81,13 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       );
 
       final orderedQty = double.parse(poItem.quantity);
-      final controller = poQtyControllers[material.partNo]?[po.poNo] ??
-          TextEditingController(text: orderedQty.toString());
+      final inwardController = poQtyControllers[material.partNo]?[po.poNo] ??
+          TextEditingController(text: '0');
       poQtyControllers
           .putIfAbsent(material.partNo, () => {})
-          .putIfAbsent(po.poNo, () => controller);
+          .putIfAbsent(po.poNo, () => inwardController);
 
-      final inwardQty = double.tryParse(controller.text) ?? 0;
+      final inwardQty = double.tryParse(inwardController.text) ?? 0;
       if (inwardQty > 0) {
         poQuantities[po.poNo] = inwardQty;
         totalQty += inwardQty;
@@ -99,6 +105,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       costPerUnit: pos.first.items
           .firstWhere((item) => item.materialCode == material.partNo)
           .costPerUnit,
+      poQuantities: poQuantities,
     );
   }
 
@@ -111,6 +118,20 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       for (var po in pos) {
         selectedPOs[material.partNo]![po.poNo] = true; // Default to selected
       }
+    }
+
+    // Get all store inwards for this material and supplier from the watched provider
+    final materialInwards = ref.watch(storeInwardProvider.notifier)
+        .getInwardsByMaterial(material.partNo)
+        .where((inward) => inward.supplierName == selectedSupplier!.name)
+        .toList();
+
+    // Calculate total received quantity for each PO
+    final poReceivedQty = <String, double>{};
+    for (var po in pos) {
+      // Use the provider's helper method to get total received quantity
+      poReceivedQty[po.poNo] = ref.read(storeInwardProvider.notifier)
+          .getTotalReceivedQuantity(material.partNo, po.poNo);
     }
 
     return Card(
@@ -155,7 +176,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 0: FlexColumnWidth(0.5), // Checkbox column
                 1: FlexColumnWidth(2), // PO No
                 2: FlexColumnWidth(1), // Ordered
-                3: FlexColumnWidth(1.5), // Inward Qty
+                3: FlexColumnWidth(1), // Received
+                4: FlexColumnWidth(1.5), // Inward Qty
               },
               children: [
                 const TableRow(
@@ -164,6 +186,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                     Text('PO No',
                         style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Ordered',
+                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                    Text('Received',
                         style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Inward Qty',
                         style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
@@ -174,6 +198,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                     (item) => item.materialCode == material.partNo,
                   );
                   final orderedQty = double.parse(poItem.quantity);
+                  final receivedQty = poReceivedQty[po.poNo] ?? 0;
                   final isSelected = selectedPOs[material.partNo]?[po.poNo] ?? true;
 
                   return TableRow(
@@ -184,12 +209,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         child: Checkbox(
                           value: isSelected,
                           onChanged: (bool? value) {
-                            setState(() {
+    setState(() {
                               selectedPOs[material.partNo]![po.poNo] = value ?? false;
                               if (value == true) {
-                                // When checking, set to ordered quantity
-                                poQtyControllers[material.partNo]?[po.poNo]?.text =
-                                    orderedQty.toString();
+                                // When checking, set to remaining quantity
+                                final remainingQty = orderedQty - receivedQty;
+                                poQtyControllers[material.partNo]?[po.poNo]?.text = remainingQty.toString();
                               } else {
                                 // When unchecking, set to 0
                                 poQtyControllers[material.partNo]?[po.poNo]?.text = '0';
@@ -208,6 +233,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(orderedQty.toStringAsFixed(2),
                             style: const TextStyle(fontSize: 12)),
+                      ),
+                      // Received Qty
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          receivedQty.toStringAsFixed(2),
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       ),
                       // Inward Qty
                       Padding(
@@ -235,15 +268,16 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               final qty = double.tryParse(value);
                               if (qty == null) return 'Invalid';
                               if (qty < 0) return 'Invalid';
-                              if (qty > orderedQty) return 'Exceeds';
+                              final remainingQty = orderedQty - receivedQty;
+                              if (qty > remainingQty) return 'Exceeds remaining';
                               return null;
                             },
                             onChanged: (value) {
                               if (!isSelected) return;
-                              final qty = double.tryParse(value);
-                              if (qty != null && qty > orderedQty) {
-                                poQtyControllers[material.partNo]?[po.poNo]?.text =
-                                    orderedQty.toString();
+                              final qty = double.tryParse(value) ?? 0;
+                              final remainingQty = orderedQty - receivedQty;
+                              if (qty > remainingQty) {
+                                poQtyControllers[material.partNo]?[po.poNo]?.text = remainingQty.toString();
                               }
                               setState(() {});
                             },
@@ -261,12 +295,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     );
   }
 
-  void _onSavePressed() {
+  Future<void> _onSavePressed() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    // Validate supplier selection
     if (selectedSupplier == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a supplier')),
@@ -296,339 +329,326 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       return;
     }
 
-    if (_checkedByController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter Checked By')),
-      );
-      return;
-    }
-
-    final materials = ref.read(materialListProvider);
-    final purchaseOrders = ref.read(purchaseOrderListProvider);
-
-    // Group PO items by material code
-    final materialPOItems = <String, List<PurchaseOrder>>{};
-
-    for (var po in purchaseOrders) {
-      if (po.supplierName == selectedSupplier!.name) {
-        for (var item in po.items) {
-          materialPOItems.putIfAbsent(item.materialCode, () => []).add(po);
-        }
-      }
-    }
-
-    // Validate if at least one item has quantity
-    bool hasItems = false;
-    for (var entry in materialPOItems.entries) {
-      final pos = entry.value;
-      for (var po in pos) {
-        if (selectedPOs[entry.key]?[po.poNo] == true) {
-          final qty = double.tryParse(
-                  poQtyControllers[entry.key]?[po.poNo]?.text ?? '0') ??
-              0.0;
-          if (qty > 0) {
-            hasItems = true;
-            break;
-          }
-        }
-      }
-      if (hasItems) break;
-    }
-
-    if (!hasItems) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one item with quantity')),
-      );
-      return;
-    }
-
-    // Create updated InwardItems with current quantities
-    final updatedInwardItems = <InwardItem>[];
-
-    for (var entry in materialPOItems.entries) {
-      final material = materials.firstWhere(
-        (m) => m.partNo == entry.key,
-        orElse: () => throw Exception('Material not found: ${entry.key}'),
-      );
-      final pos = entry.value;
-
-      final inwardItem = _createInwardItem(material, pos);
-
-      if (inwardItem.receivedQty > 0) {
-        updatedInwardItems.add(inwardItem);
-      }
-    }
-
-    // Create store inward record
-    final inward = StoreInward(
-      grnNo: ref.read(storeInwardProvider.notifier).generateGRNNumber(),
-      grnDate: _grnDateController.text,
-      supplierName: selectedSupplier!.name,
-      poNo: materialPOItems.values.first.first.poNo, // Use first PO's number
-      poDate: materialPOItems.values.first.first.poDate, // Use first PO's date
-      invoiceNo: _invoiceNoController.text,
-      invoiceDate: _invoiceDateController.text,
-      invoiceAmount: _invoiceAmountController.text,
-      receivedBy: _receivedByController.text,
-      checkedBy: _checkedByController.text,
-      items: updatedInwardItems,
-    );
+    setState(() => _isLoading = true);
 
     try {
-      // Add to inspection stock
-      final vendorRateNotifier = ref.read(vendorMaterialRateProvider.notifier);
-      for (var item in updatedInwardItems) {
-        // Get the material slNo from the map
-        final materialSlNo = _materialSlNoMap[item.materialCode];
-        if (materialSlNo == null) {
-          throw Exception(
-              'Material slNo not found for ${item.materialDescription}');
-        }
+      // Create store inward items
+      final items = <InwardItem>[];
+      final materials = ref.read(materialListProvider);
+      final pos = ref.read(purchaseOrderListProvider);
 
-        // Check if vendor material rate exists using slNo
-        final rates =
-            vendorRateNotifier.getRatesForMaterial(materialSlNo);
-
-        final vendorRate = rates
-            .where((r) => r.vendorId == selectedSupplier!.name)
-            .firstOrNull;
-        if (vendorRate == null) {
-          throw Exception(
-              'No rate found for material ${item.materialDescription} for vendor ${selectedSupplier!.name}');
-        }
-
-        vendorRateNotifier.addToInspectionStock(
-          materialSlNo,
-          selectedSupplier!.name,
-          item.receivedQty,
+      for (var entry in selectedPOs.entries) {
+        final materialCode = entry.key;
+        final material = materials.firstWhere(
+          (m) => m.partNo == materialCode,
+          orElse: () => throw Exception('Material not found'),
         );
 
-        // If items are accepted/rejected, update stocks accordingly
-        if (item.acceptedQty > 0) {
-          vendorRateNotifier.acceptFromInspectionStock(
-            materialSlNo,
-            selectedSupplier!.name,
-            item.acceptedQty,
-          );
+        final poQuantities = <String, double>{};
+        double totalQty = 0;
+
+        for (var poEntry in entry.value.entries) {
+          final poNo = poEntry.key;
+          final isSelected = poEntry.value;
+
+          if (isSelected) {
+            final qty = double.tryParse(
+                    poQtyControllers[materialCode]?[poNo]?.text ?? '0') ??
+                0.0;
+            if (qty > 0) {
+              poQuantities[poNo] = qty;
+              totalQty += qty;
+            }
+          }
         }
 
-        if (item.rejectedQty > 0) {
-          vendorRateNotifier.rejectFromInspectionStock(
-            materialSlNo,
-            selectedSupplier!.name,
-            item.rejectedQty,
+        if (totalQty > 0) {
+          final po = pos.firstWhere(
+            (po) => po.items.any((item) => item.materialCode == materialCode),
+            orElse: () => throw Exception('PO not found for material'),
           );
+
+          final poItem = po.items.firstWhere(
+            (item) => item.materialCode == materialCode,
+          );
+
+          items.add(InwardItem(
+            materialCode: materialCode,
+            materialDescription: material.description,
+            unit: material.unit,
+            orderedQty: totalQty,
+            receivedQty: totalQty,
+            acceptedQty: totalQty,
+            rejectedQty: 0,
+            costPerUnit: poItem.costPerUnit,
+            poQuantities: poQuantities,
+          ));
         }
       }
 
-      ref.read(storeInwardProvider.notifier).addInward(inward);
-      Navigator.pop(context);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: Colors.red,
-        ),
+      if (items.isEmpty) {
+        throw Exception('No items selected for inward');
+      }
+
+      // Create store inward
+      final inward = StoreInward(
+        grnNo: ref.read(storeInwardProvider.notifier).generateGRNNumber(),
+        grnDate: _grnDateController.text,
+        poNo: items.first.poQuantities.keys.join(', '),
+        supplierName: selectedSupplier!.name,
+        poDate: pos.firstWhere(
+          (po) => po.poNo == items.first.poQuantities.keys.first,
+        ).poDate,
+        invoiceNo: _invoiceNoController.text,
+        invoiceDate: _invoiceDateController.text,
+        invoiceAmount: _invoiceAmountController.text,
+        receivedBy: _receivedByController.text,
+        checkedBy: _checkedByController.text,
+        items: items,
       );
+
+      // Save the inward and ensure state is updated
+      await ref.read(storeInwardProvider.notifier).addInward(inward);
+
+      // Force a rebuild of the page
+      if (mounted) {
+        setState(() {
+          // Clear selections and controllers
+          selectedPOs.clear();
+          poQtyControllers.clear();
+          receivedQtyControllers.clear();
+          
+          // Reset form fields
+          _invoiceNoController.clear();
+          _invoiceDateController.clear();
+          _invoiceAmountController.clear();
+          _receivedByController.clear();
+          _checkedByController.clear();
+          selectedSupplier = null;
+        });
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving store inward: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Watch all providers to ensure rebuilds when data changes
     final suppliers = ref.watch(supplierListProvider);
-    final purchaseOrders = ref.watch(purchaseOrderListProvider);
     final materials = ref.watch(materialListProvider);
+    final purchaseOrders = ref.watch(purchaseOrderListProvider);
+    final storeInwards = ref.watch(storeInwardProvider); // Add this to watch store inwards
 
-    // Group PO items by material code
+    // Filter POs by selected supplier and group by material
     final materialPOItems = <String, List<PurchaseOrder>>{};
-
     if (selectedSupplier != null) {
       for (var po in purchaseOrders) {
         if (po.supplierName == selectedSupplier!.name) {
           for (var item in po.items) {
-            materialPOItems.putIfAbsent(item.materialCode, () => []).add(po);
+            materialPOItems
+                .putIfAbsent(item.materialCode, () => [])
+                .add(po);
           }
         }
       }
     }
 
+    // Get all store inwards for the selected supplier
+    final supplierInwards = selectedSupplier != null 
+        ? storeInwards.where((inward) => inward.supplierName == selectedSupplier!.name).toList()
+        : <StoreInward>[];
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Store Inward')),
-      body: Padding(
+      appBar: AppBar(
+        title: const Text('Add Store Inward'),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
+              key: _formKey,
+              child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField2<Supplier>(
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Select Supplier',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(vertical: 0),
-                      ),
-                      hint: const Text("Select Supplier"),
-                      value: selectedSupplier,
-                      items: suppliers
-                          .map((supplier) => DropdownMenuItem<Supplier>(
-                                value: supplier,
-                                child: Text(
-                                  supplier.name,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (val) {
-                        setState(() {
-                          selectedSupplier = val;
-                          // Clear selections when supplier changes
-                          selectedPOs.clear();
-                          poQtyControllers.clear();
-                        });
-                      },
-                      dropdownStyleData: DropdownStyleData(
-                        maxHeight: 300,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      menuItemStyleData: const MenuItemStyleData(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                      ),
-                      buttonStyleData: const ButtonStyleData(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        height: 60,
-                      ),
-                    ),
+                        Expanded(
+                child: DropdownButtonFormField2<Supplier>(
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Select Supplier',
+                    border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(vertical: 0),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                            "GRN No: GRN${DateTime.now().millisecondsSinceEpoch}"),
-                        Text(
-                            "Date: ${DateFormat('dd/MMM/yy').format(DateTime.now())}"),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: buildTextField(_invoiceNoController, 'Invoice No'),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: buildTextField(_invoiceDateController, 'Invoice Date',
-                        isDate: true),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: buildTextField(_receivedByController, 'Received By'),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: buildTextField(_checkedByController, 'Checked By'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (selectedSupplier != null) ...[
-                if (materialPOItems.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
+                            hint: const Text("Select Supplier"),
+                  value: selectedSupplier,
+                            items: suppliers
+                                .map((supplier) => DropdownMenuItem<Supplier>(
+                      value: supplier,
                       child: Text(
-                        'No Purchase Orders found for this supplier',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
+                        supplier.name,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).primaryColor,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(8),
-                                topRight: Radius.circular(8),
+                                    ))
+                                .toList(),
+                  onChanged: (val) {
+                    setState(() {
+                      selectedSupplier = val;
+                                // Clear selections when supplier changes
+                                selectedPOs.clear();
+                                poQtyControllers.clear();
+                    });
+                  },
+                            dropdownStyleData: DropdownStyleData(
+                              maxHeight: 300,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: const Text(
-                              "Store Inward Items",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                            menuItemStyleData: const MenuItemStyleData(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                            ),
+                            buttonStyleData: const ButtonStyleData(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              height: 60,
                             ),
                           ),
-                          Expanded(
-                            child: ListView.builder(
-                              padding: const EdgeInsets.all(8),
-                              itemCount: materialPOItems.length,
-                              itemBuilder: (_, index) {
-                                final entry =
-                                    materialPOItems.entries.elementAt(index);
-                                final material = materials.firstWhere(
-                                  (m) => m.partNo == entry.key,
-                                  orElse: () =>
-                                      throw Exception('Material not found'),
-                                );
-                                return _buildItemCard(material, entry.value);
-                              },
-                            ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                              Text(
+                                  "GRN No: GRN${DateTime.now().millisecondsSinceEpoch}"),
+                              Text(
+                                  "Date: ${DateFormat('dd/MMM/yy').format(DateTime.now())}"),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: buildTextField(_invoiceNoController, 'Invoice No'),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: buildTextField(_invoiceDateController, 'Invoice Date',
+                              isDate: true),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: buildTextField(_receivedByController, 'Received By'),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: buildTextField(_checkedByController, 'Checked By'),
                           ),
                         ],
                       ),
-                    ),
-                  ),
-              ],
-              const SizedBox(height: 10),
-              if (selectedSupplier != null)
-                Center(
-                  child: ElevatedButton(
-                    onPressed: _onSavePressed,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 48, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      "Save Store Inward",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
+                      const SizedBox(height: 16),
+                    if (selectedSupplier != null) ...[
+                      if (materialPOItems.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Text(
+                              'No Purchase Orders found for this supplier',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Expanded(
+                          child: Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                                child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).primaryColor,
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(8),
+                                      topRight: Radius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    "Store Inward Items",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                        Expanded(
+                                  child: ListView.builder(
+                                    padding: const EdgeInsets.all(8),
+                                    itemCount: materialPOItems.length,
+                                    itemBuilder: (_, index) {
+                                      final entry =
+                                          materialPOItems.entries.elementAt(index);
+                                      final material = materials.firstWhere(
+                                        (m) => m.partNo == entry.key,
+                                        orElse: () =>
+                                            throw Exception('Material not found'),
+                                      );
+                                      return _buildItemCard(material, entry.value);
+                                    },
+                                  ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                        ),
+                    ],
+                    const SizedBox(height: 10),
+                    if (selectedSupplier != null)
+                      Center(
+                        child: ElevatedButton(
+                          onPressed: _onSavePressed,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 48, vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            "Save Store Inward",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+              ),
             ],
           ),
         ),

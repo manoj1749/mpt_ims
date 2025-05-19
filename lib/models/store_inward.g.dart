@@ -89,13 +89,14 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
       acceptedQty: fields[5] as double,
       rejectedQty: fields[6] as double,
       costPerUnit: fields[7] as String,
+      poQuantities: (fields[8] as Map?)?.cast<String, double>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, InwardItem obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -111,7 +112,9 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
       ..writeByte(6)
       ..write(obj.rejectedQty)
       ..writeByte(7)
-      ..write(obj.costPerUnit);
+      ..write(obj.costPerUnit)
+      ..writeByte(8)
+      ..write(obj.poQuantities);
   }
 
   @override

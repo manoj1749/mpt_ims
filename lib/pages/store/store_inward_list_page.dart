@@ -14,7 +14,65 @@ class StoreInwardListPage extends ConsumerStatefulWidget {
 }
 
 class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
-  late PlutoGridStateManager stateManager;
+  PlutoGridStateManager? stateManager;
+  bool _isLoading = false;
+
+  List<PlutoRow> _buildRows(List<StoreInward> inwards) {
+    return inwards.expand((inward) {
+      return inward.items.map((item) {
+        final costPerUnit = double.tryParse(item.costPerUnit) ?? 0;
+        final totalCost = costPerUnit * item.receivedQty;
+
+        return PlutoRow(
+          cells: {
+            'grnNo': PlutoCell(value: inward.grnNo),
+            'poNo': PlutoCell(value: inward.poNo),
+            'supplier': PlutoCell(value: inward.supplierName),
+            'grDate': PlutoCell(value: inward.grnDate),
+            'partNo': PlutoCell(value: item.materialCode),
+            'description': PlutoCell(value: item.materialDescription),
+            'qty': PlutoCell(value: item.receivedQty),
+            'unit': PlutoCell(value: item.unit),
+            'costPerUnit': PlutoCell(value: costPerUnit),
+            'totalCost': PlutoCell(value: totalCost),
+            'invoiceNo': PlutoCell(value: inward.invoiceNo),
+            'invoiceDate': PlutoCell(value: inward.invoiceDate),
+            'invoiceAmount': PlutoCell(value: inward.invoiceAmount),
+            'receivedBy': PlutoCell(value: inward.receivedBy),
+            'checkedBy': PlutoCell(value: inward.checkedBy),
+            'actions': PlutoCell(value: ''),
+            'inward': PlutoCell(value: inward),
+          },
+        );
+      });
+    }).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Set loading to false after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _navigateToAddInward() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AddStoreInwardPage(),
+      ),
+    );
+    // Force a rebuild of the grid after returning from add page
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   List<PlutoColumn> _getColumns() {
     return [
@@ -162,39 +220,9 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
     ];
   }
 
-  List<PlutoRow> _getRows(List<StoreInward> inwards) {
-    return inwards.expand((inward) {
-      return inward.items.map((item) {
-        final costPerUnit = double.tryParse(item.costPerUnit) ?? 0;
-        final totalCost = costPerUnit * item.receivedQty;
 
-        return PlutoRow(
-          cells: {
-            'grnNo': PlutoCell(value: inward.grnNo),
-            'poNo': PlutoCell(value: inward.poNo),
-            'supplier': PlutoCell(value: inward.supplierName),
-            'grDate': PlutoCell(value: inward.grnDate),
-            'partNo': PlutoCell(value: item.materialCode),
-            'description': PlutoCell(value: item.materialDescription),
-            'qty': PlutoCell(value: item.receivedQty),
-            'unit': PlutoCell(value: item.unit),
-            'costPerUnit': PlutoCell(value: costPerUnit),
-            'totalCost': PlutoCell(value: totalCost),
-            'invoiceNo': PlutoCell(value: inward.invoiceNo),
-            'invoiceDate': PlutoCell(value: inward.invoiceDate),
-            'invoiceAmount': PlutoCell(value: inward.invoiceAmount),
-            'receivedBy': PlutoCell(value: inward.receivedBy),
-            'checkedBy': PlutoCell(value: inward.checkedBy),
-            'actions': PlutoCell(value: ''),
-            'inward': PlutoCell(value: inward), // Hidden cell for reference
-          },
-        );
-      });
-    }).toList();
-  }
-
-  void _confirmDelete(BuildContext context, StoreInward inward) {
-    showDialog(
+  Future<void> _confirmDelete(BuildContext context, StoreInward inward) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -203,14 +231,11 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
               'Are you sure you want to delete store inward for PO ${inward.poNo}?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(context).pop(false),
               child: const Text('CANCEL'),
             ),
             TextButton(
-              onPressed: () {
-                ref.read(storeInwardProvider.notifier).deleteInward(inward);
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(true),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red[400],
               ),
@@ -220,83 +245,108 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         );
       },
     );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isLoading = true);
+      try {
+        await ref.read(storeInwardProvider.notifier).deleteInward(inward);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Store inward deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting store inward: $e')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final inwards = ref.watch(storeInwardProvider);
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && stateManager != null) {
+        stateManager!.removeAllRows();
+        stateManager!.appendRows(_buildRows(inwards));
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Store Inward List'),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddStoreInwardPage(),
-            ),
-          );
-        },
+        onPressed: _navigateToAddInward,
         child: const Icon(Icons.add),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Card(
-          child: Column(
-            children: [
-              if (inwards.isEmpty)
-                const Expanded(
-                  child: Center(
-                    child: Text(
-                      'No store inwards found.\nClick the + button to add one.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: PlutoGrid(
-                    columns: _getColumns(),
-                    rows: _getRows(inwards),
-                    onLoaded: (PlutoGridOnLoadedEvent event) {
-                      stateManager = event.stateManager;
-                      event.stateManager.setShowColumnFilter(true);
-                    },
-                    configuration: PlutoGridConfiguration(
-                      columnFilter: const PlutoGridColumnFilterConfig(
-                        filters: [
-                          ...FilterHelper.defaultFilters,
-                        ],
-                      ),
-                      style: PlutoGridStyleConfig(
-                        gridBorderColor: Colors.grey[700]!,
-                        gridBackgroundColor: Colors.grey[900]!,
-                        borderColor: Colors.grey[700]!,
-                        iconColor: Colors.grey[300]!,
-                        rowColor: Colors.grey[850]!,
-                        oddRowColor: Colors.grey[800]!,
-                        evenRowColor: Colors.grey[850]!,
-                        activatedColor: Colors.blue[900]!,
-                        cellTextStyle: const TextStyle(color: Colors.white),
-                        columnTextStyle: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: Card(
+                child: Column(
+                  children: [
+                    if (inwards.isEmpty)
+                      const Expanded(
+                        child: Center(
+                          child: Text(
+                            'No store inwards found.\nClick the + button to add one.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 16,
+                            ),
+                          ),
                         ),
-                        rowHeight: 45,
+                      )
+                    else
+                      Expanded(
+                        child: PlutoGrid(
+                          columns: _getColumns(),
+                          rows: _buildRows(inwards),
+                          onLoaded: (PlutoGridOnLoadedEvent event) {
+                            stateManager = event.stateManager;
+                            event.stateManager.setShowColumnFilter(true);
+                          },
+                          configuration: PlutoGridConfiguration(
+                            columnFilter: const PlutoGridColumnFilterConfig(
+                              filters: [
+                                ...FilterHelper.defaultFilters,
+                              ],
+                            ),
+                            style: PlutoGridStyleConfig(
+                              gridBorderColor: Colors.grey[700]!,
+                              gridBackgroundColor: Colors.grey[900]!,
+                              borderColor: Colors.grey[700]!,
+                              iconColor: Colors.grey[300]!,
+                              rowColor: Colors.grey[850]!,
+                              oddRowColor: Colors.grey[800]!,
+                              evenRowColor: Colors.grey[850]!,
+                              activatedColor: Colors.blue[900]!,
+                              cellTextStyle:
+                                  const TextStyle(color: Colors.white),
+                              columnTextStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              rowHeight: 45,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                  ],
                 ),
-            ],
-          ),
-        ),
-      ),
+              ),
+            ),
     );
   }
 }

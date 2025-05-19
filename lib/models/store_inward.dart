@@ -78,6 +78,9 @@ class InwardItem {
   @HiveField(7)
   String costPerUnit;
 
+  @HiveField(8)
+  Map<String, double> poQuantities = {}; // Store PO-wise quantities: PO No -> Quantity
+
   InwardItem({
     required this.materialCode,
     required this.materialDescription,
@@ -87,5 +90,18 @@ class InwardItem {
     required this.acceptedQty,
     required this.rejectedQty,
     required this.costPerUnit,
-  });
+    Map<String, double>? poQuantities,
+  }) {
+    this.poQuantities = poQuantities ?? {};
+  }
+
+  // Helper method to get total received quantity for a specific PO
+  double getReceivedQuantityForPO(String poNo) {
+    return poQuantities[poNo] ?? 0.0;
+  }
+
+  // Add received quantity for a PO
+  void addReceivedQuantityForPO(String poNo, double quantity) {
+    poQuantities[poNo] = (poQuantities[poNo] ?? 0.0) + quantity;
+  }
 }

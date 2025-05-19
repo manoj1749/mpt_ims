@@ -53,10 +53,9 @@ class MaterialItem extends HiveObject {
     return rates.first.vendorId;
   }
 
-  String getLowestSupplierRate(WidgetRef ref) {
+  String getLowestRate(WidgetRef ref) {
     final rates = getRankedVendors(ref);
     if (rates.isEmpty) return '';
-    // Use sale rate for best rate calculation
     return rates
         .map((r) => double.tryParse(r.saleRate) ?? double.infinity)
         .reduce(min)

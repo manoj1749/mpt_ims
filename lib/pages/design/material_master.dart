@@ -259,9 +259,9 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           'unit': PlutoCell(value: m.unit),
           'preferredVendor': PlutoCell(value: m.getPreferredVendorName(ref)),
           'bestRate': PlutoCell(
-              value: m.getLowestSupplierRate(ref).isEmpty
+              value: m.getLowestRate(ref).isEmpty
                   ? '-'
-                  : '₹${m.getLowestSupplierRate(ref)}'),
+                  : '₹${m.getLowestRate(ref)}'),
           'vendorCount': PlutoCell(value: m.getVendorCount(ref)),
           'saleRate': PlutoCell(
               value: m.getPreferredVendorSaleRate(ref).isEmpty
@@ -512,10 +512,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                   title: Row(
                     children: [
                       Expanded(child: Text(rate.vendorId)),
-                      Expanded(child: Text('₹${rate.supplierRate}')),
                       Expanded(child: Text('₹${rate.saleRate}')),
-                      Expanded(
-                          child: Text('${rate.avlStock} ${material.unit}')),
+                      Expanded(child: Text('${rate.avlStock} ${material.unit}')),
                       Expanded(
                           child:
                               Text('₹${rate.stockValue.toStringAsFixed(2)}')),

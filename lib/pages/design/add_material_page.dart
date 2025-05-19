@@ -13,6 +13,7 @@ import 'package:mpt_ims/provider/category_provider.dart';
 import 'package:mpt_ims/provider/sub_category_provider.dart';
 import 'package:mpt_ims/models/category.dart';
 import 'package:mpt_ims/models/sub_category.dart';
+import 'package:mpt_ims/pages/design/select_vendors_dialog.dart';
 
 class AddMaterialPage extends ConsumerStatefulWidget {
   final MaterialItem? materialToEdit;
@@ -45,6 +46,9 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   // Selected category and subcategory
   Category? _selectedCategory;
   SubCategory? _selectedSubCategory;
+  
+  // Track selected vendors
+  List<String> selectedVendors = [];
 
   @override
   void initState() {
@@ -72,6 +76,12 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final categories = ref.read(categoryListProvider);
         final subCategories = ref.read(subCategoryListProvider);
+
+        // Get existing vendor rates
+        final rates = ref
+            .read(vendorMaterialRateProvider.notifier)
+            .getRatesForMaterial(item.slNo);
+        selectedVendors = rates.map((r) => r.vendorId).toList();
 
         setState(() {
           _selectedCategory = categories.firstWhere(
@@ -110,6 +120,29 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
 
   void _saveMaterial() async {
     if (_formKey.currentState!.validate()) {
+      // Check if all selected vendors have rates
+      final rates = ref
+          .read(vendorMaterialRateProvider.notifier)
+          .getRatesForMaterial(item.slNo);
+      
+      final vendorsWithoutRates = selectedVendors
+          .where((vendor) => !rates.any((r) => r.vendorId == vendor))
+          .toList();
+
+      if (vendorsWithoutRates.isNotEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Please provide sale rates for: ${vendorsWithoutRates.join(", ")}',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
       try {
         final notifier = ref.read(materialListProvider.notifier);
 
@@ -240,7 +273,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         rates.where((r) => r.vendorId == vendor.name).firstOrNull;
 
     // Reset all controllers for new rate
-    _supplierRateController.text = existingRate?.supplierRate ?? '';
     _saleRateController.text = existingRate?.saleRate ?? '';
     _receivedQtyController.text = existingRate?.totalReceivedQty ?? '0';
     _issuedQtyController.text = existingRate?.issuedQty ?? '0';
@@ -256,16 +288,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(
-                controller: _supplierRateController,
-                decoration: const InputDecoration(
-                  labelText: 'Supplier Rate *',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
               TextFormField(
                 controller: _saleRateController,
                 decoration: const InputDecoration(
@@ -336,15 +358,13 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
       ),
     );
 
-    if (result == true && _supplierRateController.text.isNotEmpty) {
+    if (result == true && _saleRateController.text.isNotEmpty) {
       final receivedQty = double.tryParse(_receivedQtyController.text) ?? 0;
-      final supplierRate = double.tryParse(_supplierRateController.text) ?? 0;
       final saleRate = double.tryParse(_saleRateController.text) ?? 0;
 
       final newRate = VendorMaterialRate(
         materialId: item.slNo,
         vendorId: vendor.name,
-        supplierRate: _supplierRateController.text,
         saleRate: _saleRateController.text,
         lastPurchaseDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
         remarks: _remarksController.text,
@@ -355,10 +375,9 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         avlStockValue:
             (double.tryParse(_stockController.text) ?? 0 * saleRate).toString(),
         billingQtyDiff: '0',
-        totalReceivedCost: (receivedQty * supplierRate).toString(),
+        totalReceivedCost: (receivedQty * saleRate).toString(),
         totalBilledCost: (receivedQty * saleRate).toString(),
-        costDiff: ((receivedQty * saleRate) - (receivedQty * supplierRate))
-            .toString(),
+        costDiff: '0',
         inspectionStock: _inspectionStockController.text,
       );
 
@@ -378,12 +397,10 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     setState(() {}); // Refresh the UI
   }
 
-  Widget _buildVendorRatesSection(List<Supplier> vendors) {
-    // Show rates for both new and existing materials
+  Widget _buildVendorRatesSection() {
     final rates = ref
         .read(vendorMaterialRateProvider.notifier)
         .getRatesForMaterial(item.slNo);
-    final preferredVendorName = item.getPreferredVendorName(ref);
 
     return Card(
       child: Padding(
@@ -401,47 +418,64 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (vendors.isEmpty)
-                  TextButton.icon(
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Vendor'),
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddSupplierPage(),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () async {
+                    final result = await showDialog<List<String>>(
+                      context: context,
+                      builder: (context) => SelectVendorsDialog(
+                        selectedVendors: selectedVendors,
                       ),
-                    ),
-                  ),
+                    );
+
+                    if (result != null) {
+                      setState(() {
+                        selectedVendors = result;
+                      });
+                    }
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 8),
-            if (vendors.isEmpty)
+            if (selectedVendors.isEmpty)
               const Center(
-                child: Text('No vendors available'),
+                child: Text('No vendors selected'),
               )
             else
               ListView.builder(
                 shrinkWrap: true,
                 physics: const ClampingScrollPhysics(),
-                itemCount: vendors.length,
+                itemCount: selectedVendors.length,
                 itemBuilder: (context, index) {
-                  final vendor = vendors[index];
-                  final rate =
-                      rates.where((r) => r.vendorId == vendor.name).firstOrNull;
-                  final isPreferred = vendor.name == preferredVendorName;
+                  final vendorName = selectedVendors[index];
+                  final rate = rates.firstWhere(
+                    (r) => r.vendorId == vendorName,
+                    orElse: () => VendorMaterialRate(
+                      materialId: item.slNo,
+                      vendorId: vendorName,
+                      saleRate: '',
+                      lastPurchaseDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+                      remarks: '',
+                      totalReceivedQty: '0',
+                      issuedQty: '0',
+                      receivedQty: '0',
+                      avlStock: '0',
+                      avlStockValue: '0',
+                      billingQtyDiff: '0',
+                      totalReceivedCost: '0',
+                      totalBilledCost: '0',
+                      costDiff: '0',
+                    ),
+                  );
 
                   return Card(
-                    color: isPreferred ? Colors.green[50] : null,
                     child: ListTile(
-                      leading: isPreferred
-                          ? const Icon(Icons.star, color: Colors.amber)
-                          : const SizedBox(width: 24),
-                      title: Text(vendor.name),
-                      subtitle: rate != null
+                      title: Text(vendorName),
+                      subtitle: rate.saleRate.isNotEmpty
                           ? Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Supplier Rate: ₹${rate.supplierRate}'),
                                 Text('Sale Rate: ₹${rate.saleRate}'),
                                 Text('Stock: ${rate.avlStock} ${item.unit}'),
                                 Text(
@@ -459,13 +493,45 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.edit),
-                            onPressed: () => _addVendorRate(vendor),
-                          ),
-                          if (rate != null)
-                            IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () => _removeVendorRate(vendor.name),
+                            onPressed: () => _addVendorRate(
+                              Supplier(
+                                name: vendorName,
+                                igst: '',
+                                cgst: '',
+                                sgst: '',
+                                contact: '',
+                                phone: '',
+                                email: '',
+                                vendorCode: '',
+                                address1: '',
+                                address2: '',
+                                address3: '',
+                                address4: '',
+                                state: '',
+                                stateCode: '',
+                                paymentTerms: '',
+                                pan: '',
+                                gstNo: '',
+                                totalGst: '',
+                                bank: '',
+                                branch: '',
+                                account: '',
+                                ifsc: '',
+                                email1: '',
+                              ),
                             ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () {
+                              setState(() {
+                                selectedVendors.remove(vendorName);
+                                ref
+                                    .read(vendorMaterialRateProvider.notifier)
+                                    .deleteRate(item.slNo, vendorName);
+                              });
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -480,8 +546,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
 
   @override
   Widget build(BuildContext context) {
-    final vendors = ref.watch(supplierListProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.materialToEdit == null
@@ -519,7 +583,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
             const SizedBox(width: 16),
             Expanded(
               child: SingleChildScrollView(
-                child: _buildVendorRatesSection(vendors),
+                child: _buildVendorRatesSection(),
               ),
             ),
           ],

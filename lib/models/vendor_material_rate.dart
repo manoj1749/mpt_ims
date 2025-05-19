@@ -10,9 +10,6 @@ class VendorMaterialRate extends HiveObject {
   @HiveField(1)
   String vendorId; // id/name of the vendor
 
-  @HiveField(2)
-  String supplierRate; // Rate at which supplier provides
-
   @HiveField(4)
   String saleRate; // Rate at which it's sold
 
@@ -55,7 +52,6 @@ class VendorMaterialRate extends HiveObject {
   VendorMaterialRate({
     required this.materialId,
     required this.vendorId,
-    required this.supplierRate,
     required this.saleRate,
     required this.lastPurchaseDate,
     required this.remarks,
@@ -83,7 +79,7 @@ class VendorMaterialRate extends HiveObject {
 
   double get receivedValue {
     final qty = double.tryParse(totalReceivedQty) ?? 0;
-    final rate = double.tryParse(supplierRate) ?? 0;
+    final rate = double.tryParse(saleRate) ?? 0;
     return qty * rate;
   }
 
@@ -111,7 +107,6 @@ class VendorMaterialRate extends HiveObject {
   VendorMaterialRate copyWith({
     String? materialId,
     String? vendorId,
-    String? supplierRate,
     String? saleRate,
     String? lastPurchaseDate,
     String? remarks,
@@ -129,7 +124,6 @@ class VendorMaterialRate extends HiveObject {
     return VendorMaterialRate(
       materialId: materialId ?? this.materialId,
       vendorId: vendorId ?? this.vendorId,
-      supplierRate: supplierRate ?? this.supplierRate,
       saleRate: saleRate ?? this.saleRate,
       lastPurchaseDate: lastPurchaseDate ?? this.lastPurchaseDate,
       remarks: remarks ?? this.remarks,

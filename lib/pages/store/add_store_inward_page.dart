@@ -218,7 +218,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         child: Checkbox(
                           value: isSelected,
                           onChanged: (bool? value) {
-                            setState(() {
+    setState(() {
                               selectedPOs[material.partNo]![po.poNo] =
                                   value ?? false;
                               if (value == true) {
@@ -734,39 +734,39 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           : Form(
               key: _formKey,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
-                      children: [
+            children: [
                         Expanded(
-                          child: DropdownButtonFormField2<Supplier>(
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Select Supplier',
-                              border: OutlineInputBorder(),
+                child: DropdownButtonFormField2<Supplier>(
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Select Supplier',
+                    border: OutlineInputBorder(),
                               contentPadding: EdgeInsets.symmetric(vertical: 0),
-                            ),
+                  ),
                             hint: const Text("Select Supplier"),
-                            value: selectedSupplier,
+                  value: selectedSupplier,
                             items: suppliers
                                 .map((supplier) => DropdownMenuItem<Supplier>(
-                                      value: supplier,
-                                      child: Text(
-                                        supplier.name,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                      value: supplier,
+                      child: Text(
+                        supplier.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                                     ))
                                 .toList(),
-                            onChanged: (val) {
-                              setState(() {
-                                selectedSupplier = val;
+                  onChanged: (val) {
+                    setState(() {
+                      selectedSupplier = val;
                                 // Clear selections when supplier changes
                                 selectedPOs.clear();
                                 poQtyControllers.clear();
-                              });
-                            },
+                    });
+                  },
                             dropdownStyleData: DropdownStyleData(
                               maxHeight: 300,
                               decoration: BoxDecoration(
@@ -784,9 +784,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                               Text(
                                   "GRN No: GRN${DateTime.now().millisecondsSinceEpoch}"),
                               Text(
@@ -821,10 +821,10 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         Expanded(
                           child: buildTextField(
                               _checkedByController, 'Checked By'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                     if (selectedSupplier != null) ...[
                       if (materialPOItems.isEmpty)
                         const Center(
@@ -846,9 +846,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Column(
+                                child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
+                                  children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 8),
@@ -868,7 +868,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                     ),
                                   ),
                                 ),
-                                Expanded(
+                                        Expanded(
                                   child: ListView.builder(
                                     padding: const EdgeInsets.all(8),
                                     itemCount: materialPOItems.length,
@@ -884,10 +884,10 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                           material, entry.value);
                                     },
                                   ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
+                              ),
                         ),
                     ],
                     const SizedBox(height: 10),
@@ -910,11 +910,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
               ),
-            ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

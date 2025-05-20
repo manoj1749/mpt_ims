@@ -117,7 +117,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         vendorRate != null ? double.parse(vendorRate.saleRate) : 0.0;
     final saleRate =
         vendorRate != null ? double.parse(vendorRate.saleRate) : 0.0;
-    final marginPerUnit = 0.0; // No margin since we're using sale rate as cost
+    const marginPerUnit = 0.0; // No margin since we're using sale rate as cost
 
     // Calculate total quantity from PR-wise quantities
     final prQuantities = <String, double>{};

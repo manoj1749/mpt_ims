@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mpt_ims/models/supplier.dart';
 import 'package:mpt_ims/provider/supplier_provider.dart';
 
 class SelectVendorsDialog extends ConsumerStatefulWidget {

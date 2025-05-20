@@ -222,9 +222,6 @@ class _QualityInspectionListPageState
         renderer: (rendererContext) {
           final inspection = rendererContext.row.cells['inspection']!.value
               as QualityInspection;
-          final item =
-              rendererContext.row.cells['item']!.value as InspectionItem;
-          final poNo = rendererContext.row.cells['poNo']!.value as String;
 
           return Row(
             mainAxisSize: MainAxisSize.min,

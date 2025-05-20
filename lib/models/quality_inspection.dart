@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_this
+
 import 'package:hive/hive.dart';
 
 part 'quality_inspection.g.dart';

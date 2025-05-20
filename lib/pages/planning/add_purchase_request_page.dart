@@ -103,7 +103,7 @@ class _AddPurchaseRequestPageState
   }
 
   String? _validateMaterialVendors(String materialId, String description) {
-    final rates = _getVendorRates(materialId);
+    _getVendorRates(materialId);
     return null;
   }
 

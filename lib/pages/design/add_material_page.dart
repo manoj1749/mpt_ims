@@ -5,9 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/supplier.dart';
 import 'package:mpt_ims/models/vendor_material_rate.dart';
-import 'package:mpt_ims/pages/accounts/add_supplier_page.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
-import 'package:mpt_ims/provider/supplier_provider.dart';
 import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
 import 'package:mpt_ims/provider/category_provider.dart';
 import 'package:mpt_ims/provider/sub_category_provider.dart';
@@ -390,12 +388,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     }
   }
 
-  void _removeVendorRate(String vendorName) {
-    ref
-        .read(vendorMaterialRateProvider.notifier)
-        .deleteRate(item.slNo, vendorName);
-    setState(() {}); // Refresh the UI
-  }
 
   Widget _buildVendorRatesSection() {
     final rates = ref

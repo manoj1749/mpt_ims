@@ -12,8 +12,6 @@ import '../../models/store_inward.dart';
 import '../../provider/store_inward_provider.dart';
 import '../../provider/category_parameter_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
-import '../../models/universal_parameter.dart';
-import '../../models/category_parameter_mapping.dart';
 
 class AddQualityInspectionPage extends ConsumerStatefulWidget {
   const AddQualityInspectionPage({super.key});
@@ -806,7 +804,7 @@ class _AddQualityInspectionPageState
                       ),
                     ],
                   );
-                }).toList(),
+                }),
               ],
             ),
             const SizedBox(height: 16),
@@ -883,7 +881,7 @@ class _AddQualityInspectionPageState
                       ),
                     ],
                   );
-                }).toList(),
+                }),
               ],
             ),
           ],

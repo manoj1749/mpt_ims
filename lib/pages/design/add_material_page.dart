@@ -388,7 +388,6 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     }
   }
 
-
   Widget _buildVendorRatesSection() {
     final rates = ref
         .read(vendorMaterialRateProvider.notifier)

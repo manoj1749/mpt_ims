@@ -11,6 +11,7 @@ import 'package:mpt_ims/pages/login_page.dart';
 import 'package:mpt_ims/pages/planning/purchase_request_list_page.dart';
 import 'package:mpt_ims/pages/section_page.dart';
 import 'package:mpt_ims/pages/purchase/purchase_order_list_page.dart';
+import 'package:mpt_ims/pages/store/stock_details_page.dart';
 import 'package:mpt_ims/pages/store/store_inward_list_page.dart';
 import 'package:mpt_ims/pages/quality/quality_inspection_list_page.dart';
 import 'package:mpt_ims/pages/sales/sale_order_list_page.dart';
@@ -131,6 +132,9 @@ class _AppScaffoldState extends State<AppScaffold> {
         break;
       case 'Sale order Details':
         page = const SaleOrderListPage();
+        break;
+      case 'Stock Maintenance & Display':
+        page = const StockDetailsPage();
         break;
       default:
         page = SectionPage(title: name);

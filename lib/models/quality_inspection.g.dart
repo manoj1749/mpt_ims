@@ -30,13 +30,15 @@ class QualityInspectionAdapter extends TypeAdapter<QualityInspection> {
       approvedBy: fields[10] as String,
       items: (fields[12] as List).cast<InspectionItem>(),
       status: fields[13] as String,
+      prNumbers: (fields[14] as Map?)?.cast<String, String>(),
+      jobNumbers: (fields[15] as Map?)?.cast<String, String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, QualityInspection obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.inspectionNo)
       ..writeByte(1)
@@ -62,7 +64,11 @@ class QualityInspectionAdapter extends TypeAdapter<QualityInspection> {
       ..writeByte(12)
       ..write(obj.items)
       ..writeByte(13)
-      ..write(obj.status);
+      ..write(obj.status)
+      ..writeByte(14)
+      ..write(obj.prNumbers)
+      ..writeByte(15)
+      ..write(obj.jobNumbers);
   }
 
   @override
@@ -108,13 +114,19 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       conditionalAcceptanceAction: fields[19] as String?,
       conditionalAcceptanceDeadline: fields[20] as String?,
       poQuantities: (fields[21] as Map?)?.cast<String, InspectionPOQuantity>(),
+      grnNo: fields[22] as String?,
+      grnDate: fields[23] as String?,
+      invoiceNo: fields[24] as String?,
+      invoiceDate: fields[25] as String?,
+      grnDetails: (fields[26] as Map?)?.map((dynamic k, dynamic v) =>
+          MapEntry(k as String, (v as Map).cast<String, String>())),
     );
   }
 
   @override
   void write(BinaryWriter writer, InspectionItem obj) {
     writer
-      ..writeByte(21)
+      ..writeByte(26)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -156,7 +168,17 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       ..writeByte(20)
       ..write(obj.conditionalAcceptanceDeadline)
       ..writeByte(21)
-      ..write(obj.poQuantities);
+      ..write(obj.poQuantities)
+      ..writeByte(22)
+      ..write(obj.grnNo)
+      ..writeByte(23)
+      ..write(obj.grnDate)
+      ..writeByte(24)
+      ..write(obj.invoiceNo)
+      ..writeByte(25)
+      ..write(obj.invoiceDate)
+      ..writeByte(26)
+      ..write(obj.grnDetails);
   }
 
   @override

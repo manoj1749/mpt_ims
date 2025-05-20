@@ -38,8 +38,29 @@ class _QualityInspectionListPageState
 
     return [
       PlutoColumn(
+        title: 'GRN No',
+        field: 'grnNo',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
         title: 'PO No',
         field: 'poNo',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'PR No',
+        field: 'prNo',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Job No',
+        field: 'jobNo',
         type: PlutoColumnType.text(),
         width: 120,
         enableEditingMode: false,
@@ -171,6 +192,7 @@ class _QualityInspectionListPageState
         width: 120,
         enableEditingMode: false,
       ),
+
       ...universalParams.map((param) {
         final fieldName =
             param.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
@@ -220,8 +242,9 @@ class _QualityInspectionListPageState
         width: 100,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final inspection = rendererContext.row.cells['inspection']!.value
-              as QualityInspection;
+          final inspection = rendererContext.row.cells['inspection']!.value as QualityInspection;
+          final item = rendererContext.row.cells['item']!.value as InspectionItem;
+          final poNo = rendererContext.row.cells['poNo']!.value as String;
 
           return Row(
             mainAxisSize: MainAxisSize.min,
@@ -246,47 +269,64 @@ class _QualityInspectionListPageState
   }
 
   List<PlutoRow> _getRows(List<QualityInspection> inspections) {
-    return inspections.expand((inspection) {
-      return inspection.items.expand((item) {
-        return item.poQuantities.entries.map((poEntry) {
-          final poNo = poEntry.key;
-          final poQty = poEntry.value;
+    // Group inspections by GRN
+    final grnGroups = <String, List<QualityInspection>>{};
+    for (var inspection in inspections) {
+      grnGroups.putIfAbsent(inspection.grnNo, () => []).add(inspection);
+    }
 
-          // Create parameter cells
-          final parameterCells = <String, PlutoCell>{};
-          for (var param in item.parameters) {
-            final fieldName = param.parameter
-                .toLowerCase()
-                .replaceAll(RegExp(r'[^a-z0-9]'), '_');
-            parameterCells[fieldName] = PlutoCell(value: param);
-          }
+    return grnGroups.entries.expand((grnEntry) {
+      final grnNo = grnEntry.key;
+      final grnInspections = grnEntry.value;
 
-          final cells = {
-            'inspection': PlutoCell(value: inspection),
-            'item': PlutoCell(value: item),
-            'poNo': PlutoCell(value: poNo),
-            'supplier': PlutoCell(value: inspection.supplierName),
-            'partNo': PlutoCell(value: item.materialCode),
-            'description': PlutoCell(value: item.materialDescription),
-            'receivedQty': PlutoCell(value: poQty.receivedQty),
-            'acceptedQty': PlutoCell(value: poQty.acceptedQty),
-            'rejectedQty': PlutoCell(value: poQty.rejectedQty),
-            'pendingQty': PlutoCell(value: item.getPendingQuantityForPO(poNo)),
-            'usageDecision': PlutoCell(value: poQty.usageDecision),
-            'unit': PlutoCell(value: item.unit),
-            'costPerUnit': PlutoCell(value: item.costPerUnit),
-            'totalCost': PlutoCell(value: item.costPerUnit * poQty.receivedQty),
-            'billNo': PlutoCell(value: inspection.billNo),
-            'billDate': PlutoCell(value: inspection.billDate),
-            'receivedDate': PlutoCell(value: item.receivedDate),
-            'grDate': PlutoCell(value: inspection.grnDate),
-            'category': PlutoCell(value: item.category),
-            'sampleSize': PlutoCell(value: item.sampleSize),
-            'actions': PlutoCell(value: ''),
-            ...parameterCells,
-          };
+      return grnInspections.expand((inspection) {
+        return inspection.items.expand((item) {
+          return item.poQuantities.entries.map((poEntry) {
+            final poNo = poEntry.key;
+            final poQty = poEntry.value;
 
-          return PlutoRow(cells: cells);
+            // Get PR and Job numbers for this PO
+            final prNo = inspection.prNumbers[poNo] ?? '';
+            final jobNo = inspection.jobNumbers[poNo] ?? '';
+
+            // Create parameter cells
+            final parameterCells = <String, PlutoCell>{};
+            for (var param in item.parameters) {
+              final fieldName =
+                  param.parameter.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+              parameterCells[fieldName] = PlutoCell(value: param);
+            }
+
+            final cells = {
+              'inspection': PlutoCell(value: inspection),
+              'item': PlutoCell(value: item),
+              'grnNo': PlutoCell(value: grnNo),
+              'poNo': PlutoCell(value: poNo),
+              'prNo': PlutoCell(value: prNo),
+              'jobNo': PlutoCell(value: jobNo),
+              'supplier': PlutoCell(value: inspection.supplierName),
+              'partNo': PlutoCell(value: item.materialCode),
+              'description': PlutoCell(value: item.materialDescription),
+              'receivedQty': PlutoCell(value: poQty.receivedQty),
+              'acceptedQty': PlutoCell(value: poQty.acceptedQty),
+              'rejectedQty': PlutoCell(value: poQty.rejectedQty),
+              'pendingQty': PlutoCell(value: item.getPendingQuantityForPO(poNo)),
+              'usageDecision': PlutoCell(value: poQty.usageDecision),
+              'unit': PlutoCell(value: item.unit),
+              'costPerUnit': PlutoCell(value: item.costPerUnit),
+              'totalCost': PlutoCell(value: item.costPerUnit * poQty.receivedQty),
+              'billNo': PlutoCell(value: inspection.billNo),
+              'billDate': PlutoCell(value: inspection.billDate),
+              'receivedDate': PlutoCell(value: item.receivedDate),
+              'grDate': PlutoCell(value: inspection.grnDate),
+              'category': PlutoCell(value: item.category),
+              'sampleSize': PlutoCell(value: item.sampleSize),
+              'actions': PlutoCell(value: ''),
+              ...parameterCells,
+            };
+
+            return PlutoRow(cells: cells);
+          });
         });
       });
     }).toList();

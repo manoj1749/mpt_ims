@@ -73,7 +73,8 @@ Future<void> clearIncompatibleData() async {
     final currentVersion = box.get('version') ?? 0;
 
     // If schema version is less than required, clear data
-    if (currentVersion < 9) { // Increment version for PRItem remarks field change
+    if (currentVersion < 9) {
+      // Increment version for PRItem remarks field change
       // Delete all boxes since we've made significant model changes
       await Future.wait([
         Hive.deleteBoxFromDisk('customers'),

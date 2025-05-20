@@ -36,7 +36,8 @@ class POItem extends HiveObject {
       {}; // Store PR-wise quantities: PR No -> Quantity
 
   @HiveField(10)
-  Map<String, double> receivedQuantities = {}; // Map of GRN number to received quantity
+  Map<String, double> receivedQuantities =
+      {}; // Map of GRN number to received quantity
 
   double get totalReceivedQuantity =>
       receivedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
@@ -124,7 +125,8 @@ class POItem extends HiveObject {
       marginPerUnit: marginPerUnit ?? this.marginPerUnit,
       totalMargin: totalMargin ?? this.totalMargin,
       prQuantities: prQuantities ?? Map<String, double>.from(this.prQuantities),
-      receivedQuantities: receivedQuantities ?? Map<String, double>.from(this.receivedQuantities),
+      receivedQuantities: receivedQuantities ??
+          Map<String, double>.from(this.receivedQuantities),
     );
   }
 }

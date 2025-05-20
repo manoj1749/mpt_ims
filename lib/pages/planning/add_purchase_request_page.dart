@@ -53,7 +53,7 @@ class _AddPurchaseRequestPageState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
+
     if (!_initialized && widget.existingRequest != null) {
       for (var item in widget.existingRequest!.items) {
         // Initialize vendor selections from the item's supplier
@@ -107,19 +107,22 @@ class _AddPurchaseRequestPageState
     return null;
   }
 
-  List<DropdownMenuItem<String>> _buildVendorDropdownItems(String materialId, String materialDescription) {
+  List<DropdownMenuItem<String>> _buildVendorDropdownItems(
+      String materialId, String materialDescription) {
     final rates = _getVendorRates(materialId);
-    final preferredVendor = ref.read(materialListProvider)
+    final preferredVendor = ref
+        .read(materialListProvider)
         .firstWhere((m) => m.slNo == materialId)
         .getPreferredVendorName(ref);
 
     // Create a map to store unique vendors and their best rates
     final vendorMap = <String, VendorMaterialRate>{};
-    
+
     // Keep only the best rate for each vendor
     for (var rate in rates) {
-      if (!vendorMap.containsKey(rate.vendorId) || 
-          double.parse(rate.saleRate) < double.parse(vendorMap[rate.vendorId]!.saleRate)) {
+      if (!vendorMap.containsKey(rate.vendorId) ||
+          double.parse(rate.saleRate) <
+              double.parse(vendorMap[rate.vendorId]!.saleRate)) {
         vendorMap[rate.vendorId] = rate;
       }
     }
@@ -127,7 +130,7 @@ class _AddPurchaseRequestPageState
     // Convert to dropdown items
     return vendorMap.values.map((rate) {
       final isPreferred = rate.vendorId == preferredVendor;
-      
+
       return DropdownMenuItem<String>(
         value: rate.vendorId,
         child: Row(
@@ -331,7 +334,10 @@ class _AddPurchaseRequestPageState
                             border: OutlineInputBorder(),
                           ),
                           items: _buildVendorDropdownItems(
-                            materials.firstWhere((m) => m.description == item.selectedMaterial).slNo,
+                            materials
+                                .firstWhere((m) =>
+                                    m.description == item.selectedMaterial)
+                                .slNo,
                             item.selectedMaterial!,
                           ),
                           onChanged: (val) {
@@ -339,7 +345,8 @@ class _AddPurchaseRequestPageState
                               _selectedVendors[item.selectedMaterial!] = val;
                             });
                           },
-                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                          validator: (val) =>
+                              val == null || val.isEmpty ? 'Required' : null,
                         ),
                       ],
                       const SizedBox(height: 16),
@@ -408,14 +415,15 @@ class _AddPurchaseRequestPageState
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
                       _formKey.currentState!.save();
-                      final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
+                      final now =
+                          DateFormat('yyyy-MM-dd').format(DateTime.now());
 
                       final prNo = widget.existingRequest?.prNo ??
                           'PR${DateTime.now().millisecondsSinceEpoch}';
 
                       // Process all items (both new and existing)
                       final allItems = <PRItem>[];
-                      
+
                       // First, process the form items
                       for (var item in _items) {
                         if (item.selectedMaterial == null) continue;
@@ -424,7 +432,8 @@ class _AddPurchaseRequestPageState
                           (m) => m.description == item.selectedMaterial,
                         );
 
-                        final supplierName = _selectedVendors[item.selectedMaterial]!;
+                        final supplierName =
+                            _selectedVendors[item.selectedMaterial]!;
 
                         final prItem = PRItem(
                           materialCode: material.partNo,
@@ -438,14 +447,16 @@ class _AddPurchaseRequestPageState
 
                         // Check if this is a modification of an existing item
                         if (widget.existingRequest != null) {
-                          final existingItemIndex = widget.existingRequest!.items.indexWhere(
-                            (existing) => existing.materialCode == prItem.materialCode
-                          );
+                          final existingItemIndex = widget
+                              .existingRequest!.items
+                              .indexWhere((existing) =>
+                                  existing.materialCode == prItem.materialCode);
 
                           if (existingItemIndex != -1) {
                             // Preserve ordered quantities from existing item
-                            prItem.orderedQuantities = 
-                                Map<String, double>.from(widget.existingRequest!.items[existingItemIndex].orderedQuantities);
+                            prItem.orderedQuantities = Map<String, double>.from(
+                                widget.existingRequest!.items[existingItemIndex]
+                                    .orderedQuantities);
                           }
                         }
 
@@ -461,8 +472,10 @@ class _AddPurchaseRequestPageState
                         jobNo: _selectedJobNo,
                       );
 
-                      final notifier = ref.read(purchaseRequestListProvider.notifier);
-                      if (widget.existingRequest != null && widget.index != null) {
+                      final notifier =
+                          ref.read(purchaseRequestListProvider.notifier);
+                      if (widget.existingRequest != null &&
+                          widget.index != null) {
                         notifier.updateRequest(widget.index!, newRequest);
                       } else {
                         notifier.addRequest(newRequest);

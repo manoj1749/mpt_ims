@@ -192,7 +192,6 @@ class _QualityInspectionListPageState
         width: 120,
         enableEditingMode: false,
       ),
-
       ...universalParams.map((param) {
         final fieldName =
             param.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
@@ -242,8 +241,10 @@ class _QualityInspectionListPageState
         width: 100,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final inspection = rendererContext.row.cells['inspection']!.value as QualityInspection;
-          final item = rendererContext.row.cells['item']!.value as InspectionItem;
+          final inspection = rendererContext.row.cells['inspection']!.value
+              as QualityInspection;
+          final item =
+              rendererContext.row.cells['item']!.value as InspectionItem;
           final poNo = rendererContext.row.cells['poNo']!.value as String;
 
           return Row(
@@ -292,8 +293,9 @@ class _QualityInspectionListPageState
             // Create parameter cells
             final parameterCells = <String, PlutoCell>{};
             for (var param in item.parameters) {
-              final fieldName =
-                  param.parameter.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+              final fieldName = param.parameter
+                  .toLowerCase()
+                  .replaceAll(RegExp(r'[^a-z0-9]'), '_');
               parameterCells[fieldName] = PlutoCell(value: param);
             }
 
@@ -310,11 +312,13 @@ class _QualityInspectionListPageState
               'receivedQty': PlutoCell(value: poQty.receivedQty),
               'acceptedQty': PlutoCell(value: poQty.acceptedQty),
               'rejectedQty': PlutoCell(value: poQty.rejectedQty),
-              'pendingQty': PlutoCell(value: item.getPendingQuantityForPO(poNo)),
+              'pendingQty':
+                  PlutoCell(value: item.getPendingQuantityForPO(poNo)),
               'usageDecision': PlutoCell(value: poQty.usageDecision),
               'unit': PlutoCell(value: item.unit),
               'costPerUnit': PlutoCell(value: item.costPerUnit),
-              'totalCost': PlutoCell(value: item.costPerUnit * poQty.receivedQty),
+              'totalCost':
+                  PlutoCell(value: item.costPerUnit * poQty.receivedQty),
               'billNo': PlutoCell(value: inspection.billNo),
               'billDate': PlutoCell(value: inspection.billDate),
               'receivedDate': PlutoCell(value: item.receivedDate),

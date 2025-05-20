@@ -65,7 +65,9 @@ class StoreInwardNotifier extends StateNotifier<List<StoreInward>> {
 
   // Get inwards by supplier
   List<StoreInward> getInwardsBySupplier(String supplierName) {
-    return state.where((inward) => inward.supplierName == supplierName).toList();
+    return state
+        .where((inward) => inward.supplierName == supplierName)
+        .toList();
   }
 
   // Get inwards by date range
@@ -79,9 +81,10 @@ class StoreInwardNotifier extends StateNotifier<List<StoreInward>> {
 
   // Get inwards by material code
   List<StoreInward> getInwardsByMaterial(String materialCode) {
-    return state.where((inward) => 
-      inward.items.any((item) => item.materialCode == materialCode)
-    ).toList();
+    return state
+        .where((inward) =>
+            inward.items.any((item) => item.materialCode == materialCode))
+        .toList();
   }
 
   // Get total received quantity for a material from a specific PO

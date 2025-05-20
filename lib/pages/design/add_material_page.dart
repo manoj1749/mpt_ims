@@ -46,7 +46,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   // Selected category and subcategory
   Category? _selectedCategory;
   SubCategory? _selectedSubCategory;
-  
+
   // Track selected vendors
   List<String> selectedVendors = [];
 
@@ -124,7 +124,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
       final rates = ref
           .read(vendorMaterialRateProvider.notifier)
           .getRatesForMaterial(item.slNo);
-      
+
       final vendorsWithoutRates = selectedVendors
           .where((vendor) => !rates.any((r) => r.vendorId == vendor))
           .toList();
@@ -455,7 +455,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                       materialId: item.slNo,
                       vendorId: vendorName,
                       saleRate: '',
-                      lastPurchaseDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+                      lastPurchaseDate:
+                          DateFormat('yyyy-MM-dd').format(DateTime.now()),
                       remarks: '',
                       totalReceivedQty: '0',
                       issuedQty: '0',

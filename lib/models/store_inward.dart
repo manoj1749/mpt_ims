@@ -104,10 +104,12 @@ class InwardItem {
   String costPerUnit;
 
   @HiveField(8)
-  Map<String, double> poQuantities = {}; // Store PO-wise quantities: PO No -> Quantity
+  Map<String, double> poQuantities =
+      {}; // Store PO-wise quantities: PO No -> Quantity
 
   @HiveField(9)
-  Map<String, double> inspectedQuantities = {}; // Map of inspection number to inspected quantity
+  Map<String, double> inspectedQuantities =
+      {}; // Map of inspection number to inspected quantity
 
   double get inspectedQuantity =>
       inspectedQuantities.values.fold(0.0, (sum, qty) => sum + qty);

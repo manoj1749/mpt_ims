@@ -513,8 +513,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                     children: [
                       Expanded(child: Text(rate.vendorId)),
                       Expanded(child: Text('₹${rate.saleRate}')),
-                      Expanded(
-                          child: Text('${rate.avlStock} ${material.unit}')),
+                      Expanded(child: Text('${rate.avlStock} ${material.unit}')),
                       Expanded(
                           child:
                               Text('₹${rate.stockValue.toStringAsFixed(2)}')),

@@ -196,7 +196,7 @@ class _AddQualityInspectionPageState
             materialCode: materialCode,
             materialDescription: firstItemData['materialDescription'],
             unit: firstItemData['unit'],
-            category: material.category,
+          category: material.category,
             receivedQty: poQuantities.values
                 .fold(0.0, (sum, qty) => sum + qty.receivedQty),
             costPerUnit: double.tryParse(firstItemData['costPerUnit']) ?? 0.0,
@@ -206,20 +206,20 @@ class _AddQualityInspectionPageState
                     sum +
                     qty.receivedQty *
                         (double.tryParse(firstItemData['costPerUnit']) ?? 0.0)),
-            sampleSize: 0,
-            inspectedQty: 0,
-            acceptedQty: 0,
-            rejectedQty: 0,
+          sampleSize: 0,
+          inspectedQty: 0,
+          acceptedQty: 0,
+          rejectedQty: 0,
             pendingQty: poQuantities.values
                 .fold(0.0, (sum, qty) => sum + qty.receivedQty),
-            usageDecision: 'Lot Accepted',
-            receivedDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-            expirationDate: '',
-            parameters: [],
-            isPartialRecheck: false,
+          usageDecision: 'Lot Accepted',
+          receivedDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          expirationDate: '',
+          parameters: [],
+          isPartialRecheck: false,
             poQuantities: poQuantities,
             grnDetails: grnDetails,
-          );
+        );
 
           _items.add(inspectionItem);
         }
@@ -288,20 +288,20 @@ class _AddQualityInspectionPageState
 
               // Material Groups
               if (_items.isEmpty && selectedSupplier != null)
-                const Center(
-                  child: Padding(
+                        const Center(
+                          child: Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Text(
+                            child: Text(
                       'No pending materials for inspection',
-                      style: TextStyle(
-                        fontSize: 16,
+                              style: TextStyle(
+                                fontSize: 16,
                         color: Colors.grey,
-                      ),
-                    ),
-                  ),
-                )
-              else
-                ..._items.map((item) => _buildItemCard(item)),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ..._items.map((item) => _buildItemCard(item)),
 
               const SizedBox(height: 20),
               FilledButton(
@@ -621,11 +621,11 @@ class _AddQualityInspectionPageState
     if (item.parameters.isEmpty) {
       item.parameters = [
         ...universalParams.map((param) => QualityParameter(
-              parameter: param.name,
-              specification: '',
+          parameter: param.name,
+          specification: '',
               observation:
                   categorySpecificParams.contains(param.name) ? '' : 'NA',
-              isAcceptable: true,
+          isAcceptable: true,
             )),
         ...categorySpecificParams
             .where((paramName) =>
@@ -651,13 +651,13 @@ class _AddQualityInspectionPageState
               children: [
                 Expanded(
                   flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.materialDescription,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.materialDescription,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
                       ),
@@ -863,35 +863,35 @@ class _AddQualityInspectionPageState
                             SizedBox(
                               height: 36,
                               child: DropdownButtonFormField2<String>(
-                                decoration: const InputDecoration(
+              decoration: const InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 8),
-                                  border: OutlineInputBorder(),
-                                ),
-                                isExpanded: true,
+                border: OutlineInputBorder(),
+              ),
+              isExpanded: true,
                                 value: poQty.usageDecision,
-                                items: const [
-                                  DropdownMenuItem<String>(
+              items: const [
+                DropdownMenuItem<String>(
                                     value: 'Lot Accepted',
                                     child: Text('Lot Accepted',
                                         style: TextStyle(fontSize: 12)),
                                   ),
-                                  DropdownMenuItem<String>(
+                DropdownMenuItem<String>(
                                     value: 'Rejected',
                                     child: Text('Rejected',
                                         style: TextStyle(fontSize: 12)),
                                   ),
-                                  DropdownMenuItem<String>(
+                DropdownMenuItem<String>(
                                     value: '100% Recheck',
                                     child: Text('100% Recheck',
                                         style: TextStyle(fontSize: 12)),
                                   ),
-                                ],
-                                onChanged: (value) {
-                                  setState(() {
+              ],
+              onChanged: (value) {
+                setState(() {
                                     // Reset partial and conditional acceptance when changing decision
-                                    item.isPartialRecheck = false;
+                    item.isPartialRecheck = false;
                                     item.conditionalAcceptanceReason = null;
 
                                     // Update quantities based on decision
@@ -917,18 +917,18 @@ class _AddQualityInspectionPageState
                                         rejectedQty: 0,
                                         usageDecision: value,
                                       );
-                                    }
-                                  });
-                                },
-                                dropdownStyleData: DropdownStyleData(
-                                  maxHeight: 200,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                menuItemStyleData: const MenuItemStyleData(
-                                  padding: EdgeInsets.symmetric(horizontal: 16),
-                                ),
+                  }
+                });
+              },
+              dropdownStyleData: DropdownStyleData(
+                maxHeight: 200,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              menuItemStyleData: const MenuItemStyleData(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+              ),
                               ),
                             ),
                             if (poQty.usageDecision == '100% Recheck') ...[
@@ -950,8 +950,8 @@ class _AddQualityInspectionPageState
                                           width: 24,
                                           child: Checkbox(
                                             value: item.isPartialRecheck,
-                                            onChanged: (value) {
-                                              setState(() {
+                onChanged: (value) {
+                  setState(() {
                                                 item.isPartialRecheck = value;
                                                 if (value == false) {
                                                   item.conditionalAcceptanceReason =
@@ -963,8 +963,8 @@ class _AddQualityInspectionPageState
                                                     rejectedQty: 0,
                                                   );
                                                 }
-                                              });
-                                            },
+                  });
+                },
                                           ),
                                         ),
                                         const SizedBox(width: 8),
@@ -978,10 +978,10 @@ class _AddQualityInspectionPageState
                                         children: [
                                           Expanded(
                                             child: TextFormField(
-                                              decoration: const InputDecoration(
+                decoration: const InputDecoration(
                                                 labelText: 'Accepted Qty',
                                                 isDense: true,
-                                                border: OutlineInputBorder(),
+                  border: OutlineInputBorder(),
                                               ),
                                               initialValue:
                                                   poQty.acceptedQty.toString(),
@@ -989,7 +989,7 @@ class _AddQualityInspectionPageState
                                                   const TextStyle(fontSize: 12),
                                               keyboardType:
                                                   TextInputType.number,
-                                              validator: (value) {
+                validator: (value) {
                                                 if (value == null ||
                                                     value.isEmpty) {
                                                   return 'Required';
@@ -1002,15 +1002,15 @@ class _AddQualityInspectionPageState
                                                 if (qty < 0 ||
                                                     qty > poQty.receivedQty) {
                                                   return 'Invalid quantity';
-                                                }
-                                                return null;
-                                              },
-                                              onChanged: (value) {
+                  }
+                  return null;
+                },
+                onChanged: (value) {
                                                 final qty =
                                                     double.tryParse(value) ?? 0;
                                                 if (qty >= 0 &&
                                                     qty <= poQty.receivedQty) {
-                                                  setState(() {
+                  setState(() {
                                                     item.updatePOQuantities(
                                                       poNo,
                                                       acceptedQty: qty,
@@ -1024,13 +1024,13 @@ class _AddQualityInspectionPageState
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          Expanded(
-                                            child: TextFormField(
-                                              decoration: const InputDecoration(
+                    Expanded(
+                      child: TextFormField(
+                        decoration: const InputDecoration(
                                                 labelText: 'Rejected Qty',
                                                 isDense: true,
-                                                border: OutlineInputBorder(),
-                                              ),
+                          border: OutlineInputBorder(),
+                        ),
                                               initialValue:
                                                   poQty.rejectedQty.toString(),
                                               style:
@@ -1053,12 +1053,12 @@ class _AddQualityInspectionPageState
                                                 }
                                                 return null;
                                               },
-                                              onChanged: (value) {
+                        onChanged: (value) {
                                                 final qty =
                                                     double.tryParse(value) ?? 0;
                                                 if (qty >= 0 &&
                                                     qty <= poQty.receivedQty) {
-                                                  setState(() {
+                          setState(() {
                                                     item.updatePOQuantities(
                                                       poNo,
                                                       rejectedQty: qty,
@@ -1068,9 +1068,9 @@ class _AddQualityInspectionPageState
                                                     );
                                                   });
                                                 }
-                                              },
-                                            ),
-                                          ),
+                        },
+                      ),
+                    ),
                                         ],
                                       ),
                                       const SizedBox(height: 8),
@@ -1083,8 +1083,8 @@ class _AddQualityInspectionPageState
                                               value:
                                                   item.conditionalAcceptanceReason !=
                                                       null,
-                                              onChanged: (value) {
-                                                setState(() {
+                        onChanged: (value) {
+                          setState(() {
                                                   if (value == true) {
                                                     item.conditionalAcceptanceReason =
                                                         '';
@@ -1092,10 +1092,10 @@ class _AddQualityInspectionPageState
                                                     item.conditionalAcceptanceReason =
                                                         null;
                                                   }
-                                                });
-                                              },
-                                            ),
-                                          ),
+                          });
+                        },
+                      ),
+                    ),
                                           const SizedBox(width: 8),
                                           const Text('Conditional Acceptance',
                                               style: TextStyle(fontSize: 12)),
@@ -1105,10 +1105,10 @@ class _AddQualityInspectionPageState
                                           null) ...[
                                         const SizedBox(height: 8),
                                         TextFormField(
-                                          decoration: const InputDecoration(
+                        decoration: const InputDecoration(
                                             labelText: 'Conditional Remark',
                                             isDense: true,
-                                            border: OutlineInputBorder(),
+                          border: OutlineInputBorder(),
                                             hintText:
                                                 'Enter conditions for acceptance',
                                           ),
@@ -1123,45 +1123,45 @@ class _AddQualityInspectionPageState
                                             }
                                             return null;
                                           },
-                                          onChanged: (value) {
-                                            setState(() {
+                        onChanged: (value) {
+                          setState(() {
                                               item.conditionalAcceptanceReason =
                                                   value;
-                                            });
-                                          },
+                          });
+                        },
                                         ),
                                       ],
                                     ],
                                   ],
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
                       ),
-                    ],
+                    ),
+                            ],
+                  ],
+                        ),
+                ),
+              ],
                   );
                 }),
-              ],
+            ],
             ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
             // Quality Parameters
-            const Text(
-              'Quality Parameters',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
+              const Text(
+                'Quality Parameters',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
                 fontSize: 14,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
             Table(
               columnWidths: const {
                 0: FlexColumnWidth(2), // Parameter
                 1: FlexColumnWidth(2), // Observation
                 2: FlexColumnWidth(1), // Acceptable
               },
-              children: [
+                      children: [
                 const TableRow(
                   children: [
                     Text('Parameter',
@@ -1177,7 +1177,7 @@ class _AddQualityInspectionPageState
                 ),
                 ...item.parameters.map((param) {
                   return TableRow(
-                    children: [
+                          children: [
                       // Parameter
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1189,39 +1189,39 @@ class _AddQualityInspectionPageState
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: SizedBox(
                           height: 32,
-                          child: TextFormField(
+                              child: TextFormField(
                             initialValue: param.observation,
-                            decoration: const InputDecoration(
+                                decoration: const InputDecoration(
                               isDense: true,
                               contentPadding: EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 8),
-                              border: OutlineInputBorder(),
-                            ),
+                                  border: OutlineInputBorder(),
+                                ),
                             style: const TextStyle(fontSize: 12),
-                            onChanged: (value) {
-                              setState(() {
+                                onChanged: (value) {
+                                  setState(() {
                                 param.observation = value;
-                              });
-                            },
-                          ),
-                        ),
+                                  });
+                                },
+                              ),
+                            ),
                       ),
                       // Acceptable
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Checkbox(
                           value: param.isAcceptable,
-                          onChanged: (value) {
-                            setState(() {
+                                onChanged: (value) {
+                                  setState(() {
                               param.isAcceptable = value ?? true;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-              ],
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                );
+              }),
+            ],
             ),
           ],
         ),

@@ -27,13 +27,14 @@ class POItemAdapter extends TypeAdapter<POItem> {
       marginPerUnit: fields[7] as String,
       totalMargin: fields[8] as String,
       prQuantities: (fields[9] as Map?)?.cast<String, double>(),
+      receivedQuantities: (fields[10] as Map?)?.cast<String, double>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, POItem obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -53,7 +54,9 @@ class POItemAdapter extends TypeAdapter<POItem> {
       ..writeByte(8)
       ..write(obj.totalMargin)
       ..writeByte(9)
-      ..write(obj.prQuantities);
+      ..write(obj.prQuantities)
+      ..writeByte(10)
+      ..write(obj.receivedQuantities);
   }
 
   @override

@@ -41,6 +41,27 @@ class PurchaseOrder extends HiveObject {
   @HiveField(11)
   double grandTotal;
 
+  @HiveField(12)
+  String? _status;
+
+  String get status => _status ?? 'Draft';
+
+  set status(String value) {
+    _status = value;
+  }
+
+  bool get isFullyReceived => items.every((item) => item.isFullyReceived);
+
+  void updateStatus() {
+    if (isFullyReceived) {
+      status = 'Completed';
+    } else if (items.any((item) => item.totalReceivedQuantity > 0)) {
+      status = 'Partially Received';
+    } else {
+      status = 'Draft';
+    }
+  }
+
   PurchaseOrder({
     required this.poNo,
     required this.poDate,
@@ -54,5 +75,40 @@ class PurchaseOrder extends HiveObject {
     required this.cgst,
     required this.sgst,
     required this.grandTotal,
-  });
+    String? status,
+  }) {
+    _status = status;
+  }
+
+  PurchaseOrder copyWith({
+    String? poNo,
+    String? poDate,
+    String? supplierName,
+    String? boardNo,
+    String? transport,
+    String? deliveryRequirements,
+    List<POItem>? items,
+    double? total,
+    double? igst,
+    double? cgst,
+    double? sgst,
+    double? grandTotal,
+    String? status,
+  }) {
+    return PurchaseOrder(
+      poNo: poNo ?? this.poNo,
+      poDate: poDate ?? this.poDate,
+      supplierName: supplierName ?? this.supplierName,
+      boardNo: boardNo ?? this.boardNo,
+      transport: transport ?? this.transport,
+      deliveryRequirements: deliveryRequirements ?? this.deliveryRequirements,
+      items: items ?? this.items.map((item) => item.copyWith()).toList(),
+      total: total ?? this.total,
+      igst: igst ?? this.igst,
+      cgst: cgst ?? this.cgst,
+      sgst: sgst ?? this.sgst,
+      grandTotal: grandTotal ?? this.grandTotal,
+      status: status ?? this._status,
+    );
+  }
 }

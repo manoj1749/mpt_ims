@@ -29,13 +29,13 @@ class PurchaseOrderAdapter extends TypeAdapter<PurchaseOrder> {
       cgst: fields[9] as double,
       sgst: fields[10] as double,
       grandTotal: fields[11] as double,
-    );
+    ).._status = fields[12] as String?;
   }
 
   @override
   void write(BinaryWriter writer, PurchaseOrder obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.poNo)
       ..writeByte(1)
@@ -59,7 +59,9 @@ class PurchaseOrderAdapter extends TypeAdapter<PurchaseOrder> {
       ..writeByte(10)
       ..write(obj.sgst)
       ..writeByte(11)
-      ..write(obj.grandTotal);
+      ..write(obj.grandTotal)
+      ..writeByte(12)
+      ..write(obj._status);
   }
 
   @override

@@ -1,276 +1,400 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mpt_ims/provider/purchase_request_provider.dart';
-import 'package:mpt_ims/models/purchase_request.dart';
+import 'package:pluto_grid/pluto_grid.dart';
+import '../../provider/purchase_request_provider.dart';
+import '../../provider/purchase_order.dart';
+import '../../provider/store_inward_provider.dart';
+import '../../models/purchase_request.dart';
+import '../../models/purchase_order.dart';
+import '../../models/store_inward.dart';
+import '../../models/pr_item.dart';
+import '../../models/po_item.dart';
 import 'add_purchase_request_page.dart';
 
-class PurchaseRequestListPage extends ConsumerWidget {
+class PurchaseRequestListPage extends ConsumerStatefulWidget {
   const PurchaseRequestListPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PurchaseRequestListPage> createState() => _PurchaseRequestListPageState();
+}
+
+class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPage> {
+  late final List<PlutoColumn> columns;
+  PlutoGridStateManager? stateManager;
+
+  @override
+  void initState() {
+    super.initState();
+    columns = [
+      PlutoColumn(
+        title: 'S.No',
+        field: 'serialNo',
+        type: PlutoColumnType.number(),
+        width: 60,
+        frozen: PlutoColumnFrozen.start,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+      ),
+      PlutoColumn(
+        title: 'Job No',
+        field: 'jobNo',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+      ),
+      PlutoColumn(
+        title: 'PR No',
+        field: 'prNo',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+      ),
+      PlutoColumn(
+        title: 'PR Date',
+        field: 'prDate',
+        type: PlutoColumnType.date(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+      ),
+      PlutoColumn(
+        title: 'Part No',
+        field: 'partNo',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+      ),
+      PlutoColumn(
+        title: 'Description',
+        field: 'description',
+        type: PlutoColumnType.text(),
+        width: 200,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.start,
+      ),
+      PlutoColumn(
+        title: 'PR Qty',
+        field: 'prQty',
+        type: PlutoColumnType.number(),
+        width: 100,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.right,
+      ),
+      PlutoColumn(
+        title: 'Unit',
+        field: 'unit',
+        type: PlutoColumnType.text(),
+        width: 80,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+      ),
+      PlutoColumn(
+        title: 'Requested By',
+        field: 'requestedBy',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+      ),
+      PlutoColumn(
+        title: 'Stock Transfer',
+        field: 'stockTransfer',
+        type: PlutoColumnType.text(),
+        width: 150,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.start,
+        renderer: (rendererContext) {
+          final transfers = rendererContext.cell.value.toString();
+          if (transfers == '-') {
+            return Container(
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                '-',
+                style: TextStyle(color: Colors.grey[200]),
+              ),
+            );
+          }
+          return Container(
+            height: PlutoGridSettings.rowHeight * 2,
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: transfers.split('\n').map((transfer) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    transfer.trim(),
+                    style: TextStyle(
+                      color: Colors.grey[200],
+                      height: 1.3,
+                    ),
+                  ),
+                )).toList(),
+              ),
+            ),
+          );
+        },
+      ),
+      PlutoColumn(
+        title: 'PO Details',
+        field: 'poDetails',
+        type: PlutoColumnType.text(),
+        width: 300,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.start,
+        renderer: (rendererContext) {
+          final poDetails = rendererContext.cell.value.toString();
+          if (poDetails == '-') {
+            return Container(
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                '-',
+                style: TextStyle(color: Colors.grey[200]),
+              ),
+            );
+          }
+          return Container(
+            height: PlutoGridSettings.rowHeight * 2,
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: poDetails.split('\n').map((po) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    po.trim(),
+                    style: TextStyle(
+                      color: Colors.grey[200],
+                      height: 1.3,
+                    ),
+                  ),
+                )).toList(),
+              ),
+            ),
+          );
+        },
+      ),
+      PlutoColumn(
+        title: 'Ordered Qty',
+        field: 'orderedQty',
+        type: PlutoColumnType.number(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.right,
+      ),
+      PlutoColumn(
+        title: 'Pending Qty',
+        field: 'pendingQty',
+        type: PlutoColumnType.number(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.right,
+      ),
+      PlutoColumn(
+        title: 'Status',
+        field: 'status',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+      ),
+      PlutoColumn(
+        title: 'Actions',
+        field: 'actions',
+        type: PlutoColumnType.text(),
+        width: 100,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        renderer: (rendererContext) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: Icon(Icons.visibility, color: Colors.grey[200]),
+                onPressed: () {
+                  // TODO: Implement view action
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    ];
+  }
+
+  List<PlutoRow> _getRows(
+    List<PurchaseRequest> requests,
+    List<PurchaseOrder> purchaseOrders,
+    List<StoreInward> storeInwards,
+  ) {
+    final rows = <PlutoRow>[];
+    var serialNo = 1;
+
+    for (var request in requests) {
+      for (var item in request.items) {
+        // Calculate ordered quantity from POs
+        final orderedQty = purchaseOrders
+            .where((po) => po.items.any((poItem) => 
+                poItem.materialCode == item.materialCode && 
+                poItem.prQuantities.containsKey(request.prNo)))
+            .fold<double>(0, (sum, po) => sum + po.items
+                .where((poItem) => 
+                    poItem.materialCode == item.materialCode && 
+                    poItem.prQuantities.containsKey(request.prNo))
+                .fold<double>(0, (sum, poItem) => sum + (poItem.prQuantities[request.prNo] ?? 0)));
+
+        // Calculate received quantity from Store Inwards
+        final receivedQty = storeInwards
+            .where((si) => si.items.any((siItem) => 
+                siItem.materialCode == item.materialCode && 
+                siItem.poQuantities.keys.any((poNo) => 
+                    purchaseOrders.any((po) => 
+                        po.poNo == poNo && 
+                        po.items.any((poItem) => 
+                            poItem.materialCode == item.materialCode && 
+                            poItem.prQuantities.containsKey(request.prNo))))))
+            .fold<double>(0, (sum, si) => sum + si.items
+                .where((siItem) => 
+                    siItem.materialCode == item.materialCode)
+                .fold<double>(0, (sum, siItem) => sum + siItem.acceptedQty));
+
+        // Get PO details
+        final relatedPOs = purchaseOrders
+            .where((po) => po.items.any((poItem) => 
+                poItem.materialCode == item.materialCode && 
+                poItem.prQuantities.containsKey(request.prNo)))
+            .map((po) => '${po.poNo}\n(${po.poDate})')
+            .join('\n\n');
+
+        // Get stock transfer details
+        final transfers = storeInwards
+            .where((si) => si.items.any((siItem) => 
+                siItem.materialCode == item.materialCode && 
+                siItem.poQuantities.keys.any((poNo) => 
+                    purchaseOrders.any((po) => 
+                        po.poNo == poNo && 
+                        po.items.any((poItem) => 
+                            poItem.materialCode == item.materialCode && 
+                            poItem.prQuantities.containsKey(request.prNo))))))
+            .map((si) {
+              final matchingItems = si.items.where((siItem) => 
+                  siItem.materialCode == item.materialCode);
+              if (matchingItems.isNotEmpty) {
+                return '${matchingItems.fold<double>(0, (sum, item) => sum + item.acceptedQty)} (${si.grnDate})';
+              }
+              return '';
+            })
+            .where((s) => s.isNotEmpty)
+            .join('\n');
+
+        final pendingQty = double.parse(item.quantity) - orderedQty;
+        final status = pendingQty <= 0 ? 'Completed' : 
+                      orderedQty > 0 ? 'Partially Ordered' : 'Pending';
+
+        rows.add(
+          PlutoRow(
+            cells: {
+              'serialNo': PlutoCell(value: serialNo++),
+              'jobNo': PlutoCell(value: request.jobNo ?? '-'),
+              'prNo': PlutoCell(value: request.prNo),
+              'prDate': PlutoCell(value: request.date),
+              'partNo': PlutoCell(value: item.materialCode),
+              'description': PlutoCell(value: item.materialDescription),
+              'prQty': PlutoCell(value: double.parse(item.quantity)),
+              'unit': PlutoCell(value: item.unit),
+              'requestedBy': PlutoCell(value: request.requiredBy),
+              'stockTransfer': PlutoCell(value: transfers.isEmpty ? '-' : transfers),
+              'poDetails': PlutoCell(value: relatedPOs.isEmpty ? '-' : relatedPOs),
+              'orderedQty': PlutoCell(value: orderedQty),
+              'pendingQty': PlutoCell(value: pendingQty),
+              'status': PlutoCell(value: status),
+              'actions': PlutoCell(value: ''),
+            },
+          ),
+        );
+      }
+    }
+
+    return rows;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final requests = ref.watch(purchaseRequestListProvider);
+    final purchaseOrders = ref.watch(purchaseOrderListProvider);
+    final storeInwards = ref.watch(storeInwardProvider);
 
     return Scaffold(
+      backgroundColor: Colors.grey[900],
       appBar: AppBar(
-        title: const Text('Purchase Requests'),
-        elevation: 0,
+        backgroundColor: Colors.grey[850],
+        title: Text('Purchase Requests', style: TextStyle(color: Colors.grey[200])),
+        iconTheme: IconThemeData(color: Colors.grey[200]),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: Icon(Icons.add, color: Colors.grey[200]),
             onPressed: () {
-              // TODO: Implement search
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AddPurchaseRequestPage(
+                    existingRequest: null,
+                    index: null,
+                  ),
+                ),
+              );
             },
-            tooltip: 'Search Requests',
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const AddPurchaseRequestPage(
-              existingRequest: null,
-              index: null,
+      body: Container(
+        padding: const EdgeInsets.all(8.0),
+        child: PlutoGrid(
+          columns: columns,
+          rows: _getRows(requests, purchaseOrders, storeInwards),
+          onLoaded: (PlutoGridOnLoadedEvent event) {
+            stateManager = event.stateManager;
+          },
+          configuration: PlutoGridConfiguration(
+            columnSize: const PlutoGridColumnSizeConfig(
+              autoSizeMode: PlutoAutoSizeMode.scale,
+            ),
+            style: PlutoGridStyleConfig(
+              gridBackgroundColor: Colors.grey[900]!,
+              rowColor: Colors.grey[850]!,
+              activatedColor: Colors.grey[800]!,
+              gridBorderColor: Colors.grey[800]!,
+              borderColor: Colors.grey[800]!,
+              activatedBorderColor: Colors.grey[700]!,
+              inactivatedBorderColor: Colors.grey[800]!,
+              cellTextStyle: TextStyle(color: Colors.grey[200]!),
+              columnTextStyle: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+              rowHeight: PlutoGridSettings.rowHeight * 2,
             ),
           ),
         ),
-        child: const Icon(Icons.add),
-      ),
-      body: requests.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.assignment_outlined,
-                    size: 64,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No purchase requests yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddPurchaseRequestPage(
-                          existingRequest: null,
-                          index: null,
-                        ),
-                      ),
-                    ),
-                    child: const Text('Create New Request'),
-                  ),
-                ],
-              ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        '${requests.length} Purchase Requests',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(width: 16),
-                      FilledButton.tonal(
-                        onPressed: () {
-                          // TODO: Implement filtering
-                        },
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.filter_list, size: 20),
-                            SizedBox(width: 8),
-                            Text('Filter'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: Card(
-                      elevation: 0,
-                      margin: EdgeInsets.zero,
-                      child: SizedBox(
-                        width: MediaQuery.of(context).size.width - 32,
-                        child: ListView.builder(
-                          itemCount: requests.length,
-                          itemBuilder: (context, index) {
-                            final pr = requests[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 8),
-                              child: ExpansionTile(
-                                title: Row(
-                                  children: [
-                                    Text(
-                                      pr.prNo,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Text(pr.date),
-                                    const SizedBox(width: 16),
-                                    Text('Required By: ${pr.requiredBy}'),
-                                    const SizedBox(width: 16),
-                                    if (pr.jobNo != null) ...[
-                                      Text('Job No: ${pr.jobNo}'),
-                                      const SizedBox(width: 16),
-                                    ],
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: pr.isFullyOrdered
-                                            ? Colors.green.withOpacity(0.1)
-                                            : Colors.orange.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        pr.status,
-                                        style: TextStyle(
-                                          color: pr.isFullyOrdered
-                                              ? Colors.green
-                                              : Colors.orange,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                children: [
-                                  SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: DataTable(
-                                      columns: const [
-                                        DataColumn(
-                                            label: Text('Material Code')),
-                                        DataColumn(label: Text('Description')),
-                                        DataColumn(label: Text('Unit')),
-                                        DataColumn(label: Text('Quantity')),
-                                        DataColumn(label: Text('Ordered')),
-                                        DataColumn(label: Text('Remaining')),
-                                        DataColumn(label: Text('Remarks')),
-                                      ],
-                                      rows: pr.items.map((item) {
-                                        return DataRow(
-                                          cells: [
-                                            DataCell(Text(item.materialCode)),
-                                            DataCell(
-                                                Text(item.materialDescription)),
-                                            DataCell(Text(item.unit)),
-                                            DataCell(Text(item.quantity)),
-                                            DataCell(
-                                              Text(
-                                                item.totalOrderedQuantity
-                                                    .toStringAsFixed(2),
-                                                style: TextStyle(
-                                                  color: item.isFullyOrdered
-                                                      ? Colors.green
-                                                      : Colors.orange,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ),
-                                            DataCell(
-                                              Text(
-                                                item.remainingQuantity
-                                                    .toStringAsFixed(2),
-                                                style: TextStyle(
-                                                  color:
-                                                      item.remainingQuantity > 0
-                                                          ? Colors.red
-                                                          : Colors.green,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ),
-                                            DataCell(Text(item.remarks ?? '')),
-                                          ],
-                                        );
-                                      }).toList(),
-                                    ),
-                                  ),
-                                  OverflowBar(
-                                    children: [
-                                      TextButton.icon(
-                                        icon: const Icon(Icons.edit_outlined),
-                                        label: const Text('Edit'),
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  AddPurchaseRequestPage(
-                                                existingRequest: pr,
-                                                index: index,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                      TextButton.icon(
-                                        icon: const Icon(Icons.delete_outline),
-                                        label: const Text('Delete'),
-                                        onPressed: () =>
-                                            _confirmDelete(context, ref, pr),
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: Colors.red,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
-
-  Future<void> _confirmDelete(
-      BuildContext context, WidgetRef ref, PurchaseRequest request) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: Text('Are you sure you want to delete PR ${request.prNo}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
       ),
     );
-
-    if (confirmed == true) {
-      ref.read(purchaseRequestListProvider.notifier).deleteRequest(request);
-    }
   }
 }

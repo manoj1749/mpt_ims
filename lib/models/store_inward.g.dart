@@ -28,13 +28,13 @@ class StoreInwardAdapter extends TypeAdapter<StoreInward> {
       receivedBy: fields[8] as String,
       checkedBy: fields[9] as String,
       items: (fields[10] as List).cast<InwardItem>(),
-    );
+    ).._status = fields[11] as String?;
   }
 
   @override
   void write(BinaryWriter writer, StoreInward obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.grnNo)
       ..writeByte(1)
@@ -56,7 +56,9 @@ class StoreInwardAdapter extends TypeAdapter<StoreInward> {
       ..writeByte(9)
       ..write(obj.checkedBy)
       ..writeByte(10)
-      ..write(obj.items);
+      ..write(obj.items)
+      ..writeByte(11)
+      ..write(obj._status);
   }
 
   @override
@@ -90,13 +92,14 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
       rejectedQty: fields[6] as double,
       costPerUnit: fields[7] as String,
       poQuantities: (fields[8] as Map?)?.cast<String, double>(),
+      inspectedQuantities: (fields[9] as Map?)?.cast<String, double>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, InwardItem obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -114,7 +117,9 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
       ..writeByte(7)
       ..write(obj.costPerUnit)
       ..writeByte(8)
-      ..write(obj.poQuantities);
+      ..write(obj.poQuantities)
+      ..writeByte(9)
+      ..write(obj.inspectedQuantities);
   }
 
   @override

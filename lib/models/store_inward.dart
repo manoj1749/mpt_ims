@@ -37,6 +37,28 @@ class StoreInward extends HiveObject {
   @HiveField(10)
   List<InwardItem> items;
 
+  @HiveField(11)
+  String? _status;
+
+  String get status => _status ?? 'Pending';
+
+  set status(String value) {
+    _status = value;
+  }
+
+  bool get isFullyInspected => items.every((item) => item.isFullyInspected);
+
+  void updateStatus() {
+    if (isFullyInspected) {
+      status = 'Completed';
+    } else if (items.any((item) => item.inspectedQuantity > 0)) {
+      status = 'Partially Inspected';
+    } else {
+      status = 'Pending';
+    }
+    save();
+  }
+
   StoreInward({
     required this.grnNo,
     required this.grnDate,
@@ -49,7 +71,10 @@ class StoreInward extends HiveObject {
     required this.receivedBy,
     required this.checkedBy,
     required this.items,
-  });
+    String? status,
+  }) {
+    _status = status;
+  }
 }
 
 @HiveType(typeId: 7)
@@ -79,8 +104,19 @@ class InwardItem {
   String costPerUnit;
 
   @HiveField(8)
-  Map<String, double> poQuantities =
-      {}; // Store PO-wise quantities: PO No -> Quantity
+  Map<String, double> poQuantities = {}; // Store PO-wise quantities: PO No -> Quantity
+
+  @HiveField(9)
+  Map<String, double> inspectedQuantities = {}; // Map of inspection number to inspected quantity
+
+  double get inspectedQuantity =>
+      inspectedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
+
+  bool get isFullyInspected => inspectedQuantity >= receivedQty;
+
+  void addInspectedQuantity(String inspectionNo, double quantity) {
+    inspectedQuantities[inspectionNo] = quantity;
+  }
 
   InwardItem({
     required this.materialCode,
@@ -92,8 +128,10 @@ class InwardItem {
     required this.rejectedQty,
     required this.costPerUnit,
     Map<String, double>? poQuantities,
+    Map<String, double>? inspectedQuantities,
   }) {
     this.poQuantities = poQuantities ?? {};
+    this.inspectedQuantities = inspectedQuantities ?? {};
   }
 
   // Helper method to get total received quantity for a specific PO

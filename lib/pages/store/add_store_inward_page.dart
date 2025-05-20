@@ -11,6 +11,8 @@ import '../../models/supplier.dart';
 import '../../provider/supplier_provider.dart';
 import '../../models/purchase_order.dart';
 import '../../provider/purchase_order.dart';
+import '../../models/purchase_request.dart';
+import '../../provider/purchase_request_provider.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 
 class AddStoreInwardPage extends ConsumerStatefulWidget {
@@ -33,6 +35,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
   Map<String, Map<String, TextEditingController>> poQtyControllers = {};
   Map<String, Map<String, TextEditingController>> receivedQtyControllers = {};
   Map<String, Map<String, bool>> selectedPOs = {};
+  final List<InwardItem> _items = [];
   bool _isLoading = false;
 
   // Map to store material slNo for each materialCode
@@ -80,7 +83,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             throw Exception('Material not found in PO: ${material.partNo}'),
       );
 
-      double.parse(poItem.quantity);
+      final orderedQty = double.parse(poItem.quantity);
       final inwardController = poQtyControllers[material.partNo]?[po.poNo] ??
           TextEditingController(text: '0');
       poQtyControllers
@@ -121,7 +124,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     }
 
     // Get all store inwards for this material and supplier from the watched provider
-    ref
+    final materialInwards = ref
         .watch(storeInwardProvider.notifier)
         .getInwardsByMaterial(material.partNo)
         .where((inward) => inward.supplierName == selectedSupplier!.name)
@@ -216,7 +219,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         child: Checkbox(
                           value: isSelected,
                           onChanged: (bool? value) {
-                            setState(() {
+    setState(() {
                               selectedPOs[material.partNo]![po.poNo] =
                                   value ?? false;
                               if (value == true) {
@@ -281,9 +284,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               if (qty == null) return 'Invalid';
                               if (qty < 0) return 'Invalid';
                               final remainingQty = orderedQty - receivedQty;
-                              if (qty > remainingQty) {
+                              if (qty > remainingQty)
                                 return 'Exceeds remaining';
-                              }
                               return null;
                             },
                             onChanged: (value) {
@@ -350,7 +352,10 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       // Create store inward items
       final items = <InwardItem>[];
       final materials = ref.read(materialListProvider);
-      final pos = ref.read(purchaseOrderListProvider);
+      final pos = ref
+          .read(purchaseOrderListProvider)
+          .where((po) => po.status != 'Completed')
+          .toList();
 
       for (var entry in selectedPOs.entries) {
         final materialCode = entry.key;
@@ -427,6 +432,127 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       // Save the inward and ensure state is updated
       await ref.read(storeInwardProvider.notifier).addInward(inward);
 
+      // Update PO status
+      final updatedPOs = <String, PurchaseOrder>{};
+
+      for (var item in items) {
+        for (var poEntry in item.poQuantities.entries) {
+          final poNo = poEntry.key;
+          final receivedQty = poEntry.value;
+
+          try {
+            // Get or create updated PO instance
+            final updatedPO = updatedPOs[poNo] ??
+                pos
+                    .firstWhere(
+                      (po) => po.poNo == poNo,
+                      orElse: () => throw Exception('PO not found'),
+                    )
+                    .copyWith(); // Create a new instance
+            updatedPOs[poNo] = updatedPO;
+
+            // Find and update the item
+            final poItem = updatedPO.items.firstWhere(
+              (poItem) => poItem.materialCode == item.materialCode,
+              orElse: () => throw Exception('PO item not found'),
+            );
+
+            // Update received quantity
+            poItem.addReceivedQuantity(inward.grnNo, receivedQty);
+
+            // Update status without calling save()
+            if (poItem.isFullyReceived) {
+              // Check if all items in the PO are fully received
+              if (updatedPO.items.every((item) => item.isFullyReceived)) {
+                updatedPO.status = 'Completed';
+              } else {
+                updatedPO.status = 'Partially Received';
+              }
+            } else if (updatedPO.items.any((item) => item.totalReceivedQuantity > 0)) {
+              updatedPO.status = 'Partially Received';
+            } else {
+              updatedPO.status = 'Draft';
+            }
+          } catch (e) {
+            print('Error updating PO $poNo: $e');
+            // Continue with other POs even if one fails
+            continue;
+          }
+        }
+      }
+
+      // Update all modified POs
+      for (var updatedPO in updatedPOs.values) {
+        try {
+          final index = pos.indexWhere((po) => po.poNo == updatedPO.poNo);
+          if (index != -1) {
+            ref
+                .read(purchaseOrderListProvider.notifier)
+                .updateOrder(index, updatedPO);
+          }
+        } catch (e) {
+          print('Error saving updated PO ${updatedPO.poNo}: $e');
+          // Continue with other POs even if one fails
+          continue;
+        }
+      }
+
+      // Update PRs if needed
+      final purchaseRequests = ref.read(purchaseRequestListProvider);
+      final prNotifier = ref.read(purchaseRequestListProvider.notifier);
+      final updatedPRs = <int, PurchaseRequest>{};
+
+      // First collect all PRs that need updating
+      for (var item in items) {
+        for (var poEntry in item.poQuantities.entries) {
+          final poNo = poEntry.key;
+
+          try {
+            // Find the PO to get PR references
+            final po = pos.firstWhere(
+              (po) => po.poNo == poNo,
+              orElse: () => throw Exception('PO not found'),
+            );
+
+            // Find the PO item
+            final poItem = po.items.firstWhere(
+              (poItem) => poItem.materialCode == item.materialCode,
+              orElse: () => throw Exception('PO item not found'),
+            );
+
+            // Get PR numbers from PO item's prQuantities
+            for (var prEntry in poItem.prQuantities.entries) {
+              final prNo = prEntry.key;
+
+              // Find PR index
+              final prIndex =
+                  purchaseRequests.indexWhere((pr) => pr.prNo == prNo);
+              if (prIndex == -1) continue;
+
+              // Get PR from box if not already processed
+              if (!updatedPRs.containsKey(prIndex)) {
+                final pr = purchaseRequests[prIndex];
+                updatedPRs[prIndex] = pr.copyWith();
+              }
+            }
+          } catch (e) {
+            print('Error processing PR updates for PO $poNo: $e');
+            continue;
+          }
+        }
+      }
+
+      // Now update all collected PRs
+      for (var entry in updatedPRs.entries) {
+        try {
+          final pr = entry.value;
+          prNotifier.updateRequest(entry.key, pr);
+        } catch (e) {
+          print('Error saving updated PR at index ${entry.key}: $e');
+          continue;
+        }
+      }
+
       // Force a rebuild of the page
       if (mounted) {
         setState(() {
@@ -463,22 +589,65 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     // Watch all providers to ensure rebuilds when data changes
     final suppliers = ref.watch(supplierListProvider);
     final materials = ref.watch(materialListProvider);
-    final purchaseOrders = ref.watch(purchaseOrderListProvider);
-    ref.watch(storeInwardProvider); // Add this to watch store inwards
+    final purchaseOrders = ref
+        .watch(purchaseOrderListProvider)
+        .where((po) => po.status != 'Completed')
+        .toList();
+    final storeInwards =
+        ref.watch(storeInwardProvider); // Add this to watch store inwards
 
     // Filter POs by selected supplier and group by material
     final materialPOItems = <String, List<PurchaseOrder>>{};
     if (selectedSupplier != null) {
-      for (var po in purchaseOrders) {
-        if (po.supplierName == selectedSupplier!.name) {
-          for (var item in po.items) {
-            materialPOItems.putIfAbsent(item.materialCode, () => []).add(po);
+      print('\n=== Filtering POs for supplier: ${selectedSupplier!.name} ===');
+      
+      // First, deduplicate POs by taking the most up-to-date version
+      final uniquePOs = <String, PurchaseOrder>{};
+      for (var po in purchaseOrders.where((po) => 
+          po.supplierName == selectedSupplier!.name && 
+          po.status != 'Completed')) {  // Only consider non-completed POs
+        
+        // If PO already exists, keep the one with non-empty receivedQuantities
+        final existingPO = uniquePOs[po.poNo];
+        if (existingPO == null || 
+            (existingPO.items.every((item) => item.receivedQuantities.isEmpty) && 
+             po.items.any((item) => item.receivedQuantities.isNotEmpty))) {
+          uniquePOs[po.poNo] = po;
+        }
+      }
+
+      // Now process the unique POs
+      for (var po in uniquePOs.values) {
+        print('\nChecking PO: ${po.poNo}');
+        print('PO Status: ${po.status}');
+        
+        // Group items by material code
+        for (var item in po.items) {
+          if (!item.isFullyReceived) {  // Only add items that aren't fully received
+            final materialCode = item.materialCode;
+            print('\n  Adding material $materialCode from PO ${po.poNo}');
+            print('  PO Status: ${po.status}');
+            print('  Item Received Quantities: ${item.receivedQuantities}');
+            
+            materialPOItems.putIfAbsent(materialCode, () => []).add(po);
+            print('  Successfully added PO ${po.poNo} for material $materialCode');
           }
         }
       }
+      
+      print('\n=== Final materialPOItems ===');
+      materialPOItems.forEach((material, pos) {
+        print('\nMaterial: $material');
+        print('POs: ${pos.map((po) => po.poNo).join(', ')}');
+      });
     }
 
     // Get all store inwards for the selected supplier
+    final supplierInwards = selectedSupplier != null
+        ? storeInwards
+            .where((inward) => inward.supplierName == selectedSupplier!.name)
+            .toList()
+        : <StoreInward>[];
 
     return Scaffold(
       appBar: AppBar(
@@ -489,39 +658,39 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           : Form(
               key: _formKey,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
-                      children: [
+            children: [
                         Expanded(
-                          child: DropdownButtonFormField2<Supplier>(
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Select Supplier',
-                              border: OutlineInputBorder(),
+                child: DropdownButtonFormField2<Supplier>(
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Select Supplier',
+                    border: OutlineInputBorder(),
                               contentPadding: EdgeInsets.symmetric(vertical: 0),
-                            ),
+                  ),
                             hint: const Text("Select Supplier"),
-                            value: selectedSupplier,
+                  value: selectedSupplier,
                             items: suppliers
                                 .map((supplier) => DropdownMenuItem<Supplier>(
-                                      value: supplier,
-                                      child: Text(
-                                        supplier.name,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                      value: supplier,
+                      child: Text(
+                        supplier.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                                     ))
                                 .toList(),
-                            onChanged: (val) {
-                              setState(() {
-                                selectedSupplier = val;
+                  onChanged: (val) {
+                    setState(() {
+                      selectedSupplier = val;
                                 // Clear selections when supplier changes
                                 selectedPOs.clear();
                                 poQtyControllers.clear();
-                              });
-                            },
+                    });
+                  },
                             dropdownStyleData: DropdownStyleData(
                               maxHeight: 300,
                               decoration: BoxDecoration(
@@ -539,9 +708,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                               Text(
                                   "GRN No: GRN${DateTime.now().millisecondsSinceEpoch}"),
                               Text(
@@ -576,10 +745,10 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         Expanded(
                           child: buildTextField(
                               _checkedByController, 'Checked By'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                     if (selectedSupplier != null) ...[
                       if (materialPOItems.isEmpty)
                         const Center(
@@ -601,9 +770,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Column(
+                                child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
+                                  children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 8),
@@ -623,7 +792,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                     ),
                                   ),
                                 ),
-                                Expanded(
+                                        Expanded(
                                   child: ListView.builder(
                                     padding: const EdgeInsets.all(8),
                                     itemCount: materialPOItems.length,
@@ -639,10 +808,10 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                           material, entry.value);
                                     },
                                   ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
+                              ),
                         ),
                     ],
                     const SizedBox(height: 10),
@@ -665,11 +834,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
               ),
-            ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

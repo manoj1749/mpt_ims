@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
@@ -221,6 +219,7 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
       ),
     ];
   }
+
 
   Future<void> _confirmDelete(BuildContext context, StoreInward inward) async {
     final confirmed = await showDialog<bool>(

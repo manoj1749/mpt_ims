@@ -49,28 +49,23 @@ class StoreInwardNotifier extends StateNotifier<List<StoreInward>> {
   }
 
   Future<void> addInward(StoreInward inward) async {
-    try {
-      await box.add(inward);
-      // State will be updated by the box listener
-    } catch (e) {
-      rethrow;
-    }
+    await box.add(inward);
+    state = box.values.toList();
+  }
+
+  Future<void> updateInward(int index, StoreInward inward) async {
+    await box.putAt(index, inward);
+    state = box.values.toList();
   }
 
   Future<void> deleteInward(StoreInward inward) async {
-    try {
-      await inward.delete();
-      // State will be updated by the box listener
-    } catch (e) {
-      rethrow;
-    }
+    await inward.delete();
+    state = box.values.toList();
   }
 
   // Get inwards by supplier
   List<StoreInward> getInwardsBySupplier(String supplierName) {
-    return state
-        .where((inward) => inward.supplierName == supplierName)
-        .toList();
+    return state.where((inward) => inward.supplierName == supplierName).toList();
   }
 
   // Get inwards by date range
@@ -84,10 +79,9 @@ class StoreInwardNotifier extends StateNotifier<List<StoreInward>> {
 
   // Get inwards by material code
   List<StoreInward> getInwardsByMaterial(String materialCode) {
-    return state
-        .where((inward) =>
-            inward.items.any((item) => item.materialCode == materialCode))
-        .toList();
+    return state.where((inward) => 
+      inward.items.any((item) => item.materialCode == materialCode)
+    ).toList();
   }
 
   // Get total received quantity for a material from a specific PO

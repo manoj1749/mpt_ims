@@ -1,3 +1,5 @@
+// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -8,13 +10,9 @@ import '../../provider/material_provider.dart';
 import '../../models/material_item.dart';
 import '../../models/supplier.dart';
 import '../../provider/supplier_provider.dart';
-import '../../models/store_inward.dart';
 import '../../provider/store_inward_provider.dart';
 import '../../provider/category_parameter_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
-import '../../models/universal_parameter.dart';
-import '../../models/category_parameter_mapping.dart';
-import '../../models/purchase_order.dart';
 import '../../provider/purchase_order.dart';
 import '../../models/purchase_request.dart';
 import '../../provider/purchase_request_provider.dart';
@@ -38,7 +36,6 @@ class _AddQualityInspectionPageState
   Supplier? selectedSupplier;
   List<InspectionItem> _items = [];
   Map<String, Map<String, bool>> selectedPOs = {};
-  bool _isLoading = false;
 
   @override
   void initState() {
@@ -63,8 +60,8 @@ class _AddQualityInspectionPageState
         .where((inward) => inward.supplierName == supplier.name)
         .toList();
     final inspections = ref.watch(qualityInspectionProvider);
-    final purchaseOrders = ref.read(purchaseOrderListProvider);
-    final purchaseRequests = ref.read(purchaseRequestListProvider);
+    ref.read(purchaseOrderListProvider);
+    ref.read(purchaseRequestListProvider);
 
     // Group items by material and PO
     final materialPOItems = <String, Map<String, List<Map<String, dynamic>>>>{};
@@ -360,8 +357,6 @@ class _AddQualityInspectionPageState
       return;
     }
 
-    setState(() => _isLoading = true);
-
     try {
       // Validate all items
       bool isValid = true;
@@ -605,9 +600,7 @@ class _AddQualityInspectionPageState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) {}
     }
   }
 
@@ -1148,7 +1141,7 @@ class _AddQualityInspectionPageState
                       ),
                     ],
                   );
-                }).toList(),
+                }),
               ],
             ),
             const SizedBox(height: 16),
@@ -1227,7 +1220,7 @@ class _AddQualityInspectionPageState
                       ),
                     ],
                   );
-                }).toList(),
+                }),
               ],
             ),
           ],

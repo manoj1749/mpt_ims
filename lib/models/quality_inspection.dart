@@ -243,7 +243,7 @@ class InspectionItem extends HiveObject {
         poQuantities.values.fold(0.0, (sum, qty) => sum + qty.acceptedQty);
     this.rejectedQty =
         poQuantities.values.fold(0.0, (sum, qty) => sum + qty.rejectedQty);
-    this.pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
+    pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
   }
 }
 

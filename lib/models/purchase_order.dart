@@ -108,7 +108,7 @@ class PurchaseOrder extends HiveObject {
       cgst: cgst ?? this.cgst,
       sgst: sgst ?? this.sgst,
       grandTotal: grandTotal ?? this.grandTotal,
-      status: status ?? this._status,
+      status: status ?? _status,
     );
   }
 }

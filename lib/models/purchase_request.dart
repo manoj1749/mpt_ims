@@ -68,7 +68,7 @@ class PurchaseRequest extends HiveObject {
       prNo: prNo ?? this.prNo,
       date: date ?? this.date,
       requiredBy: requiredBy ?? this.requiredBy,
-      status: status ?? this._status,
+      status: status ?? _status,
       items: items ?? this.items.map((item) => item.copyWith()).toList(),
       jobNo: jobNo ?? this.jobNo,
     );

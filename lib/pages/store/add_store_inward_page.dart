@@ -35,7 +35,6 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
   Map<String, Map<String, TextEditingController>> poQtyControllers = {};
   Map<String, Map<String, TextEditingController>> receivedQtyControllers = {};
   Map<String, Map<String, bool>> selectedPOs = {};
-  final List<InwardItem> _items = [];
   bool _isLoading = false;
 
   // Map to store material slNo for each materialCode
@@ -83,7 +82,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             throw Exception('Material not found in PO: ${material.partNo}'),
       );
 
-      final orderedQty = double.parse(poItem.quantity);
+      double.parse(poItem.quantity);
       final inwardController = poQtyControllers[material.partNo]?[po.poNo] ??
           TextEditingController(text: '0');
       poQtyControllers
@@ -124,7 +123,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     }
 
     // Get all store inwards for this material and supplier from the watched provider
-    final materialInwards = ref
+    ref
         .watch(storeInwardProvider.notifier)
         .getInwardsByMaterial(material.partNo)
         .where((inward) => inward.supplierName == selectedSupplier!.name)
@@ -284,8 +283,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               if (qty == null) return 'Invalid';
                               if (qty < 0) return 'Invalid';
                               final remainingQty = orderedQty - receivedQty;
-                              if (qty > remainingQty)
+                              if (qty > remainingQty) {
                                 return 'Exceeds remaining';
+                              }
                               return null;
                             },
                             onChanged: (value) {
@@ -434,7 +434,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
       // Update PO status
       final updatedPOs = <String, PurchaseOrder>{};
-      final poNotifier = ref.read(purchaseOrderListProvider.notifier);
+      ref.read(purchaseOrderListProvider.notifier);
       final purchaseOrders = ref.read(purchaseOrderListProvider);
 
       print('\n=== Updating POs for Store Inward ${inward.grnNo} ===');
@@ -724,11 +724,6 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     }
 
     // Get all store inwards for the selected supplier
-    final supplierInwards = selectedSupplier != null
-        ? storeInwards
-            .where((inward) => inward.supplierName == selectedSupplier!.name)
-            .toList()
-        : <StoreInward>[];
 
     return Scaffold(
       appBar: AppBar(

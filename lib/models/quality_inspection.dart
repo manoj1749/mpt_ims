@@ -249,7 +249,7 @@ class InspectionItem extends HiveObject {
         grnQuantities.values.fold(0.0, (sum, qty) => sum + qty.acceptedQty);
     this.rejectedQty =
         grnQuantities.values.fold(0.0, (sum, qty) => sum + qty.rejectedQty);
-    this.pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
+    pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
   }
 
   // Helper method to update quantities for a specific PO
@@ -282,7 +282,7 @@ class InspectionItem extends HiveObject {
         poQuantities.values.fold(0.0, (sum, qty) => sum + qty.acceptedQty);
     this.rejectedQty =
         poQuantities.values.fold(0.0, (sum, qty) => sum + qty.rejectedQty);
-    this.pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
+    pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
   }
 }
 

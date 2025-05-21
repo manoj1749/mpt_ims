@@ -272,7 +272,6 @@ class _QualityInspectionListPageState
     for (var inspection in inspections) {
       for (var item in inspection.items) {
         final pendingQty = item.getPendingQuantityForGRN(inspection.grnNo);
-        final status = pendingQty > 0 ? 'Partially Inspected' : 'Completed';
 
         // Create a map of all required cells with proper null handling
         final cells = {

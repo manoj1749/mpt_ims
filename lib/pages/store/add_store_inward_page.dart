@@ -510,10 +510,6 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             // print('Saving PO: ${updatedPO.poNo} at box index $boxIndex');
             // print('Final Status: ${updatedPO.status}');
             // print('Items:');
-            for (var item in updatedPO.items) {
-              // print('  Material: ${item.materialCode}');
-              // print('  Received Quantities: ${item.receivedQuantities}');
-            }
 
             // First update the Hive box directly
             await poBox.putAt(boxIndex, updatedPO);
@@ -629,51 +625,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         .watch(purchaseOrderListProvider)
         .where((po) => po.status != 'Completed')
         .toList();
-    final storeInwards = ref.watch(storeInwardProvider);
+    ref.watch(storeInwardProvider);
 
-    // Debug prints for all store inwards
-    // print('\n====== STORE INWARDS DEBUG INFO ======');
-    // print('Total Store Inwards: ${storeInwards.length}');
-    for (var inward in storeInwards) {
-      // print('\nGRN: ${inward.grnNo}');
-      // print('Date: ${inward.grnDate}');
-      // print('Supplier: ${inward.supplierName}');
-      // print('PO Numbers: ${inward.poNo}');
-      // print('Items:');
-      for (var item in inward.items) {
-        // print('\n  Material: ${item.materialCode}');
-        // print('  Description: ${item.materialDescription}');
-        // print('  Ordered Qty: ${item.orderedQty}');
-        // print('  Received Qty: ${item.receivedQty}');
-        // print('  Accepted Qty: ${item.acceptedQty}');
-        // print('  Rejected Qty: ${item.rejectedQty}');
-        // print('  PO Quantities: ${item.poQuantities}');
-      }
-      // print('----------------------------------------');
-    }
-
-    // Debug prints for Purchase Orders
-    // print('\n====== PURCHASE ORDERS DEBUG INFO ======');
-    // print('Total POs (non-completed): ${purchaseOrders.length}');
-    for (var po in purchaseOrders) {
-      // print('\nPO Number: ${po.poNo}');
-      // print('Status: ${po.status}');
-      // print('Supplier: ${po.supplierName}');
-      // print('Items:');
-      for (var item in po.items) {
-        // print('\n  Material: ${item.materialCode}');
-        // print('  Quantity: ${item.quantity}');
-        // print('  Received Quantities: ${item.receivedQuantities}');
-        // print('  Is Fully Received: ${item.isFullyReceived}');
-        // print('  Total Received: ${item.receivedQuantities.values.fold<double>(0, (sum, qty) => sum + qty)}');
-      }
-      // print('----------------------------------------');
-    }
 
     // Filter POs by selected supplier and group by material
     final materialPOItems = <String, List<PurchaseOrder>>{};
     if (selectedSupplier != null) {
-      // print('\n=== Filtering POs for supplier: ${selectedSupplier!.name} ===');
 
       // First, deduplicate POs by taking the most up-to-date version
       final uniquePOs = <String, PurchaseOrder>{};

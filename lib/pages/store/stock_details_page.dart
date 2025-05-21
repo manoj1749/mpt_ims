@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/material_item.dart';
-import '../../models/store_inward.dart';
 import '../../models/purchase_order.dart';
-import '../../models/quality_inspection.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/store_inward_provider.dart';
 import '../../provider/purchase_order.dart';
@@ -144,7 +142,7 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
   List<PlutoRow> _getRows() {
     final materials = ref.watch(materialListProvider);
     final storeInwards = ref.watch(storeInwardProvider);
-    final vendorRates = ref.watch(vendorMaterialRateProvider);
+    ref.watch(vendorMaterialRateProvider);
     final qualityInspections = ref.watch(qualityInspectionProvider);
 
     // Calculate stock for each material
@@ -213,10 +211,6 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
               .fold(0.0, (sum, qty) => sum + qty) ??
           0;
       final inspectionStock = materialInspectionStock[material.partNo]
-              ?.values
-              .fold(0.0, (sum, qty) => sum + qty) ??
-          0;
-      final rejectedStock = materialRejectedStock[material.partNo]
               ?.values
               .fold(0.0, (sum, qty) => sum + qty) ??
           0;

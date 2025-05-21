@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
@@ -8,8 +10,6 @@ import '../../provider/store_inward_provider.dart';
 import '../../models/purchase_request.dart';
 import '../../models/purchase_order.dart';
 import '../../models/store_inward.dart';
-import '../../models/pr_item.dart';
-import '../../models/po_item.dart';
 import 'add_purchase_request_page.dart';
 
 class PurchaseRequestListPage extends ConsumerStatefulWidget {
@@ -341,7 +341,7 @@ class _PurchaseRequestListPageState
                                 (poItem.prQuantities[request.prNo] ?? 0)));
 
         // Calculate received quantity from Store Inwards
-        final receivedQty = storeInwards
+        storeInwards
             .where((si) => si.items.any((siItem) =>
                 siItem.materialCode == item.materialCode &&
                 siItem.poQuantities.keys.any((poNo) => purchaseOrders.any(

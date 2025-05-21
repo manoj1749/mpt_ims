@@ -148,9 +148,12 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
     final qualityInspections = ref.watch(qualityInspectionProvider);
 
     // Calculate stock for each material
-    final materialStock = <String, Map<String, double>>{}; // materialCode -> {grnNo -> acceptedQty}
-    final materialInspectionStock = <String, Map<String, double>>{}; // materialCode -> {grnNo -> pendingQty}
-    final materialRejectedStock = <String, Map<String, double>>{}; // materialCode -> {grnNo -> rejectedQty}
+    final materialStock = <String,
+        Map<String, double>>{}; // materialCode -> {grnNo -> acceptedQty}
+    final materialInspectionStock = <String,
+        Map<String, double>>{}; // materialCode -> {grnNo -> pendingQty}
+    final materialRejectedStock = <String,
+        Map<String, double>>{}; // materialCode -> {grnNo -> rejectedQty}
 
     // First, process quality inspections to track inspected and rejected items
     for (var inspection in qualityInspections) {
@@ -162,20 +165,25 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
 
         // Track accepted quantities per GRN
         if (item.acceptedQty > 0) {
-          materialStock[item.materialCode]![inspection.grnNo] = 
-            (materialStock[item.materialCode]![inspection.grnNo] ?? 0) + item.acceptedQty;
+          materialStock[item.materialCode]![inspection.grnNo] =
+              (materialStock[item.materialCode]![inspection.grnNo] ?? 0) +
+                  item.acceptedQty;
         }
 
         // Track pending quantities per GRN
         if (item.pendingQty > 0) {
-          materialInspectionStock[item.materialCode]![inspection.grnNo] = 
-            (materialInspectionStock[item.materialCode]![inspection.grnNo] ?? 0) + item.pendingQty;
+          materialInspectionStock[item.materialCode]![inspection.grnNo] =
+              (materialInspectionStock[item.materialCode]![inspection.grnNo] ??
+                      0) +
+                  item.pendingQty;
         }
 
         // Track rejected quantities per GRN
         if (item.rejectedQty > 0) {
-          materialRejectedStock[item.materialCode]![inspection.grnNo] = 
-            (materialRejectedStock[item.materialCode]![inspection.grnNo] ?? 0) + item.rejectedQty;
+          materialRejectedStock[item.materialCode]![inspection.grnNo] =
+              (materialRejectedStock[item.materialCode]![inspection.grnNo] ??
+                      0) +
+                  item.rejectedQty;
         }
       }
     }
@@ -184,29 +192,42 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
     for (var inward in storeInwards) {
       for (var item in inward.items) {
         materialInspectionStock.putIfAbsent(item.materialCode, () => {});
-        
+
         // If this GRN hasn't been inspected yet or has pending quantity
-        final acceptedQty = materialStock[item.materialCode]?[inward.grnNo] ?? 0;
-        final rejectedQty = materialRejectedStock[item.materialCode]?[inward.grnNo] ?? 0;
+        final acceptedQty =
+            materialStock[item.materialCode]?[inward.grnNo] ?? 0;
+        final rejectedQty =
+            materialRejectedStock[item.materialCode]?[inward.grnNo] ?? 0;
         final inspectedQty = acceptedQty + rejectedQty;
-        
+
         if (inspectedQty < item.receivedQty) {
-          materialInspectionStock[item.materialCode]![inward.grnNo] = 
-            item.receivedQty - inspectedQty;
+          materialInspectionStock[item.materialCode]![inward.grnNo] =
+              item.receivedQty - inspectedQty;
         }
       }
     }
 
     return materials.map((material) {
-      final currentStock = materialStock[material.partNo]?.values.fold(0.0, (sum, qty) => sum + qty) ?? 0;
-      final inspectionStock = materialInspectionStock[material.partNo]?.values.fold(0.0, (sum, qty) => sum + qty) ?? 0;
-      final rejectedStock = materialRejectedStock[material.partNo]?.values.fold(0.0, (sum, qty) => sum + qty) ?? 0;
-      
+      final currentStock = materialStock[material.partNo]
+              ?.values
+              .fold(0.0, (sum, qty) => sum + qty) ??
+          0;
+      final inspectionStock = materialInspectionStock[material.partNo]
+              ?.values
+              .fold(0.0, (sum, qty) => sum + qty) ??
+          0;
+      final rejectedStock = materialRejectedStock[material.partNo]
+              ?.values
+              .fold(0.0, (sum, qty) => sum + qty) ??
+          0;
+
       // Total stock should only include accepted and in-inspection items
       final totalStock = currentStock + inspectionStock;
-      
+
       final bestRate = material.getLowestRate(ref);
-      final stockValue = currentStock * (double.tryParse(bestRate) ?? 0); // Only count accepted stock in value
+      final stockValue = currentStock *
+          (double.tryParse(bestRate) ??
+              0); // Only count accepted stock in value
 
       return PlutoRow(
         cells: {
@@ -217,7 +238,8 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
           'inspectionStock': PlutoCell(value: inspectionStock),
           'totalStock': PlutoCell(value: totalStock),
           'stockValue': PlutoCell(value: '₹${stockValue.toStringAsFixed(2)}'),
-          'preferredVendor': PlutoCell(value: material.getPreferredVendorName(ref)),
+          'preferredVendor':
+              PlutoCell(value: material.getPreferredVendorName(ref)),
           'bestRate': PlutoCell(value: bestRate.isEmpty ? '-' : '₹$bestRate'),
           'actions': PlutoCell(value: ''),
         },
@@ -227,7 +249,8 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
 
   void _navigateToDetails(PlutoRow row) {
     final materialCode = row.cells['materialCode']!.value as String;
-    final material = ref.read(materialListProvider)
+    final material = ref
+        .read(materialListProvider)
         .firstWhere((m) => m.partNo == materialCode);
 
     Navigator.push(
@@ -471,15 +494,16 @@ class MaterialStockDetailPage extends ConsumerWidget {
 
     // Track which items have been fully inspected and accepted
     final inspectedItems = <String, Map<String, double>>{};
-    
+
     for (var inspection in qualityInspections) {
       for (var item in inspection.items) {
         if (item.acceptedQty > 0) {
           if (!inspectedItems.containsKey(item.materialCode)) {
             inspectedItems[item.materialCode] = {};
           }
-          inspectedItems[item.materialCode]![inspection.grnNo] = 
-            (inspectedItems[item.materialCode]![inspection.grnNo] ?? 0) + item.acceptedQty;
+          inspectedItems[item.materialCode]![inspection.grnNo] =
+              (inspectedItems[item.materialCode]![inspection.grnNo] ?? 0) +
+                  item.acceptedQty;
         }
       }
     }
@@ -488,7 +512,8 @@ class MaterialStockDetailPage extends ConsumerWidget {
       for (var item in inward.items) {
         if (item.materialCode == material.partNo) {
           // Only show items that have been fully inspected and accepted
-          final acceptedQty = inspectedItems[item.materialCode]?[inward.grnNo] ?? 0;
+          final acceptedQty =
+              inspectedItems[item.materialCode]?[inward.grnNo] ?? 0;
           if (acceptedQty > 0) {
             final po = purchaseOrders.firstWhere(
               (po) => po.poNo == inward.poNo,
@@ -537,16 +562,22 @@ class MaterialStockDetailPage extends ConsumerWidget {
     final rows = <PlutoRow>[];
 
     // Track inspection status for each GRN and material
-    final inspectionStatus = <String, Map<String, Map<String, InspectionStatus>>>{}; // materialCode -> {grnNo -> {inspectionNo -> status}}
-    
+    final inspectionStatus = <String,
+        Map<
+            String,
+            Map<String,
+                InspectionStatus>>>{}; // materialCode -> {grnNo -> {inspectionNo -> status}}
+
     for (var inspection in qualityInspections) {
       for (var item in inspection.items) {
         if (item.materialCode == material.partNo) {
           // Initialize maps if needed
           inspectionStatus.putIfAbsent(item.materialCode, () => {});
-          inspectionStatus[item.materialCode]!.putIfAbsent(inspection.grnNo, () => {});
-          
-          inspectionStatus[item.materialCode]![inspection.grnNo]![inspection.inspectionNo] = InspectionStatus(
+          inspectionStatus[item.materialCode]!
+              .putIfAbsent(inspection.grnNo, () => {});
+
+          inspectionStatus[item.materialCode]![inspection.grnNo]![
+              inspection.inspectionNo] = InspectionStatus(
             inspectionNo: inspection.inspectionNo,
             inspectedQty: item.inspectedQty,
             acceptedQty: item.acceptedQty,
@@ -562,8 +593,9 @@ class MaterialStockDetailPage extends ConsumerWidget {
     for (var inward in storeInwards) {
       for (var item in inward.items) {
         if (item.materialCode == material.partNo) {
-          final inspections = inspectionStatus[item.materialCode]?[inward.grnNo] ?? {};
-          
+          final inspections =
+              inspectionStatus[item.materialCode]?[inward.grnNo] ?? {};
+
           if (inspections.isEmpty) {
             // Not inspected yet
             rows.add(PlutoRow(
@@ -594,8 +626,9 @@ class MaterialStockDetailPage extends ConsumerWidget {
                   'inspectedQty': PlutoCell(value: status.inspectedQty),
                   'pendingQty': PlutoCell(value: status.pendingQty),
                   'status': PlutoCell(
-                    value: status.pendingQty > 0 ? 'Partially Inspected' : 'Completed'
-                  ),
+                      value: status.pendingQty > 0
+                          ? 'Partially Inspected'
+                          : 'Completed'),
                   'date': PlutoCell(value: status.date),
                 },
               ));
@@ -715,4 +748,4 @@ class MaterialStockDetailPage extends ConsumerWidget {
       ),
     );
   }
-} 
+}

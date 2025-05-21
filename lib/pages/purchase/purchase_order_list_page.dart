@@ -13,7 +13,8 @@ class PurchaseOrderListPage extends ConsumerStatefulWidget {
   const PurchaseOrderListPage({super.key});
 
   @override
-  ConsumerState<PurchaseOrderListPage> createState() => _PurchaseOrderListPageState();
+  ConsumerState<PurchaseOrderListPage> createState() =>
+      _PurchaseOrderListPageState();
 }
 
 class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
@@ -90,17 +91,20 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: items.split('\n').map((item) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Text(
-                    item.trim(),
-                    style: TextStyle(
-                      color: Colors.grey[200],
-                      fontSize: 13,
-                      height: 1.3,
-                    ),
-                  ),
-                )).toList(),
+                children: items
+                    .split('\n')
+                    .map((item) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Text(
+                            item.trim(),
+                            style: TextStyle(
+                              color: Colors.grey[200],
+                              fontSize: 13,
+                              height: 1.3,
+                            ),
+                          ),
+                        ))
+                    .toList(),
               ),
             ),
           );
@@ -225,13 +229,13 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
         renderer: (rendererContext) {
           final index = rendererContext.row.cells['index']?.value as int;
           final orders = ref.read(purchaseOrderListProvider);
-          
+
           if (index >= orders.length) {
             return const SizedBox.shrink();
           }
-          
+
           final order = orders[index];
-          
+
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
@@ -288,15 +292,13 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
 
     for (var i = 0; i < orders.length; i++) {
       final order = orders[i];
-      final itemsText = order.items.map((item) =>
-        '${item.materialDescription} (${item.materialCode})'
-      ).join('\n');
+      final itemsText = order.items
+          .map((item) => '${item.materialDescription} (${item.materialCode})')
+          .join('\n');
 
       // Calculate total quantity
-      final totalQty = order.items.fold<double>(
-        0, 
-        (sum, item) => sum + double.parse(item.quantity)
-      );
+      final totalQty = order.items
+          .fold<double>(0, (sum, item) => sum + double.parse(item.quantity));
 
       // Get the most common unit from items
       final units = order.items.map((item) => item.unit).toList();
@@ -335,7 +337,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
             'unit': PlutoCell(value: commonUnit),
             'status': PlutoCell(value: status),
             'transport': PlutoCell(value: order.transport),
-            'deliveryRequirements': PlutoCell(value: order.deliveryRequirements),
+            'deliveryRequirements':
+                PlutoCell(value: order.deliveryRequirements),
             'total': PlutoCell(value: order.total),
             'grandTotal': PlutoCell(value: order.grandTotal),
             'actions': PlutoCell(value: ''),
@@ -354,8 +357,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[850],
-        title: Text('Delete Purchase Order', 
-          style: TextStyle(color: Colors.grey[200])),
+        title: Text('Delete Purchase Order',
+            style: TextStyle(color: Colors.grey[200])),
         content: Text(
           'Are you sure you want to delete purchase order ${order.poNo}?',
           style: TextStyle(color: Colors.grey[200]),
@@ -363,14 +366,13 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', 
-              style: TextStyle(color: Colors.grey[200])),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[200])),
           ),
           TextButton(
             onPressed: () {
               ref.read(purchaseOrderListProvider.notifier).deleteOrder(index);
               Navigator.pop(context);
-              
+
               // Refresh grid rows
               if (stateManager != null) {
                 final orders = ref.read(purchaseOrderListProvider);

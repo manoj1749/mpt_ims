@@ -278,8 +278,10 @@ class _QualityInspectionListPageState
         final cells = {
           'grnNo': PlutoCell(value: inspection.grnNo),
           'poNo': PlutoCell(value: inspection.poNo),
-          'prNo': PlutoCell(value: inspection.prNumbers[inspection.poNo] ?? '-'),
-          'jobNo': PlutoCell(value: inspection.jobNumbers[inspection.poNo] ?? '-'),
+          'prNo':
+              PlutoCell(value: inspection.prNumbers[inspection.poNo] ?? '-'),
+          'jobNo':
+              PlutoCell(value: inspection.jobNumbers[inspection.poNo] ?? '-'),
           'supplier': PlutoCell(value: inspection.supplierName),
           'partNo': PlutoCell(value: item.materialCode),
           'description': PlutoCell(value: item.materialDescription),
@@ -303,7 +305,9 @@ class _QualityInspectionListPageState
 
         // Add parameter cells
         for (var param in item.parameters) {
-          final fieldName = param.parameter.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+          final fieldName = param.parameter
+              .toLowerCase()
+              .replaceAll(RegExp(r'[^a-z0-9]'), '_');
           cells[fieldName] = PlutoCell(value: param);
         }
 
@@ -334,7 +338,9 @@ class _QualityInspectionListPageState
           TextButton(
             onPressed: () async {
               // Delete only this specific inspection
-              ref.read(qualityInspectionProvider.notifier).deleteInspection(inspection);
+              ref
+                  .read(qualityInspectionProvider.notifier)
+                  .deleteInspection(inspection);
               Navigator.pop(context);
 
               // Refresh grid rows

@@ -113,7 +113,8 @@ class InspectionItem extends HiveObject {
   double pendingQty;
 
   @HiveField(13)
-  String usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
+  String
+      usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
 
   @HiveField(14)
   String receivedDate; // Date when material was received
@@ -131,13 +132,16 @@ class InspectionItem extends HiveObject {
   String? conditionalAcceptanceReason; // Reason for conditional acceptance
 
   @HiveField(19)
-  String? conditionalAcceptanceAction; // Required action for conditional acceptance
+  String?
+      conditionalAcceptanceAction; // Required action for conditional acceptance
 
   @HiveField(20)
-  String? conditionalAcceptanceDeadline; // Deadline for completing the required action
+  String?
+      conditionalAcceptanceDeadline; // Deadline for completing the required action
 
   @HiveField(21)
-  Map<String, InspectionPOQuantity> poQuantities = {}; // Store PO-wise quantities and decisions
+  Map<String, InspectionPOQuantity> poQuantities =
+      {}; // Store PO-wise quantities and decisions
 
   @HiveField(22)
   String? grnNo; // GRN number
@@ -152,10 +156,12 @@ class InspectionItem extends HiveObject {
   String? invoiceDate; // Invoice date
 
   @HiveField(26)
-  Map<String, Map<String, String>> grnDetails = {}; // PO No -> Map of GRN No to GRN details
+  Map<String, Map<String, String>> grnDetails =
+      {}; // PO No -> Map of GRN No to GRN details
 
   @HiveField(27)
-  Map<String, InspectionGRNQuantity> grnQuantities = {}; // Store GRN-wise quantities and decisions
+  Map<String, InspectionGRNQuantity> grnQuantities =
+      {}; // Store GRN-wise quantities and decisions
 
   InspectionItem({
     required this.materialCode,

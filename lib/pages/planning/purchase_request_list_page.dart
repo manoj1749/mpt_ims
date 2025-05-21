@@ -16,10 +16,12 @@ class PurchaseRequestListPage extends ConsumerStatefulWidget {
   const PurchaseRequestListPage({super.key});
 
   @override
-  ConsumerState<PurchaseRequestListPage> createState() => _PurchaseRequestListPageState();
+  ConsumerState<PurchaseRequestListPage> createState() =>
+      _PurchaseRequestListPageState();
 }
 
-class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPage> {
+class _PurchaseRequestListPageState
+    extends ConsumerState<PurchaseRequestListPage> {
   late final List<PlutoColumn> columns;
   PlutoGridStateManager? stateManager;
 
@@ -142,17 +144,20 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: transfers.split('\n').map((transfer) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Text(
-                    transfer.trim(),
-                    style: TextStyle(
-                      color: Colors.grey[200],
-                      fontSize: 13,
-                      height: 1.3,
-                    ),
-                  ),
-                )).toList(),
+                children: transfers
+                    .split('\n')
+                    .map((transfer) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Text(
+                            transfer.trim(),
+                            style: TextStyle(
+                              color: Colors.grey[200],
+                              fontSize: 13,
+                              height: 1.3,
+                            ),
+                          ),
+                        ))
+                    .toList(),
               ),
             ),
           );
@@ -183,17 +188,20 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: poDetails.split('\n').map((po) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Text(
-                    po.trim(),
-                    style: TextStyle(
-                      color: Colors.grey[200],
-                      fontSize: 13,
-                      height: 1.3,
-                    ),
-                  ),
-                )).toList(),
+                children: poDetails
+                    .split('\n')
+                    .map((po) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Text(
+                            po.trim(),
+                            style: TextStyle(
+                              color: Colors.grey[200],
+                              fontSize: 13,
+                              height: 1.3,
+                            ),
+                          ),
+                        ))
+                    .toList(),
               ),
             ),
           );
@@ -240,13 +248,14 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
         enableEditingMode: false,
         renderer: (rendererContext) {
           final prNo = rendererContext.row.cells['prNo']?.value as String;
-          final request = ref.watch(purchaseRequestListProvider)
+          final request = ref
+              .watch(purchaseRequestListProvider)
               .firstWhereOrNull((pr) => pr.prNo == prNo);
-          
+
           if (request == null) {
             return const SizedBox.shrink();
           }
-          
+
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
@@ -263,17 +272,21 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
                       MaterialPageRoute(
                         builder: (context) => AddPurchaseRequestPage(
                           existingRequest: request,
-                          index: ref.read(purchaseRequestListProvider).indexOf(request),
+                          index: ref
+                              .read(purchaseRequestListProvider)
+                              .indexOf(request),
                         ),
                       ),
                     ).then((_) {
                       // Refresh the grid after returning from edit page
                       if (stateManager != null) {
                         final requests = ref.read(purchaseRequestListProvider);
-                        final purchaseOrders = ref.read(purchaseOrderListProvider);
+                        final purchaseOrders =
+                            ref.read(purchaseOrderListProvider);
                         final storeInwards = ref.read(storeInwardProvider);
                         stateManager!.removeAllRows();
-                        stateManager!.appendRows(_getRows(requests, purchaseOrders, storeInwards));
+                        stateManager!.appendRows(
+                            _getRows(requests, purchaseOrders, storeInwards));
                       }
                     });
                   },
@@ -310,51 +323,63 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
       for (var item in request.items) {
         // Calculate ordered quantity from POs
         final orderedQty = purchaseOrders
-            .where((po) => po.items.any((poItem) => 
-                poItem.materialCode == item.materialCode && 
+            .where((po) => po.items.any((poItem) =>
+                poItem.materialCode == item.materialCode &&
                 poItem.prQuantities.containsKey(request.prNo)))
-            .fold<double>(0, (sum, po) => sum + po.items
-                .where((poItem) => 
-                    poItem.materialCode == item.materialCode && 
-                    poItem.prQuantities.containsKey(request.prNo))
-                .fold<double>(0, (sum, poItem) => sum + (poItem.prQuantities[request.prNo] ?? 0)));
+            .fold<double>(
+                0,
+                (sum, po) =>
+                    sum +
+                    po.items
+                        .where((poItem) =>
+                            poItem.materialCode == item.materialCode &&
+                            poItem.prQuantities.containsKey(request.prNo))
+                        .fold<double>(
+                            0,
+                            (sum, poItem) =>
+                                sum +
+                                (poItem.prQuantities[request.prNo] ?? 0)));
 
         // Calculate received quantity from Store Inwards
         final receivedQty = storeInwards
-            .where((si) => si.items.any((siItem) => 
-                siItem.materialCode == item.materialCode && 
-                siItem.poQuantities.keys.any((poNo) => 
-                    purchaseOrders.any((po) => 
-                        po.poNo == poNo && 
-                        po.items.any((poItem) => 
-                            poItem.materialCode == item.materialCode && 
+            .where((si) => si.items.any((siItem) =>
+                siItem.materialCode == item.materialCode &&
+                siItem.poQuantities.keys.any((poNo) => purchaseOrders.any(
+                    (po) =>
+                        po.poNo == poNo &&
+                        po.items.any((poItem) =>
+                            poItem.materialCode == item.materialCode &&
                             poItem.prQuantities.containsKey(request.prNo))))))
-            .fold<double>(0, (sum, si) => sum + si.items
-                .where((siItem) => 
-                    siItem.materialCode == item.materialCode)
-                .fold<double>(0, (sum, siItem) => sum + siItem.acceptedQty));
+            .fold<double>(
+                0,
+                (sum, si) =>
+                    sum +
+                    si.items
+                        .where((siItem) =>
+                            siItem.materialCode == item.materialCode)
+                        .fold<double>(0, (sum, siItem) => sum + siItem.acceptedQty));
 
         // Get PO details
         final relatedPOs = purchaseOrders
-            .where((po) => po.items.any((poItem) => 
-                poItem.materialCode == item.materialCode && 
+            .where((po) => po.items.any((poItem) =>
+                poItem.materialCode == item.materialCode &&
                 poItem.prQuantities.containsKey(request.prNo)))
             .map((po) => '${po.poNo}\n(${po.poDate})')
             .join('\n\n');
 
         // Get stock transfer details
         final transfers = storeInwards
-            .where((si) => si.items.any((siItem) => 
-                siItem.materialCode == item.materialCode && 
-                siItem.poQuantities.keys.any((poNo) => 
-                    purchaseOrders.any((po) => 
-                        po.poNo == poNo && 
-                        po.items.any((poItem) => 
-                            poItem.materialCode == item.materialCode && 
+            .where((si) => si.items.any((siItem) =>
+                siItem.materialCode == item.materialCode &&
+                siItem.poQuantities.keys.any((poNo) => purchaseOrders.any(
+                    (po) =>
+                        po.poNo == poNo &&
+                        po.items.any((poItem) =>
+                            poItem.materialCode == item.materialCode &&
                             poItem.prQuantities.containsKey(request.prNo))))))
             .map((si) {
-              final matchingItems = si.items.where((siItem) => 
-                  siItem.materialCode == item.materialCode);
+              final matchingItems = si.items
+                  .where((siItem) => siItem.materialCode == item.materialCode);
               if (matchingItems.isNotEmpty) {
                 return '${matchingItems.fold<double>(0, (sum, item) => sum + item.acceptedQty)} (${si.grnDate})';
               }
@@ -364,8 +389,11 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
             .join('\n');
 
         final pendingQty = double.parse(item.quantity) - orderedQty;
-        final status = pendingQty <= 0 ? 'Completed' : 
-                      orderedQty > 0 ? 'Partially Ordered' : 'Pending';
+        final status = pendingQty <= 0
+            ? 'Completed'
+            : orderedQty > 0
+                ? 'Partially Ordered'
+                : 'Pending';
 
         rows.add(
           PlutoRow(
@@ -379,8 +407,10 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
               'prQty': PlutoCell(value: double.parse(item.quantity)),
               'unit': PlutoCell(value: item.unit),
               'requestedBy': PlutoCell(value: request.requiredBy),
-              'stockTransfer': PlutoCell(value: transfers.isEmpty ? '-' : transfers),
-              'poDetails': PlutoCell(value: relatedPOs.isEmpty ? '-' : relatedPOs),
+              'stockTransfer':
+                  PlutoCell(value: transfers.isEmpty ? '-' : transfers),
+              'poDetails':
+                  PlutoCell(value: relatedPOs.isEmpty ? '-' : relatedPOs),
               'orderedQty': PlutoCell(value: orderedQty),
               'pendingQty': PlutoCell(value: pendingQty),
               'status': PlutoCell(value: status),
@@ -400,8 +430,8 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[850],
-        title: Text('Delete Purchase Request', 
-          style: TextStyle(color: Colors.grey[200])),
+        title: Text('Delete Purchase Request',
+            style: TextStyle(color: Colors.grey[200])),
         content: Text(
           'Are you sure you want to delete purchase request ${request.prNo}?',
           style: TextStyle(color: Colors.grey[200]),
@@ -409,21 +439,23 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', 
-              style: TextStyle(color: Colors.grey[200])),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[200])),
           ),
           TextButton(
             onPressed: () async {
-              await ref.read(purchaseRequestListProvider.notifier).deleteRequest(request);
+              await ref
+                  .read(purchaseRequestListProvider.notifier)
+                  .deleteRequest(request);
               Navigator.pop(context);
-              
+
               // Refresh grid rows
               if (stateManager != null) {
                 final requests = ref.read(purchaseRequestListProvider);
                 final purchaseOrders = ref.read(purchaseOrderListProvider);
                 final storeInwards = ref.read(storeInwardProvider);
                 stateManager!.removeAllRows();
-                stateManager!.appendRows(_getRows(requests, purchaseOrders, storeInwards));
+                stateManager!.appendRows(
+                    _getRows(requests, purchaseOrders, storeInwards));
               }
 
               ScaffoldMessenger.of(context).showSnackBar(
@@ -465,10 +497,11 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const AddPurchaseRequestPage(
-              existingRequest: null,
-              index: null,
-            )),
+            MaterialPageRoute(
+                builder: (_) => const AddPurchaseRequestPage(
+                      existingRequest: null,
+                      index: null,
+                    )),
           );
           // Refresh the grid after returning from add page
           if (stateManager != null) {
@@ -476,7 +509,8 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
             final purchaseOrders = ref.read(purchaseOrderListProvider);
             final storeInwards = ref.read(storeInwardProvider);
             stateManager!.removeAllRows();
-            stateManager!.appendRows(_getRows(requests, purchaseOrders, storeInwards));
+            stateManager!
+                .appendRows(_getRows(requests, purchaseOrders, storeInwards));
           }
         },
         child: const Icon(Icons.add),
@@ -505,9 +539,9 @@ class _PurchaseRequestListPageState extends ConsumerState<PurchaseRequestListPag
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AddPurchaseRequestPage(
-                            existingRequest: null,
-                            index: null,
-                          )),
+                                existingRequest: null,
+                                index: null,
+                              )),
                     ),
                     child: const Text('Add New Request'),
                   ),

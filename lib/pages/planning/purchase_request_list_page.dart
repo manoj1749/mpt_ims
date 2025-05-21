@@ -497,11 +497,11 @@ class _PurchaseRequestListPageState
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) => const AddPurchaseRequestPage(
-                      existingRequest: null,
-                      index: null,
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AddPurchaseRequestPage(
+              existingRequest: null,
+              index: null,
                     )),
           );
           // Refresh the grid after returning from add page
@@ -539,9 +539,9 @@ class _PurchaseRequestListPageState
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const AddPurchaseRequestPage(
-                                existingRequest: null,
-                                index: null,
+                        builder: (_) => const AddPurchaseRequestPage(
+                          existingRequest: null,
+                          index: null,
                               )),
                     ),
                     child: const Text('Add New Request'),

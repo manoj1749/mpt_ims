@@ -95,7 +95,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                           padding: const EdgeInsets.symmetric(vertical: 2),
                           child: Text(
                             item.trim(),
-                            style: TextStyle(
+                    style: TextStyle(
                               color: Colors.grey[200],
                               fontSize: 13,
                               height: 1.3,
@@ -210,9 +210,9 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
         textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
         formatter: (value) => NumberFormat.currency(
-          symbol: '₹',
-          locale: 'en_IN',
-          decimalDigits: 2,
+                                  symbol: '₹',
+                                  locale: 'en_IN',
+                                  decimalDigits: 2,
         ).format(value),
       ),
       PlutoColumn(
@@ -237,19 +237,19 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
-            children: [
+                              children: [
               SizedBox(
                 width: 40,
                 height: 40,
                 child: IconButton(
                   padding: EdgeInsets.zero,
                   icon: Icon(Icons.edit, color: Colors.grey[200], size: 20),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
                         builder: (context) => AddPurchaseOrderPage(
-                          existingPO: order,
+                                                          existingPO: order,
                           index: index,
                         ),
                       ),
@@ -263,23 +263,23 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                     });
                   },
                 ),
-              ),
-              const SizedBox(width: 8),
+                                          ),
+                                          const SizedBox(width: 8),
               SizedBox(
                 width: 40,
                 height: 40,
                 child: IconButton(
                   padding: EdgeInsets.zero,
                   icon: Icon(Icons.delete, color: Colors.grey[200], size: 20),
-                  onPressed: () {
+                                            onPressed: () {
                     _showDeleteConfirmation(context, ref, index, order);
-                  },
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+                                            },
+                                  ),
+                                ),
+                              ],
+                          );
+                        },
+                      ),
     ];
   }
 
@@ -342,9 +342,9 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
             'actions': PlutoCell(value: ''),
             'index': PlutoCell(value: i),
           },
-        ),
-      );
-    }
+            ),
+    );
+  }
 
     return rows;
   }
@@ -532,7 +532,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                   ),
                 ],
               ),
-            ),
+      ),
     );
   }
 }

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:csv/csv.dart';
+import 'dart:io';
+import 'dart:convert';
 import '../../models/quality_inspection.dart';
 import '../../provider/quality_inspection_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
@@ -17,6 +21,11 @@ class QualityInspectionListPage extends ConsumerStatefulWidget {
 class _QualityInspectionListPageState
     extends ConsumerState<QualityInspectionListPage> {
   PlutoGridStateManager? stateManager;
+  String _searchQuery = '';
+  bool _showFilters = false;
+  String _selectedStatus = 'All';
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   void _navigateToAddInspection(BuildContext context) async {
     await Navigator.push(
@@ -25,12 +34,307 @@ class _QualityInspectionListPageState
         builder: (context) => const AddQualityInspectionPage(),
       ),
     );
-    // Refresh the grid after returning from add/edit page
     if (stateManager != null) {
       final inspections = ref.read(qualityInspectionProvider);
       stateManager!.removeAllRows();
       stateManager!.appendRows(_getRows(inspections));
     }
+  }
+
+  Future<void> _exportToExcel() async {
+    try {
+      final headers = _getColumns()
+          .where((col) => col.field != 'actions')
+          .map((col) => col.title)
+          .toList();
+      
+      final rows = _getRows(ref.read(qualityInspectionProvider));
+      final csvData = [headers];
+
+      for (var row in rows) {
+        final rowData = <String>[];
+        row.cells.forEach((key, cell) {
+          if (key != 'actions' && key != 'inspection') {
+            rowData.add(cell.value.toString());
+          }
+        });
+        csvData.add(rowData);
+      }
+
+      final csvString = ListToCsvConverter().convert(csvData);
+      
+      // Get the documents directory
+      final directory = await getApplicationDocumentsDirectory();
+      final now = DateTime.now();
+      final fileName =
+          'quality_inspections_${now.year}${now.month}${now.day}_${now.hour}${now.minute}.csv';
+      final filePath = '${directory.path}/$fileName';
+
+      // Save the file
+      final file = File(filePath);
+      await file.writeAsString(csvString);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Report exported successfully to $filePath'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildSummaryCards(List<QualityInspection> inspections) {
+    int totalInspections = inspections.length;
+    int pendingInspections = inspections
+        .where((inspection) => inspection.status == 'Pending')
+        .length;
+    int completedInspections = totalInspections - pendingInspections;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Total Inspections',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    totalInspections.toString(),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Pending Inspections',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    pendingInspections.toString(),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: pendingInspections > 0 ? Colors.orange : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Completed Inspections',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    completedInspections.toString(),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: completedInspections > 0 ? Colors.green : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchAndFilters() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search inspections...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
+                FilledButton.tonal(
+                  onPressed: () {
+                    setState(() {
+                      _showFilters = !_showFilters;
+                    });
+                  },
+                  child: Row(
+                    children: [
+                      Icon(
+                        _showFilters ? Icons.filter_list_off : Icons.filter_list,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Filters'),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                FilledButton.icon(
+                  onPressed: _exportToExcel,
+                  icon: const Icon(Icons.download),
+                  label: const Text('Export Report'),
+                ),
+              ],
+            ),
+            if (_showFilters) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        labelText: 'Status',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      value: _selectedStatus,
+                      items: const [
+                        DropdownMenuItem(value: 'All', child: Text('All')),
+                        DropdownMenuItem(
+                            value: 'Pending', child: Text('Pending')),
+                        DropdownMenuItem(
+                            value: 'Completed', child: Text('Completed')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedStatus = value!;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Start Date',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        suffixIcon: const Icon(Icons.calendar_today),
+                      ),
+                      readOnly: true,
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _startDate ?? DateTime.now(),
+                          firstDate:
+                              DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            _startDate = date;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'End Date',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        suffixIcon: const Icon(Icons.calendar_today),
+                      ),
+                      readOnly: true,
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _endDate ?? DateTime.now(),
+                          firstDate:
+                              DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            _endDate = date;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   List<PlutoColumn> _getColumns() {
@@ -365,22 +669,12 @@ class _QualityInspectionListPageState
 
   @override
   Widget build(BuildContext context) {
-    // Watch the provider to automatically update when changes occur
     final inspections = ref.watch(qualityInspectionProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quality Inspection List'),
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: Implement search
-            },
-            tooltip: 'Search Inspections',
-          ),
-        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToAddInspection(context),
@@ -417,28 +711,9 @@ class _QualityInspectionListPageState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        '${inspections.length} Inspections',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(width: 16),
-                      FilledButton.tonal(
-                        onPressed: () {
-                          // TODO: Implement filtering
-                        },
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.filter_list, size: 20),
-                            SizedBox(width: 8),
-                            Text('Filter'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildSummaryCards(inspections),
+                  const SizedBox(height: 16),
+                  _buildSearchAndFilters(),
                   const SizedBox(height: 16),
                   Expanded(
                     child: Card(

@@ -627,11 +627,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         .toList();
     ref.watch(storeInwardProvider);
 
-
     // Filter POs by selected supplier and group by material
     final materialPOItems = <String, List<PurchaseOrder>>{};
     if (selectedSupplier != null) {
-
       // First, deduplicate POs by taking the most up-to-date version
       final uniquePOs = <String, PurchaseOrder>{};
       for (var po in purchaseOrders.where((po) =>

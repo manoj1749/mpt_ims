@@ -357,7 +357,8 @@ class _PurchaseRequestListPageState
                     si.items
                         .where((siItem) =>
                             siItem.materialCode == item.materialCode)
-                        .fold<double>(0, (sum, siItem) => sum + siItem.acceptedQty));
+                        .fold<double>(
+                            0, (sum, siItem) => sum + siItem.acceptedQty));
 
         // Get PO details
         final relatedPOs = purchaseOrders

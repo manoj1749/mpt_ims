@@ -38,13 +38,27 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
   }
 
   void updateInspection(QualityInspection inspection) {
-    inspection.save();
-    state = box.values.toList();
+    // Find the index of the inspection to update
+    final index = box.values.toList().indexWhere(
+          (insp) => insp.inspectionNo == inspection.inspectionNo,
+        );
+    
+    if (index != -1) {
+      box.putAt(index, inspection);
+      state = box.values.toList();
+    }
   }
 
   void deleteInspection(QualityInspection inspection) {
-    inspection.delete();
-    state = box.values.toList();
+    // Find the index of the inspection to delete
+    final index = box.values.toList().indexWhere(
+          (insp) => insp.inspectionNo == inspection.inspectionNo,
+        );
+    
+    if (index != -1) {
+      box.deleteAt(index);
+      state = box.values.toList();
+    }
   }
 
   // Get pending inspections
@@ -78,5 +92,45 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
       return inspectionDate.isAfter(start.subtract(const Duration(days: 1))) &&
           inspectionDate.isBefore(end.add(const Duration(days: 1)));
     }).toList();
+  }
+
+  // Get inspections by material code
+  List<QualityInspection> getInspectionsByMaterial(String materialCode) {
+    return state.where((inspection) => 
+      inspection.items.any((item) => item.materialCode == materialCode)
+    ).toList();
+  }
+
+  // Get total accepted quantity for a material from a specific GRN
+  double getAcceptedQuantityForGRN(String materialCode, String grnNo) {
+    return state
+        .where((inspection) => inspection.grnNo == grnNo)
+        .fold(0.0, (sum, inspection) {
+          return sum + inspection.items
+              .where((item) => item.materialCode == materialCode)
+              .fold(0.0, (itemSum, item) => itemSum + item.acceptedQty);
+        });
+  }
+
+  // Get total rejected quantity for a material from a specific GRN
+  double getRejectedQuantityForGRN(String materialCode, String grnNo) {
+    return state
+        .where((inspection) => inspection.grnNo == grnNo)
+        .fold(0.0, (sum, inspection) {
+          return sum + inspection.items
+              .where((item) => item.materialCode == materialCode)
+              .fold(0.0, (itemSum, item) => itemSum + item.rejectedQty);
+        });
+  }
+
+  // Get total pending quantity for a material from a specific GRN
+  double getPendingQuantityForGRN(String materialCode, String grnNo) {
+    return state
+        .where((inspection) => inspection.grnNo == grnNo)
+        .fold(0.0, (sum, inspection) {
+          return sum + inspection.items
+              .where((item) => item.materialCode == materialCode)
+              .fold(0.0, (itemSum, item) => itemSum + item.pendingQty);
+        });
   }
 }

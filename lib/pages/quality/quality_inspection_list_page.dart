@@ -250,7 +250,7 @@ class _QualityInspectionListPageState
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () {
-                  _confirmDelete(context, inspection);
+                  _showDeleteConfirmation(context, ref, inspection);
                 },
                 color: Colors.red[400],
                 tooltip: 'Delete',
@@ -267,100 +267,94 @@ class _QualityInspectionListPageState
   }
 
   List<PlutoRow> _getRows(List<QualityInspection> inspections) {
-    // Group inspections by GRN
-    final grnGroups = <String, List<QualityInspection>>{};
+    final rows = <PlutoRow>[];
+
     for (var inspection in inspections) {
-      grnGroups.putIfAbsent(inspection.grnNo, () => []).add(inspection);
+      for (var item in inspection.items) {
+        final pendingQty = item.getPendingQuantityForGRN(inspection.grnNo);
+        final status = pendingQty > 0 ? 'Partially Inspected' : 'Completed';
+
+        // Create a map of all required cells with proper null handling
+        final cells = {
+          'grnNo': PlutoCell(value: inspection.grnNo),
+          'poNo': PlutoCell(value: inspection.poNo),
+          'prNo': PlutoCell(value: inspection.prNumbers[inspection.poNo] ?? '-'),
+          'jobNo': PlutoCell(value: inspection.jobNumbers[inspection.poNo] ?? '-'),
+          'supplier': PlutoCell(value: inspection.supplierName),
+          'partNo': PlutoCell(value: item.materialCode),
+          'description': PlutoCell(value: item.materialDescription),
+          'receivedQty': PlutoCell(value: item.receivedQty),
+          'acceptedQty': PlutoCell(value: item.acceptedQty),
+          'rejectedQty': PlutoCell(value: item.rejectedQty),
+          'pendingQty': PlutoCell(value: pendingQty),
+          'usageDecision': PlutoCell(value: item.usageDecision),
+          'unit': PlutoCell(value: item.unit),
+          'costPerUnit': PlutoCell(value: item.costPerUnit),
+          'totalCost': PlutoCell(value: item.totalCost),
+          'billNo': PlutoCell(value: inspection.billNo),
+          'billDate': PlutoCell(value: inspection.billDate),
+          'receivedDate': PlutoCell(value: inspection.receivedDate),
+          'grDate': PlutoCell(value: inspection.grnDate),
+          'category': PlutoCell(value: item.category),
+          'sampleSize': PlutoCell(value: item.sampleSize),
+          'actions': PlutoCell(value: ''),
+          'inspection': PlutoCell(value: inspection),
+        };
+
+        // Add parameter cells
+        for (var param in item.parameters) {
+          final fieldName = param.parameter.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+          cells[fieldName] = PlutoCell(value: param);
+        }
+
+        rows.add(PlutoRow(cells: cells));
+      }
     }
 
-    return grnGroups.entries.expand((grnEntry) {
-      final grnNo = grnEntry.key;
-      final grnInspections = grnEntry.value;
-
-      return grnInspections.expand((inspection) {
-        return inspection.items.expand((item) {
-          return item.poQuantities.entries.map((poEntry) {
-            final poNo = poEntry.key;
-            final poQty = poEntry.value;
-
-            // Get PR and Job numbers for this PO
-            final prNo = inspection.prNumbers[poNo] ?? '';
-            final jobNo = inspection.jobNumbers[poNo] ?? '';
-
-            // Create parameter cells
-            final parameterCells = <String, PlutoCell>{};
-            for (var param in item.parameters) {
-              final fieldName = param.parameter
-                  .toLowerCase()
-                  .replaceAll(RegExp(r'[^a-z0-9]'), '_');
-              parameterCells[fieldName] = PlutoCell(value: param);
-            }
-
-            final cells = {
-              'inspection': PlutoCell(value: inspection),
-              'item': PlutoCell(value: item),
-              'grnNo': PlutoCell(value: grnNo),
-              'poNo': PlutoCell(value: poNo),
-              'prNo': PlutoCell(value: prNo),
-              'jobNo': PlutoCell(value: jobNo),
-              'supplier': PlutoCell(value: inspection.supplierName),
-              'partNo': PlutoCell(value: item.materialCode),
-              'description': PlutoCell(value: item.materialDescription),
-              'receivedQty': PlutoCell(value: poQty.receivedQty),
-              'acceptedQty': PlutoCell(value: poQty.acceptedQty),
-              'rejectedQty': PlutoCell(value: poQty.rejectedQty),
-              'pendingQty':
-                  PlutoCell(value: item.getPendingQuantityForPO(poNo)),
-              'usageDecision': PlutoCell(value: poQty.usageDecision),
-              'unit': PlutoCell(value: item.unit),
-              'costPerUnit': PlutoCell(value: item.costPerUnit),
-              'totalCost':
-                  PlutoCell(value: item.costPerUnit * poQty.receivedQty),
-              'billNo': PlutoCell(value: inspection.billNo),
-              'billDate': PlutoCell(value: inspection.billDate),
-              'receivedDate': PlutoCell(value: item.receivedDate),
-              'grDate': PlutoCell(value: inspection.grnDate),
-              'category': PlutoCell(value: item.category),
-              'sampleSize': PlutoCell(value: item.sampleSize),
-              'actions': PlutoCell(value: ''),
-              ...parameterCells,
-            };
-
-            return PlutoRow(cells: cells);
-          });
-        });
-      });
-    }).toList();
+    return rows;
   }
 
-  void _confirmDelete(BuildContext context, QualityInspection inspection) {
+  void _showDeleteConfirmation(
+    BuildContext context,
+    WidgetRef ref,
+    QualityInspection inspection,
+  ) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirm Delete'),
-          content: Text(
-              'Are you sure you want to delete inspection ${inspection.inspectionNo}?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('CANCEL'),
-            ),
-            TextButton(
-              onPressed: () {
-                ref
-                    .read(qualityInspectionProvider.notifier)
-                    .deleteInspection(inspection);
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red[400],
-              ),
-              child: const Text('DELETE'),
-            ),
-          ],
-        );
-      },
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Inspection'),
+        content: Text(
+          'Are you sure you want to delete inspection ${inspection.inspectionNo}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              // Delete only this specific inspection
+              ref.read(qualityInspectionProvider.notifier).deleteInspection(inspection);
+              Navigator.pop(context);
+
+              // Refresh grid rows
+              if (stateManager != null) {
+                final inspections = ref.read(qualityInspectionProvider);
+                stateManager!.removeAllRows();
+                stateManager!.appendRows(_getRows(inspections));
+              }
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Inspection deleted successfully'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -450,10 +444,8 @@ class _QualityInspectionListPageState
                           columns: _getColumns(),
                           rows: _getRows(inspections),
                           onLoaded: (PlutoGridOnLoadedEvent event) {
-                            setState(() {
-                              stateManager = event.stateManager;
-                              stateManager?.setShowColumnFilter(true);
-                            });
+                            stateManager = event.stateManager;
+                            stateManager?.setShowColumnFilter(true);
                           },
                           configuration: PlutoGridConfiguration(
                             columnFilter: const PlutoGridColumnFilterConfig(
@@ -470,13 +462,25 @@ class _QualityInspectionListPageState
                               oddRowColor: Colors.grey[800]!,
                               evenRowColor: Colors.grey[850]!,
                               activatedColor: Colors.blue[900]!,
-                              cellTextStyle:
-                                  const TextStyle(color: Colors.white),
-                              columnTextStyle: const TextStyle(
-                                color: Colors.white,
+                              cellTextStyle: TextStyle(
+                                color: Colors.grey[200]!,
+                                fontSize: 13,
+                              ),
+                              columnTextStyle: TextStyle(
+                                color: Colors.grey[200]!,
                                 fontWeight: FontWeight.bold,
+                                fontSize: 13,
                               ),
                               rowHeight: 45,
+                            ),
+                            columnSize: const PlutoGridColumnSizeConfig(
+                              autoSizeMode: PlutoAutoSizeMode.none,
+                              resizeMode: PlutoResizeMode.normal,
+                            ),
+                            scrollbar: const PlutoGridScrollbarConfig(
+                              isAlwaysShown: true,
+                              scrollbarThickness: 8,
+                              hoverWidth: 20,
                             ),
                           ),
                         ),

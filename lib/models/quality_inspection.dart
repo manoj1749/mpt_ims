@@ -113,8 +113,7 @@ class InspectionItem extends HiveObject {
   double pendingQty;
 
   @HiveField(13)
-  String
-      usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
+  String usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
 
   @HiveField(14)
   String receivedDate; // Date when material was received
@@ -132,16 +131,13 @@ class InspectionItem extends HiveObject {
   String? conditionalAcceptanceReason; // Reason for conditional acceptance
 
   @HiveField(19)
-  String?
-      conditionalAcceptanceAction; // Required action for conditional acceptance
+  String? conditionalAcceptanceAction; // Required action for conditional acceptance
 
   @HiveField(20)
-  String?
-      conditionalAcceptanceDeadline; // Deadline for completing the required action
+  String? conditionalAcceptanceDeadline; // Deadline for completing the required action
 
   @HiveField(21)
-  Map<String, InspectionPOQuantity> poQuantities =
-      {}; // Store PO-wise quantities and decisions
+  Map<String, InspectionPOQuantity> poQuantities = {}; // Store PO-wise quantities and decisions
 
   @HiveField(22)
   String? grnNo; // GRN number
@@ -156,8 +152,10 @@ class InspectionItem extends HiveObject {
   String? invoiceDate; // Invoice date
 
   @HiveField(26)
-  Map<String, Map<String, String>> grnDetails =
-      {}; // PO No -> Map of GRN No to GRN details
+  Map<String, Map<String, String>> grnDetails = {}; // PO No -> Map of GRN No to GRN details
+
+  @HiveField(27)
+  Map<String, InspectionGRNQuantity> grnQuantities = {}; // Store GRN-wise quantities and decisions
 
   InspectionItem({
     required this.materialCode,
@@ -186,31 +184,66 @@ class InspectionItem extends HiveObject {
     this.invoiceNo = '',
     this.invoiceDate = '',
     Map<String, Map<String, String>>? grnDetails,
+    Map<String, InspectionGRNQuantity>? grnQuantities,
   }) {
     this.poQuantities = poQuantities ?? {};
     this.grnDetails = grnDetails ?? {};
+    this.grnQuantities = grnQuantities ?? {};
   }
 
-  // Helper method to get total received quantity for a specific PO
-  double getReceivedQuantityForPO(String poNo) {
-    return poQuantities[poNo]?.receivedQty ?? 0.0;
+  // Helper method to get total received quantity for a specific GRN
+  double getReceivedQuantityForGRN(String grnNo) {
+    return grnQuantities[grnNo]?.receivedQty ?? 0.0;
   }
 
-  // Helper method to get total accepted quantity for a specific PO
-  double getAcceptedQuantityForPO(String poNo) {
-    return poQuantities[poNo]?.acceptedQty ?? 0.0;
+  // Helper method to get total accepted quantity for a specific GRN
+  double getAcceptedQuantityForGRN(String grnNo) {
+    return grnQuantities[grnNo]?.acceptedQty ?? 0.0;
   }
 
-  // Helper method to get total rejected quantity for a specific PO
-  double getRejectedQuantityForPO(String poNo) {
-    return poQuantities[poNo]?.rejectedQty ?? 0.0;
+  // Helper method to get total rejected quantity for a specific GRN
+  double getRejectedQuantityForGRN(String grnNo) {
+    return grnQuantities[grnNo]?.rejectedQty ?? 0.0;
   }
 
-  // Helper method to get pending quantity for a specific PO
-  double getPendingQuantityForPO(String poNo) {
-    final poQty = poQuantities[poNo];
-    if (poQty == null) return 0.0;
-    return poQty.receivedQty - (poQty.acceptedQty + poQty.rejectedQty);
+  // Helper method to get pending quantity for a specific GRN
+  double getPendingQuantityForGRN(String grnNo) {
+    final grnQty = grnQuantities[grnNo];
+    if (grnQty == null) return 0.0;
+    return grnQty.receivedQty - (grnQty.acceptedQty + grnQty.rejectedQty);
+  }
+
+  // Helper method to update quantities for a specific GRN
+  void updateGRNQuantities(
+    String grnNo, {
+    double? receivedQty,
+    double? acceptedQty,
+    double? rejectedQty,
+    String? usageDecision,
+  }) {
+    final grnQty = grnQuantities[grnNo] ??
+        InspectionGRNQuantity(
+          receivedQty: 0,
+          acceptedQty: 0,
+          rejectedQty: 0,
+          usageDecision: this.usageDecision,
+        );
+
+    grnQuantities[grnNo] = grnQty.copyWith(
+      receivedQty: receivedQty ?? grnQty.receivedQty,
+      acceptedQty: acceptedQty ?? grnQty.acceptedQty,
+      rejectedQty: rejectedQty ?? grnQty.rejectedQty,
+      usageDecision: usageDecision ?? grnQty.usageDecision,
+    );
+
+    // Update total quantities
+    this.receivedQty =
+        grnQuantities.values.fold(0.0, (sum, qty) => sum + qty.receivedQty);
+    this.acceptedQty =
+        grnQuantities.values.fold(0.0, (sum, qty) => sum + qty.acceptedQty);
+    this.rejectedQty =
+        grnQuantities.values.fold(0.0, (sum, qty) => sum + qty.rejectedQty);
+    this.pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
   }
 
   // Helper method to update quantities for a specific PO
@@ -243,7 +276,7 @@ class InspectionItem extends HiveObject {
         poQuantities.values.fold(0.0, (sum, qty) => sum + qty.acceptedQty);
     this.rejectedQty =
         poQuantities.values.fold(0.0, (sum, qty) => sum + qty.rejectedQty);
-    pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
+    this.pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
   }
 }
 
@@ -275,6 +308,42 @@ class InspectionPOQuantity {
     String? usageDecision,
   }) {
     return InspectionPOQuantity(
+      receivedQty: receivedQty ?? this.receivedQty,
+      acceptedQty: acceptedQty ?? this.acceptedQty,
+      rejectedQty: rejectedQty ?? this.rejectedQty,
+      usageDecision: usageDecision ?? this.usageDecision,
+    );
+  }
+}
+
+@HiveType(typeId: 21)
+class InspectionGRNQuantity {
+  @HiveField(0)
+  double receivedQty;
+
+  @HiveField(1)
+  double acceptedQty;
+
+  @HiveField(2)
+  double rejectedQty;
+
+  @HiveField(3)
+  String usageDecision;
+
+  InspectionGRNQuantity({
+    required this.receivedQty,
+    required this.acceptedQty,
+    required this.rejectedQty,
+    required this.usageDecision,
+  });
+
+  InspectionGRNQuantity copyWith({
+    double? receivedQty,
+    double? acceptedQty,
+    double? rejectedQty,
+    String? usageDecision,
+  }) {
+    return InspectionGRNQuantity(
       receivedQty: receivedQty ?? this.receivedQty,
       acceptedQty: acceptedQty ?? this.acceptedQty,
       rejectedQty: rejectedQty ?? this.rejectedQty,

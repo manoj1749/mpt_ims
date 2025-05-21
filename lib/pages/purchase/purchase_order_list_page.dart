@@ -1,413 +1,351 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pluto_grid/pluto_grid.dart';
+import 'package:collection/collection.dart';
 import '../../models/purchase_order.dart';
+import '../../models/store_inward.dart';
 import '../../provider/purchase_order.dart';
+import '../../provider/store_inward_provider.dart';
 import 'add_purchase_order_page.dart';
 
-class PurchaseOrderListPage extends ConsumerWidget {
+class PurchaseOrderListPage extends ConsumerStatefulWidget {
   const PurchaseOrderListPage({super.key});
 
-  void _navigateToCreatePO(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const AddPurchaseOrderPage(),
-      ),
-    );
-  }
+  @override
+  ConsumerState<PurchaseOrderListPage> createState() => _PurchaseOrderListPageState();
+}
+
+class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
+  late final List<PlutoColumn> columns;
+  PlutoGridStateManager? stateManager;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final purchaseOrders = ref.watch(purchaseOrderListProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Purchase Orders'),
+  void initState() {
+    super.initState();
+    columns = [
+      PlutoColumn(
+        title: 'S.No',
+        field: 'serialNo',
+        type: PlutoColumnType.number(),
+        width: 60,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _navigateToCreatePO(context),
-        icon: const Icon(Icons.add, color: Colors.black),
-        label: const Text('Create PO', style: TextStyle(color: Colors.black)),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        elevation: 4,
+      PlutoColumn(
+        title: 'PO No',
+        field: 'poNo',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      body: purchaseOrders.isEmpty
-          ? Center(
+      PlutoColumn(
+        title: 'PO Date',
+        field: 'poDate',
+        type: PlutoColumnType.date(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Job No',
+        field: 'jobNo',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Supplier',
+        field: 'supplier',
+        type: PlutoColumnType.text(),
+        width: 200,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.start,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Items',
+        field: 'items',
+        type: PlutoColumnType.text(),
+        width: 200,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.start,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final items = rendererContext.cell.value.toString();
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            child: SingleChildScrollView(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No purchase orders found',
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: items.split('\n').map((item) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    item.trim(),
                     style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[400],
+                      color: Colors.grey[200],
+                      fontSize: 13,
+                      height: 1.3,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.add),
-                    label: const Text('Create New Order'),
-                    onPressed: () => _navigateToCreatePO(context),
-                  ),
-                ],
+                )).toList(),
               ),
-            )
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  left: 16.0,
-                  right: 16.0,
-                  top: 16.0,
-                  bottom: 80.0, // Add padding at bottom for FAB
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Card(
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Total Orders: ${purchaseOrders.length}',
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Total Value: ${NumberFormat.currency(
-                                      symbol: '₹',
-                                      locale: 'en_IN',
-                                      decimalDigits: 2,
-                                    ).format(purchaseOrders.fold(
-                                      0.0,
-                                      (sum, order) => sum + order.grandTotal,
-                                    ))}',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.green,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.filter_list),
-                              onPressed: () {
-                                // TODO: Implement filtering
-                              },
-                              tooltip: 'Filter Orders',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.sort),
-                              onPressed: () {
-                                // TODO: Implement sorting
-                              },
-                              tooltip: 'Sort Orders',
-                            ),
-                          ],
+            ),
+          );
+        },
+      ),
+      PlutoColumn(
+        title: 'Qty',
+        field: 'quantity',
+        type: PlutoColumnType.number(),
+        width: 80,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.right,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Unit',
+        field: 'unit',
+        type: PlutoColumnType.text(),
+        width: 80,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Status',
+        field: 'status',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final status = rendererContext.cell.value.toString();
+          Color textColor;
+          switch (status.toLowerCase()) {
+            case 'completed':
+              textColor = Colors.green[300]!;
+              break;
+            case 'partially received':
+              textColor = Colors.orange[300]!;
+              break;
+            case 'pending':
+              textColor = Colors.grey[400]!;
+              break;
+            default:
+              textColor = Colors.grey[200]!;
+          }
+          return Center(
+            child: Text(
+              status,
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          );
+        },
+      ),
+      PlutoColumn(
+        title: 'Transport',
+        field: 'transport',
+        type: PlutoColumnType.text(),
+        width: 150,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.start,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Delivery Requirements',
+        field: 'deliveryRequirements',
+        type: PlutoColumnType.text(),
+        width: 200,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.start,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Total',
+        field: 'total',
+        type: PlutoColumnType.number(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.right,
+        enableEditingMode: false,
+        formatter: (value) => NumberFormat.currency(
+          symbol: '₹',
+          locale: 'en_IN',
+          decimalDigits: 2,
+        ).format(value),
+      ),
+      PlutoColumn(
+        title: 'Grand Total',
+        field: 'grandTotal',
+        type: PlutoColumnType.number(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.right,
+        enableEditingMode: false,
+        formatter: (value) => NumberFormat.currency(
+          symbol: '₹',
+          locale: 'en_IN',
+          decimalDigits: 2,
+        ).format(value),
+      ),
+      PlutoColumn(
+        title: 'Actions',
+        field: 'actions',
+        type: PlutoColumnType.text(),
+        width: 140,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final index = rendererContext.row.cells['index']?.value as int;
+          final orders = ref.read(purchaseOrderListProvider);
+          
+          if (index >= orders.length) {
+            return const SizedBox.shrink();
+          }
+          
+          final order = orders[index];
+          
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(Icons.edit, color: Colors.grey[200], size: 20),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddPurchaseOrderPage(
+                          existingPO: order,
+                          index: index,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: purchaseOrders.length,
-                        itemBuilder: (context, index) {
-                          final order = purchaseOrders[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            child: ExpansionTile(
-                              title: Text(
-                                'PO: ${order.poNo}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '${order.supplierName} • ${order.poDate}',
-                                style: TextStyle(
-                                  color: Colors.grey[400],
-                                ),
-                              ),
-                              trailing: Text(
-                                NumberFormat.currency(
-                                  symbol: '₹',
-                                  locale: 'en_IN',
-                                  decimalDigits: 2,
-                                ).format(order.grandTotal),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _buildInfoRow('Job No', order.boardNo),
-                                      _buildInfoRow(
-                                          'Transport', order.transport),
-                                      _buildInfoRow('Delivery Requirements',
-                                          order.deliveryRequirements),
-                                      const Divider(),
-                                      const Text(
-                                        'Items',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      ...order.items.map((item) => Card(
-                                            margin: const EdgeInsets.only(
-                                                bottom: 8),
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .surface,
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(12),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            Text(
-                                                              item.materialDescription,
-                                                              style:
-                                                                  const TextStyle(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                            ),
-                                                            Text(
-                                                              'Code: ${item.materialCode}',
-                                                              style: TextStyle(
-                                                                color: Colors
-                                                                    .grey[400],
-                                                                fontSize: 12,
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                      Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .end,
-                                                        children: [
-                                                          Text(
-                                                            '${item.quantity} ${item.unit}',
-                                                            style:
-                                                                const TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                          ),
-                                                          Text(
-                                                            '@ ₹${item.costPerUnit}',
-                                                            style: TextStyle(
-                                                              color: Colors
-                                                                  .grey[400],
-                                                              fontSize: 12,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const Divider(),
-                                                  Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .spaceBetween,
-                                                    children: [
-                                                      Text(
-                                                        'Total: ₹${item.totalCost}',
-                                                        style: const TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        'Diff: ₹${item.totalRateDifference}',
-                                                        style: TextStyle(
-                                                          color:
-                                                              item.totalRateDifferenceValue >
-                                                                      0
-                                                                  ? Colors
-                                                                      .red[300]
-                                                                  : Colors.green[
-                                                                      300],
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          )),
-                                      const Divider(),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          const Text(
-                                            'Summary',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.end,
-                                            children: [
-                                              Text(
-                                                'Subtotal: ₹${order.total}',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              if (order.igst > 0)
-                                                Text(
-                                                  'IGST: ₹${order.igst}',
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              if (order.cgst > 0)
-                                                Text(
-                                                  'CGST: ₹${order.cgst}',
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              if (order.sgst > 0)
-                                                Text(
-                                                  'SGST: ₹${order.sgst}',
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'Grand Total: ₹${order.grandTotal}',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          TextButton.icon(
-                                            icon: const Icon(Icons.edit),
-                                            label: const Text('Edit'),
-                                            onPressed: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      AddPurchaseOrderPage(
-                                                          existingPO: order,
-                                                          index: index),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                          const SizedBox(width: 8),
-                                          TextButton.icon(
-                                            icon: const Icon(Icons.delete),
-                                            label: const Text('Delete'),
-                                            style: TextButton.styleFrom(
-                                              foregroundColor: Colors.red,
-                                            ),
-                                            onPressed: () {
-                                              _showDeleteConfirmation(
-                                                  context, ref, index, order);
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                    ).then((_) {
+                      // Refresh the grid after returning from edit page
+                      if (stateManager != null) {
+                        final orders = ref.read(purchaseOrderListProvider);
+                        stateManager!.removeAllRows();
+                        stateManager!.appendRows(_getRows(orders));
+                      }
+                    });
+                  },
                 ),
               ),
-            ),
-    );
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(Icons.delete, color: Colors.grey[200], size: 20),
+                  onPressed: () {
+                    _showDeleteConfirmation(context, ref, index, order);
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    ];
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 150,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  List<PlutoRow> _getRows(List<PurchaseOrder> orders) {
+    final rows = <PlutoRow>[];
+    var serialNo = 1;
+    final storeInwards = ref.read(storeInwardProvider);
+
+    for (var i = 0; i < orders.length; i++) {
+      final order = orders[i];
+      final itemsText = order.items.map((item) =>
+        '${item.materialDescription} (${item.materialCode})'
+      ).join('\n');
+
+      // Calculate total quantity
+      final totalQty = order.items.fold<double>(
+        0, 
+        (sum, item) => sum + double.parse(item.quantity)
+      );
+
+      // Get the most common unit from items
+      final units = order.items.map((item) => item.unit).toList();
+      final commonUnit = units.isNotEmpty ? units[0] : '-';
+
+      // Calculate received quantity from Store Inwards for this PO
+      double totalReceivedQty = 0;
+      for (var si in storeInwards) {
+        for (var siItem in si.items) {
+          if (siItem.poQuantities.containsKey(order.poNo)) {
+            totalReceivedQty += siItem.acceptedQty;
+          }
+        }
+      }
+
+      // Determine status based on received quantity
+      String status;
+      if (totalReceivedQty >= totalQty) {
+        status = 'Completed';
+      } else if (totalReceivedQty > 0) {
+        status = 'Partially Received';
+      } else {
+        status = 'Pending';
+      }
+
+      rows.add(
+        PlutoRow(
+          cells: {
+            'serialNo': PlutoCell(value: serialNo++),
+            'poNo': PlutoCell(value: order.poNo),
+            'poDate': PlutoCell(value: order.poDate),
+            'jobNo': PlutoCell(value: order.boardNo),
+            'supplier': PlutoCell(value: order.supplierName),
+            'items': PlutoCell(value: itemsText),
+            'quantity': PlutoCell(value: totalQty),
+            'unit': PlutoCell(value: commonUnit),
+            'status': PlutoCell(value: status),
+            'transport': PlutoCell(value: order.transport),
+            'deliveryRequirements': PlutoCell(value: order.deliveryRequirements),
+            'total': PlutoCell(value: order.total),
+            'grandTotal': PlutoCell(value: order.grandTotal),
+            'actions': PlutoCell(value: ''),
+            'index': PlutoCell(value: i),
+          },
+        ),
+      );
+    }
+
+    return rows;
   }
 
   void _showDeleteConfirmation(
@@ -415,21 +353,35 @@ class PurchaseOrderListPage extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Purchase Order'),
+        backgroundColor: Colors.grey[850],
+        title: Text('Delete Purchase Order', 
+          style: TextStyle(color: Colors.grey[200])),
         content: Text(
-            'Are you sure you want to delete purchase order ${order.poNo}?'),
+          'Are you sure you want to delete purchase order ${order.poNo}?',
+          style: TextStyle(color: Colors.grey[200]),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel', 
+              style: TextStyle(color: Colors.grey[200])),
           ),
           TextButton(
             onPressed: () {
               ref.read(purchaseOrderListProvider.notifier).deleteOrder(index);
               Navigator.pop(context);
+              
+              // Refresh grid rows
+              if (stateManager != null) {
+                final orders = ref.read(purchaseOrderListProvider);
+                stateManager!.removeAllRows();
+                stateManager!.appendRows(_getRows(orders));
+              }
+
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Purchase order deleted successfully'),
+                SnackBar(
+                  content: const Text('Purchase order deleted successfully'),
+                  backgroundColor: Colors.grey[850],
                 ),
               );
             },
@@ -438,6 +390,149 @@ class PurchaseOrderListPage extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final purchaseOrders = ref.watch(purchaseOrderListProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Purchase Orders'),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              // TODO: Implement search
+            },
+            tooltip: 'Search Orders',
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddPurchaseOrderPage()),
+          );
+          // Refresh the grid after returning from add/edit page
+          if (stateManager != null) {
+            final orders = ref.read(purchaseOrderListProvider);
+            stateManager!.removeAllRows();
+            stateManager!.appendRows(_getRows(orders));
+          }
+        },
+        child: const Icon(Icons.add),
+      ),
+      body: purchaseOrders.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 64,
+                    color: Colors.grey[300],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No purchase orders yet',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AddPurchaseOrderPage()),
+                    ),
+                    child: const Text('Add New Order'),
+                  ),
+                ],
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '${purchaseOrders.length} Purchase Orders',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(width: 16),
+                      FilledButton.tonal(
+                        onPressed: () {
+                          // TODO: Implement filtering
+                        },
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.filter_list, size: 20),
+                            SizedBox(width: 8),
+                            Text('Filter'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: PlutoGrid(
+                      columns: columns,
+                      rows: _getRows(purchaseOrders),
+                      onLoaded: (PlutoGridOnLoadedEvent event) {
+                        stateManager = event.stateManager;
+                        stateManager?.setShowColumnFilter(true);
+                      },
+                      configuration: PlutoGridConfiguration(
+                        columnFilter: const PlutoGridColumnFilterConfig(
+                          filters: [
+                            ...FilterHelper.defaultFilters,
+                          ],
+                        ),
+                        style: PlutoGridStyleConfig(
+                          gridBorderColor: Colors.grey[700]!,
+                          gridBackgroundColor: Colors.grey[900]!,
+                          borderColor: Colors.grey[700]!,
+                          iconColor: Colors.grey[300]!,
+                          rowColor: Colors.grey[850]!,
+                          oddRowColor: Colors.grey[800]!,
+                          evenRowColor: Colors.grey[850]!,
+                          activatedColor: Colors.blue[900]!,
+                          cellTextStyle: TextStyle(
+                            color: Colors.grey[200]!,
+                            fontSize: 13,
+                          ),
+                          columnTextStyle: TextStyle(
+                            color: Colors.grey[200]!,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                          rowHeight: 45,
+                        ),
+                        columnSize: const PlutoGridColumnSizeConfig(
+                          autoSizeMode: PlutoAutoSizeMode.none,
+                          resizeMode: PlutoResizeMode.normal,
+                        ),
+                        scrollbar: const PlutoGridScrollbarConfig(
+                          isAlwaysShown: true,
+                          scrollbarThickness: 8,
+                          hoverWidth: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }

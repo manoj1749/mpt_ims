@@ -11,6 +11,24 @@ import '../../provider/purchase_order.dart';
 import '../../provider/vendor_material_rate_provider.dart';
 import '../../provider/quality_inspection_provider.dart';
 
+class InspectionStatus {
+  final String inspectionNo;
+  final double inspectedQty;
+  final double acceptedQty;
+  final double rejectedQty;
+  final double pendingQty;
+  final String date;
+
+  InspectionStatus({
+    required this.inspectionNo,
+    required this.inspectedQty,
+    required this.acceptedQty,
+    required this.rejectedQty,
+    required this.pendingQty,
+    required this.date,
+  });
+}
+
 class StockDetailsPage extends ConsumerStatefulWidget {
   const StockDetailsPage({super.key});
 
@@ -129,41 +147,66 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
     final vendorRates = ref.watch(vendorMaterialRateProvider);
     final qualityInspections = ref.watch(qualityInspectionProvider);
 
-    // Calculate current stock for each material
-    final materialStock = <String, double>{};
-    final materialInspectionStock = <String, double>{};
-    final materialPendingInspectionStock = <String, double>{};
+    // Calculate stock for each material
+    final materialStock = <String, Map<String, double>>{}; // materialCode -> {grnNo -> acceptedQty}
+    final materialInspectionStock = <String, Map<String, double>>{}; // materialCode -> {grnNo -> pendingQty}
+    final materialRejectedStock = <String, Map<String, double>>{}; // materialCode -> {grnNo -> rejectedQty}
 
-    // Process store inwards to calculate current stock
-    for (var inward in storeInwards) {
-      for (var item in inward.items) {
-        materialStock[item.materialCode] = 
-            (materialStock[item.materialCode] ?? 0) + item.acceptedQty;
+    // First, process quality inspections to track inspected and rejected items
+    for (var inspection in qualityInspections) {
+      for (var item in inspection.items) {
+        // Initialize maps if needed
+        materialStock.putIfAbsent(item.materialCode, () => {});
+        materialInspectionStock.putIfAbsent(item.materialCode, () => {});
+        materialRejectedStock.putIfAbsent(item.materialCode, () => {});
+
+        // Track accepted quantities per GRN
+        if (item.acceptedQty > 0) {
+          materialStock[item.materialCode]![inspection.grnNo] = 
+            (materialStock[item.materialCode]![inspection.grnNo] ?? 0) + item.acceptedQty;
+        }
+
+        // Track pending quantities per GRN
+        if (item.pendingQty > 0) {
+          materialInspectionStock[item.materialCode]![inspection.grnNo] = 
+            (materialInspectionStock[item.materialCode]![inspection.grnNo] ?? 0) + item.pendingQty;
+        }
+
+        // Track rejected quantities per GRN
+        if (item.rejectedQty > 0) {
+          materialRejectedStock[item.materialCode]![inspection.grnNo] = 
+            (materialRejectedStock[item.materialCode]![inspection.grnNo] ?? 0) + item.rejectedQty;
+        }
       }
     }
 
-    // Calculate inspection stock and pending inspection stock
-    for (var inspection in qualityInspections) {
-      for (var item in inspection.items) {
-        if (inspection.status == 'Pending') {
-          materialPendingInspectionStock[item.materialCode] = 
-              (materialPendingInspectionStock[item.materialCode] ?? 0) + 
-              item.pendingQty;
-        } else {
-          materialInspectionStock[item.materialCode] = 
-              (materialInspectionStock[item.materialCode] ?? 0) + 
-              item.inspectedQty;
+    // Then process store inwards to find items pending inspection
+    for (var inward in storeInwards) {
+      for (var item in inward.items) {
+        materialInspectionStock.putIfAbsent(item.materialCode, () => {});
+        
+        // If this GRN hasn't been inspected yet or has pending quantity
+        final acceptedQty = materialStock[item.materialCode]?[inward.grnNo] ?? 0;
+        final rejectedQty = materialRejectedStock[item.materialCode]?[inward.grnNo] ?? 0;
+        final inspectedQty = acceptedQty + rejectedQty;
+        
+        if (inspectedQty < item.receivedQty) {
+          materialInspectionStock[item.materialCode]![inward.grnNo] = 
+            item.receivedQty - inspectedQty;
         }
       }
     }
 
     return materials.map((material) {
-      final currentStock = materialStock[material.partNo] ?? 0;
-      final inspectionStock = materialInspectionStock[material.partNo] ?? 0;
-      final pendingInspectionStock = materialPendingInspectionStock[material.partNo] ?? 0;
-      final totalStock = currentStock + inspectionStock + pendingInspectionStock;
+      final currentStock = materialStock[material.partNo]?.values.fold(0.0, (sum, qty) => sum + qty) ?? 0;
+      final inspectionStock = materialInspectionStock[material.partNo]?.values.fold(0.0, (sum, qty) => sum + qty) ?? 0;
+      final rejectedStock = materialRejectedStock[material.partNo]?.values.fold(0.0, (sum, qty) => sum + qty) ?? 0;
+      
+      // Total stock should only include accepted and in-inspection items
+      final totalStock = currentStock + inspectionStock;
+      
       final bestRate = material.getLowestRate(ref);
-      final stockValue = totalStock * (double.tryParse(bestRate) ?? 0);
+      final stockValue = currentStock * (double.tryParse(bestRate) ?? 0); // Only count accepted stock in value
 
       return PlutoRow(
         cells: {
@@ -172,7 +215,6 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
           'unit': PlutoCell(value: material.unit),
           'currentStock': PlutoCell(value: currentStock),
           'inspectionStock': PlutoCell(value: inspectionStock),
-          'pendingInspectionStock': PlutoCell(value: pendingInspectionStock),
           'totalStock': PlutoCell(value: totalStock),
           'stockValue': PlutoCell(value: '₹${stockValue.toStringAsFixed(2)}'),
           'preferredVendor': PlutoCell(value: material.getPreferredVendorName(ref)),
@@ -427,12 +469,17 @@ class MaterialStockDetailPage extends ConsumerWidget {
     final qualityInspections = ref.watch(qualityInspectionProvider);
     final rows = <PlutoRow>[];
 
-    // Track which items have been inspected and accepted
-    final inspectedItems = <String, Set<String>>{}; // materialCode -> Set of GRN numbers
+    // Track which items have been fully inspected and accepted
+    final inspectedItems = <String, Map<String, double>>{};
+    
     for (var inspection in qualityInspections) {
       for (var item in inspection.items) {
         if (item.acceptedQty > 0) {
-          inspectedItems.putIfAbsent(item.materialCode, () => {}).add(inspection.grnNo);
+          if (!inspectedItems.containsKey(item.materialCode)) {
+            inspectedItems[item.materialCode] = {};
+          }
+          inspectedItems[item.materialCode]![inspection.grnNo] = 
+            (inspectedItems[item.materialCode]![inspection.grnNo] ?? 0) + item.acceptedQty;
         }
       }
     }
@@ -440,8 +487,9 @@ class MaterialStockDetailPage extends ConsumerWidget {
     for (var inward in storeInwards) {
       for (var item in inward.items) {
         if (item.materialCode == material.partNo) {
-          // Only show items that have been inspected and accepted
-          if (inspectedItems[item.materialCode]?.contains(inward.grnNo) ?? false) {
+          // Only show items that have been fully inspected and accepted
+          final acceptedQty = inspectedItems[item.materialCode]?[inward.grnNo] ?? 0;
+          if (acceptedQty > 0) {
             final po = purchaseOrders.firstWhere(
               (po) => po.poNo == inward.poNo,
               orElse: () => PurchaseOrder(
@@ -467,11 +515,11 @@ class MaterialStockDetailPage extends ConsumerWidget {
                 'poNo': PlutoCell(value: inward.poNo),
                 'supplier': PlutoCell(value: inward.supplierName),
                 'receivedQty': PlutoCell(value: item.receivedQty),
-                'acceptedQty': PlutoCell(value: item.acceptedQty),
+                'acceptedQty': PlutoCell(value: acceptedQty),
                 'rate': PlutoCell(value: '₹${item.costPerUnit}'),
                 'value': PlutoCell(
                     value:
-                        '₹${(item.acceptedQty * double.parse(item.costPerUnit)).toStringAsFixed(2)}'),
+                        '₹${(acceptedQty * double.parse(item.costPerUnit)).toStringAsFixed(2)}'),
                 'date': PlutoCell(value: inward.grnDate),
               },
             ));
@@ -484,28 +532,74 @@ class MaterialStockDetailPage extends ConsumerWidget {
   }
 
   List<PlutoRow> _getInspectionRows(WidgetRef ref) {
+    final storeInwards = ref.watch(storeInwardProvider);
     final qualityInspections = ref.watch(qualityInspectionProvider);
     final rows = <PlutoRow>[];
 
+    // Track inspection status for each GRN and material
+    final inspectionStatus = <String, Map<String, Map<String, InspectionStatus>>>{}; // materialCode -> {grnNo -> {inspectionNo -> status}}
+    
     for (var inspection in qualityInspections) {
       for (var item in inspection.items) {
         if (item.materialCode == material.partNo) {
-          // Only show items that are pending or partially inspected
-          if (item.pendingQty > 0 || (item.inspectedQty > 0 && item.inspectedQty < item.receivedQty)) {
+          // Initialize maps if needed
+          inspectionStatus.putIfAbsent(item.materialCode, () => {});
+          inspectionStatus[item.materialCode]!.putIfAbsent(inspection.grnNo, () => {});
+          
+          inspectionStatus[item.materialCode]![inspection.grnNo]![inspection.inspectionNo] = InspectionStatus(
+            inspectionNo: inspection.inspectionNo,
+            inspectedQty: item.inspectedQty,
+            acceptedQty: item.acceptedQty,
+            rejectedQty: item.rejectedQty,
+            pendingQty: item.pendingQty,
+            date: inspection.inspectionDate,
+          );
+        }
+      }
+    }
+
+    // Process store inwards and show inspection status
+    for (var inward in storeInwards) {
+      for (var item in inward.items) {
+        if (item.materialCode == material.partNo) {
+          final inspections = inspectionStatus[item.materialCode]?[inward.grnNo] ?? {};
+          
+          if (inspections.isEmpty) {
+            // Not inspected yet
             rows.add(PlutoRow(
               cells: {
-                'inspectionNo': PlutoCell(value: inspection.inspectionNo),
-                'grnNo': PlutoCell(value: inspection.grnNo),
-                'jobNo': PlutoCell(value: inspection.jobNumbers[inspection.poNo] ?? ''),
-                'poNo': PlutoCell(value: inspection.poNo),
-                'supplier': PlutoCell(value: inspection.supplierName),
+                'inspectionNo': PlutoCell(value: '-'),
+                'grnNo': PlutoCell(value: inward.grnNo),
+                'jobNo': PlutoCell(value: '-'),
+                'poNo': PlutoCell(value: inward.poNo),
+                'supplier': PlutoCell(value: inward.supplierName),
                 'receivedQty': PlutoCell(value: item.receivedQty),
-                'inspectedQty': PlutoCell(value: item.inspectedQty),
-                'pendingQty': PlutoCell(value: item.pendingQty),
-                'status': PlutoCell(value: item.inspectedQty > 0 ? 'Partially Inspected' : 'Pending'),
-                'date': PlutoCell(value: inspection.inspectionDate),
+                'inspectedQty': PlutoCell(value: 0),
+                'pendingQty': PlutoCell(value: item.receivedQty),
+                'status': PlutoCell(value: 'Pending Inspection'),
+                'date': PlutoCell(value: inward.grnDate),
               },
             ));
+          } else {
+            // Add a row for each inspection of this GRN
+            for (var status in inspections.values) {
+              rows.add(PlutoRow(
+                cells: {
+                  'inspectionNo': PlutoCell(value: status.inspectionNo),
+                  'grnNo': PlutoCell(value: inward.grnNo),
+                  'jobNo': PlutoCell(value: '-'),
+                  'poNo': PlutoCell(value: inward.poNo),
+                  'supplier': PlutoCell(value: inward.supplierName),
+                  'receivedQty': PlutoCell(value: item.receivedQty),
+                  'inspectedQty': PlutoCell(value: status.inspectedQty),
+                  'pendingQty': PlutoCell(value: status.pendingQty),
+                  'status': PlutoCell(
+                    value: status.pendingQty > 0 ? 'Partially Inspected' : 'Completed'
+                  ),
+                  'date': PlutoCell(value: status.date),
+                },
+              ));
+            }
           }
         }
       }

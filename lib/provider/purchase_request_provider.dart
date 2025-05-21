@@ -16,20 +16,20 @@ class PurchaseRequestNotifier extends StateNotifier<List<PurchaseRequest>> {
 
   PurchaseRequestNotifier(this.box) : super(box.values.toList());
 
-  void addRequest(PurchaseRequest request) async {
+  Future<void> addRequest(PurchaseRequest request) async {
     await box.add(request);
     state = box.values.toList();
   }
 
-  void updateRequest(int index, PurchaseRequest updated) async {
+  Future<void> updateRequest(int index, PurchaseRequest updated) async {
     await box.putAt(index, updated);
     state = box.values.toList();
   }
 
-  void deleteRequest(PurchaseRequest request) {
+  Future<void> deleteRequest(PurchaseRequest request) async {
     final index = state.indexOf(request);
     if (index != -1) {
-      box.deleteAt(index);
+      await box.deleteAt(index);
       state = List.from(state)..removeAt(index);
     }
   }

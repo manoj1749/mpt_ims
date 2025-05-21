@@ -412,7 +412,7 @@ class _AddPurchaseRequestPageState
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (_formKey.currentState!.validate()) {
                       _formKey.currentState!.save();
                       final now =
@@ -476,12 +476,14 @@ class _AddPurchaseRequestPageState
                           ref.read(purchaseRequestListProvider.notifier);
                       if (widget.existingRequest != null &&
                           widget.index != null) {
-                        notifier.updateRequest(widget.index!, newRequest);
+                        await notifier.updateRequest(widget.index!, newRequest);
                       } else {
-                        notifier.addRequest(newRequest);
+                        await notifier.addRequest(newRequest);
                       }
 
-                      Navigator.pop(context);
+                      if (mounted) {
+                        Navigator.pop(context);
+                      }
                     }
                   },
                   child: const Text('Submit'),

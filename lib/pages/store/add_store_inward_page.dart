@@ -437,7 +437,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       ref.read(purchaseOrderListProvider.notifier);
       final purchaseOrders = ref.read(purchaseOrderListProvider);
 
-      print('\n=== Updating POs for Store Inward ${inward.grnNo} ===');
+      // print('\n=== Updating POs for Store Inward ${inward.grnNo} ===');
 
       for (var item in items) {
         for (var poEntry in item.poQuantities.entries) {
@@ -454,8 +454,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                     )
                     .copyWith();
 
-            print('\nProcessing PO: $poNo');
-            print('Current PO Status: ${updatedPO.status}');
+            // print('\nProcessing PO: $poNo');
+            // print('Current PO Status: ${updatedPO.status}');
 
             // Find and update the item
             final poItem = updatedPO.items.firstWhere(
@@ -463,16 +463,15 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               orElse: () => throw Exception('PO item not found'),
             );
 
-            print('Material: ${poItem.materialCode}');
-            print('Original Quantity: ${poItem.quantity}');
-            print('Current Received Quantities: ${poItem.receivedQuantities}');
+            // print('Material: ${poItem.materialCode}');
+            // print('Original Quantity: ${poItem.quantity}');
+            // print('Current Received Quantities: ${poItem.receivedQuantities}');
 
             // Update received quantity
             poItem.receivedQuantities[inward.grnNo] = receivedQty;
 
-            print('Updated Received Quantities: ${poItem.receivedQuantities}');
-            print(
-                'Total Received: ${poItem.receivedQuantities.values.fold<double>(0, (sum, qty) => sum + qty)}');
+            // print('Updated Received Quantities: ${poItem.receivedQuantities}');
+            // print('Total Received: ${poItem.receivedQuantities.values.fold<double>(0, (sum, qty) => sum + qty)}');
 
             // Update PO status
             final allItemsReceived = updatedPO.items.every((item) {
@@ -489,17 +488,17 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               updatedPO.status = 'Partially Received';
             }
 
-            print('New PO Status: ${updatedPO.status}');
+            // print('New PO Status: ${updatedPO.status}');
             updatedPOs[poNo] = updatedPO;
           } catch (e) {
-            print('Error updating PO $poNo: $e');
+            // print('Error updating PO $poNo: $e');
             continue;
           }
         }
       }
 
       // Update all modified POs
-      print('=== Saving Updated POs ===');
+      // print('=== Saving Updated POs ===');
       final poBox = ref.read(purchaseOrderBoxProvider);
       for (var updatedPO in updatedPOs.values) {
         try {
@@ -508,29 +507,28 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               .toList()
               .indexWhere((po) => po.poNo == updatedPO.poNo);
           if (boxIndex != -1) {
-            print('Saving PO: ${updatedPO.poNo} at box index $boxIndex');
-            print('Final Status: ${updatedPO.status}');
-            print('Items:');
+            // print('Saving PO: ${updatedPO.poNo} at box index $boxIndex');
+            // print('Final Status: ${updatedPO.status}');
+            // print('Items:');
             for (var item in updatedPO.items) {
-              print('  Material: ${item.materialCode}');
-              print('  Received Quantities: ${item.receivedQuantities}');
+              // print('  Material: ${item.materialCode}');
+              // print('  Received Quantities: ${item.receivedQuantities}');
             }
 
             // First update the Hive box directly
             await poBox.putAt(boxIndex, updatedPO);
-            print('Successfully saved PO ${updatedPO.poNo} to Hive box');
+            // print('Successfully saved PO ${updatedPO.poNo} to Hive box');
 
             // Then update the provider state
             ref
                 .read(purchaseOrderListProvider.notifier)
                 .updateOrder(boxIndex, updatedPO);
-            print(
-                'Successfully updated PO ${updatedPO.poNo} in provider state');
+            // print('Successfully updated PO ${updatedPO.poNo} in provider state');
           } else {
-            print('PO not found in box for update: ${updatedPO.poNo}');
+            // print('PO not found in box for update: ${updatedPO.poNo}');
           }
         } catch (e) {
-          print('Error saving updated PO ${updatedPO.poNo}: $e');
+          // print('Error saving updated PO ${updatedPO.poNo}: $e');
           continue;
         }
       }
@@ -574,7 +572,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               }
             }
           } catch (e) {
-            print('Error processing PR updates for PO $poNo: $e');
+            // print('Error processing PR updates for PO $poNo: $e');
             continue;
           }
         }
@@ -586,7 +584,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           final pr = entry.value;
           prNotifier.updateRequest(entry.key, pr);
         } catch (e) {
-          print('Error saving updated PR at index ${entry.key}: $e');
+          // print('Error saving updated PR at index ${entry.key}: $e');
           continue;
         }
       }
@@ -634,49 +632,48 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     final storeInwards = ref.watch(storeInwardProvider);
 
     // Debug prints for all store inwards
-    print('\n====== STORE INWARDS DEBUG INFO ======');
-    print('Total Store Inwards: ${storeInwards.length}');
+    // print('\n====== STORE INWARDS DEBUG INFO ======');
+    // print('Total Store Inwards: ${storeInwards.length}');
     for (var inward in storeInwards) {
-      print('\nGRN: ${inward.grnNo}');
-      print('Date: ${inward.grnDate}');
-      print('Supplier: ${inward.supplierName}');
-      print('PO Numbers: ${inward.poNo}');
-      print('Items:');
+      // print('\nGRN: ${inward.grnNo}');
+      // print('Date: ${inward.grnDate}');
+      // print('Supplier: ${inward.supplierName}');
+      // print('PO Numbers: ${inward.poNo}');
+      // print('Items:');
       for (var item in inward.items) {
-        print('\n  Material: ${item.materialCode}');
-        print('  Description: ${item.materialDescription}');
-        print('  Ordered Qty: ${item.orderedQty}');
-        print('  Received Qty: ${item.receivedQty}');
-        print('  Accepted Qty: ${item.acceptedQty}');
-        print('  Rejected Qty: ${item.rejectedQty}');
-        print('  PO Quantities: ${item.poQuantities}');
+        // print('\n  Material: ${item.materialCode}');
+        // print('  Description: ${item.materialDescription}');
+        // print('  Ordered Qty: ${item.orderedQty}');
+        // print('  Received Qty: ${item.receivedQty}');
+        // print('  Accepted Qty: ${item.acceptedQty}');
+        // print('  Rejected Qty: ${item.rejectedQty}');
+        // print('  PO Quantities: ${item.poQuantities}');
       }
-      print('----------------------------------------');
+      // print('----------------------------------------');
     }
 
     // Debug prints for Purchase Orders
-    print('\n====== PURCHASE ORDERS DEBUG INFO ======');
-    print('Total POs (non-completed): ${purchaseOrders.length}');
+    // print('\n====== PURCHASE ORDERS DEBUG INFO ======');
+    // print('Total POs (non-completed): ${purchaseOrders.length}');
     for (var po in purchaseOrders) {
-      print('\nPO Number: ${po.poNo}');
-      print('Status: ${po.status}');
-      print('Supplier: ${po.supplierName}');
-      print('Items:');
+      // print('\nPO Number: ${po.poNo}');
+      // print('Status: ${po.status}');
+      // print('Supplier: ${po.supplierName}');
+      // print('Items:');
       for (var item in po.items) {
-        print('\n  Material: ${item.materialCode}');
-        print('  Quantity: ${item.quantity}');
-        print('  Received Quantities: ${item.receivedQuantities}');
-        print('  Is Fully Received: ${item.isFullyReceived}');
-        print(
-            '  Total Received: ${item.receivedQuantities.values.fold<double>(0, (sum, qty) => sum + qty)}');
+        // print('\n  Material: ${item.materialCode}');
+        // print('  Quantity: ${item.quantity}');
+        // print('  Received Quantities: ${item.receivedQuantities}');
+        // print('  Is Fully Received: ${item.isFullyReceived}');
+        // print('  Total Received: ${item.receivedQuantities.values.fold<double>(0, (sum, qty) => sum + qty)}');
       }
-      print('----------------------------------------');
+      // print('----------------------------------------');
     }
 
     // Filter POs by selected supplier and group by material
     final materialPOItems = <String, List<PurchaseOrder>>{};
     if (selectedSupplier != null) {
-      print('\n=== Filtering POs for supplier: ${selectedSupplier!.name} ===');
+      // print('\n=== Filtering POs for supplier: ${selectedSupplier!.name} ===');
 
       // First, deduplicate POs by taking the most up-to-date version
       final uniquePOs = <String, PurchaseOrder>{};
@@ -697,29 +694,28 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
       // Now process the unique POs
       for (var po in uniquePOs.values) {
-        print('\nChecking PO: ${po.poNo}');
-        print('PO Status: ${po.status}');
+        // print('\nChecking PO: ${po.poNo}');
+        // print('PO Status: ${po.status}');
 
         // Group items by material code
         for (var item in po.items) {
           if (!item.isFullyReceived) {
             // Only add items that aren't fully received
             final materialCode = item.materialCode;
-            print('\n  Adding material $materialCode from PO ${po.poNo}');
-            print('  PO Status: ${po.status}');
-            print('  Item Received Quantities: ${item.receivedQuantities}');
+            // print('\n  Adding material $materialCode from PO ${po.poNo}');
+            // print('  PO Status: ${po.status}');
+            // print('  Item Received Quantities: ${item.receivedQuantities}');
 
             materialPOItems.putIfAbsent(materialCode, () => []).add(po);
-            print(
-                '  Successfully added PO ${po.poNo} for material $materialCode');
+            // print('  Successfully added PO ${po.poNo} for material $materialCode');
           }
         }
       }
 
-      print('\n=== Final materialPOItems ===');
+      // print('\n=== Final materialPOItems ===');
       materialPOItems.forEach((material, pos) {
-        print('\nMaterial: $material');
-        print('POs: ${pos.map((po) => po.poNo).join(', ')}');
+        // print('\nMaterial: $material');
+        // print('POs: ${pos.map((po) => po.poNo).join(', ')}');
       });
     }
 

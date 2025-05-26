@@ -179,15 +179,19 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               columnWidths: const {
                 0: FlexColumnWidth(0.5), // Checkbox column
                 1: FlexColumnWidth(2), // PO No
-                2: FlexColumnWidth(1), // Ordered
-                3: FlexColumnWidth(1), // Received
-                4: FlexColumnWidth(1.5), // Inward Qty
+                2: FlexColumnWidth(2), // PR No & Job No
+                3: FlexColumnWidth(1), // Ordered
+                4: FlexColumnWidth(1), // Received
+                5: FlexColumnWidth(1.5), // Inward Qty
               },
               children: [
                 const TableRow(
                   children: [
                     Text(''), // Checkbox header
                     Text('PO No',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
+                    Text('PR No & Job No',
                         style: TextStyle(
                             fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Ordered',
@@ -210,6 +214,24 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   final isSelected =
                       selectedPOs[material.partNo]?[po.poNo] ?? true;
 
+                  // Get PR numbers and job numbers for this PO item
+                  final prInfo = poItem.prQuantities.entries.map((entry) {
+                    final prNo = entry.key;
+                    // Find the PR to get its job number
+                    final pr = ref.read(purchaseRequestListProvider)
+                        .firstWhere(
+                          (pr) => pr.prNo == prNo,
+                          orElse: () => PurchaseRequest(
+                            prNo: prNo,
+                            date: '',
+                            requiredBy: '',
+                            items: [],
+                          ),
+                        );
+                    final jobNo = pr.jobNo ?? '';
+                    return '$prNo${jobNo.isNotEmpty ? ' ($jobNo)' : ''}';
+                  }).join('\n');
+
                   return TableRow(
                     children: [
                       // Checkbox
@@ -218,7 +240,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         child: Checkbox(
                           value: isSelected,
                           onChanged: (bool? value) {
-    setState(() {
+                            setState(() {
                               selectedPOs[material.partNo]![po.poNo] =
                                   value ?? false;
                               if (value == true) {
@@ -240,6 +262,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child:
                             Text(po.poNo, style: const TextStyle(fontSize: 12)),
+                      ),
+                      // PR No & Job No
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          prInfo,
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       ),
                       // Ordered
                       Padding(

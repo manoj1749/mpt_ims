@@ -720,3 +720,4 @@ class MaterialStockDetailPage extends ConsumerWidget {
     );
   }
 }
+ 

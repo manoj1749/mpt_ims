@@ -256,10 +256,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
             Table(
               columnWidths: const {
                 0: FlexColumnWidth(0.5), // Checkbox column
-                1: FlexColumnWidth(2), // PR No
-                2: FlexColumnWidth(1), // Need
-                3: FlexColumnWidth(1), // Ordered
-                4: FlexColumnWidth(1.5), // Order Qty
+                1: FlexColumnWidth(1.5), // PR No
+                2: FlexColumnWidth(1.5), // Job No
+                3: FlexColumnWidth(1), // Need
+                4: FlexColumnWidth(1), // Ordered
+                5: FlexColumnWidth(1.5), // Order Qty
               },
               children: [
                 const TableRow(
@@ -267,16 +268,29 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     Text(''), // Checkbox header
                     Text('PR No',
                         style: TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                            color: Colors.black)),
+                    Text('Job No',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                            color: Colors.black)),
                     Text('Need',
                         style: TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                            color: Colors.black)),
                     Text('Ordered',
                         style: TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                            color: Colors.black)),
                     Text('Order Qty',
                         style: TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                            color: Colors.black)),
                   ],
                 ),
                 ...prItems.map((prItem) {
@@ -284,12 +298,18 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                   final orderedQty = prItem.totalOrderedQuantity;
                   final remainingQty = totalQty - orderedQty;
 
-                  final isInExistingPO = widget.existingPO?.items.any((item) =>
-                          item.prQuantities.containsKey(prItem.prNo)) ??
+                  // Get the parent PR to access its job number
+                  final parentPR = ref.read(purchaseRequestListProvider)
+                      .firstWhere((pr) => pr.prNo == prItem.prNo);
+                  final jobNo = parentPR.jobNo ?? '-';
+
+                  final isInExistingPO = widget.existingPO?.items
+                          .any((item) => item.prQuantities.containsKey(prItem.prNo)) ??
                       false;
 
                   if (remainingQty <= 0 && !isInExistingPO) {
                     return const TableRow(children: [
+                      SizedBox(),
                       SizedBox(),
                       SizedBox(),
                       SizedBox(),
@@ -310,18 +330,28 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           value: isSelected,
                           onChanged: (bool? value) {
                             setState(() {
-                              selectedPRs[material.partNo]![prItem.prNo] =
-                                  value ?? false;
+                              // Initialize the maps if they don't exist
+                              selectedPRs.putIfAbsent(material.partNo, () => {});
+                              prQtyControllers.putIfAbsent(material.partNo, () => {});
+                              
+                              // Now safely set the selection
+                              selectedPRs[material.partNo]![prItem.prNo] = value ?? false;
+                              
+                              // Initialize the controller if it doesn't exist
+                              prQtyControllers[material.partNo]!.putIfAbsent(
+                                prItem.prNo,
+                                () => TextEditingController()
+                              );
+                              
+                              // Update the quantity
                               if (value == true) {
-                                // When checking, set to remaining quantity
-                                prQtyControllers[material.partNo]?[prItem.prNo]
-                                    ?.text = remainingQty.toString();
+                                prQtyControllers[material.partNo]![prItem.prNo]!
+                                    .text = remainingQty.toString();
                               } else {
-                                // When unchecking, set to 0
-                                prQtyControllers[material.partNo]?[prItem.prNo]
-                                    ?.text = '0';
+                                prQtyControllers[material.partNo]![prItem.prNo]!
+                                    .text = '0';
                               }
-                              _updateJobNumbers(); // Update job numbers when selection changes
+                              _updateJobNumbers();
                             });
                           },
                         ),
@@ -330,19 +360,37 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(prItem.prNo,
-                            style: const TextStyle(fontSize: 12)),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black
+                            )),
+                      ),
+                      // Job No
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(jobNo,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black
+                            )),
                       ),
                       // Need
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(totalQty.toStringAsFixed(2),
-                            style: const TextStyle(fontSize: 12)),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black
+                            )),
                       ),
                       // Ordered
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(orderedQty.toStringAsFixed(2),
-                            style: const TextStyle(fontSize: 12)),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black
+                            )),
                       ),
                       // Order Qty
                       Padding(
@@ -361,7 +409,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                               filled: !isSelected,
                               fillColor: !isSelected ? Colors.grey[200] : null,
                             ),
-                            style: const TextStyle(fontSize: 12),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black,
+                              fontWeight: FontWeight.w500
+                            ),
                             keyboardType: TextInputType.number,
                             validator: (value) {
                               if (!isSelected) return null;
@@ -381,7 +433,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                 prQtyControllers[material.partNo]?[prItem.prNo]
                                     ?.text = remainingQty.toString();
                               }
-                              _updateJobNumbers(); // Update job numbers when quantity changes
+                              _updateJobNumbers();
                               setState(() {});
                             },
                           ),
@@ -418,19 +470,21 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     // Group PR items by material code for the selected supplier
     final materialPRItems = <String, List<PRItem>>{};
     for (var pr in purchaseRequests) {
-      for (var item in pr.items) {
-        if (item.supplierName == selectedSupplier!.name) {
-          // Get the material to check preferred vendor
-          final material = materials.firstWhere(
-            (m) => m.partNo == item.materialCode,
-            orElse: () =>
-                throw Exception('Material not found: ${item.materialCode}'),
-          );
+      for (var item in pr.items.where((item) => !item.isFullyOrdered)) {
+        // Get the material
+        final material = materials.firstWhere(
+          (m) => m.partNo == item.materialCode,
+          orElse: () => throw Exception('Material not found: ${item.materialCode}'),
+        );
 
-          // Only add if this supplier is the preferred vendor for this material
-          if (material.getPreferredVendorName(ref) == selectedSupplier!.name) {
-            materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
-          }
+        // Get all vendor rates for this material
+        final rates = ref
+            .read(vendorMaterialRateProvider.notifier)
+            .getRatesForMaterial(material.slNo);
+
+        // Check if the selected supplier has a rate for this material
+        if (rates.any((r) => r.vendorId == selectedSupplier!.name)) {
+          materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
         }
       }
     }
@@ -438,15 +492,23 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     // Validate if at least one item has quantity
     bool hasItems = false;
     for (var entry in materialPRItems.entries) {
-      final prItems = entry.value;
-      for (var prItem in prItems) {
-        if (selectedPRs[entry.key]?[prItem.prNo] == true) {
-          final qty = double.tryParse(
-                  prQtyControllers[entry.key]?[prItem.prNo]?.text ?? '0') ??
-              0.0;
-          if (qty > 0) {
-            hasItems = true;
-            break;
+      for (var prItem in entry.value) {
+        // Initialize maps if they don't exist
+        selectedPRs.putIfAbsent(entry.key, () => {});
+        prQtyControllers.putIfAbsent(entry.key, () => {});
+
+        final isSelected = selectedPRs[entry.key]?[prItem.prNo] ?? false;
+        if (isSelected) {
+          final qtyController = prQtyControllers[entry.key]?[prItem.prNo];
+          if (qtyController != null) {
+            final qtyText = qtyController.text.trim();
+            if (qtyText.isNotEmpty) {
+              final qty = double.tryParse(qtyText) ?? 0.0;
+              if (qty > 0) {
+                hasItems = true;
+                break;
+              }
+            }
           }
         }
       }
@@ -457,14 +519,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Please add at least one item with quantity')),
-      );
-      return;
-    }
-
-    // Validate required fields
-    if (jobNumbers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No Job Numbers found from selected PRs')),
       );
       return;
     }
@@ -496,7 +550,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       final prItems = entry.value;
 
       final poItem = _createPOItem(material, prItems);
-
       if (double.parse(poItem.quantity) > 0) {
         updatedPOItems.add(poItem);
       }
@@ -589,21 +642,20 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     if (selectedSupplier != null) {
       for (var pr in purchaseRequests) {
         for (var item in pr.items.where((item) => !item.isFullyOrdered)) {
-          if (item.supplierName == selectedSupplier!.name) {
-            // Get the material to check preferred vendor
-            final material = materials.firstWhere(
-              (m) => m.partNo == item.materialCode,
-              orElse: () =>
-                  throw Exception('Material not found: ${item.materialCode}'),
-            );
+          // Get the material
+          final material = materials.firstWhere(
+            (m) => m.partNo == item.materialCode,
+            orElse: () => throw Exception('Material not found: ${item.materialCode}'),
+          );
 
-            // Only add if this supplier is the preferred vendor for this material
-            if (material.getPreferredVendorName(ref) ==
-                selectedSupplier!.name) {
-              materialPRItems
-                  .putIfAbsent(item.materialCode, () => [])
-                  .add(item);
-            }
+          // Get all vendor rates for this material
+          final rates = ref
+              .read(vendorMaterialRateProvider.notifier)
+              .getRatesForMaterial(material.slNo);
+
+          // Check if the selected supplier has a rate for this material
+          if (rates.any((r) => r.vendorId == selectedSupplier!.name)) {
+            materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
           }
         }
       }
@@ -612,7 +664,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     // Calculate totals
     double subtotal = 0;
     final poItems = <POItem>[];
-    final materialsWithoutRates = <String>[];
 
     for (var entry in materialPRItems.entries) {
       final material = materials.firstWhere(
@@ -620,39 +671,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         orElse: () => throw Exception('Material not found: ${entry.key}'),
       );
 
-      // Check if material has a rate
-      final rates = ref
-          .read(vendorMaterialRateProvider.notifier)
-          .getRatesForMaterial(material.slNo);
-      final hasRate = rates.any((r) => r.vendorId == selectedSupplier!.name);
-
-      if (!hasRate) {
-        materialsWithoutRates.add(material.description);
-      }
-
       final poItem = _createPOItem(material, entry.value);
       if (double.parse(poItem.quantity) > 0) {
         poItems.add(poItem);
         subtotal += double.parse(poItem.totalCost);
       }
-    }
-
-    // Show warning for materials without rates using post-frame callback
-    if (materialsWithoutRates.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Note: Only showing materials where ${selectedSupplier!.name} is the preferred vendor. Materials from other vendors will not appear here.',
-            ),
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'OK',
-              onPressed: () {},
-            ),
-          ),
-        );
-      });
     }
 
     return Scaffold(
@@ -732,144 +755,394 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                 decoration:
                     const InputDecoration(labelText: 'Delivery Requirements'),
               ),
-              if (jobNumbers.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  'Job Numbers from selected PRs:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+              const SizedBox(height: 24),
+              Text(
+                'Items',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 16),
+              if (selectedSupplier != null)
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: materialPRItems.length,
+                    itemBuilder: (context, index) {
+                      final materialCode = materialPRItems.keys.elementAt(index);
+                      final prItems = materialPRItems[materialCode]!;
+                      final material = materials.firstWhere(
+                        (m) => m.partNo == materialCode,
+                      );
+
+                      // Get all vendor rates for this material
+                      final rates = ref
+                          .read(vendorMaterialRateProvider.notifier)
+                          .getRatesForMaterial(material.slNo)
+                          .where((r) => double.tryParse(r.saleRate) != null)
+                          .toList();
+
+                      // Sort rates by price
+                      rates.sort((a, b) => double.parse(a.saleRate)
+                          .compareTo(double.parse(b.saleRate)));
+
+                      // Find selected supplier's rate
+                      final selectedRate = rates.firstWhere(
+                        (r) => r.vendorId == selectedSupplier!.name,
+                        orElse: () => throw Exception('Rate not found'),
+                      );
+
+                      // Get lowest and highest prices
+                      final lowestPrice = double.parse(rates.first.saleRate);
+                      final highestPrice = double.parse(rates.last.saleRate);
+                      final selectedPrice = double.parse(selectedRate.saleRate);
+
+                      // Determine color based on rate comparison
+                      Color priceColor;
+                      Color textColor = Colors.black; // Default text color
+
+                      if (selectedPrice == lowestPrice) {
+                        // Lowest price (or equal to lowest)
+                        priceColor = Colors.green.shade200;
+                      } else if (selectedPrice == highestPrice && selectedPrice > lowestPrice) {
+                        // Highest price (only if it's not also the lowest)
+                        priceColor = Colors.red.shade200;
+                      } else {
+                        // Middle price
+                        priceColor = Colors.yellow.shade200;
+                      }
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        color: priceColor,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          material.description,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: textColor,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Code: ${material.partNo} | Unit: ${material.unit}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: textColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              'Rate: ₹${selectedRate.saleRate}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            if (selectedPrice > lowestPrice) Text(
+                                              'Best Rate: ₹${rates.first.saleRate} (${rates.first.vendorId})',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 16),
+                              Table(
+                                columnWidths: const {
+                                  0: FlexColumnWidth(0.5), // Checkbox column
+                                  1: FlexColumnWidth(1.5), // PR No
+                                  2: FlexColumnWidth(1.5), // Job No
+                                  3: FlexColumnWidth(1), // Need
+                                  4: FlexColumnWidth(1), // Ordered
+                                  5: FlexColumnWidth(1.5), // Order Qty
+                                },
+                                children: [
+                                  TableRow(
+                                    children: [
+                                      const Text(''), // Checkbox header
+                                      Text('PR No',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                      Text('Job No',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                      Text('Need',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                      Text('Ordered',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                      Text('Order Qty',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                    ],
+                                  ),
+                                  ...prItems.map((prItem) {
+                                    final totalQty =
+                                        double.parse(prItem.quantity);
+                                    final orderedQty =
+                                        prItem.totalOrderedQuantity;
+                                    final remainingQty = totalQty - orderedQty;
+
+                                    // Get the parent PR to access its job number
+                                    final parentPR = ref.read(purchaseRequestListProvider)
+                                        .firstWhere((pr) => pr.prNo == prItem.prNo);
+                                    final jobNo = parentPR.jobNo ?? '-';
+
+                                    final isInExistingPO = widget.existingPO
+                                            ?.items
+                                            .any((item) => item.prQuantities
+                                                .containsKey(prItem.prNo)) ??
+                                        false;
+
+                                    if (remainingQty <= 0 && !isInExistingPO) {
+                                      return const TableRow(children: [
+                                        SizedBox(),
+                                        SizedBox(),
+                                        SizedBox(),
+                                        SizedBox(),
+                                        SizedBox(),
+                                        SizedBox()
+                                      ]);
+                                    }
+
+                                    final isSelected = selectedPRs[material
+                                            .partNo]?[prItem.prNo] ??
+                                        true;
+
+                                    return TableRow(
+                                      children: [
+                                        // Checkbox
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Checkbox(
+                                            value: isSelected,
+                                            onChanged: (bool? value) {
+                                              setState(() {
+                                                // Initialize the maps if they don't exist
+                                                selectedPRs.putIfAbsent(material.partNo, () => {});
+                                                prQtyControllers.putIfAbsent(material.partNo, () => {});
+                                                
+                                                // Now safely set the selection
+                                                selectedPRs[material.partNo]![prItem.prNo] = value ?? false;
+                                                
+                                                // Initialize the controller if it doesn't exist
+                                                prQtyControllers[material.partNo]!.putIfAbsent(
+                                                  prItem.prNo,
+                                                  () => TextEditingController()
+                                                );
+                                                
+                                                // Update the quantity
+                                                if (value == true) {
+                                                  prQtyControllers[material.partNo]![prItem.prNo]!
+                                                      .text = remainingQty.toString();
+                                                } else {
+                                                  prQtyControllers[material.partNo]![prItem.prNo]!
+                                                      .text = '0';
+                                                }
+                                                _updateJobNumbers();
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                        // PR No
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Text(prItem.prNo,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor
+                                              )),
+                                        ),
+                                        // Job No
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Text(jobNo,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.black
+                                              )),
+                                        ),
+                                        // Need
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Text(totalQty.toStringAsFixed(2),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor
+                                              )),
+                                        ),
+                                        // Ordered
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Text(orderedQty.toStringAsFixed(2),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor
+                                              )),
+                                        ),
+                                        // Order Qty
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: SizedBox(
+                                            height: 32,
+                                            child: TextFormField(
+                                              controller:
+                                                  prQtyControllers[material.partNo]![prItem.prNo],
+                                              enabled: isSelected,
+                                              decoration: InputDecoration(
+                                                isDense: true,
+                                                contentPadding: const EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 8),
+                                                border: const OutlineInputBorder(),
+                                                filled: !isSelected,
+                                                fillColor: !isSelected ? Colors.grey[200] : null,
+                                              ),
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.black,
+                                                fontWeight: FontWeight.w500
+                                              ),
+                                              keyboardType: TextInputType.number,
+                                              validator: (value) {
+                                                if (!isSelected) return null;
+                                                if (value == null || value.isEmpty) {
+                                                  return null;
+                                                }
+                                                final qty = double.tryParse(value);
+                                                if (qty == null) return 'Invalid';
+                                                if (qty < 0) return 'Invalid';
+                                                if (qty > remainingQty) return 'Exceeds';
+                                                return null;
+                                              },
+                                              onChanged: (value) {
+                                                if (!isSelected) return;
+                                                final qty = double.tryParse(value);
+                                                if (qty != null && qty > remainingQty) {
+                                                  prQtyControllers[material.partNo]?[prItem.prNo]
+                                                      ?.text = remainingQty.toString();
+                                                }
+                                                _updateJobNumbers();
+                                                setState(() {});
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).where(
+                                      (row) => row.children.any((cell) => cell is! SizedBox)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: jobNumbers
-                      .map((jobNo) => Chip(
-                            label: Text(jobNo),
-                            backgroundColor: Colors.grey[200],
-                          ))
-                      .toList(),
-                ),
-              ],
-              const SizedBox(height: 16),
               if (selectedSupplier != null) ...[
-                if (materialPRItems.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text(
-                        'No Purchase Requests found for this supplier',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[900],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ListenableBuilder(
+                    listenable: Listenable.merge([
+                      ...qtyControllers.values,
+                      ...prQtyControllers.values.expand(
+                          (controllers) => controllers.values),
+                    ]),
+                    builder: (context, _) {
+                      double total = 0;
+                      for (var entry in materialPRItems.entries) {
+                        final material = materials.firstWhere(
+                          (m) => m.partNo == entry.key,
+                          orElse: () =>
+                              throw Exception('Material not found'),
+                        );
+                        final poItem =
+                            _createPOItem(material, entry.value);
+                        total += double.parse(poItem.totalCost);
+                      }
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).primaryColor,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(8),
-                                topRight: Radius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              "Purchase Order Items",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                          Text(
+                            "Total Order Value: ",
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 14,
                             ),
                           ),
-                          Expanded(
-                            child: ListView.builder(
-                              padding: const EdgeInsets.all(8),
-                              itemCount: materialPRItems.length,
-                              itemBuilder: (_, index) {
-                                final entry =
-                                    materialPRItems.entries.elementAt(index);
-                                final material = materials.firstWhere(
-                                  (m) => m.partNo == entry.key,
-                                  orElse: () =>
-                                      throw Exception('Material not found'),
-                                );
-                                return _buildItemCard(material, entry.value);
-                              },
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[900],
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft: Radius.circular(8),
-                                bottomRight: Radius.circular(8),
-                              ),
-                            ),
-                            child: ListenableBuilder(
-                              listenable: Listenable.merge([
-                                ...qtyControllers.values,
-                                ...prQtyControllers.values.expand(
-                                    (controllers) => controllers.values),
-                              ]),
-                              builder: (context, _) {
-                                double total = 0;
-                                for (var entry in materialPRItems.entries) {
-                                  final material = materials.firstWhere(
-                                    (m) => m.partNo == entry.key,
-                                    orElse: () =>
-                                        throw Exception('Material not found'),
-                                  );
-                                  final poItem =
-                                      _createPOItem(material, entry.value);
-                                  total += double.parse(poItem.totalCost);
-                                }
-                                return Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      "Total Order Value: ",
-                                      style: TextStyle(
-                                        color: Colors.grey[400],
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    Text(
-                                      "₹${total.toStringAsFixed(2)}",
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
+                          Text(
+                            "₹${total.toStringAsFixed(2)}",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
                         ],
-                      ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (jobNumbers.isNotEmpty) ...[
+                  const Text(
+                    'Job Numbers from selected PRs:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
                   ),
-              ],
-              const SizedBox(height: 10),
-              if (selectedSupplier != null)
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: jobNumbers
+                        .map((jobNo) => Chip(
+                              label: Text(jobNo),
+                              backgroundColor: Colors.grey[200],
+                            ))
+                        .toList(),
+                  ),
+                ],
+                const SizedBox(height: 16),
                 Center(
                   child: ElevatedButton(
                     onPressed: _onSavePressed,
@@ -889,6 +1162,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
         ),

@@ -290,61 +290,53 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
 
     for (var i = 0; i < orders.length; i++) {
       final order = orders[i];
-      final itemsText = order.items
-          .map((item) => '${item.materialDescription} (${item.materialCode})')
-          .join('\n');
 
-      // Calculate total quantity
-      final totalQty = order.items
-          .fold<double>(0, (sum, item) => sum + double.parse(item.quantity));
-
-      // Get the most common unit from items
-      final units = order.items.map((item) => item.unit).toList();
-      final commonUnit = units.isNotEmpty ? units[0] : '-';
-
-      // Calculate received quantity from Store Inwards for this PO
-      double totalReceivedQty = 0;
-      for (var si in storeInwards) {
-        for (var siItem in si.items) {
-          if (siItem.poQuantities.containsKey(order.poNo)) {
-            totalReceivedQty += siItem.acceptedQty;
+      // For each item in the order, create a separate row
+      for (var item in order.items) {
+        // Calculate received quantity from Store Inwards for this specific item in this PO
+        double itemReceivedQty = 0;
+        for (var si in storeInwards) {
+          for (var siItem in si.items) {
+            if (siItem.poQuantities.containsKey(order.poNo) && 
+                siItem.materialCode == item.materialCode) {
+              itemReceivedQty += siItem.acceptedQty;
+            }
           }
         }
-      }
 
-      // Determine status based on received quantity
-      String status;
-      if (totalReceivedQty >= totalQty) {
-        status = 'Completed';
-      } else if (totalReceivedQty > 0) {
-        status = 'Partially Received';
-      } else {
-        status = 'Pending';
-      }
+        // Determine status based on received quantity for this specific item
+        String status;
+        if (itemReceivedQty >= double.parse(item.quantity)) {
+          status = 'Completed';
+        } else if (itemReceivedQty > 0) {
+          status = 'Partially Received';
+        } else {
+          status = 'Pending';
+        }
 
-      rows.add(
-        PlutoRow(
-          cells: {
-            'serialNo': PlutoCell(value: serialNo++),
-            'poNo': PlutoCell(value: order.poNo),
-            'poDate': PlutoCell(value: order.poDate),
-            'jobNo': PlutoCell(value: order.boardNo),
-            'supplier': PlutoCell(value: order.supplierName),
-            'items': PlutoCell(value: itemsText),
-            'quantity': PlutoCell(value: totalQty),
-            'unit': PlutoCell(value: commonUnit),
-            'status': PlutoCell(value: status),
-            'transport': PlutoCell(value: order.transport),
-            'deliveryRequirements':
-                PlutoCell(value: order.deliveryRequirements),
-            'total': PlutoCell(value: order.total),
-            'grandTotal': PlutoCell(value: order.grandTotal),
-            'actions': PlutoCell(value: ''),
-            'index': PlutoCell(value: i),
-          },
-            ),
-    );
-  }
+        rows.add(
+          PlutoRow(
+            cells: {
+              'serialNo': PlutoCell(value: serialNo++),
+              'poNo': PlutoCell(value: order.poNo),
+              'poDate': PlutoCell(value: order.poDate),
+              'jobNo': PlutoCell(value: order.boardNo),
+              'supplier': PlutoCell(value: order.supplierName),
+              'items': PlutoCell(value: '${item.materialDescription} (${item.materialCode})'),
+              'quantity': PlutoCell(value: double.parse(item.quantity)),
+              'unit': PlutoCell(value: item.unit),
+              'status': PlutoCell(value: status),
+              'transport': PlutoCell(value: order.transport),
+              'deliveryRequirements': PlutoCell(value: order.deliveryRequirements),
+              'total': PlutoCell(value: double.parse(item.costPerUnit) * double.parse(item.quantity)),
+              'grandTotal': PlutoCell(value: order.grandTotal),
+              'actions': PlutoCell(value: ''),
+              'index': PlutoCell(value: i),
+            },
+          ),
+        );
+      }
+    }
 
     return rows;
   }

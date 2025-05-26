@@ -17,13 +17,21 @@ class CategoryListNotifier extends StateNotifier<List<Category>> {
   CategoryListNotifier(this.box) : super(box.values.toList());
 
   Future<void> addCategory(String name) async {
-    final category = Category(name: name);
+    final category = Category(
+      name: name,
+      requiresQualityCheck: true,
+    );
     await box.add(category);
     state = box.values.toList();
   }
 
   Future<void> deleteCategory(Category category) async {
     await category.delete();
+    state = box.values.toList();
+  }
+
+  Future<void> updateCategory(Category category) async {
+    await box.put(category.key, category);
     state = box.values.toList();
   }
 }

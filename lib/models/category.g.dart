@@ -18,15 +18,18 @@ class CategoryAdapter extends TypeAdapter<Category> {
     };
     return Category(
       name: fields[0] as String,
+      requiresQualityCheck: (fields[1] as bool?) ?? true,
     );
   }
 
   @override
   void write(BinaryWriter writer, Category obj) {
     writer
-      ..writeByte(1)
+      ..writeByte(2)
       ..writeByte(0)
-      ..write(obj.name);
+      ..write(obj.name)
+      ..writeByte(1)
+      ..write(obj.requiresQualityCheck);
   }
 
   @override

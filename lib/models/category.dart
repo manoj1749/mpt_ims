@@ -7,5 +7,11 @@ class Category extends HiveObject {
   @HiveField(0)
   String name;
 
-  Category({required this.name});
+  @HiveField(1)
+  bool requiresQualityCheck;
+
+  Category({
+    required this.name,
+    this.requiresQualityCheck = true, // Default to true for existing data
+  });
 }

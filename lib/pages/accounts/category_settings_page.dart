@@ -272,6 +272,18 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                     ),
                   const SizedBox(height: 16),
                   SwitchListTile(
+                    title: const Text('Requires Quality Check'),
+                    subtitle: const Text(
+                        'Enable if materials in this category require quality inspection'),
+                    value: _selectedCategory?.requiresQualityCheck ?? true,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategory?.requiresQualityCheck = value;
+                        ref.read(categoryListProvider.notifier).updateCategory(_selectedCategory!);
+                      });
+                    },
+                  ),
+                  SwitchListTile(
                     title: const Text('Requires Expiry Date'),
                     subtitle: const Text(
                         'Enable if materials in this category need expiration date tracking'),

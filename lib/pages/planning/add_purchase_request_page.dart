@@ -8,9 +8,8 @@ import '../../models/purchase_request.dart';
 import '../../models/pr_item.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/purchase_request_provider.dart';
-import '../../provider/vendor_material_rate_provider.dart';
-import '../../models/vendor_material_rate.dart';
 import '../../provider/sale_order_provider.dart';
+import '../../models/material_item.dart';
 
 class AddPurchaseRequestPage extends ConsumerStatefulWidget {
   final PurchaseRequest? existingRequest;
@@ -23,14 +22,16 @@ class AddPurchaseRequestPage extends ConsumerStatefulWidget {
       _AddPurchaseRequestPageState();
 }
 
-class _AddPurchaseRequestPageState
-    extends ConsumerState<AddPurchaseRequestPage> {
+class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage> {
   final _formKey = GlobalKey<FormState>();
   final List<PRItemFormData> _items = [];
   final _requiredByController = TextEditingController();
   String? _selectedJobNo;
-  final Map<String, String?> _selectedVendors = {};
   bool _initialized = false;
+
+  // Controllers for bulk entry
+  final _materialCodesController = TextEditingController();
+  final _quantitiesController = TextEditingController();
 
   @override
   void initState() {
@@ -42,7 +43,6 @@ class _AddPurchaseRequestPageState
         _items.add(PRItemFormData(
           selectedMaterial: item.materialDescription,
           quantity: item.quantity,
-          remarks: item.remarks,
           partNoController: TextEditingController(text: item.materialCode),
           unitController: TextEditingController(text: item.unit),
         ));
@@ -53,21 +53,10 @@ class _AddPurchaseRequestPageState
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    if (!_initialized && widget.existingRequest != null) {
-      for (var item in widget.existingRequest!.items) {
-        // Initialize vendor selections from the item's supplier
-        _selectedVendors[item.materialDescription] = item.supplierName;
-      }
-      _initialized = true;
-    }
-  }
-
-  @override
   void dispose() {
     _requiredByController.dispose();
+    _materialCodesController.dispose();
+    _quantitiesController.dispose();
     for (var item in _items) {
       item.dispose();
     }
@@ -79,7 +68,6 @@ class _AddPurchaseRequestPageState
       _items.add(PRItemFormData(
         selectedMaterial: null,
         quantity: null,
-        remarks: null,
         partNoController: TextEditingController(),
         unitController: TextEditingController(),
       ));
@@ -89,78 +77,179 @@ class _AddPurchaseRequestPageState
   void _removeItem(int index) {
     setState(() {
       final item = _items[index];
-      if (item.selectedMaterial != null) {
-        _selectedVendors.remove(item.selectedMaterial);
-      }
       item.dispose();
       _items.removeAt(index);
     });
   }
 
-  List<VendorMaterialRate> _getVendorRates(String materialId) {
-    final rates = ref
-        .read(vendorMaterialRateProvider.notifier)
-        .getRatesForMaterial(materialId);
-    return rates;
-  }
+  Future<void> _showBulkEntryDialog() async {
+    _materialCodesController.clear();
+    _quantitiesController.clear();
+    bool isQuantityStep = false;
+    List<String> materialCodes = [];
+    final materials = ref.read(materialListProvider);
 
-  String? _validateMaterialVendors(String materialId, String description) {
-    _getVendorRates(materialId);
-    return null;
-  }
-
-  List<DropdownMenuItem<String>> _buildVendorDropdownItems(
-      String materialId, String materialDescription) {
-    final rates = _getVendorRates(materialId);
-    final preferredVendor = ref
-        .read(materialListProvider)
-        .firstWhere((m) => m.slNo == materialId)
-        .getPreferredVendorName(ref);
-
-    // Create a map to store unique vendors and their best rates
-    final vendorMap = <String, VendorMaterialRate>{};
-
-    // Keep only the best rate for each vendor
-    for (var rate in rates) {
-      if (!vendorMap.containsKey(rate.vendorId) ||
-          double.parse(rate.saleRate) <
-              double.parse(vendorMap[rate.vendorId]!.saleRate)) {
-        vendorMap[rate.vendorId] = rate;
-      }
-    }
-
-    // Convert to dropdown items
-    return vendorMap.values.map((rate) {
-      final isPreferred = rate.vendorId == preferredVendor;
-
-      return DropdownMenuItem<String>(
-        value: rate.vendorId,
-        child: Row(
-          children: [
-            if (isPreferred)
-              const Padding(
-                padding: EdgeInsets.only(right: 8),
-                child: Icon(Icons.star, color: Colors.amber, size: 16),
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(isQuantityStep ? 'Enter Quantities' : 'Enter Material Codes'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!isQuantityStep) ...[
+                    const Text(
+                      'Enter material codes, one per line:',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _materialCodesController,
+                      maxLines: 8,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: 'e.g.\nM001\nM002\nM003',
+                      ),
+                    ),
+                  ] else ...[
+                    const Text(
+                      'Enter quantities in the same order:',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _quantitiesController,
+                      maxLines: 8,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
+                        hintText: 'Enter quantities for:\n${materialCodes.join('\n')}',
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            Expanded(
-              child: Text(
-                rate.vendorId,
-                style: TextStyle(
-                  fontWeight: isPreferred ? FontWeight.bold : null,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
                 ),
-              ),
-            ),
-            Text(
-              '₹${rate.saleRate}',
-              style: TextStyle(
-                color: isPreferred ? Colors.green : null,
-                fontWeight: isPreferred ? FontWeight.bold : null,
-              ),
-            ),
-          ],
-        ),
-      );
-    }).toList();
+                FilledButton(
+                  onPressed: () {
+                    if (!isQuantityStep) {
+                      // Process material codes
+                      materialCodes = _materialCodesController.text
+                          .split('\n')
+                          .where((code) => code.trim().isNotEmpty)
+                          .map((code) => code.trim())
+                          .toList();
+
+                      // Validate material codes
+                      final invalidCodes = materialCodes
+                          .where((code) => !materials.any((m) => m.partNo == code))
+                          .toList();
+
+                      if (invalidCodes.isNotEmpty) {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Invalid Material Codes'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('The following codes were not found:'),
+                                const SizedBox(height: 8),
+                                Text(invalidCodes.join('\n')),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('OK'),
+                              ),
+                            ],
+                          ),
+                        );
+                        return;
+                      }
+
+                      setState(() {
+                        isQuantityStep = true;
+                      });
+                    } else {
+                      // Process quantities
+                      final quantities = _quantitiesController.text
+                          .split('\n')
+                          .where((qty) => qty.trim().isNotEmpty)
+                          .map((qty) => qty.trim())
+                          .toList();
+
+                      if (quantities.length != materialCodes.length) {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Quantity Mismatch'),
+                            content: Text(
+                                'Please enter ${materialCodes.length} quantities, one for each material code.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('OK'),
+                              ),
+                            ],
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Add all items
+                      // If we have an empty first item, use that instead of adding a new one
+                      bool hasUsedFirstItem = false;
+                      for (var i = 0; i < materialCodes.length; i++) {
+                        final material = materials.firstWhere(
+                            (m) => m.partNo == materialCodes[i]);
+                        final quantity = quantities[i];
+
+                        if (!hasUsedFirstItem && _items.isNotEmpty && 
+                            _items[0].selectedMaterial == null && 
+                            _items[0].quantity == null) {
+                          // Use the first empty item
+                          setState(() {
+                            _items[0].selectedMaterial = material.description;
+                            _items[0].quantity = quantity;
+                            _items[0].partNoController.text = material.partNo;
+                            _items[0].unitController.text = material.unit;
+                          });
+                          hasUsedFirstItem = true;
+                        } else {
+                          // Add new item
+                          _items.add(PRItemFormData(
+                            selectedMaterial: material.description,
+                            quantity: quantity,
+                            partNoController:
+                                TextEditingController(text: material.partNo),
+                            unitController:
+                                TextEditingController(text: material.unit),
+                          ));
+                        }
+                      }
+
+                      Navigator.pop(context);
+                      setState(() {});
+                    }
+                  },
+                  child: Text(isQuantityStep ? 'Add Items' : 'Next'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -188,7 +277,6 @@ class _AddPurchaseRequestPageState
                   Expanded(
                     child: TextFormField(
                       controller: _requiredByController,
-                      enabled: false,
                       decoration: const InputDecoration(
                         labelText: 'Required By',
                         border: OutlineInputBorder(),
@@ -205,291 +293,264 @@ class _AddPurchaseRequestPageState
                         labelText: 'Job No',
                         border: OutlineInputBorder(),
                       ),
-                      items: saleOrders.map((order) {
-                        return DropdownMenuItem<String>(
-                          value: order.boardNo,
-                          child:
-                              Text('${order.boardNo} - ${order.customerName}'),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedJobNo = value;
-                          if (value != null) {
-                            final selectedOrder = saleOrders.firstWhere(
-                              (order) => order.boardNo == value,
-                            );
-                            _requiredByController.text =
-                                selectedOrder.customerName;
-                          } else {
-                            _requiredByController.text = '';
-                          }
-                        });
-                      },
-                      validator: (value) => null, // Job number is optional
-                      isExpanded: true,
+                      items: [
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('None'),
+                        ),
+                        ...saleOrders
+                            .map((order) => DropdownMenuItem(
+                                  value: order.boardNo,
+                                  child: Text(order.boardNo),
+                                ))
+                            .toList(),
+                      ],
+                      onChanged: (v) => setState(() => _selectedJobNo = v),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Items',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _showBulkEntryDialog,
+                    icon: const Icon(Icons.playlist_add),
+                    label: const Text('Add Multiple Items'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
               ..._items.asMap().entries.map((entry) {
                 final index = entry.key;
                 final item = entry.value;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Item ${index + 1}',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const Spacer(),
-                          if (_items.length > 1)
-                            TextButton.icon(
-                              onPressed: () => _removeItem(index),
-                              icon: const Icon(Icons.delete_outline),
-                              label: const Text('Remove'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.red,
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Material Selection - Takes 2/3 of the space
+                            Expanded(
+                              flex: 2,
+                              child: Autocomplete<MaterialItem>(
+                                fieldViewBuilder: (context, textEditingController,
+                                    focusNode, onFieldSubmitted) {
+                                  // Set initial value without triggering rebuild
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (textEditingController.text.isEmpty && item.selectedMaterial != null) {
+                                      textEditingController.text = item.selectedMaterial!;
+                                    }
+                                  });
+                                  return TextFormField(
+                                    controller: textEditingController,
+                                    focusNode: focusNode,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Material',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    validator: (v) => v == null || v.isEmpty
+                                        ? 'Required'
+                                        : !materials
+                                                .any((m) => m.description == v)
+                                            ? 'Invalid material'
+                                            : null,
+                                  );
+                                },
+                                optionsViewBuilder: (context, onSelected, options) {
+                                  return Align(
+                                    alignment: Alignment.topLeft,
+                                    child: Material(
+                                      elevation: 4.0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        side: BorderSide(
+                                          color: Theme.of(context).dividerColor,
+                                        ),
+                                      ),
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          maxHeight: 200,
+                                          maxWidth: 600,
+                                        ),
+                                        child: ListView.builder(
+                                          padding: const EdgeInsets.all(8.0),
+                                          itemCount: options.length,
+                                          itemBuilder: (context, index) {
+                                            final option = options.elementAt(index);
+                                            return InkWell(
+                                              onTap: () => onSelected(option),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  vertical: 12.0,
+                                                  horizontal: 16.0,
+                                                ),
+                                                child: Text(
+                                                  option.description,
+                                                  style: const TextStyle(
+                                                    fontSize: 14.0,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                displayStringForOption: (material) =>
+                                    material.description,
+                                optionsBuilder: (textEditingValue) {
+                                  if (textEditingValue.text.isEmpty) {
+                                    return materials;
+                                  }
+                                  return materials.where((material) => material
+                                      .description
+                                      .toLowerCase()
+                                      .contains(
+                                          textEditingValue.text.toLowerCase()));
+                                },
+                                onSelected: (material) {
+                                  setState(() {
+                                    item.selectedMaterial = material.description;
+                                    item.partNoController.text = material.partNo;
+                                    item.unitController.text = material.unit;
+                                  });
+                                },
                               ),
                             ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField2<String>(
-                        isExpanded: true,
-                        value: item.selectedMaterial,
-                        decoration: const InputDecoration(
-                          labelText: 'Material Name',
-                          border: OutlineInputBorder(),
+                            const SizedBox(width: 16),
+                            // Quantity Field - Takes 1/3 of the space
+                            Expanded(
+                              child: TextFormField(
+                                key: ValueKey('quantity_${item.hashCode}'),
+                                initialValue: item.quantity,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Quantity',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (v) =>
+                                    v == null || v.isEmpty ? 'Required' : null,
+                                onChanged: (v) => item.quantity = v,
+                                onSaved: (v) => item.quantity = v,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Delete Button
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () => _removeItem(index),
+                            ),
+                          ],
                         ),
-                        items: materials.map((m) {
-                          final vendorError = _validateMaterialVendors(
-                            m.slNo,
-                            m.description,
-                          );
-                          return DropdownMenuItem<String>(
-                            value: m.description,
-                            enabled: vendorError == null,
-                            child: vendorError != null
-                                ? Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          m.description,
-                                          style: const TextStyle(
-                                              color: Colors.red),
-                                        ),
-                                      ),
-                                      Text(
-                                        vendorError,
-                                        style: const TextStyle(
-                                          color: Colors.red,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Text(m.description),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setState(() {
-                            if (item.selectedMaterial != null) {
-                              _selectedVendors.remove(item.selectedMaterial);
-                            }
-
-                            item.selectedMaterial = val;
-                            if (val != null) {
-                              final selectedItem = materials.firstWhere(
-                                (m) => m.description == val,
-                              );
-                              item.partNoController.text = selectedItem.partNo;
-                              item.unitController.text = selectedItem.unit;
-
-                              final rates = _getVendorRates(selectedItem.slNo);
-                              if (rates.isNotEmpty) {
-                                _selectedVendors[val] = rates.first.vendorId;
-                              }
-                            }
-                          });
-                        },
-                        validator: (val) {
-                          if (val == null || val.isEmpty) return 'Required';
-                          final material = materials.firstWhere(
-                            (m) => m.description == val,
-                          );
-                          return _validateMaterialVendors(material.slNo, val);
-                        },
-                      ),
-                      if (item.selectedMaterial != null) ...[
                         const SizedBox(height: 16),
-                        DropdownButtonFormField2<String>(
-                          isExpanded: true,
-                          value: _selectedVendors[item.selectedMaterial],
-                          decoration: const InputDecoration(
-                            labelText: 'Vendor',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: _buildVendorDropdownItems(
-                            materials
-                                .firstWhere((m) =>
-                                    m.description == item.selectedMaterial)
-                                .slNo,
-                            item.selectedMaterial!,
-                          ),
-                          onChanged: (val) {
-                            setState(() {
-                              _selectedVendors[item.selectedMaterial!] = val;
-                            });
-                          },
-                          validator: (val) =>
-                              val == null || val.isEmpty ? 'Required' : null,
+                        // Material Details Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: item.partNoController,
+                                enabled: false,
+                                decoration: const InputDecoration(
+                                  labelText: 'Material Code',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: TextFormField(
+                                controller: item.unitController,
+                                enabled: false,
+                                decoration: const InputDecoration(
+                                  labelText: 'Unit',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: item.partNoController,
-                              enabled: false,
-                              decoration: const InputDecoration(
-                                labelText: 'Material Code',
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: item.unitController,
-                              enabled: false,
-                              decoration: const InputDecoration(
-                                labelText: 'Unit',
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        initialValue: item.quantity,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Quantity',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Required' : null,
-                        onSaved: (v) => item.quantity = v,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        initialValue: item.remarks,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: 'Remarks',
-                          border: OutlineInputBorder(),
-                        ),
-                        onSaved: (v) => item.remarks = v,
-                      ),
-                      const Divider(height: 48),
-                    ],
+                    ),
                   ),
                 );
-              }),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _addNewItem,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Another Item'),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () async {
-                    if (_formKey.currentState!.validate()) {
-                      _formKey.currentState!.save();
-                      final now =
-                          DateFormat('yyyy-MM-dd').format(DateTime.now());
+              }).toList(),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _addNewItem,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Item'),
+                  ),
+                  FilledButton(
+                    onPressed: () async {
+                      if (_formKey.currentState!.validate()) {
+                        _formKey.currentState!.save();
+                        final now =
+                            DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-                      final prNo = widget.existingRequest?.prNo ??
-                          'PR${DateTime.now().millisecondsSinceEpoch}';
+                        final prNo = widget.existingRequest?.prNo ??
+                            'PR${DateTime.now().millisecondsSinceEpoch}';
 
-                      // Process all items (both new and existing)
-                      final allItems = <PRItem>[];
+                        // Process all items (both new and existing)
+                        final allItems = <PRItem>[];
 
-                      // First, process the form items
-                      for (var item in _items) {
-                        if (item.selectedMaterial == null) continue;
+                        // First, process the form items
+                        for (var item in _items) {
+                          if (item.selectedMaterial == null) continue;
 
-                        final material = materials.firstWhere(
-                          (m) => m.description == item.selectedMaterial,
-                        );
+                          final material = materials.firstWhere(
+                            (m) => m.description == item.selectedMaterial,
+                          );
 
-                        final supplierName =
-                            _selectedVendors[item.selectedMaterial]!;
+                          final prItem = PRItem(
+                            materialCode: material.partNo,
+                            materialDescription: material.description,
+                            unit: material.unit,
+                            quantity: item.quantity!,
+                            prNo: prNo,
+                          );
 
-                        final prItem = PRItem(
-                          materialCode: material.partNo,
-                          materialDescription: material.description,
-                          unit: material.unit,
-                          quantity: item.quantity!,
-                          remarks: item.remarks ?? '',
-                          prNo: prNo,
-                          supplierName: supplierName,
-                        );
-
-                        // Check if this is a modification of an existing item
-                        if (widget.existingRequest != null) {
-                          final existingItemIndex = widget
-                              .existingRequest!.items
-                              .indexWhere((existing) =>
-                                  existing.materialCode == prItem.materialCode);
-
-                          if (existingItemIndex != -1) {
-                            // Preserve ordered quantities from existing item
-                            prItem.orderedQuantities = Map<String, double>.from(
-                                widget.existingRequest!.items[existingItemIndex]
-                                    .orderedQuantities);
-                          }
+                          allItems.add(prItem);
                         }
 
-                        allItems.add(prItem);
-                      }
+                        final request = PurchaseRequest(
+                          prNo: prNo,
+                          date: now,
+                          requiredBy: _requiredByController.text,
+                          items: allItems,
+                          jobNo: _selectedJobNo,
+                        );
 
-                      final newRequest = PurchaseRequest(
-                        prNo: prNo,
-                        date: widget.existingRequest?.date ?? now,
-                        requiredBy: _requiredByController.text,
-                        items: allItems,
-                        status: widget.existingRequest?.status ?? 'Requested',
-                        jobNo: _selectedJobNo,
-                      );
+                        if (widget.existingRequest != null &&
+                            widget.index != null) {
+                          ref
+                              .read(purchaseRequestListProvider.notifier)
+                              .updateRequest(widget.index!, request);
+                        } else {
+                          ref
+                              .read(purchaseRequestListProvider.notifier)
+                              .addRequest(request);
+                        }
 
-                      final notifier =
-                          ref.read(purchaseRequestListProvider.notifier);
-                      if (widget.existingRequest != null &&
-                          widget.index != null) {
-                        await notifier.updateRequest(widget.index!, newRequest);
-                      } else {
-                        await notifier.addRequest(newRequest);
-                      }
-
-                      if (mounted) {
                         Navigator.pop(context);
                       }
-                    }
-                  },
-                  child: const Text('Submit'),
-                ),
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
               ),
             ],
           ),
@@ -502,14 +563,12 @@ class _AddPurchaseRequestPageState
 class PRItemFormData {
   String? selectedMaterial;
   String? quantity;
-  String? remarks;
   final TextEditingController partNoController;
   final TextEditingController unitController;
 
   PRItemFormData({
     required this.selectedMaterial,
     required this.quantity,
-    required this.remarks,
     required this.partNoController,
     required this.unitController,
   });

@@ -623,8 +623,6 @@ class _AddQualityInspectionPageState
         ...universalParams.map((param) => QualityParameter(
           parameter: param.name,
           specification: '',
-              observation:
-                  categorySpecificParams.contains(param.name) ? '' : 'NA',
           isAcceptable: true,
             )),
         ...categorySpecificParams
@@ -633,7 +631,6 @@ class _AddQualityInspectionPageState
             .map((paramName) => QualityParameter(
                   parameter: paramName,
                   specification: '',
-                  observation: '',
                   isAcceptable: true,
                 ))
       ];
@@ -1157,17 +1154,13 @@ class _AddQualityInspectionPageState
               const SizedBox(height: 8),
             Table(
               columnWidths: const {
-                0: FlexColumnWidth(2), // Parameter
-                1: FlexColumnWidth(2), // Observation
-                2: FlexColumnWidth(1), // Acceptable
+                0: FlexColumnWidth(3), // Parameter
+                1: FlexColumnWidth(1), // Acceptable
               },
                       children: [
                 const TableRow(
                   children: [
                     Text('Parameter',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
-                    Text('Observation',
                         style: TextStyle(
                             fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Acceptable',
@@ -1183,28 +1176,6 @@ class _AddQualityInspectionPageState
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(param.parameter,
                             style: const TextStyle(fontSize: 12)),
-                      ),
-                      // Observation
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: SizedBox(
-                          height: 32,
-                              child: TextFormField(
-                            initialValue: param.observation,
-                                decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 8),
-                                  border: OutlineInputBorder(),
-                                ),
-                            style: const TextStyle(fontSize: 12),
-                                onChanged: (value) {
-                                  setState(() {
-                                param.observation = value;
-                                  });
-                                },
-                              ),
-                            ),
                       ),
                       // Acceptable
                       Padding(

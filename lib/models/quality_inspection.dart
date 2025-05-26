@@ -367,9 +367,6 @@ class QualityParameter {
   String specification;
 
   @HiveField(2)
-  String observation;
-
-  @HiveField(3)
   bool isAcceptable;
 
   // Standard Quality Parameters - Exact names as per sheet
@@ -383,8 +380,7 @@ class QualityParameter {
   static const String platingQuality = 'Plating Quality';
   static const String gradeCheck = 'Grade Check';
   static const String colourShade = 'Colour/Shade';
-  static const String referenceStandard =
-      'Check for Reference Standard (IS/IEC)';
+  static const String referenceStandard = 'Check for Reference Standard (IS/IEC)';
   static const String conformanceReport = 'Review & Verify Conformance Report';
 
   // Get list of standard parameters
@@ -406,7 +402,13 @@ class QualityParameter {
   QualityParameter({
     required this.parameter,
     required this.specification,
-    required this.observation,
     required this.isAcceptable,
   });
+
+  // Helper method to convert String to bool for migration
+  static bool convertToBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is String) return value.toLowerCase() == 'true';
+    return false;
+  }
 }

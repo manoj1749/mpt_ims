@@ -496,48 +496,41 @@ class _QualityInspectionListPageState
         width: 120,
         enableEditingMode: false,
       ),
-      ...universalParams.map((param) {
-        final fieldName =
-            param.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
-        return PlutoColumn(
-          title: param.name,
-          field: fieldName,
-          type: PlutoColumnType.text(),
-          width: 120,
-          enableEditingMode: false,
-          renderer: (rendererContext) {
-            final value = rendererContext.cell.value;
-            if (value == null) {
-              return const Text('NA');
-            }
-
-            if (value is! QualityParameter) {
-              return Text(value.toString());
-            }
-
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    value.observation.isEmpty ? 'NA' : value.observation,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  width: 16,
-                  height: 16,
-                  margin: const EdgeInsets.only(left: 4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: value.isAcceptable ? Colors.green : Colors.red,
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      }),
+      PlutoColumn(
+        title: 'Parameters',
+        field: 'parameters',
+        type: PlutoColumnType.text(),
+        width: 200,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final item = rendererContext.row.cells['inspection']!.value as QualityInspection;
+          final parameters = item.items.first.parameters;
+          
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: parameters.map((param) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        param.parameter,
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(
+                      param.isAcceptable ? Icons.check_circle : Icons.cancel,
+                      color: param.isAcceptable ? Colors.green : Colors.red,
+                      size: 16,
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          );
+        },
+      ),
       PlutoColumn(
         title: 'Actions',
         field: 'actions',
@@ -602,17 +595,10 @@ class _QualityInspectionListPageState
           'grDate': PlutoCell(value: inspection.grnDate),
           'category': PlutoCell(value: item.category),
           'sampleSize': PlutoCell(value: item.sampleSize),
+          'parameters': PlutoCell(value: item.parameters),
           'actions': PlutoCell(value: ''),
           'inspection': PlutoCell(value: inspection),
         };
-
-        // Add parameter cells
-        for (var param in item.parameters) {
-          final fieldName = param.parameter
-              .toLowerCase()
-              .replaceAll(RegExp(r'[^a-z0-9]'), '_');
-          cells[fieldName] = PlutoCell(value: param);
-        }
 
         rows.add(PlutoRow(cells: cells));
       }
@@ -630,20 +616,20 @@ class _QualityInspectionListPageState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Inspection'),
-        content: Text(
+          content: Text(
           'Are you sure you want to delete inspection ${inspection.inspectionNo}?',
         ),
-        actions: [
-          TextButton(
+          actions: [
+            TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
-          ),
-          TextButton(
+            ),
+            TextButton(
             onPressed: () async {
               // Delete only this specific inspection
-              ref
-                  .read(qualityInspectionProvider.notifier)
-                  .deleteInspection(inspection);
+                ref
+                    .read(qualityInspectionProvider.notifier)
+                    .deleteInspection(inspection);
               Navigator.pop(context);
 
               // Refresh grid rows
@@ -657,12 +643,12 @@ class _QualityInspectionListPageState
                 const SnackBar(
                   content: Text('Inspection deleted successfully'),
                   duration: Duration(seconds: 2),
-                ),
+              ),
               );
             },
             child: const Text('Delete'),
-          ),
-        ],
+            ),
+          ],
       ),
     );
   }
@@ -724,8 +710,8 @@ class _QualityInspectionListPageState
                           columns: _getColumns(),
                           rows: _getRows(inspections),
                           onLoaded: (PlutoGridOnLoadedEvent event) {
-                            stateManager = event.stateManager;
-                            stateManager?.setShowColumnFilter(true);
+                              stateManager = event.stateManager;
+                              stateManager?.setShowColumnFilter(true);
                           },
                           configuration: PlutoGridConfiguration(
                             columnFilter: const PlutoGridColumnFilterConfig(

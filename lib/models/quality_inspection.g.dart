@@ -120,13 +120,15 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       invoiceDate: fields[25] as String?,
       grnDetails: (fields[26] as Map?)?.map((dynamic k, dynamic v) =>
           MapEntry(k as String, (v as Map).cast<String, String>())),
+      grnQuantities:
+          (fields[27] as Map?)?.cast<String, InspectionGRNQuantity>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, InspectionItem obj) {
     writer
-      ..writeByte(26)
+      ..writeByte(27)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -178,7 +180,9 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       ..writeByte(25)
       ..write(obj.invoiceDate)
       ..writeByte(26)
-      ..write(obj.grnDetails);
+      ..write(obj.grnDetails)
+      ..writeByte(27)
+      ..write(obj.grnQuantities);
   }
 
   @override
@@ -235,6 +239,49 @@ class InspectionPOQuantityAdapter extends TypeAdapter<InspectionPOQuantity> {
           typeId == other.typeId;
 }
 
+class InspectionGRNQuantityAdapter extends TypeAdapter<InspectionGRNQuantity> {
+  @override
+  final int typeId = 21;
+
+  @override
+  InspectionGRNQuantity read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return InspectionGRNQuantity(
+      receivedQty: fields[0] as double,
+      acceptedQty: fields[1] as double,
+      rejectedQty: fields[2] as double,
+      usageDecision: fields[3] as String,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, InspectionGRNQuantity obj) {
+    writer
+      ..writeByte(4)
+      ..writeByte(0)
+      ..write(obj.receivedQty)
+      ..writeByte(1)
+      ..write(obj.acceptedQty)
+      ..writeByte(2)
+      ..write(obj.rejectedQty)
+      ..writeByte(3)
+      ..write(obj.usageDecision);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InspectionGRNQuantityAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
 class QualityParameterAdapter extends TypeAdapter<QualityParameter> {
   @override
   final int typeId = 13;
@@ -243,27 +290,24 @@ class QualityParameterAdapter extends TypeAdapter<QualityParameter> {
   QualityParameter read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+      for (var i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return QualityParameter(
       parameter: fields[0] as String,
       specification: fields[1] as String,
-      observation: fields[2] as String,
-      isAcceptable: fields[3] as bool,
+      isAcceptable: QualityParameter.convertToBool(fields[2]),
     );
   }
 
   @override
   void write(BinaryWriter writer, QualityParameter obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(3)
       ..writeByte(0)
       ..write(obj.parameter)
       ..writeByte(1)
       ..write(obj.specification)
       ..writeByte(2)
-      ..write(obj.observation)
-      ..writeByte(3)
       ..write(obj.isAcceptable);
   }
 

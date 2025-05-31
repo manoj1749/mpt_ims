@@ -327,9 +327,9 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
               'quantity': PlutoCell(value: double.parse(item.quantity)),
               'unit': PlutoCell(value: item.unit),
               'status': PlutoCell(value: status),
-              'transport': PlutoCell(value: order.transport ?? ''),
+              'transport': PlutoCell(value: order.transport),
               'deliveryRequirements':
-                  PlutoCell(value: order.deliveryRequirements ?? ''),
+                  PlutoCell(value: order.deliveryRequirements),
               'total': PlutoCell(value: double.parse(item.totalCost)),
               'grandTotal': PlutoCell(value: order.grandTotal),
               'actions': PlutoCell(value: ''),

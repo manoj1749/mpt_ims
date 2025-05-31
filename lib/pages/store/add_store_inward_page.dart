@@ -570,7 +570,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             );
 
             // Get PR information for display
-            final prInfo = poItem.prDetails.values.map((detail) {
+            poItem.prDetails.values.map((detail) {
               return '${detail.prNo} (${detail.quantity})';
             }).join(', ');
 
@@ -581,8 +581,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 0.0;
 
             for (var prDetail in poItem.prDetails.values) {
-              if (prDetail.prNo == 'General')
+              if (prDetail.prNo == 'General') {
                 continue; // Skip general stock items
+              }
 
               final pr = purchaseRequests.firstWhere(
                 (pr) => pr.prNo == prDetail.prNo,

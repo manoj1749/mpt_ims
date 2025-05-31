@@ -323,7 +323,7 @@ class _PurchaseRequestListPageState
     for (var request in requests) {
       for (var item in request.items) {
         // Check if this PR's items are in any PO
-        final bool isInPO = ref.read(purchaseOrderListProvider).any((po) =>
+        ref.read(purchaseOrderListProvider).any((po) =>
             po.items.any((poItem) =>
                 poItem.materialCode == item.materialCode &&
                 poItem.prDetails.values
@@ -357,14 +357,14 @@ class _PurchaseRequestListPageState
                                     .quantity)));
 
         // Check if any PO exists for this PR
-        final bool hasAnyPO = ref.read(purchaseOrderListProvider).any((po) =>
+        ref.read(purchaseOrderListProvider).any((po) =>
             po.items.any((poItem) =>
                 poItem.materialCode == item.materialCode &&
                 poItem.prDetails.values
                     .any((detail) => detail.prNo == request.prNo)));
 
         // Check if all items in this PR are fully ordered
-        final bool allItemsOrdered = request.items.every((item) => ref
+        request.items.every((item) => ref
             .read(purchaseOrderListProvider)
             .any((po) => po.items.any((poItem) =>
                 poItem.materialCode == item.materialCode &&

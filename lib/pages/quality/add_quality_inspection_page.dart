@@ -1,4 +1,4 @@
-// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member, avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +14,6 @@ import '../../provider/store_inward_provider.dart';
 import '../../provider/category_parameter_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
 import '../../provider/purchase_order.dart';
-import '../../models/purchase_request.dart';
 import '../../provider/purchase_request_provider.dart';
 import 'dart:convert';
 
@@ -36,7 +35,6 @@ class _AddQualityInspectionPageState
   Supplier? selectedSupplier;
   List<InspectionItem> _items = [];
   Map<String, Map<String, bool>> selectedPOs = {};
-  bool _isLoading = false;
 
   @override
   void initState() {
@@ -396,7 +394,6 @@ class _AddQualityInspectionPageState
       return;
     }
 
-    setState(() => _isLoading = true);
 
     try {
       // Create quality inspection record
@@ -559,7 +556,6 @@ class _AddQualityInspectionPageState
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
       }
     }
   }
@@ -569,7 +565,7 @@ class _AddQualityInspectionPageState
     final universalParams = ref.watch(universalParameterProvider);
     final categoryParams = ref.watch(categoryParameterProvider);
     final purchaseOrders = ref.read(purchaseOrderListProvider);
-    final purchaseRequests = ref.read(purchaseRequestListProvider);
+    ref.read(purchaseRequestListProvider);
 
     // Get category-specific parameters
     final categorySpecificParams = categoryParams

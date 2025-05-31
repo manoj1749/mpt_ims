@@ -4,7 +4,6 @@ import 'package:pluto_grid/pluto_grid.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:csv/csv.dart';
 import 'dart:io';
-import 'dart:convert';
 import '../../models/quality_inspection.dart';
 import '../../provider/quality_inspection_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
@@ -21,7 +20,6 @@ class QualityInspectionListPage extends ConsumerStatefulWidget {
 class _QualityInspectionListPageState
     extends ConsumerState<QualityInspectionListPage> {
   PlutoGridStateManager? stateManager;
-  String _searchQuery = '';
   bool _showFilters = false;
   String _selectedStatus = 'All';
   DateTime? _startDate;
@@ -61,7 +59,7 @@ class _QualityInspectionListPageState
         csvData.add(rowData);
       }
 
-      final csvString = ListToCsvConverter().convert(csvData);
+      final csvString = const ListToCsvConverter().convert(csvData);
 
       // Get the documents directory
       final directory = await getApplicationDocumentsDirectory();
@@ -216,7 +214,6 @@ class _QualityInspectionListPageState
                     ),
                     onChanged: (value) {
                       setState(() {
-                        _searchQuery = value;
                       });
                     },
                   ),
@@ -340,7 +337,7 @@ class _QualityInspectionListPageState
   }
 
   List<PlutoColumn> _getColumns() {
-    final universalParams = ref.watch(universalParameterProvider);
+    ref.watch(universalParameterProvider);
 
     return [
       PlutoColumn(

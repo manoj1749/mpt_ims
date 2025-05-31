@@ -28,7 +28,6 @@ class _AddPurchaseRequestPageState
   final List<PRItemFormData> _items = [];
   final _requiredByController = TextEditingController();
   String? _selectedJobNo;
-  bool _initialized = false;
 
   // Controllers for bulk entry
   final _materialCodesController = TextEditingController();
@@ -309,7 +308,7 @@ class _AddPurchaseRequestPageState
                                   value: order.boardNo,
                                   child: Text(order.boardNo),
                                 ))
-                            .toList(),
+                            ,
                       ],
                       onChanged: (v) => setState(() => _selectedJobNo = v),
                     ),
@@ -500,7 +499,7 @@ class _AddPurchaseRequestPageState
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

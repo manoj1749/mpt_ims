@@ -66,13 +66,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       // Initialize PR quantities and selected PRs from existing PO items
       for (var item in widget.existingPO!.items) {
         selectedPRs[item.materialCode] = {};
-        item.prDetails.values.forEach((detail) {
+        for (var detail in item.prDetails.values) {
           selectedPRs[item.materialCode]![detail.prNo] = detail.quantity > 0;
           prQtyControllers
               .putIfAbsent(item.materialCode, () => {})
               .putIfAbsent(detail.prNo, () => TextEditingController())
               .text = detail.quantity.toString();
-        });
+        }
 
         // Initialize general stock quantities if any
         if (item.prDetails.isEmpty) {
@@ -179,65 +179,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   }
 
   // New method to create general stock PO item
-  POItem _createGeneralStockPOItem(MaterialItem material) {
-    final rates = ref
-        .read(vendorMaterialRateProvider.notifier)
-        .getRatesForMaterial(material.slNo);
-
-    final rate = rates.firstWhere(
-      (r) => r.vendorId == selectedSupplier!.name,
-    );
-
-    final controller = generalStockQtyControllers[material.partNo];
-    if (controller == null)
-      return POItem(
-        materialCode: material.partNo,
-        materialDescription: material.description,
-        unit: material.unit,
-        quantity: "0",
-        costPerUnit: rate.saleRate,
-        totalCost: "0",
-        saleRate: rate.saleRate,
-        marginPerUnit: "0",
-        totalMargin: "0",
-        prDetails: {},
-      );
-
-    final qty = double.tryParse(controller.text) ?? 0;
-    if (qty <= 0)
-      return POItem(
-        materialCode: material.partNo,
-        materialDescription: material.description,
-        unit: material.unit,
-        quantity: "0",
-        costPerUnit: rate.saleRate,
-        totalCost: "0",
-        saleRate: rate.saleRate,
-        marginPerUnit: "0",
-        totalMargin: "0",
-        prDetails: {},
-      );
-
-    final costPerUnit = double.parse(rate.saleRate);
-    final totalCost = qty * costPerUnit;
-    final marginPerUnit = 0.0;
-
-    return POItem(
-      materialCode: material.partNo,
-      materialDescription: material.description,
-      unit: material.unit,
-      quantity: qty.toString(),
-      costPerUnit: costPerUnit.toString(),
-      totalCost: totalCost.toString(),
-      saleRate: rate.saleRate,
-      marginPerUnit: marginPerUnit.toString(),
-      totalMargin: (marginPerUnit * qty).toString(),
-      prDetails: {
-        'General':
-            ItemPRDetails(prNo: 'General', jobNo: 'General', quantity: qty)
-      },
-    );
-  }
 
   // Method to update job numbers based on selected PRs with quantities
   void _updateJobNumbers() {
@@ -724,7 +665,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
       final costPerUnit = double.parse(rate.saleRate);
       final totalCost = qty * costPerUnit;
-      final marginPerUnit = 0.0;
+      const marginPerUnit = 0.0;
 
       // Create a separate POItem for general stock
       updatedPOItems.add(POItem(
@@ -1036,8 +977,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                     keyboardType: TextInputType.number,
                                     validator: (value) {
                                       if (!isSelected) return null;
-                                      if (value == null || value.isEmpty)
+                                      if (value == null || value.isEmpty) {
                                         return 'Required';
+                                      }
                                       final qty = double.tryParse(value);
                                       if (qty == null) return 'Invalid';
                                       if (qty <= 0) return 'Invalid';

@@ -12,6 +12,8 @@ import '../../models/supplier.dart';
 import '../../provider/supplier_provider.dart';
 import '../../models/purchase_order.dart';
 import '../../provider/purchase_order.dart';
+import '../../models/purchase_request.dart';
+import '../../provider/purchase_request_provider.dart';
 
 class AddStoreInwardPage extends ConsumerStatefulWidget {
   final StoreInward? existingGR;
@@ -68,7 +70,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         }
       }
     } else {
-      _grnDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    _grnDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
       _invoiceAmountController.text = '0.00';
     }
   }
@@ -113,20 +115,20 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       }
 
       if (selectedPOs[material.partNo]![po.poNo] == true) {
-        po.items.firstWhere(
-          (item) => item.materialCode == material.partNo,
-        );
+      final poItem = po.items.firstWhere(
+        (item) => item.materialCode == material.partNo,
+      );
 
-        final inwardController = poQtyControllers[material.partNo]?[po.poNo] ??
-            TextEditingController(text: '0');
-        poQtyControllers
-            .putIfAbsent(material.partNo, () => {})
-            .putIfAbsent(po.poNo, () => inwardController);
+      final inwardController = poQtyControllers[material.partNo]?[po.poNo] ??
+          TextEditingController(text: '0');
+      poQtyControllers
+          .putIfAbsent(material.partNo, () => {})
+          .putIfAbsent(po.poNo, () => inwardController);
 
-        final inwardQty = double.tryParse(inwardController.text) ?? 0;
-        if (inwardQty > 0) {
-          poQuantities[po.poNo] = inwardQty;
-          totalQty += inwardQty;
+      final inwardQty = double.tryParse(inwardController.text) ?? 0;
+      if (inwardQty > 0) {
+        poQuantities[po.poNo] = inwardQty;
+        totalQty += inwardQty;
         }
       }
     }
@@ -292,7 +294,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         child: Checkbox(
                           value: isSelected,
                           onChanged: (bool? value) {
-                            setState(() {
+    setState(() {
                               selectedPOs[material.partNo]![po.poNo] = value ?? false;
                               if (value == true) {
                                 poQtyControllers[material.partNo]![po.poNo]?.text = 
@@ -508,19 +510,19 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       if (widget.existingGR != null && widget.index != null) {
         final grNotifier = ref.read(storeInwardProvider.notifier);
         grNotifier.updateInward(widget.index!, newGR);
-      } else {
+          } else {
         final grNotifier = ref.read(storeInwardProvider.notifier);
         grNotifier.addInward(newGR);
       }
 
-      Navigator.pop(context);
+        Navigator.pop(context);
     } catch (e) {
       print('Error saving GR: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving GR: $e')),
-      );
+        );
     } finally {
-      setState(() => _isLoading = false);
+        setState(() => _isLoading = false);
     }
   }
 
@@ -551,63 +553,63 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             : "Create Goods Receipt"),
       ),
       body: Form(
-        key: _formKey,
+              key: _formKey,
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+        padding: const EdgeInsets.all(16),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField2<Supplier>(
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Select Supplier',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(vertical: 0),
-                          ),
-                          hint: const Text("Select Supplier"),
-                          value: selectedSupplier,
-                          items: suppliers
-                              .map((supplier) => DropdownMenuItem<Supplier>(
-                                    value: supplier,
-                                    child: Text(
-                                      supplier.name,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ))
-                              .toList(),
+                  children: [
+                    Row(
+            children: [
+                        Expanded(
+                child: DropdownButtonFormField2<Supplier>(
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Select Supplier',
+                    border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(vertical: 0),
+                  ),
+                            hint: const Text("Select Supplier"),
+                  value: selectedSupplier,
+                            items: suppliers
+                                .map((supplier) => DropdownMenuItem<Supplier>(
+                      value: supplier,
+                      child: Text(
+                        supplier.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                                    ))
+                                .toList(),
                           onChanged: widget.existingGR != null
                               ? null
                               : (val) {
-                                  setState(() {
-                                    selectedSupplier = val;
-                                    selectedPOs.clear();
-                                    poQtyControllers.clear();
+                    setState(() {
+                      selectedSupplier = val;
+                                selectedPOs.clear();
+                                poQtyControllers.clear();
                                     selectedJobNo = 'All';
-                                  });
-                                },
-                          dropdownStyleData: DropdownStyleData(
-                            maxHeight: 300,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
+                    });
+                  },
+                            dropdownStyleData: DropdownStyleData(
+                              maxHeight: 300,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            menuItemStyleData: const MenuItemStyleData(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                            ),
+                            buttonStyleData: const ButtonStyleData(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              height: 60,
                             ),
                           ),
-                          menuItemStyleData: const MenuItemStyleData(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
-                          ),
-                          buttonStyleData: const ButtonStyleData(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
-                            height: 60,
-                          ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
+                        const SizedBox(width: 16),
                       // Job Number Filter
-                      Expanded(
+                        Expanded(
                         child: DropdownButtonFormField2<String>(
                           isExpanded: true,
                           decoration: const InputDecoration(
@@ -646,14 +648,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             padding: EdgeInsets.symmetric(horizontal: 16),
                             height: 60,
                           ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
+                    Row(
+                      children: [
+                        Expanded(
                         child: TextFormField(
                           controller: _grnDateController,
                           decoration: const InputDecoration(
@@ -677,9 +679,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             }
                           },
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
                         child: TextFormField(
                           controller: _invoiceDateController,
                           decoration: const InputDecoration(
@@ -703,13 +705,13 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             }
                           },
                         ),
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
+                    Row(
+                      children: [
+                        Expanded(
                         child: TextFormField(
                           controller: _invoiceNoController,
                           decoration: const InputDecoration(
@@ -717,9 +719,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             border: OutlineInputBorder(),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
                         child: TextFormField(
                           controller: _invoiceAmountController,
                           decoration: const InputDecoration(
@@ -727,17 +729,17 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             border: OutlineInputBorder(),
                           ),
                           readOnly: true,
-                          style: TextStyle(
+                              style: TextStyle(
                             color: Colors.grey[700],
                             fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
                     ],
-                  ),
+                            ),
                   const SizedBox(height: 16),
                   Row(
-                    children: [
+                                  children: [
                       Expanded(
                         child: TextFormField(
                           controller: _receivedByController,
@@ -745,10 +747,10 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             labelText: 'Received By',
                             border: OutlineInputBorder(),
                           ),
-                        ),
-                      ),
+                                    ),
+                                  ),
                       const SizedBox(width: 16),
-                      Expanded(
+                                        Expanded(
                         child: TextFormField(
                           controller: _checkedByController,
                           decoration: const InputDecoration(
@@ -756,12 +758,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             border: OutlineInputBorder(),
                           ),
                         ),
-                      ),
+                                  ),
                     ],
-                  ),
-                ],
-              ),
-            ),
+                                    ),
+                                  ],
+                                ),
+                              ),
             if (selectedSupplier != null) ...[
               Expanded(
                 child: ListView(
@@ -781,15 +783,15 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 padding: const EdgeInsets.all(16),
                 child: SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                        child: ElevatedButton(
                     onPressed: _isLoading ? null : _onSavePressed,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 48, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 48, vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                     child: _isLoading
                         ? const CircularProgressIndicator()
                         : const Text(
@@ -798,12 +800,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
+                            ),
                           ),
-                  ),
-                ),
+                        ),
               ),
             ],
-          ],
+            ],
         ),
       ),
     );

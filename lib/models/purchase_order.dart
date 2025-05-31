@@ -64,8 +64,8 @@ class PurchaseOrder extends HiveObject {
 
   // Check if this PO contains any general stock items
   bool get hasGeneralStockItems {
-    return items.any((item) => 
-      item.prDetails.values.any((detail) => detail.jobNo == 'General'));
+    return items.any((item) =>
+        item.prDetails.values.any((detail) => detail.jobNo == 'General'));
   }
 
   // Get a formatted string for board number display

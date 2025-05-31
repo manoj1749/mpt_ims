@@ -59,7 +59,7 @@ class StoreInward extends HiveObject {
     for (var item in items) {
       print('\nChecking Item: ${item.materialCode}');
       print('Received Qty: ${item.receivedQty}');
-      
+
       double totalInspectedQty = 0;
       for (var qty in item.inspectedQuantities.values) {
         totalInspectedQty += qty;
@@ -69,10 +69,11 @@ class StoreInward extends HiveObject {
       if (totalInspectedQty > 0) {
         hasInspectedItems = true;
       }
-      
+
       if (totalInspectedQty < item.receivedQty) {
         allItemsInspected = false;
-        print('Item not fully inspected: $totalInspectedQty < ${item.receivedQty}');
+        print(
+            'Item not fully inspected: $totalInspectedQty < ${item.receivedQty}');
       }
     }
 

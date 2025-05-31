@@ -22,7 +22,8 @@ class AddPurchaseRequestPage extends ConsumerStatefulWidget {
       _AddPurchaseRequestPageState();
 }
 
-class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage> {
+class _AddPurchaseRequestPageState
+    extends ConsumerState<AddPurchaseRequestPage> {
   final _formKey = GlobalKey<FormState>();
   final List<PRItemFormData> _items = [];
   final _requiredByController = TextEditingController();
@@ -95,7 +96,8 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text(isQuantityStep ? 'Enter Quantities' : 'Enter Material Codes'),
+              title: Text(
+                  isQuantityStep ? 'Enter Quantities' : 'Enter Material Codes'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,7 +128,8 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         border: const OutlineInputBorder(),
-                        hintText: 'Enter quantities for:\n${materialCodes.join('\n')}',
+                        hintText:
+                            'Enter quantities for:\n${materialCodes.join('\n')}',
                       ),
                     ),
                   ],
@@ -149,7 +152,8 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
 
                       // Validate material codes
                       final invalidCodes = materialCodes
-                          .where((code) => !materials.any((m) => m.partNo == code))
+                          .where(
+                              (code) => !materials.any((m) => m.partNo == code))
                           .toList();
 
                       if (invalidCodes.isNotEmpty) {
@@ -161,7 +165,8 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('The following codes were not found:'),
+                                const Text(
+                                    'The following codes were not found:'),
                                 const SizedBox(height: 8),
                                 Text(invalidCodes.join('\n')),
                               ],
@@ -210,12 +215,13 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                       // If we have an empty first item, use that instead of adding a new one
                       bool hasUsedFirstItem = false;
                       for (var i = 0; i < materialCodes.length; i++) {
-                        final material = materials.firstWhere(
-                            (m) => m.partNo == materialCodes[i]);
+                        final material = materials
+                            .firstWhere((m) => m.partNo == materialCodes[i]);
                         final quantity = quantities[i];
 
-                        if (!hasUsedFirstItem && _items.isNotEmpty && 
-                            _items[0].selectedMaterial == null && 
+                        if (!hasUsedFirstItem &&
+                            _items.isNotEmpty &&
+                            _items[0].selectedMaterial == null &&
                             _items[0].quantity == null) {
                           // Use the first empty item
                           setState(() {
@@ -342,12 +348,17 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                             Expanded(
                               flex: 2,
                               child: Autocomplete<MaterialItem>(
-                                fieldViewBuilder: (context, textEditingController,
-                                    focusNode, onFieldSubmitted) {
+                                fieldViewBuilder: (context,
+                                    textEditingController,
+                                    focusNode,
+                                    onFieldSubmitted) {
                                   // Set initial value without triggering rebuild
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (textEditingController.text.isEmpty && item.selectedMaterial != null) {
-                                      textEditingController.text = item.selectedMaterial!;
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
+                                    if (textEditingController.text.isEmpty &&
+                                        item.selectedMaterial != null) {
+                                      textEditingController.text =
+                                          item.selectedMaterial!;
                                     }
                                   });
                                   return TextFormField(
@@ -365,7 +376,8 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                                             : null,
                                   );
                                 },
-                                optionsViewBuilder: (context, onSelected, options) {
+                                optionsViewBuilder:
+                                    (context, onSelected, options) {
                                   return Align(
                                     alignment: Alignment.topLeft,
                                     child: Material(
@@ -385,11 +397,13 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                                           padding: const EdgeInsets.all(8.0),
                                           itemCount: options.length,
                                           itemBuilder: (context, index) {
-                                            final option = options.elementAt(index);
+                                            final option =
+                                                options.elementAt(index);
                                             return InkWell(
                                               onTap: () => onSelected(option),
                                               child: Container(
-                                                padding: const EdgeInsets.symmetric(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
                                                   vertical: 12.0,
                                                   horizontal: 16.0,
                                                 ),
@@ -421,8 +435,10 @@ class _AddPurchaseRequestPageState extends ConsumerState<AddPurchaseRequestPage>
                                 },
                                 onSelected: (material) {
                                   setState(() {
-                                    item.selectedMaterial = material.description;
-                                    item.partNoController.text = material.partNo;
+                                    item.selectedMaterial =
+                                        material.description;
+                                    item.partNoController.text =
+                                        material.partNo;
                                     item.unitController.text = material.unit;
                                   });
                                 },

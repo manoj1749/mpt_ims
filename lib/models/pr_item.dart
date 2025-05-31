@@ -28,7 +28,8 @@ class PRItem extends HiveObject {
   @HiveField(7)
   String? _totalReceivedQuantityStr;
 
-  double get totalReceivedQuantity => double.tryParse(_totalReceivedQuantityStr ?? '0.0') ?? 0.0;
+  double get totalReceivedQuantity =>
+      double.tryParse(_totalReceivedQuantityStr ?? '0.0') ?? 0.0;
 
   set totalReceivedQuantity(double value) {
     _totalReceivedQuantityStr = value.toString();
@@ -78,7 +79,8 @@ class PRItem extends HiveObject {
       prNo: prNo ?? this.prNo,
       orderedQuantities:
           orderedQuantities ?? Map<String, double>.from(this.orderedQuantities),
-      totalReceivedQuantity: totalReceivedQuantity ?? this.totalReceivedQuantity,
+      totalReceivedQuantity:
+          totalReceivedQuantity ?? this.totalReceivedQuantity,
     );
   }
 }

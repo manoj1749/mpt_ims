@@ -77,7 +77,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         // Initialize general stock quantities if any
         if (item.prDetails.isEmpty) {
           selectedMaterials[item.materialCode] = true;
-          generalStockQtyControllers[item.materialCode] = 
+          generalStockQtyControllers[item.materialCode] =
               TextEditingController(text: item.quantity);
         }
 
@@ -149,12 +149,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               final pr = ref
                   .read(purchaseRequestListProvider)
                   .firstWhere((pr) => pr.prNo == prItem.prNo);
-              
+
               prDetails[prItem.prNo] = ItemPRDetails(
-                prNo: prItem.prNo,
-                jobNo: pr.jobNo ?? 'General',
-                quantity: orderQty
-              );
+                  prNo: prItem.prNo,
+                  jobNo: pr.jobNo ?? 'General',
+                  quantity: orderQty);
               totalQty += orderQty;
             }
           }
@@ -190,32 +189,34 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     );
 
     final controller = generalStockQtyControllers[material.partNo];
-    if (controller == null) return POItem(
-      materialCode: material.partNo,
-      materialDescription: material.description,
-      unit: material.unit,
-      quantity: "0",
-      costPerUnit: rate.saleRate,
-      totalCost: "0",
-      saleRate: rate.saleRate,
-      marginPerUnit: "0",
-      totalMargin: "0",
-      prDetails: {},
-    );
+    if (controller == null)
+      return POItem(
+        materialCode: material.partNo,
+        materialDescription: material.description,
+        unit: material.unit,
+        quantity: "0",
+        costPerUnit: rate.saleRate,
+        totalCost: "0",
+        saleRate: rate.saleRate,
+        marginPerUnit: "0",
+        totalMargin: "0",
+        prDetails: {},
+      );
 
     final qty = double.tryParse(controller.text) ?? 0;
-    if (qty <= 0) return POItem(
-      materialCode: material.partNo,
-      materialDescription: material.description,
-      unit: material.unit,
-      quantity: "0",
-      costPerUnit: rate.saleRate,
-      totalCost: "0",
-      saleRate: rate.saleRate,
-      marginPerUnit: "0",
-      totalMargin: "0",
-      prDetails: {},
-    );
+    if (qty <= 0)
+      return POItem(
+        materialCode: material.partNo,
+        materialDescription: material.description,
+        unit: material.unit,
+        quantity: "0",
+        costPerUnit: rate.saleRate,
+        totalCost: "0",
+        saleRate: rate.saleRate,
+        marginPerUnit: "0",
+        totalMargin: "0",
+        prDetails: {},
+      );
 
     final costPerUnit = double.parse(rate.saleRate);
     final totalCost = qty * costPerUnit;
@@ -232,11 +233,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       marginPerUnit: marginPerUnit.toString(),
       totalMargin: (marginPerUnit * qty).toString(),
       prDetails: {
-        'General': ItemPRDetails(
-          prNo: 'General',
-          jobNo: 'General',
-          quantity: qty
-        )
+        'General':
+            ItemPRDetails(prNo: 'General', jobNo: 'General', quantity: qty)
       },
     );
   }
@@ -281,8 +279,10 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       selectedPRs[material.partNo] = {};
       prQtyControllers[material.partNo] = {};
       for (var prItem in prItems) {
-        selectedPRs[material.partNo]![prItem.prNo] = false; // Default to not selected
-        prQtyControllers[material.partNo]![prItem.prNo] = TextEditingController();
+        selectedPRs[material.partNo]![prItem.prNo] =
+            false; // Default to not selected
+        prQtyControllers[material.partNo]![prItem.prNo] =
+            TextEditingController();
 
         // Get the parent PR to access its job number
         final pr = ref
@@ -309,7 +309,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         .toList();
 
     // Sort rates by price
-    rates.sort((a, b) => double.parse(a.saleRate).compareTo(double.parse(b.saleRate)));
+    rates.sort(
+        (a, b) => double.parse(a.saleRate).compareTo(double.parse(b.saleRate)));
 
     // Find selected supplier's rate
     final selectedRate = rates.firstWhere(
@@ -380,14 +381,15 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                             ),
                           ),
                           const SizedBox(width: 16),
-                          if (selectedPrice > lowestPrice) Text(
-                            'Best Rate: ₹${rates.first.saleRate} (${rates.first.vendorId})',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textColor,
-                              fontWeight: FontWeight.bold,
+                          if (selectedPrice > lowestPrice)
+                            Text(
+                              'Best Rate: ₹${rates.first.saleRate} (${rates.first.vendorId})',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: textColor,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ],
@@ -444,12 +446,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                   final remainingQty = totalQty - orderedQty;
 
                   // Get the parent PR to access its job number
-                  final parentPR = ref.read(purchaseRequestListProvider)
+                  final parentPR = ref
+                      .read(purchaseRequestListProvider)
                       .firstWhereOrNull((pr) => pr.prNo == prItem.prNo);
                   final jobNo = parentPR?.jobNo ?? '-';
 
-                  final isInExistingPO = widget.existingPO?.items
-                          .any((item) => item.prDetails.containsKey(prItem.prNo)) ??
+                  final isInExistingPO = widget.existingPO?.items.any(
+                          (item) => item.prDetails.containsKey(prItem.prNo)) ??
                       false;
 
                   if (remainingQty <= 0 && !isInExistingPO) {
@@ -463,7 +466,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     ]);
                   }
 
-                  final isSelected = selectedPRs[material.partNo]?[prItem.prNo] ?? false;
+                  final isSelected =
+                      selectedPRs[material.partNo]?[prItem.prNo] ?? false;
 
                   return TableRow(
                     children: [
@@ -474,16 +478,17 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           value: isSelected,
                           onChanged: (bool? value) {
                             setState(() {
-                              selectedPRs.putIfAbsent(material.partNo, () => {});
-                              prQtyControllers.putIfAbsent(material.partNo, () => {});
-                              
-                              selectedPRs[material.partNo]![prItem.prNo] = value ?? false;
-                              
+                              selectedPRs.putIfAbsent(
+                                  material.partNo, () => {});
+                              prQtyControllers.putIfAbsent(
+                                  material.partNo, () => {});
+
+                              selectedPRs[material.partNo]![prItem.prNo] =
+                                  value ?? false;
+
                               prQtyControllers[material.partNo]!.putIfAbsent(
-                                prItem.prNo,
-                                () => TextEditingController()
-                              );
-                              
+                                  prItem.prNo, () => TextEditingController());
+
                               if (value == true) {
                                 prQtyControllers[material.partNo]![prItem.prNo]!
                                     .text = remainingQty.toString();
@@ -500,37 +505,25 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(prItem.prNo,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textColor
-                            )),
+                            style: TextStyle(fontSize: 12, color: textColor)),
                       ),
                       // Job No
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(jobNo,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textColor
-                            )),
+                            style: TextStyle(fontSize: 12, color: textColor)),
                       ),
                       // Need
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(totalQty.toStringAsFixed(2),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textColor
-                            )),
+                            style: TextStyle(fontSize: 12, color: textColor)),
                       ),
                       // Ordered
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(orderedQty.toStringAsFixed(2),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textColor
-                            )),
+                            style: TextStyle(fontSize: 12, color: textColor)),
                       ),
                       // Order Qty
                       Padding(
@@ -538,7 +531,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         child: SizedBox(
                           height: 32,
                           child: TextFormField(
-                            controller: prQtyControllers[material.partNo]![prItem.prNo],
+                            controller:
+                                prQtyControllers[material.partNo]![prItem.prNo],
                             enabled: isSelected,
                             decoration: InputDecoration(
                               isDense: true,
@@ -549,10 +543,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                               fillColor: !isSelected ? Colors.grey[200] : null,
                             ),
                             style: TextStyle(
-                              fontSize: 12,
-                              color: textColor,
-                              fontWeight: FontWeight.w500
-                            ),
+                                fontSize: 12,
+                                color: textColor,
+                                fontWeight: FontWeight.w500),
                             keyboardType: TextInputType.number,
                             validator: (value) {
                               if (!isSelected) return null;
@@ -580,7 +573,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       ),
                     ],
                   );
-                }).where((row) => row.children.any((cell) => cell is! SizedBox)),
+                }).where(
+                    (row) => row.children.any((cell) => cell is! SizedBox)),
               ],
             ),
           ],
@@ -601,7 +595,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       for (var item in pr.items.where((item) => !item.isFullyOrdered)) {
         final material = materials.firstWhere(
           (m) => m.partNo == item.materialCode,
-          orElse: () => throw Exception('Material not found: ${item.materialCode}'),
+          orElse: () =>
+              throw Exception('Material not found: ${item.materialCode}'),
         );
 
         final rates = ref
@@ -743,11 +738,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         marginPerUnit: marginPerUnit.toString(),
         totalMargin: (marginPerUnit * qty).toString(),
         prDetails: {
-          'General': ItemPRDetails(
-            prNo: 'General',
-            jobNo: 'General',
-            quantity: qty
-          )
+          'General':
+              ItemPRDetails(prNo: 'General', jobNo: 'General', quantity: qty)
         },
       ));
     }
@@ -767,7 +759,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     final sgst = subtotal * (parseGstRate(selectedSupplier!.sgst) / 100);
     final grandTotal = subtotal + igst + cgst + sgst;
 
-    final poNo = widget.existingPO?.poNo ?? 'PO${DateTime.now().millisecondsSinceEpoch}';
+    final poNo =
+        widget.existingPO?.poNo ?? 'PO${DateTime.now().millisecondsSinceEpoch}';
 
     final newPO = po.PurchaseOrder(
       poNo: poNo,
@@ -804,10 +797,10 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               if (widget.existingPO != null) {
                 prItem.orderedQuantities.remove(widget.existingPO!.poNo);
               }
-              
+
               // Add the new ordered quantity
               prItem.addOrderedQuantity(poNo, prDetail.value.quantity);
-              
+
               // Update PR status
               pr.updateStatus();
               final index = purchaseRequests.indexOf(pr);
@@ -846,7 +839,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         for (var item in pr.items.where((item) => !item.isFullyOrdered)) {
           final material = materials.firstWhere(
             (m) => m.partNo == item.materialCode,
-            orElse: () => throw Exception('Material not found: ${item.materialCode}'),
+            orElse: () =>
+                throw Exception('Material not found: ${item.materialCode}'),
           );
 
           final rates = ref
@@ -940,11 +934,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               ),
               const SizedBox(height: 24),
               if (selectedSupplier != null) ...[
-              Text(
+                Text(
                   'PR-Based Items',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 16),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 16),
                 Expanded(
                   child: ListView(
                     children: [
@@ -952,9 +946,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       ...materialPRItems.entries.map((entry) {
                         final materialCode = entry.key;
                         final prItems = entry.value;
-                      final material = materials.firstWhere(
-                        (m) => m.partNo == materialCode,
-                      );
+                        final material = materials.firstWhere(
+                          (m) => m.partNo == materialCode,
+                        );
                         return _buildItemCard(material, prItems);
                       }),
                       const SizedBox(height: 24),
@@ -965,16 +959,17 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       ),
                       const SizedBox(height: 16),
                       ...materials.where((material) {
-                      final rates = ref
-                          .read(vendorMaterialRateProvider.notifier)
+                        final rates = ref
+                            .read(vendorMaterialRateProvider.notifier)
                             .getRatesForMaterial(material.slNo);
-                        return rates.any((r) => r.vendorId == selectedSupplier!.name);
+                        return rates
+                            .any((r) => r.vendorId == selectedSupplier!.name);
                       }).map((material) {
                         final rates = ref
                             .read(vendorMaterialRateProvider.notifier)
                             .getRatesForMaterial(material.slNo);
                         final rate = rates.firstWhere(
-                        (r) => r.vendorId == selectedSupplier!.name,
+                          (r) => r.vendorId == selectedSupplier!.name,
                         );
 
                         // Initialize controller if not exists
@@ -983,71 +978,79 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           () => TextEditingController(),
                         );
 
-                        final isSelected = selectedMaterials[material.partNo] ?? false;
+                        final isSelected =
+                            selectedMaterials[material.partNo] ?? false;
 
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        child: Padding(
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          child: Padding(
                             padding: const EdgeInsets.all(12),
                             child: Row(
-                            children: [
+                              children: [
                                 Checkbox(
                                   value: isSelected,
                                   onChanged: (value) {
                                     setState(() {
-                                      selectedMaterials[material.partNo] = value ?? false;
+                                      selectedMaterials[material.partNo] =
+                                          value ?? false;
                                       if (!value!) {
-                                        generalStockQtyControllers[material.partNo]?.text = '';
+                                        generalStockQtyControllers[
+                                                material.partNo]
+                                            ?.text = '';
                                       }
                                     });
                                   },
                                 ),
-                                  Expanded(
-                                    child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          material.description,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        material.description,
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                          fontWeight: FontWeight.bold,
                                         ),
-                                        Text(
-                                          'Code: ${material.partNo} | Unit: ${material.unit}',
+                                      ),
+                                      Text(
+                                        'Code: ${material.partNo} | Unit: ${material.unit}',
                                         style: const TextStyle(fontSize: 12),
-                                            ),
-                                          ],
-                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 const SizedBox(width: 16),
                                 SizedBox(
                                   width: 120,
-                                            child: TextFormField(
-                                    controller: generalStockQtyControllers[material.partNo],
-                                              enabled: isSelected,
-                                              decoration: InputDecoration(
+                                  child: TextFormField(
+                                    controller: generalStockQtyControllers[
+                                        material.partNo],
+                                    enabled: isSelected,
+                                    decoration: InputDecoration(
                                       labelText: 'Quantity',
-                                                border: const OutlineInputBorder(),
-                                                filled: !isSelected,
-                                                fillColor: !isSelected ? Colors.grey[200] : null,
-                                              ),
-                                              keyboardType: TextInputType.number,
-                                              validator: (value) {
-                                                if (!isSelected) return null;
-                                      if (value == null || value.isEmpty) return 'Required';
-                                                final qty = double.tryParse(value);
-                                                if (qty == null) return 'Invalid';
+                                      border: const OutlineInputBorder(),
+                                      filled: !isSelected,
+                                      fillColor:
+                                          !isSelected ? Colors.grey[200] : null,
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    validator: (value) {
+                                      if (!isSelected) return null;
+                                      if (value == null || value.isEmpty)
+                                        return 'Required';
+                                      final qty = double.tryParse(value);
+                                      if (qty == null) return 'Invalid';
                                       if (qty <= 0) return 'Invalid';
-                                                return null;
-                                              },
+                                      return null;
+                                    },
                                   ),
                                 ),
                                 const SizedBox(width: 16),
                                 Text('Rate: ₹${rate.saleRate}'),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      );
+                        );
                       }),
                     ],
                   ),
@@ -1062,7 +1065,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                   child: ListenableBuilder(
                     listenable: Listenable.merge([
                       ...qtyControllers.values,
-                      ...prQtyControllers.values.expand((controllers) => controllers.values),
+                      ...prQtyControllers.values
+                          .expand((controllers) => controllers.values),
                       ...generalStockQtyControllers.values,
                     ]),
                     builder: (context, _) {
@@ -1085,7 +1089,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         final material = materials.firstWhere(
                           (m) => m.partNo == entry.key,
                         );
-                        final qtyController = generalStockQtyControllers[entry.key];
+                        final qtyController =
+                            generalStockQtyControllers[entry.key];
                         if (qtyController == null) continue;
 
                         final qty = double.tryParse(qtyController.text) ?? 0;
@@ -1102,9 +1107,21 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       }
 
                       // Calculate GST
-                      final igst = total * (double.tryParse(selectedSupplier!.igst.replaceAll('%', '')) ?? 0) / 100;
-                      final cgst = total * (double.tryParse(selectedSupplier!.cgst.replaceAll('%', '')) ?? 0) / 100;
-                      final sgst = total * (double.tryParse(selectedSupplier!.sgst.replaceAll('%', '')) ?? 0) / 100;
+                      final igst = total *
+                          (double.tryParse(
+                                  selectedSupplier!.igst.replaceAll('%', '')) ??
+                              0) /
+                          100;
+                      final cgst = total *
+                          (double.tryParse(
+                                  selectedSupplier!.cgst.replaceAll('%', '')) ??
+                              0) /
+                          100;
+                      final sgst = total *
+                          (double.tryParse(
+                                  selectedSupplier!.sgst.replaceAll('%', '')) ??
+                              0) /
+                          100;
                       final grandTotal = total + igst + cgst + sgst;
 
                       return Column(
@@ -1117,11 +1134,14 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           const SizedBox(height: 8),
                           Text('Sub Total: ₹${total.toStringAsFixed(2)}'),
                           if (igst > 0)
-                            Text('IGST (${selectedSupplier!.igst}): ₹${igst.toStringAsFixed(2)}'),
+                            Text(
+                                'IGST (${selectedSupplier!.igst}): ₹${igst.toStringAsFixed(2)}'),
                           if (cgst > 0)
-                            Text('CGST (${selectedSupplier!.cgst}): ₹${cgst.toStringAsFixed(2)}'),
+                            Text(
+                                'CGST (${selectedSupplier!.cgst}): ₹${cgst.toStringAsFixed(2)}'),
                           if (sgst > 0)
-                            Text('SGST (${selectedSupplier!.sgst}): ₹${sgst.toStringAsFixed(2)}'),
+                            Text(
+                                'SGST (${selectedSupplier!.sgst}): ₹${sgst.toStringAsFixed(2)}'),
                           const Divider(),
                           Text(
                             'Grand Total: ₹${grandTotal.toStringAsFixed(2)}',

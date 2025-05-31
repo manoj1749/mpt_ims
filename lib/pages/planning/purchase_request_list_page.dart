@@ -326,19 +326,23 @@ class _PurchaseRequestListPageState
         final bool isInPO = ref.read(purchaseOrderListProvider).any((po) =>
             po.items.any((poItem) =>
                 poItem.materialCode == item.materialCode &&
-                poItem.prDetails.values.any((detail) => detail.prNo == request.prNo)));
+                poItem.prDetails.values
+                    .any((detail) => detail.prNo == request.prNo)));
 
         // Calculate total ordered quantity for this PR item
         final totalOrderedQty = ref
             .read(purchaseOrderListProvider)
             .where((po) => po.items.any((poItem) =>
                 poItem.materialCode == item.materialCode &&
-                poItem.prDetails.values.any((detail) => detail.prNo == request.prNo)))
+                poItem.prDetails.values
+                    .any((detail) => detail.prNo == request.prNo)))
             .fold(
                 0.0,
-                (sum, po) => sum +
+                (sum, po) =>
+                    sum +
                     po.items
-                        .where((poItem) => poItem.materialCode == item.materialCode)
+                        .where((poItem) =>
+                            poItem.materialCode == item.materialCode)
                         .fold(
                             0.0,
                             (itemSum, poItem) =>
@@ -356,25 +360,27 @@ class _PurchaseRequestListPageState
         final bool hasAnyPO = ref.read(purchaseOrderListProvider).any((po) =>
             po.items.any((poItem) =>
                 poItem.materialCode == item.materialCode &&
-                poItem.prDetails.values.any((detail) => detail.prNo == request.prNo)));
+                poItem.prDetails.values
+                    .any((detail) => detail.prNo == request.prNo)));
 
         // Check if all items in this PR are fully ordered
-        final bool allItemsOrdered = request.items.every((item) =>
-            ref.read(purchaseOrderListProvider).any((po) =>
-                po.items.any((poItem) =>
-                    poItem.materialCode == item.materialCode &&
-                    poItem.prDetails.values.any((detail) => detail.prNo == request.prNo))));
+        final bool allItemsOrdered = request.items.every((item) => ref
+            .read(purchaseOrderListProvider)
+            .any((po) => po.items.any((poItem) =>
+                poItem.materialCode == item.materialCode &&
+                poItem.prDetails.values
+                    .any((detail) => detail.prNo == request.prNo))));
 
         // Calculate received quantity from Store Inwards
         storeInwards
             .where((si) => si.items.any((siItem) =>
                 siItem.materialCode == item.materialCode &&
-                siItem.poQuantities.keys.any((poNo) => purchaseOrders.any(
-                    (po) =>
-                        po.poNo == poNo &&
-                        po.items.any((poItem) =>
-                            poItem.materialCode == item.materialCode &&
-                            poItem.prDetails.values.any((detail) => detail.prNo == request.prNo))))))
+                siItem.poQuantities.keys.any((poNo) => purchaseOrders.any((po) =>
+                    po.poNo == poNo &&
+                    po.items.any((poItem) =>
+                        poItem.materialCode == item.materialCode &&
+                        poItem.prDetails.values
+                            .any((detail) => detail.prNo == request.prNo))))))
             .fold<double>(
                 0,
                 (sum, si) =>
@@ -389,7 +395,8 @@ class _PurchaseRequestListPageState
         final relatedPOs = purchaseOrders
             .where((po) => po.items.any((poItem) =>
                 poItem.materialCode == item.materialCode &&
-                poItem.prDetails.values.any((detail) => detail.prNo == request.prNo)))
+                poItem.prDetails.values
+                    .any((detail) => detail.prNo == request.prNo)))
             .map((po) => '${po.poNo}\n(${po.poDate})')
             .join('\n\n');
 
@@ -402,7 +409,8 @@ class _PurchaseRequestListPageState
                         po.poNo == poNo &&
                         po.items.any((poItem) =>
                             poItem.materialCode == item.materialCode &&
-                            poItem.prDetails.values.any((detail) => detail.prNo == request.prNo))))))
+                            poItem.prDetails.values.any(
+                                (detail) => detail.prNo == request.prNo))))))
             .map((si) {
               final matchingItems = si.items
                   .where((siItem) => siItem.materialCode == item.materialCode);
@@ -522,11 +530,11 @@ class _PurchaseRequestListPageState
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const AddPurchaseRequestPage(
-              existingRequest: null,
-              index: null,
+            context,
+            MaterialPageRoute(
+                builder: (_) => const AddPurchaseRequestPage(
+                      existingRequest: null,
+                      index: null,
                     )),
           );
           // Refresh the grid after returning from add page
@@ -564,9 +572,9 @@ class _PurchaseRequestListPageState
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AddPurchaseRequestPage(
-                          existingRequest: null,
-                          index: null,
+                          builder: (_) => const AddPurchaseRequestPage(
+                                existingRequest: null,
+                                index: null,
                               )),
                     ),
                     child: const Text('Add New Request'),

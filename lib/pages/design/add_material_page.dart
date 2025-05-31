@@ -67,7 +67,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _controllers['description'] = TextEditingController(text: item.description);
     _controllers['partNo'] = TextEditingController(text: item.partNo);
     _controllers['unit'] = TextEditingController(text: item.unit);
-    _controllers['storageLocation'] = TextEditingController(text: item.storageLocation);
+    _controllers['storageLocation'] =
+        TextEditingController(text: item.storageLocation);
     _controllers['rackNumber'] = TextEditingController(text: item.rackNumber);
     _inspectionStockController = TextEditingController(text: '0');
 

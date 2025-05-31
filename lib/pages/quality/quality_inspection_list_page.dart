@@ -47,7 +47,7 @@ class _QualityInspectionListPageState
           .where((col) => col.field != 'actions')
           .map((col) => col.title)
           .toList();
-      
+
       final rows = _getRows(ref.read(qualityInspectionProvider));
       final csvData = [headers];
 
@@ -62,7 +62,7 @@ class _QualityInspectionListPageState
       }
 
       final csvString = ListToCsvConverter().convert(csvData);
-      
+
       // Get the documents directory
       final directory = await getApplicationDocumentsDirectory();
       final now = DateTime.now();
@@ -231,7 +231,9 @@ class _QualityInspectionListPageState
                   child: Row(
                     children: [
                       Icon(
-                        _showFilters ? Icons.filter_list_off : Icons.filter_list,
+                        _showFilters
+                            ? Icons.filter_list_off
+                            : Icons.filter_list,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
@@ -289,8 +291,8 @@ class _QualityInspectionListPageState
                         final date = await showDatePicker(
                           context: context,
                           initialDate: _startDate ?? DateTime.now(),
-                          firstDate:
-                              DateTime.now().subtract(const Duration(days: 365)),
+                          firstDate: DateTime.now()
+                              .subtract(const Duration(days: 365)),
                           lastDate: DateTime.now(),
                         );
                         if (date != null) {
@@ -316,8 +318,8 @@ class _QualityInspectionListPageState
                         final date = await showDatePicker(
                           context: context,
                           initialDate: _endDate ?? DateTime.now(),
-                          firstDate:
-                              DateTime.now().subtract(const Duration(days: 365)),
+                          firstDate: DateTime.now()
+                              .subtract(const Duration(days: 365)),
                           lastDate: DateTime.now(),
                         );
                         if (date != null) {
@@ -503,9 +505,10 @@ class _QualityInspectionListPageState
         width: 200,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final item = rendererContext.row.cells['inspection']!.value as QualityInspection;
+          final item = rendererContext.row.cells['inspection']!.value
+              as QualityInspection;
           final parameters = item.items.first.parameters;
-          
+
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -616,20 +619,20 @@ class _QualityInspectionListPageState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Inspection'),
-          content: Text(
+        content: Text(
           'Are you sure you want to delete inspection ${inspection.inspectionNo}?',
         ),
-          actions: [
-            TextButton(
+        actions: [
+          TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
-            ),
-            TextButton(
+          ),
+          TextButton(
             onPressed: () async {
               // Delete only this specific inspection
-                ref
-                    .read(qualityInspectionProvider.notifier)
-                    .deleteInspection(inspection);
+              ref
+                  .read(qualityInspectionProvider.notifier)
+                  .deleteInspection(inspection);
               Navigator.pop(context);
 
               // Refresh grid rows
@@ -643,12 +646,12 @@ class _QualityInspectionListPageState
                 const SnackBar(
                   content: Text('Inspection deleted successfully'),
                   duration: Duration(seconds: 2),
-              ),
+                ),
               );
             },
             child: const Text('Delete'),
-            ),
-          ],
+          ),
+        ],
       ),
     );
   }
@@ -710,8 +713,8 @@ class _QualityInspectionListPageState
                           columns: _getColumns(),
                           rows: _getRows(inspections),
                           onLoaded: (PlutoGridOnLoadedEvent event) {
-                              stateManager = event.stateManager;
-                              stateManager?.setShowColumnFilter(true);
+                            stateManager = event.stateManager;
+                            stateManager?.setShowColumnFilter(true);
                           },
                           configuration: PlutoGridConfiguration(
                             columnFilter: const PlutoGridColumnFilterConfig(

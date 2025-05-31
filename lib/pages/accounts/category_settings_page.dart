@@ -279,7 +279,9 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                     onChanged: (value) {
                       setState(() {
                         _selectedCategory?.requiresQualityCheck = value;
-                        ref.read(categoryListProvider.notifier).updateCategory(_selectedCategory!);
+                        ref
+                            .read(categoryListProvider.notifier)
+                            .updateCategory(_selectedCategory!);
                       });
                     },
                   ),

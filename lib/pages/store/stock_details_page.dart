@@ -503,17 +503,21 @@ class MaterialStockDetailPage extends ConsumerWidget {
     final rows = <PlutoRow>[];
 
     // Track inspection status per GRN
-    final grnInspectionStatus = <String, Map<String, double>>{};  // grnNo -> {acceptedQty, inspectedQty}
+    final grnInspectionStatus =
+        <String, Map<String, double>>{}; // grnNo -> {acceptedQty, inspectedQty}
 
     // Calculate inspection status for each GRN
     for (var inspection in qualityInspections) {
       for (var item in inspection.items) {
         if (item.materialCode == material.partNo) {
-          grnInspectionStatus.putIfAbsent(inspection.grnNo, () => {'acceptedQty': 0.0, 'inspectedQty': 0.0});
-          grnInspectionStatus[inspection.grnNo]!['acceptedQty'] = 
-            (grnInspectionStatus[inspection.grnNo]!['acceptedQty'] ?? 0.0) + item.acceptedQty;
-          grnInspectionStatus[inspection.grnNo]!['inspectedQty'] = 
-            (grnInspectionStatus[inspection.grnNo]!['inspectedQty'] ?? 0.0) + item.inspectedQty;
+          grnInspectionStatus.putIfAbsent(inspection.grnNo,
+              () => {'acceptedQty': 0.0, 'inspectedQty': 0.0});
+          grnInspectionStatus[inspection.grnNo]!['acceptedQty'] =
+              (grnInspectionStatus[inspection.grnNo]!['acceptedQty'] ?? 0.0) +
+                  item.acceptedQty;
+          grnInspectionStatus[inspection.grnNo]!['inspectedQty'] =
+              (grnInspectionStatus[inspection.grnNo]!['inspectedQty'] ?? 0.0) +
+                  item.inspectedQty;
         }
       }
     }
@@ -525,7 +529,7 @@ class MaterialStockDetailPage extends ConsumerWidget {
           final inspectionData = grnInspectionStatus[inward.grnNo];
           final totalAccepted = inspectionData?['acceptedQty'] ?? 0.0;
           final totalInspected = inspectionData?['inspectedQty'] ?? 0.0;
-          
+
           // Only show in stock distribution if:
           // 1. Has accepted quantity
           // 2. All received quantity has been inspected
@@ -578,17 +582,21 @@ class MaterialStockDetailPage extends ConsumerWidget {
     final rows = <PlutoRow>[];
 
     // Track inspection status per GRN
-    final grnInspectionStatus = <String, Map<String, double>>{};  // grnNo -> {acceptedQty, inspectedQty}
+    final grnInspectionStatus =
+        <String, Map<String, double>>{}; // grnNo -> {acceptedQty, inspectedQty}
 
     // Calculate inspection status for each GRN
     for (var inspection in qualityInspections) {
       for (var item in inspection.items) {
         if (item.materialCode == material.partNo) {
-          grnInspectionStatus.putIfAbsent(inspection.grnNo, () => {'acceptedQty': 0.0, 'inspectedQty': 0.0});
-          grnInspectionStatus[inspection.grnNo]!['acceptedQty'] = 
-            (grnInspectionStatus[inspection.grnNo]!['acceptedQty'] ?? 0.0) + item.acceptedQty;
-          grnInspectionStatus[inspection.grnNo]!['inspectedQty'] = 
-            (grnInspectionStatus[inspection.grnNo]!['inspectedQty'] ?? 0.0) + item.inspectedQty;
+          grnInspectionStatus.putIfAbsent(inspection.grnNo,
+              () => {'acceptedQty': 0.0, 'inspectedQty': 0.0});
+          grnInspectionStatus[inspection.grnNo]!['acceptedQty'] =
+              (grnInspectionStatus[inspection.grnNo]!['acceptedQty'] ?? 0.0) +
+                  item.acceptedQty;
+          grnInspectionStatus[inspection.grnNo]!['inspectedQty'] =
+              (grnInspectionStatus[inspection.grnNo]!['inspectedQty'] ?? 0.0) +
+                  item.inspectedQty;
         }
       }
     }
@@ -599,16 +607,19 @@ class MaterialStockDetailPage extends ConsumerWidget {
         if (item.materialCode == material.partNo) {
           final inspectionData = grnInspectionStatus[inward.grnNo];
           final totalInspected = inspectionData?['inspectedQty'] ?? 0.0;
-          
+
           // Show in under inspection only if:
           // 1. Not fully inspected (inspected qty < received qty)
           if (totalInspected < item.receivedQty) {
             final pendingQty = item.receivedQty - totalInspected;
-            final status = totalInspected > 0 ? 'Partially Inspected' : 'Pending Inspection';
-            
+            final status = totalInspected > 0
+                ? 'Partially Inspected'
+                : 'Pending Inspection';
+
             rows.add(PlutoRow(
               cells: {
-                'inspectionNo': PlutoCell(value: totalInspected > 0 ? 'Multiple' : '-'),
+                'inspectionNo':
+                    PlutoCell(value: totalInspected > 0 ? 'Multiple' : '-'),
                 'grnNo': PlutoCell(value: inward.grnNo),
                 'jobNo': PlutoCell(value: '-'),
                 'poNo': PlutoCell(value: inward.poNo),
@@ -738,4 +749,3 @@ class MaterialStockDetailPage extends ConsumerWidget {
     );
   }
 }
- 

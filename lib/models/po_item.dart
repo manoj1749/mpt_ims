@@ -35,7 +35,8 @@ class POItem extends HiveObject {
   Map<String, ItemPRDetails> prDetails = {}; // PR No -> PR Details
 
   @HiveField(10)
-  Map<String, double> receivedQuantities = {}; // GRN number -> received quantity
+  Map<String, double> receivedQuantities =
+      {}; // GRN number -> received quantity
 
   // Get all unique job numbers for this item
   Set<String> get jobNumbers {

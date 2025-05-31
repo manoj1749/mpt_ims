@@ -290,7 +290,7 @@ class QualityParameterAdapter extends TypeAdapter<QualityParameter> {
   QualityParameter read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
-      for (var i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return QualityParameter(
       parameter: fields[0] as String,

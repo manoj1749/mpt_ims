@@ -34,6 +34,7 @@ class AddPurchaseOrderPage extends ConsumerStatefulWidget {
 class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   final _formKey = GlobalKey<FormState>();
   Supplier? selectedSupplier;
+  String? selectedJobNo;
   List<POItem> poItems = [];
   final Map<String, TextEditingController> qtyControllers = {};
   final Map<String, TextEditingController> maxQtyControllers = {};
@@ -212,6 +213,17 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       }
     }
     setState(() {}); // Trigger rebuild to update UI
+  }
+
+  // Add method to get unique job numbers from PRs
+  List<String> _getUniqueJobNumbers(List<dynamic> purchaseRequests) {
+    final Set<String> jobNos = {'All'}; // Include 'All' as default option
+    for (var pr in purchaseRequests) {
+      if (pr.jobNo != null && pr.jobNo!.isNotEmpty) {
+        jobNos.add(pr.jobNo!);
+      }
+    }
+    return jobNos.toList()..sort();
   }
 
   Widget _buildItemCard(MaterialItem material, List<PRItem> prItems) {
@@ -773,10 +785,20 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         .where((pr) => pr.status != 'Completed')
         .toList();
 
+    // Get unique job numbers
+    final jobNumbers = _getUniqueJobNumbers(purchaseRequests);
+
     // Filter POs by selected supplier and group by material
     final materialPRItems = <String, List<PRItem>>{};
     if (selectedSupplier != null) {
       for (var pr in purchaseRequests) {
+        // Skip if job number filter is active and doesn't match
+        if (selectedJobNo != null && 
+            selectedJobNo != 'All' && 
+            pr.jobNo != selectedJobNo) {
+          continue;
+        }
+
         for (var item in pr.items.where((item) => !item.isFullyOrdered)) {
           final material = materials.firstWhere(
             (m) => m.partNo == item.materialCode,
@@ -832,6 +854,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           jobNumbers.clear();
                           selectedMaterials.clear();
                           generalStockQtyControllers.clear();
+                          selectedJobNo = 'All'; // Reset job filter when supplier changes
                         });
                       },
                       dropdownStyleData: DropdownStyleData(
@@ -850,6 +873,54 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     ),
                   ),
                   const SizedBox(width: 16),
+                  // Add Job Number Filter Dropdown
+                  Expanded(
+                    child: DropdownButtonFormField2<String>(
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Filter by Job',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(vertical: 0),
+                      ),
+                      hint: const Text("Select Job"),
+                      value: selectedJobNo ?? 'All',
+                      items: jobNumbers
+                          .map((jobNo) => DropdownMenuItem<String>(
+                                value: jobNo,
+                                child: Text(
+                                  jobNo,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          selectedJobNo = val;
+                          selectedPRs.clear();
+                          selectedMaterials.clear();
+                          generalStockQtyControllers.clear();
+                        });
+                      },
+                      dropdownStyleData: DropdownStyleData(
+                        maxHeight: 300,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      menuItemStyleData: const MenuItemStyleData(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      buttonStyleData: const ButtonStyleData(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        height: 60,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -863,7 +934,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
               TextFormField(
                 controller: _transportController,
                 decoration: const InputDecoration(labelText: 'Transport'),

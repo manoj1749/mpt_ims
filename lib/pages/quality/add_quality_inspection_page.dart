@@ -36,6 +36,7 @@ class _AddQualityInspectionPageState
   Supplier? selectedSupplier;
   List<InspectionItem> _items = [];
   Map<String, Map<String, bool>> selectedPOs = {};
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -59,6 +60,24 @@ class _AddQualityInspectionPageState
         .watch(storeInwardProvider)
         .where((inward) => inward.supplierName == supplier.name)
         .toList();
+
+    // Show message if no GRNs found for supplier
+    if (inwards.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No pending GRNs found for this supplier'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      setState(() {
+        selectedSupplier = supplier;
+        _items = [];
+      });
+      return;
+    }
+
     final inspections = ref.watch(qualityInspectionProvider);
     ref.read(purchaseOrderListProvider);
     ref.read(purchaseRequestListProvider);
@@ -288,20 +307,40 @@ class _AddQualityInspectionPageState
 
               // Material Groups
               if (_items.isEmpty && selectedSupplier != null)
-                        const Center(
-                          child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                            child: Text(
-                      'No pending materials for inspection',
-                              style: TextStyle(
-                                fontSize: 16,
-                        color: Colors.grey,
-                              ),
-                            ),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.inventory_2_outlined,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No pending materials for inspection',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
                           ),
-                        )
-                      else
-                        ..._items.map((item) => _buildItemCard(item)),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'There are no GRNs pending inspection for this supplier',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ..._items.map((item) => _buildItemCard(item)),
 
               const SizedBox(height: 20),
               FilledButton(
@@ -357,66 +396,9 @@ class _AddQualityInspectionPageState
       return;
     }
 
+    setState(() => _isLoading = true);
+
     try {
-      // Validate all items
-      bool isValid = true;
-      String errorMessage = '';
-
-      for (var item in _items) {
-        for (var poEntry in item.poQuantities.entries) {
-          final poQty = poEntry.value;
-
-          // Check if quantities are valid for partial recheck
-          if (poQty.usageDecision == '100% Recheck' &&
-              item.isPartialRecheck == true) {
-            if (poQty.acceptedQty + poQty.rejectedQty != poQty.receivedQty) {
-              isValid = false;
-              errorMessage =
-                  'Total of accepted and rejected quantities must equal received quantity for ${item.materialDescription}';
-              break;
-            }
-
-            // Check if conditional acceptance has remarks
-            if (item.conditionalAcceptanceReason != null &&
-                item.conditionalAcceptanceReason!.isEmpty) {
-              isValid = false;
-              errorMessage =
-                  'Please enter conditional remarks for ${item.materialDescription}';
-              break;
-            }
-          }
-
-          // For Lot Accepted, ensure accepted qty equals received qty and rejected is 0
-          if (poQty.usageDecision == 'Lot Accepted') {
-            item.updatePOQuantities(
-              poEntry.key,
-              acceptedQty: poQty.receivedQty,
-              rejectedQty: 0,
-            );
-          }
-
-          // For Rejected, ensure rejected qty equals received qty and accepted is 0
-          if (poQty.usageDecision == 'Rejected') {
-            item.updatePOQuantities(
-              poEntry.key,
-              acceptedQty: 0,
-              rejectedQty: poQty.receivedQty,
-            );
-          }
-        }
-        if (!isValid) break;
-      }
-
-      if (!isValid) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
       // Create quality inspection record
       final inspection = QualityInspection(
         inspectionNo: ref
@@ -436,6 +418,10 @@ class _AddQualityInspectionPageState
         status: 'Pending',
       );
 
+      print('\n=== Debug: Saving Quality Inspection ===');
+      print('Inspection No: ${inspection.inspectionNo}');
+      print('Status: ${inspection.status}');
+      
       // Update GRN status and collect PR/Job numbers
       final inwards = ref.read(storeInwardProvider);
       final purchaseOrders = ref.read(purchaseOrderListProvider);
@@ -444,10 +430,17 @@ class _AddQualityInspectionPageState
       final jobNumbers = <String, String>{};
 
       for (var item in _items) {
+        print('\nProcessing Item: ${item.materialCode}');
+        print('Usage Decision: ${item.usageDecision}');
+        
         for (var poEntry in item.poQuantities.entries) {
           final poNo = poEntry.key;
-          final inspectedQty =
-              poEntry.value.acceptedQty + poEntry.value.rejectedQty;
+          final poQty = poEntry.value;
+          print('\nPO: $poNo');
+          print('Received Qty: ${poQty.receivedQty}');
+          print('Accepted Qty: ${poQty.acceptedQty}');
+          print('Rejected Qty: ${poQty.rejectedQty}');
+          print('Usage Decision: ${poQty.usageDecision}');
 
           // Find the GRN and update its item quantities
           final inward = inwards.firstWhere(
@@ -455,49 +448,45 @@ class _AddQualityInspectionPageState
             orElse: () => throw Exception('GRN not found'),
           );
 
-          // Find the corresponding PO
+          print('\nGRN Details:');
+          print('GRN No: ${inward.grnNo}');
+          print('Current Status: ${inward.status}');
+
+          // Find PR numbers and job numbers from PO items
           final po = purchaseOrders.firstWhere(
             (po) => po.poNo == poNo,
             orElse: () => throw Exception('PO not found'),
           );
 
-          // Find PR numbers and job numbers from PO items
-          for (var poItem in po.items) {
-            if (poItem.materialCode == item.materialCode) {
-              // Get PR numbers from PO item's prQuantities
-              final prNos = poItem.prQuantities.keys.toList();
-              if (prNos.isNotEmpty) {
-                // Find the PR to get its job number
-                final pr = purchaseRequests.firstWhere(
-                  (pr) => pr.prNo == prNos.first,
-                  orElse: () => throw Exception('PR not found'),
-                );
-                prNumbers[poNo] = prNos.join(', ');
-                if (pr.jobNo != null) {
-                  jobNumbers[poNo] = pr.jobNo!;
-                }
-              }
-            }
-          }
-
-          final inwardItem = inward.items.firstWhere(
+          final poItem = po.items.firstWhere(
             (i) => i.materialCode == item.materialCode,
-            orElse: () => throw Exception('GRN item not found'),
+            orElse: () => throw Exception('PO item not found'),
           );
 
-          inwardItem.addInspectedQuantity(
-              inspection.inspectionNo, inspectedQty);
-          inward.updateStatus();
-          final index = inwards.indexOf(inward);
-          ref.read(storeInwardProvider.notifier).updateInward(index, inward);
+          // Get PR numbers for this PO item
+          final prNos = poItem.prDetails.values
+              .map((detail) => detail.prNo)
+              .where((prNo) => prNo != 'General')
+              .toList();
 
-          // Update inspection with GRN info from first item
-          if (inspection.grnNo.isEmpty) {
-            inspection.grnNo = inward.grnNo;
-            inspection.poNo = inward.poNo;
-            inspection.billNo = inward.invoiceNo;
-            inspection.billDate = inward.invoiceDate;
-            inspection.grnDate = inward.grnDate;
+          // Get job numbers for these PRs
+          final jobNos = prNos.map((prNo) {
+            final pr = ref.read(purchaseRequestListProvider)
+                .firstWhere((pr) => pr.prNo == prNo);
+            return pr.jobNo ?? '';
+          }).where((jobNo) => jobNo.isNotEmpty).join(', ');
+
+          // Display job numbers if available, otherwise show 'General Stock'
+          final displayText = jobNos.isNotEmpty ? jobNos : 'General Stock';
+
+          // Find the PR to get its job number
+          final pr = purchaseRequests.firstWhere(
+            (pr) => pr.prNo == prNos.first,
+            orElse: () => throw Exception('PR not found'),
+          );
+          prNumbers[poNo] = displayText;
+          if (pr.jobNo != null) {
+            jobNumbers[poNo] = pr.jobNo!;
           }
         }
       }
@@ -505,102 +494,69 @@ class _AddQualityInspectionPageState
       // Update inspection with PR and job numbers
       inspection.prNumbers = prNumbers;
       inspection.jobNumbers = jobNumbers;
+      print('\nUpdating PR and Job Numbers:');
+      print('PR Numbers: $prNumbers');
+      print('Job Numbers: $jobNumbers');
 
-      ref.read(qualityInspectionProvider.notifier).addInspection(inspection);
-
-      // Update PRs for rejected quantities
-      final prBox = ref.read(purchaseRequestBoxProvider);
-      final updatedPRs = <int, PurchaseRequest>{};
+      // Determine inspection status based on items
+      bool hasRejectedItems = false;
+      bool hasRecheckItems = false;
+      bool allItemsAccepted = true;
 
       for (var item in inspection.items) {
-        for (var poEntry in item.poQuantities.entries) {
-          final poNo = poEntry.key;
-          final poQty = poEntry.value;
-
-          if (poQty.rejectedQty > 0) {
-            // Find the PO to get PR references
-            final po = purchaseOrders.firstWhere(
-              (po) => po.poNo == poNo,
-              orElse: () => throw Exception('PO not found'),
-            );
-
-            // Find the PO item
-            final poItem = po.items.firstWhere(
-              (poItem) => poItem.materialCode == item.materialCode,
-              orElse: () => throw Exception('PO item not found'),
-            );
-
-            // Get PR numbers from PO item's prQuantities
-            for (var prEntry in poItem.prQuantities.entries) {
-              final prNo = prEntry.key;
-              final originalPRQty = prEntry.value;
-
-              // Find PR index
-              final prIndex =
-                  purchaseRequests.indexWhere((pr) => pr.prNo == prNo);
-              if (prIndex == -1) continue;
-
-              // Get PR from box if not already processed
-              final pr = updatedPRs[prIndex] ?? prBox.getAt(prIndex);
-              if (pr == null) continue;
-              updatedPRs[prIndex] = pr;
-
-              // Find and update PR item
-              final prItem = pr.items.firstWhere(
-                (item) => item.materialCode == poItem.materialCode,
-                orElse: () => throw Exception('PR item not found'),
-              );
-
-              // Calculate proportion of rejected quantity for this PR
-              final prProportion =
-                  originalPRQty / double.parse(poItem.quantity);
-              final prRejectedQty = poQty.rejectedQty * prProportion;
-
-              // Reduce ordered quantity by rejected amount
-              final currentOrderedQty = prItem.orderedQuantities[poNo] ?? 0.0;
-              if (currentOrderedQty > 0) {
-                prItem.orderedQuantities[poNo] =
-                    currentOrderedQty - prRejectedQty;
-
-                // If ordered quantity becomes 0 or negative, remove the PO entry
-                if (prItem.orderedQuantities[poNo]! <= 0) {
-                  prItem.orderedQuantities.remove(poNo);
-                }
-              }
+        for (var poQty in item.poQuantities.values) {
+          if (poQty.usageDecision == 'Rejected') {
+            hasRejectedItems = true;
+            allItemsAccepted = false;
+          } else if (poQty.usageDecision == '100% Recheck') {
+            hasRecheckItems = true;
+            allItemsAccepted = false;
+          } else if (poQty.usageDecision == 'Lot Accepted') {
+            // Check if all quantities are properly inspected
+            if (poQty.acceptedQty + poQty.rejectedQty < poQty.receivedQty) {
+              allItemsAccepted = false;
             }
           }
         }
       }
 
-      // Update all modified PRs in the box
-      for (var entry in updatedPRs.entries) {
-        final pr = entry.value;
-        // Update status based on remaining ordered quantities
-        if (pr.items.every((item) => item.orderedQuantities.isEmpty)) {
-          pr.status = 'Draft';
-        } else if (pr.items.any((item) => !item.isFullyOrdered)) {
-          pr.status = 'Partially Ordered';
-        }
-        await prBox.putAt(entry.key, pr);
+      // Update inspection status
+      if (hasRejectedItems) {
+        inspection.status = 'Rejected';
+      } else if (hasRecheckItems) {
+        inspection.status = 'Recheck';
+      } else if (allItemsAccepted) {
+        inspection.status = 'Approved';
+      } else {
+        inspection.status = 'Pending';
       }
 
-      // Refresh the provider state
-      if (updatedPRs.isNotEmpty) {
-        ref.read(purchaseRequestListProvider.notifier).state =
-            prBox.values.toList();
-      }
+      print('\nDetermined Inspection Status: ${inspection.status}');
+      print('Has Rejected Items: $hasRejectedItems');
+      print('Has Recheck Items: $hasRecheckItems');
+      print('All Items Accepted: $allItemsAccepted');
+
+      // Save the inspection
+      ref.read(qualityInspectionProvider.notifier).addInspection(inspection);
+      print('\nQuality Inspection Saved Successfully');
+      print('Final Status: ${inspection.status}');
+      print('Final GRN No: ${inspection.grnNo}');
+      print('Final PO No: ${inspection.poNo}');
 
       if (mounted) {
         Navigator.pop(context);
       }
     } catch (e) {
+      print('\nError saving inspection: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving inspection: $e')),
         );
       }
     } finally {
-      if (mounted) {}
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -759,32 +715,32 @@ class _AddQualityInspectionPageState
                   final poQty = entry.value;
                   final grnInfoMap = item.grnDetails[poNo] ?? {};
 
-                  // Find PR and Job numbers for this PO
-                  String prNo = '';
-                  String jobNo = '';
+                  // Find PO and PO item
                   final po = purchaseOrders.firstWhere(
                     (po) => po.poNo == poNo,
                     orElse: () => throw Exception('PO not found'),
                   );
 
-                  // Get PR numbers from PO item's prQuantities
                   final poItem = po.items.firstWhere(
                     (i) => i.materialCode == item.materialCode,
                     orElse: () => throw Exception('PO item not found'),
                   );
 
-                  final prNos = poItem.prQuantities.keys.toList();
-                  if (prNos.isNotEmpty) {
-                    prNo = prNos.join(', ');
-                    // Find the PR to get its job number
-                    final pr = purchaseRequests.firstWhere(
-                      (pr) => pr.prNo == prNos.first,
-                      orElse: () => throw Exception('PR not found'),
-                    );
-                    if (pr.jobNo != null) {
-                      jobNo = pr.jobNo!;
-                    }
-                  }
+                  // Get PR numbers for this PO item
+                  final prNos = poItem.prDetails.values
+                      .map((detail) => detail.prNo)
+                      .where((prNo) => prNo != 'General')
+                      .toList();
+
+                  // Get job numbers for these PRs
+                  final jobNos = prNos.map((prNo) {
+                    final pr = ref.read(purchaseRequestListProvider)
+                        .firstWhere((pr) => pr.prNo == prNo);
+                    return pr.jobNo ?? '';
+                  }).where((jobNo) => jobNo.isNotEmpty).join(', ');
+
+                  // Display job numbers if available, otherwise show 'General Stock'
+                  final displayText = jobNos.isNotEmpty ? jobNos : 'General Stock';
 
                   return TableRow(
                     decoration: const BoxDecoration(
@@ -814,14 +770,14 @@ class _AddQualityInspectionPageState
                       Padding(
                         padding: const EdgeInsets.symmetric(
                             vertical: 8, horizontal: 8),
-                        child: Text(prNo, style: const TextStyle(fontSize: 12)),
+                        child: Text(displayText, style: const TextStyle(fontSize: 12)),
                       ),
                       // Job No
                       Padding(
                         padding: const EdgeInsets.symmetric(
                             vertical: 8, horizontal: 8),
                         child:
-                            Text(jobNo, style: const TextStyle(fontSize: 12)),
+                            Text(displayText, style: const TextStyle(fontSize: 12)),
                       ),
                       // Received Qty
                       Padding(

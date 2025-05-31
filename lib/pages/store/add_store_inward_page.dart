@@ -214,23 +214,10 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   final isSelected =
                       selectedPOs[material.partNo]?[po.poNo] ?? true;
 
-                  // Get PR numbers and job numbers for this PO item
-                  final prInfo = poItem.prQuantities.entries.map((entry) {
-                    final prNo = entry.key;
-                    // Find the PR to get its job number
-                    final pr = ref.read(purchaseRequestListProvider)
-                        .firstWhere(
-                          (pr) => pr.prNo == prNo,
-                          orElse: () => PurchaseRequest(
-                            prNo: prNo,
-                            date: '',
-                            requiredBy: '',
-                            items: [],
-                          ),
-                        );
-                    final jobNo = pr.jobNo ?? '';
-                    return '$prNo${jobNo.isNotEmpty ? ' ($jobNo)' : ''}';
-                  }).join('\n');
+                  // Get PR information
+                  final prInfo = poItem.prDetails.values.map((detail) {
+                    return '${detail.prNo} (${detail.quantity})';
+                  }).join(', ');
 
                   return TableRow(
                     children: [
@@ -582,23 +569,38 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               orElse: () => throw Exception('PO item not found'),
             );
 
-            // Get PR numbers from PO item's prQuantities
-            for (var prEntry in poItem.prQuantities.entries) {
-              final prNo = prEntry.key;
+            // Get PR information for display
+            final prInfo = poItem.prDetails.values.map((detail) {
+              return '${detail.prNo} (${detail.quantity})';
+            }).join(', ');
 
-              // Find PR index
-              final prIndex =
-                  purchaseRequests.indexWhere((pr) => pr.prNo == prNo);
-              if (prIndex == -1) continue;
+            // Update PR quantities
+            final receivedQty = double.tryParse(
+              receivedQtyControllers[item.materialCode]?[poNo]?.text ?? '0'
+            ) ?? 0.0;
 
-              // Get PR from box if not already processed
-              if (!updatedPRs.containsKey(prIndex)) {
-                final pr = purchaseRequests[prIndex];
-                updatedPRs[prIndex] = pr.copyWith();
-              }
+            for (var prDetail in poItem.prDetails.values) {
+              if (prDetail.prNo == 'General') continue; // Skip general stock items
+              
+              final pr = purchaseRequests.firstWhere(
+                (pr) => pr.prNo == prDetail.prNo,
+                orElse: () => throw Exception('PR not found'),
+              );
+
+              final prItem = pr.items.firstWhere(
+                (item) => item.materialCode == poItem.materialCode,
+                orElse: () => throw Exception('PR item not found'),
+              );
+
+              // Calculate proportional received quantity based on PO quantities
+              final proportionalQty = (prDetail.quantity / double.parse(poItem.quantity)) * receivedQty;
+              prItem.totalReceivedQuantity += proportionalQty;
+              pr.updateStatus();
+              final index = purchaseRequests.indexOf(pr);
+              prNotifier.updateRequest(index, pr);
             }
           } catch (e) {
-            // print('Error processing PR updates for PO $poNo: $e');
+            print('Error updating PR quantities: $e');
             continue;
           }
         }

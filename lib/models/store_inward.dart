@@ -49,14 +49,44 @@ class StoreInward extends HiveObject {
   bool get isFullyInspected => items.every((item) => item.isFullyInspected);
 
   void updateStatus() {
-    if (isFullyInspected) {
-      status = 'Completed';
-    } else if (items.any((item) => item.inspectedQuantity > 0)) {
-      status = 'Partially Inspected';
-    } else {
-      status = 'Pending';
+    print('\n=== Debug: Updating GRN Status ===');
+    print('GRN No: $grnNo');
+    print('Current Status: $status');
+
+    bool allItemsInspected = true;
+    bool hasInspectedItems = false;
+
+    for (var item in items) {
+      print('\nChecking Item: ${item.materialCode}');
+      print('Received Qty: ${item.receivedQty}');
+      
+      double totalInspectedQty = 0;
+      for (var qty in item.inspectedQuantities.values) {
+        totalInspectedQty += qty;
+      }
+      print('Total Inspected Qty: $totalInspectedQty');
+
+      if (totalInspectedQty > 0) {
+        hasInspectedItems = true;
+      }
+      
+      if (totalInspectedQty < item.receivedQty) {
+        allItemsInspected = false;
+        print('Item not fully inspected: $totalInspectedQty < ${item.receivedQty}');
+      }
     }
-    save();
+
+    String newStatus;
+    if (!hasInspectedItems) {
+      newStatus = 'Under Inspection';
+    } else if (allItemsInspected) {
+      newStatus = 'Inspected';
+    } else {
+      newStatus = 'Partially Inspected';
+    }
+
+    print('New Status: $newStatus');
+    status = newStatus;
   }
 
   StoreInward({

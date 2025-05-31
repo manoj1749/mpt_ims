@@ -26,6 +26,12 @@ class MaterialItem extends HiveObject {
   @HiveField(5)
   String subCategory;
 
+  @HiveField(6)
+  String? storageLocation;
+
+  @HiveField(7)
+  String? rackNumber;
+
   MaterialItem copy() {
     return MaterialItem(
       slNo: slNo,
@@ -34,6 +40,8 @@ class MaterialItem extends HiveObject {
       unit: unit,
       category: category,
       subCategory: subCategory,
+      storageLocation: storageLocation ?? '',
+      rackNumber: rackNumber ?? '',
     );
   }
 
@@ -44,6 +52,8 @@ class MaterialItem extends HiveObject {
     required this.unit,
     required this.category,
     required this.subCategory,
+    this.storageLocation = '',
+    this.rackNumber = '',
   });
 
   // Helper methods to work with VendorMaterialRateProvider

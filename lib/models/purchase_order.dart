@@ -14,9 +14,6 @@ class PurchaseOrder extends HiveObject {
   @HiveField(2)
   String supplierName;
 
-  @HiveField(3)
-  String boardNo;
-
   @HiveField(4)
   String transport;
 
@@ -52,6 +49,37 @@ class PurchaseOrder extends HiveObject {
 
   bool get isFullyReceived => items.every((item) => item.isFullyReceived);
 
+  // Get all unique job numbers from all items
+  Set<String> get jobNumbers {
+    final jobs = <String>{};
+    for (var item in items) {
+      for (var prDetail in item.prDetails.values) {
+        if (prDetail.jobNo != 'General') {
+          jobs.add(prDetail.jobNo);
+        }
+      }
+    }
+    return jobs;
+  }
+
+  // Check if this PO contains any general stock items
+  bool get hasGeneralStockItems {
+    return items.any((item) => 
+      item.prDetails.values.any((detail) => detail.jobNo == 'General'));
+  }
+
+  // Get a formatted string for board number display
+  String get formattedBoardNo {
+    final jobs = jobNumbers;
+    if (jobs.isEmpty && hasGeneralStockItems) {
+      return 'General Stock';
+    } else if (jobs.isNotEmpty && !hasGeneralStockItems) {
+      return jobs.join(', ');
+    } else {
+      return 'Mixed (${jobs.join(', ')})';
+    }
+  }
+
   void updateStatus() {
     if (isFullyReceived) {
       status = 'Completed';
@@ -66,7 +94,6 @@ class PurchaseOrder extends HiveObject {
     required this.poNo,
     required this.poDate,
     required this.supplierName,
-    required this.boardNo,
     required this.transport,
     required this.deliveryRequirements,
     required this.items,
@@ -84,7 +111,6 @@ class PurchaseOrder extends HiveObject {
     String? poNo,
     String? poDate,
     String? supplierName,
-    String? boardNo,
     String? transport,
     String? deliveryRequirements,
     List<POItem>? items,
@@ -99,7 +125,6 @@ class PurchaseOrder extends HiveObject {
       poNo: poNo ?? this.poNo,
       poDate: poDate ?? this.poDate,
       supplierName: supplierName ?? this.supplierName,
-      boardNo: boardNo ?? this.boardNo,
       transport: transport ?? this.transport,
       deliveryRequirements: deliveryRequirements ?? this.deliveryRequirements,
       items: items ?? this.items.map((item) => item.copyWith()).toList(),

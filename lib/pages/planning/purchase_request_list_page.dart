@@ -10,6 +10,7 @@ import '../../provider/store_inward_provider.dart';
 import '../../models/purchase_request.dart';
 import '../../models/purchase_order.dart';
 import '../../models/store_inward.dart';
+import '../../models/po_item.dart';
 import 'add_purchase_request_page.dart';
 
 class PurchaseRequestListPage extends ConsumerStatefulWidget {
@@ -321,24 +322,48 @@ class _PurchaseRequestListPageState
 
     for (var request in requests) {
       for (var item in request.items) {
-        // Calculate ordered quantity from POs
-        final orderedQty = purchaseOrders
+        // Check if this PR's items are in any PO
+        final bool isInPO = ref.read(purchaseOrderListProvider).any((po) =>
+            po.items.any((poItem) =>
+                poItem.materialCode == item.materialCode &&
+                poItem.prDetails.values.any((detail) => detail.prNo == request.prNo)));
+
+        // Calculate total ordered quantity for this PR item
+        final totalOrderedQty = ref
+            .read(purchaseOrderListProvider)
             .where((po) => po.items.any((poItem) =>
                 poItem.materialCode == item.materialCode &&
-                poItem.prQuantities.containsKey(request.prNo)))
-            .fold<double>(
-                0,
-                (sum, po) =>
-                    sum +
+                poItem.prDetails.values.any((detail) => detail.prNo == request.prNo)))
+            .fold(
+                0.0,
+                (sum, po) => sum +
                     po.items
-                        .where((poItem) =>
-                            poItem.materialCode == item.materialCode &&
-                            poItem.prQuantities.containsKey(request.prNo))
-                        .fold<double>(
-                            0,
-                            (sum, poItem) =>
-                                sum +
-                                (poItem.prQuantities[request.prNo] ?? 0)));
+                        .where((poItem) => poItem.materialCode == item.materialCode)
+                        .fold(
+                            0.0,
+                            (itemSum, poItem) =>
+                                itemSum +
+                                (poItem.prDetails.values
+                                    .firstWhere(
+                                        (detail) => detail.prNo == request.prNo,
+                                        orElse: () => ItemPRDetails(
+                                            prNo: request.prNo,
+                                            jobNo: 'General',
+                                            quantity: 0))
+                                    .quantity)));
+
+        // Check if any PO exists for this PR
+        final bool hasAnyPO = ref.read(purchaseOrderListProvider).any((po) =>
+            po.items.any((poItem) =>
+                poItem.materialCode == item.materialCode &&
+                poItem.prDetails.values.any((detail) => detail.prNo == request.prNo)));
+
+        // Check if all items in this PR are fully ordered
+        final bool allItemsOrdered = request.items.every((item) =>
+            ref.read(purchaseOrderListProvider).any((po) =>
+                po.items.any((poItem) =>
+                    poItem.materialCode == item.materialCode &&
+                    poItem.prDetails.values.any((detail) => detail.prNo == request.prNo))));
 
         // Calculate received quantity from Store Inwards
         storeInwards
@@ -349,7 +374,7 @@ class _PurchaseRequestListPageState
                         po.poNo == poNo &&
                         po.items.any((poItem) =>
                             poItem.materialCode == item.materialCode &&
-                            poItem.prQuantities.containsKey(request.prNo))))))
+                            poItem.prDetails.values.any((detail) => detail.prNo == request.prNo))))))
             .fold<double>(
                 0,
                 (sum, si) =>
@@ -364,7 +389,7 @@ class _PurchaseRequestListPageState
         final relatedPOs = purchaseOrders
             .where((po) => po.items.any((poItem) =>
                 poItem.materialCode == item.materialCode &&
-                poItem.prQuantities.containsKey(request.prNo)))
+                poItem.prDetails.values.any((detail) => detail.prNo == request.prNo)))
             .map((po) => '${po.poNo}\n(${po.poDate})')
             .join('\n\n');
 
@@ -377,7 +402,7 @@ class _PurchaseRequestListPageState
                         po.poNo == poNo &&
                         po.items.any((poItem) =>
                             poItem.materialCode == item.materialCode &&
-                            poItem.prQuantities.containsKey(request.prNo))))))
+                            poItem.prDetails.values.any((detail) => detail.prNo == request.prNo))))))
             .map((si) {
               final matchingItems = si.items
                   .where((siItem) => siItem.materialCode == item.materialCode);
@@ -389,10 +414,10 @@ class _PurchaseRequestListPageState
             .where((s) => s.isNotEmpty)
             .join('\n');
 
-        final pendingQty = double.parse(item.quantity) - orderedQty;
+        final pendingQty = double.parse(item.quantity) - totalOrderedQty;
         final status = pendingQty <= 0
             ? 'Completed'
-            : orderedQty > 0
+            : totalOrderedQty > 0
                 ? 'Partially Ordered'
                 : 'Pending';
 
@@ -412,7 +437,7 @@ class _PurchaseRequestListPageState
                   PlutoCell(value: transfers.isEmpty ? '-' : transfers),
               'poDetails':
                   PlutoCell(value: relatedPOs.isEmpty ? '-' : relatedPOs),
-              'orderedQty': PlutoCell(value: orderedQty),
+              'orderedQty': PlutoCell(value: totalOrderedQty),
               'pendingQty': PlutoCell(value: pendingQty),
               'status': PlutoCell(value: status),
               'actions': PlutoCell(value: ''),

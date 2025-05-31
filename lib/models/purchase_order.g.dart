@@ -20,7 +20,6 @@ class PurchaseOrderAdapter extends TypeAdapter<PurchaseOrder> {
       poNo: fields[0] as String,
       poDate: fields[1] as String,
       supplierName: fields[2] as String,
-      boardNo: fields[3] as String,
       transport: fields[4] as String,
       deliveryRequirements: fields[5] as String,
       items: (fields[6] as List).cast<POItem>(),
@@ -35,15 +34,13 @@ class PurchaseOrderAdapter extends TypeAdapter<PurchaseOrder> {
   @override
   void write(BinaryWriter writer, PurchaseOrder obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.poNo)
       ..writeByte(1)
       ..write(obj.poDate)
       ..writeByte(2)
       ..write(obj.supplierName)
-      ..writeByte(3)
-      ..write(obj.boardNo)
       ..writeByte(4)
       ..write(obj.transport)
       ..writeByte(5)

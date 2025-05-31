@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:hive/hive.dart';
 
 part 'pr_item.g.dart';
@@ -23,6 +25,15 @@ class PRItem extends HiveObject {
   @HiveField(6)
   String prNo; // Reference to parent PR number
 
+  @HiveField(7)
+  String? _totalReceivedQuantityStr;
+
+  double get totalReceivedQuantity => double.tryParse(_totalReceivedQuantityStr ?? '0.0') ?? 0.0;
+
+  set totalReceivedQuantity(double value) {
+    _totalReceivedQuantityStr = value.toString();
+  }
+
   double get totalOrderedQuantity =>
       orderedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
 
@@ -44,8 +55,10 @@ class PRItem extends HiveObject {
     required this.quantity,
     required this.prNo,
     Map<String, double>? orderedQuantities,
+    double totalReceivedQuantity = 0.0,
   }) {
     this.orderedQuantities = orderedQuantities ?? {};
+    this.totalReceivedQuantity = totalReceivedQuantity;
   }
 
   PRItem copyWith({
@@ -55,6 +68,7 @@ class PRItem extends HiveObject {
     String? quantity,
     String? prNo,
     Map<String, double>? orderedQuantities,
+    double? totalReceivedQuantity,
   }) {
     return PRItem(
       materialCode: materialCode ?? this.materialCode,
@@ -64,6 +78,7 @@ class PRItem extends HiveObject {
       prNo: prNo ?? this.prNo,
       orderedQuantities:
           orderedQuantities ?? Map<String, double>.from(this.orderedQuantities),
+      totalReceivedQuantity: totalReceivedQuantity ?? this.totalReceivedQuantity,
     );
   }
 }

@@ -32,12 +32,38 @@ class POItem extends HiveObject {
   String totalMargin;
 
   @HiveField(9)
-  Map<String, double> prQuantities =
-      {}; // Store PR-wise quantities: PR No -> Quantity
+  Map<String, ItemPRDetails> prDetails = {}; // PR No -> PR Details
 
   @HiveField(10)
-  Map<String, double> receivedQuantities =
-      {}; // Map of GRN number to received quantity
+  Map<String, double> receivedQuantities = {}; // GRN number -> received quantity
+
+  // Get all unique job numbers for this item
+  Set<String> get jobNumbers {
+    final jobs = <String>{};
+    for (var detail in prDetails.values) {
+      if (detail.jobNo != 'General') {
+        jobs.add(detail.jobNo);
+      }
+    }
+    return jobs;
+  }
+
+  // Check if this item is for general stock
+  bool get isGeneralStock {
+    return prDetails.values.any((detail) => detail.jobNo == 'General');
+  }
+
+  // Get a formatted string for job numbers display
+  String get formattedJobNumbers {
+    final jobs = jobNumbers;
+    if (jobs.isEmpty && isGeneralStock) {
+      return 'General Stock';
+    } else if (jobs.isNotEmpty && !isGeneralStock) {
+      return jobs.join(', ');
+    } else {
+      return 'Mixed (${jobs.join(', ')})';
+    }
+  }
 
   double get totalReceivedQuantity =>
       receivedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
@@ -61,10 +87,10 @@ class POItem extends HiveObject {
     required this.saleRate,
     required this.marginPerUnit,
     required this.totalMargin,
-    Map<String, double>? prQuantities,
+    Map<String, ItemPRDetails>? prDetails,
     Map<String, double>? receivedQuantities,
   }) {
-    this.prQuantities = prQuantities ?? {};
+    this.prDetails = prDetails ?? {};
     this.receivedQuantities = receivedQuantities ?? {};
   }
 
@@ -111,7 +137,7 @@ class POItem extends HiveObject {
     String? saleRate,
     String? marginPerUnit,
     String? totalMargin,
-    Map<String, double>? prQuantities,
+    Map<String, ItemPRDetails>? prDetails,
     Map<String, double>? receivedQuantities,
   }) {
     return POItem(
@@ -124,9 +150,39 @@ class POItem extends HiveObject {
       saleRate: saleRate ?? this.saleRate,
       marginPerUnit: marginPerUnit ?? this.marginPerUnit,
       totalMargin: totalMargin ?? this.totalMargin,
-      prQuantities: prQuantities ?? Map<String, double>.from(this.prQuantities),
+      prDetails: prDetails ?? Map<String, ItemPRDetails>.from(this.prDetails),
       receivedQuantities: receivedQuantities ??
           Map<String, double>.from(this.receivedQuantities),
+    );
+  }
+}
+
+@HiveType(typeId: 22)
+class ItemPRDetails {
+  @HiveField(0)
+  String prNo;
+
+  @HiveField(1)
+  String jobNo;
+
+  @HiveField(2)
+  double quantity;
+
+  ItemPRDetails({
+    required this.prNo,
+    required this.jobNo,
+    required this.quantity,
+  });
+
+  ItemPRDetails copyWith({
+    String? prNo,
+    String? jobNo,
+    double? quantity,
+  }) {
+    return ItemPRDetails(
+      prNo: prNo ?? this.prNo,
+      jobNo: jobNo ?? this.jobNo,
+      quantity: quantity ?? this.quantity,
     );
   }
 }

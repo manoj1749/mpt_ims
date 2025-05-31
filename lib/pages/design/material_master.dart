@@ -80,6 +80,29 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         field: 'unit',
         type: PlutoColumnType.text(),
         width: 80,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Storage Location',
+        field: 'storageLocation',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Rack Number',
+        field: 'rackNumber',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -257,6 +280,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           'category': PlutoCell(value: m.category),
           'subCategory': PlutoCell(value: m.subCategory),
           'unit': PlutoCell(value: m.unit),
+          'storageLocation': PlutoCell(value: m.storageLocation),
+          'rackNumber': PlutoCell(value: m.rackNumber),
           'preferredVendor': PlutoCell(value: m.getPreferredVendorName(ref)),
           'bestRate': PlutoCell(
               value: m.getLowestRate(ref).isEmpty

@@ -45,6 +45,7 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(QualityAdapter());
   Hive.registerAdapter(UniversalParameterAdapter());
   Hive.registerAdapter(EmployeeAdapter());
+  Hive.registerAdapter(ItemPRDetailsAdapter());
 
   // Open boxes with schema version
   await Future.wait([
@@ -73,8 +74,8 @@ Future<void> clearIncompatibleData() async {
     final currentVersion = box.get('version') ?? 0;
 
     // If schema version is less than required, clear data
-    if (currentVersion < 9) {
-      // Increment version for PRItem remarks field change
+    if (currentVersion < 11) {
+      // Increment version for PRItem totalReceivedQuantity field
       // Delete all boxes since we've made significant model changes
       await Future.wait([
         Hive.deleteBoxFromDisk('customers'),
@@ -95,7 +96,7 @@ Future<void> clearIncompatibleData() async {
       ]);
 
       // Update schema version
-      await box.put('version', 9);
+      await box.put('version', 11);
     }
   } catch (e) {
     print('Error clearing incompatible data: $e');

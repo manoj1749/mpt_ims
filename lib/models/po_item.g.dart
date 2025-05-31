@@ -26,7 +26,7 @@ class POItemAdapter extends TypeAdapter<POItem> {
       saleRate: fields[6] as String,
       marginPerUnit: fields[7] as String,
       totalMargin: fields[8] as String,
-      prQuantities: (fields[9] as Map?)?.cast<String, double>(),
+      prDetails: (fields[9] as Map?)?.cast<String, ItemPRDetails>(),
       receivedQuantities: (fields[10] as Map?)?.cast<String, double>(),
     );
   }
@@ -54,7 +54,7 @@ class POItemAdapter extends TypeAdapter<POItem> {
       ..writeByte(8)
       ..write(obj.totalMargin)
       ..writeByte(9)
-      ..write(obj.prQuantities)
+      ..write(obj.prDetails)
       ..writeByte(10)
       ..write(obj.receivedQuantities);
   }
@@ -66,6 +66,46 @@ class POItemAdapter extends TypeAdapter<POItem> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is POItemAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class ItemPRDetailsAdapter extends TypeAdapter<ItemPRDetails> {
+  @override
+  final int typeId = 22;
+
+  @override
+  ItemPRDetails read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return ItemPRDetails(
+      prNo: fields[0] as String,
+      jobNo: fields[1] as String,
+      quantity: fields[2] as double,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, ItemPRDetails obj) {
+    writer
+      ..writeByte(3)
+      ..writeByte(0)
+      ..write(obj.prNo)
+      ..writeByte(1)
+      ..write(obj.jobNo)
+      ..writeByte(2)
+      ..write(obj.quantity);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ItemPRDetailsAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

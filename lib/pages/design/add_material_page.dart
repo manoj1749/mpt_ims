@@ -67,6 +67,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _controllers['description'] = TextEditingController(text: item.description);
     _controllers['partNo'] = TextEditingController(text: item.partNo);
     _controllers['unit'] = TextEditingController(text: item.unit);
+    _controllers['storageLocation'] = TextEditingController(text: item.storageLocation);
+    _controllers['rackNumber'] = TextEditingController(text: item.rackNumber);
     _inspectionStockController = TextEditingController(text: '0');
 
     // Set initial category and subcategory if editing
@@ -149,6 +151,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         item.description = _controllers['description']!.text;
         item.partNo = _controllers['partNo']!.text;
         item.unit = _controllers['unit']!.text;
+        item.storageLocation = _controllers['storageLocation']!.text;
+        item.rackNumber = _controllers['rackNumber']!.text;
         item.category = _selectedCategory?.name ?? '';
         item.subCategory = _selectedSubCategory?.name ?? '';
 
@@ -566,6 +570,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                     _buildTextField('Description', 'description'),
                     _buildTextField('Part No', 'partNo'),
                     _buildTextField('Unit', 'unit'),
+                    _buildTextField('Storage Location', 'storageLocation'),
+                    _buildTextField('Rack Number', 'rackNumber'),
                     _buildCategoryDropdown(),
                     _buildSubCategoryDropdown(),
                   ],

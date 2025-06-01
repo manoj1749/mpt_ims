@@ -10,7 +10,8 @@ class PurchaseOrderListPage extends ConsumerStatefulWidget {
   const PurchaseOrderListPage({super.key});
 
   @override
-  ConsumerState<PurchaseOrderListPage> createState() => _PurchaseOrderListPageState();
+  ConsumerState<PurchaseOrderListPage> createState() =>
+      _PurchaseOrderListPageState();
 }
 
 class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
@@ -22,30 +23,33 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
     return orders.where((order) {
       final matchesSearch = _searchQuery.isEmpty ||
           order.poNo.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          order.supplierName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          order.items.any((item) => 
-              item.materialDescription.toLowerCase().contains(_searchQuery.toLowerCase()));
-      
+          order.supplierName
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()) ||
+          order.items.any((item) => item.materialDescription
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()));
+
       final matchesStatus = _selectedStatus == 'All' ||
           order.status.toLowerCase() == _selectedStatus.toLowerCase();
-      
+
       return matchesSearch && matchesStatus;
     }).toList();
   }
 
   Widget _buildStatusBadge(String status) {
     Color color;
-          switch (status.toLowerCase()) {
-            case 'completed':
+    switch (status.toLowerCase()) {
+      case 'completed':
         color = Colors.green;
-              break;
-            case 'partially received':
+        break;
+      case 'partially received':
         color = Colors.orange;
-              break;
-            case 'pending':
+        break;
+      case 'pending':
         color = Colors.grey;
-              break;
-            default:
+        break;
+      default:
         color = Colors.grey;
     }
 
@@ -56,23 +60,23 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
         border: Border.all(color: color.withOpacity(0.5)),
         borderRadius: BorderRadius.circular(12),
       ),
-            child: Text(
-              status,
-              style: TextStyle(
+      child: Text(
+        status,
+        style: TextStyle(
           color: color,
           fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          );
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
   }
 
   Widget _buildPOCard(PurchaseOrder order, int index) {
     final isExpanded = _expandedPOs.contains(order.poNo);
-    final relatedPRs = ref.watch(purchaseRequestListProvider)
-        .where((pr) => order.items
-            .any((poItem) => pr.items
-                .any((prItem) => prItem.materialCode == poItem.materialCode)))
+    final relatedPRs = ref
+        .watch(purchaseRequestListProvider)
+        .where((pr) => order.items.any((poItem) => pr.items
+            .any((prItem) => prItem.materialCode == poItem.materialCode)))
         .toList();
 
     return Card(
@@ -121,16 +125,16 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
               ],
             ),
             trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-                              children: [
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 IconButton(
                   icon: Icon(Icons.edit, color: Colors.grey[300]),
-                                            onPressed: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
                         builder: (context) => AddPurchaseOrderPage(
-                                                          existingPO: order,
+                          existingPO: order,
                           index: index,
                         ),
                       ),
@@ -139,7 +143,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                 ),
                 IconButton(
                   icon: Icon(Icons.delete, color: Colors.grey[300]),
-                  onPressed: () => _showDeleteConfirmation(context, ref, index, order),
+                  onPressed: () =>
+                      _showDeleteConfirmation(context, ref, index, order),
                 ),
                 IconButton(
                   icon: Icon(
@@ -176,44 +181,48 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                   ),
                   const SizedBox(height: 8),
                   ...order.items.map((item) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: Text(
-                            item.materialDescription,
-                            style: TextStyle(fontSize: 13, color: Colors.grey[300]),
-                          ),
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                item.materialDescription,
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.grey[300]),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                item.quantity,
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.grey[300]),
+                                textAlign: TextAlign.right,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                item.unit,
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.grey[300]),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                NumberFormat.currency(
+                                  symbol: '₹',
+                                  locale: 'en_IN',
+                                  decimalDigits: 2,
+                                ).format(double.parse(item.totalCost)),
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.grey[300]),
+                                textAlign: TextAlign.right,
+                              ),
+                            ),
+                          ],
                         ),
-                        Expanded(
-                          child: Text(
-                            item.quantity,
-                            style: TextStyle(fontSize: 13, color: Colors.grey[300]),
-                            textAlign: TextAlign.right,
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            item.unit,
-                            style: TextStyle(fontSize: 13, color: Colors.grey[300]),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            NumberFormat.currency(
-                              symbol: '₹',
-                              locale: 'en_IN',
-                              decimalDigits: 2,
-                            ).format(double.parse(item.totalCost)),
-                            style: TextStyle(fontSize: 13, color: Colors.grey[300]),
-                            textAlign: TextAlign.right,
-                                  ),
-                                ),
-                              ],
-                    ),
-                  )),
+                      )),
                   if (relatedPRs.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     const Text(
@@ -226,30 +235,33 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                     ),
                     const SizedBox(height: 8),
                     ...relatedPRs.map((pr) => Card(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      color: Colors.grey[800],
-                      child: ListTile(
-                        title: Text(
-                          'PR No: ${pr.prNo}',
-                          style: TextStyle(fontSize: 13, color: Colors.grey[300]),
-                        ),
-                        subtitle: Text(
-                          'Status: ${pr.status}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-                        ),
-                        trailing: Text(
-                          'Items: ${pr.items.length}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-                        ),
-                      ),
-                    )),
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          color: Colors.grey[800],
+                          child: ListTile(
+                            title: Text(
+                              'PR No: ${pr.prNo}',
+                              style: TextStyle(
+                                  fontSize: 13, color: Colors.grey[300]),
+                            ),
+                            subtitle: Text(
+                              'Status: ${pr.status}',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey[400]),
+                            ),
+                            trailing: Text(
+                              'Items: ${pr.items.length}',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey[400]),
+                            ),
+                          ),
+                        )),
                   ],
                 ],
               ),
             ),
           ],
         ],
-            ),
+      ),
     );
   }
 
@@ -351,42 +363,42 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                       }
                     },
                   ),
-          ),
-        ],
-      ),
+                ),
+              ],
+            ),
           ),
           Expanded(
             child: filteredOrders.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 64,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.shopping_cart_outlined,
+                          size: 64,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
                           'No purchase orders found',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
                               builder: (_) => const AddPurchaseOrderPage(),
                             ),
+                          ),
+                          child: const Text('Add New Order'),
+                        ),
+                      ],
                     ),
-                    child: const Text('Add New Order'),
-                  ),
-                ],
-              ),
-            )
+                  )
                 : ListView.builder(
                     itemCount: filteredOrders.length,
                     itemBuilder: (context, index) {
@@ -396,10 +408,10 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                         purchaseOrders.indexOf(order),
                       );
                     },
-                        ),
-                      ),
-                    ],
                   ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.push(
           context,

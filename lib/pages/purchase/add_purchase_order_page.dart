@@ -793,8 +793,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     if (selectedSupplier != null) {
       for (var pr in purchaseRequests) {
         // Skip if job number filter is active and doesn't match
-        if (selectedJobNo != null && 
-            selectedJobNo != 'All' && 
+        if (selectedJobNo != null &&
+            selectedJobNo != 'All' &&
             pr.jobNo != selectedJobNo) {
           continue;
         }
@@ -854,7 +854,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           jobNumbers.clear();
                           selectedMaterials.clear();
                           generalStockQtyControllers.clear();
-                          selectedJobNo = 'All'; // Reset job filter when supplier changes
+                          selectedJobNo =
+                              'All'; // Reset job filter when supplier changes
                         });
                       },
                       dropdownStyleData: DropdownStyleData(

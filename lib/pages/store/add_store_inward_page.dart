@@ -60,15 +60,15 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       for (var item in widget.existingGR!.items) {
         selectedPOs[item.materialCode] = {};
         poQtyControllers[item.materialCode] = {};
-        
+
         for (var entry in item.poQuantities.entries) {
           selectedPOs[item.materialCode]![entry.key] = true;
-          poQtyControllers[item.materialCode]![entry.key] = 
+          poQtyControllers[item.materialCode]![entry.key] =
               TextEditingController(text: entry.value.toString());
         }
       }
     } else {
-    _grnDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      _grnDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
       _invoiceAmountController.text = '0.00';
     }
   }
@@ -113,20 +113,20 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       }
 
       if (selectedPOs[material.partNo]![po.poNo] == true) {
-      po.items.firstWhere(
-        (item) => item.materialCode == material.partNo,
-      );
+        po.items.firstWhere(
+          (item) => item.materialCode == material.partNo,
+        );
 
-      final inwardController = poQtyControllers[material.partNo]?[po.poNo] ??
-          TextEditingController(text: '0');
-      poQtyControllers
-          .putIfAbsent(material.partNo, () => {})
-          .putIfAbsent(po.poNo, () => inwardController);
+        final inwardController = poQtyControllers[material.partNo]?[po.poNo] ??
+            TextEditingController(text: '0');
+        poQtyControllers
+            .putIfAbsent(material.partNo, () => {})
+            .putIfAbsent(po.poNo, () => inwardController);
 
-      final inwardQty = double.tryParse(inwardController.text) ?? 0;
-      if (inwardQty > 0) {
-        poQuantities[po.poNo] = inwardQty;
-        totalQty += inwardQty;
+        final inwardQty = double.tryParse(inwardController.text) ?? 0;
+        if (inwardQty > 0) {
+          poQuantities[po.poNo] = inwardQty;
+          totalQty += inwardQty;
         }
       }
     }
@@ -149,28 +149,31 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
   // Add this method to calculate total invoice amount
   double _calculateInvoiceAmount() {
     double total = 0.0;
-    
+
     for (var material in ref.read(materialListProvider)) {
       if (selectedPOs.containsKey(material.partNo)) {
         for (var entry in selectedPOs[material.partNo]!.entries) {
-          if (entry.value) { // if PO is selected
+          if (entry.value) {
+            // if PO is selected
             final poNo = entry.key;
             final qty = double.tryParse(
-                poQtyControllers[material.partNo]?[poNo]?.text ?? '0') ?? 0.0;
-            
+                    poQtyControllers[material.partNo]?[poNo]?.text ?? '0') ??
+                0.0;
+
             // Find the PO and get the cost per unit
-            final po = ref.read(purchaseOrderListProvider)
+            final po = ref
+                .read(purchaseOrderListProvider)
                 .firstWhere((po) => po.poNo == poNo);
             final poItem = po.items
                 .firstWhere((item) => item.materialCode == material.partNo);
             final costPerUnit = double.tryParse(poItem.costPerUnit) ?? 0.0;
-            
+
             total += qty * costPerUnit;
           }
         }
       }
     }
-    
+
     return total;
   }
 
@@ -181,7 +184,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       poQtyControllers[material.partNo] = {};
       for (var po in pos) {
         selectedPOs[material.partNo]![po.poNo] = false;
-        poQtyControllers[material.partNo]![po.poNo] = TextEditingController(text: '0');
+        poQtyControllers[material.partNo]![po.poNo] =
+            TextEditingController(text: '0');
       }
     }
 
@@ -245,26 +249,36 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   children: [
                     Text(''), // Checkbox
                     Text('PO No',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Job No',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Ordered',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Received',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     Text('Inward Qty',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                   ],
                 ),
                 ...pos.map((po) {
                   // Skip if job number filter is active and doesn't match
-                  if (selectedJobNo != null && 
-                      selectedJobNo != 'All' && 
+                  if (selectedJobNo != null &&
+                      selectedJobNo != 'All' &&
                       !po.jobNumbers.contains(selectedJobNo) &&
-                      !(selectedJobNo == 'General' && po.hasGeneralStockItems)) {
+                      !(selectedJobNo == 'General' &&
+                          po.hasGeneralStockItems)) {
                     return const TableRow(children: [
-                      SizedBox(), SizedBox(), SizedBox(), 
-                      SizedBox(), SizedBox(), SizedBox()
+                      SizedBox(),
+                      SizedBox(),
+                      SizedBox(),
+                      SizedBox(),
+                      SizedBox(),
+                      SizedBox()
                     ]);
                   }
 
@@ -274,15 +288,20 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   final orderedQty = double.parse(poItem.quantity);
                   final receivedQty = poReceivedQty[po.poNo] ?? 0;
                   final remainingQty = orderedQty - receivedQty;
-                  
+
                   if (remainingQty <= 0) {
                     return const TableRow(children: [
-                      SizedBox(), SizedBox(), SizedBox(), 
-                      SizedBox(), SizedBox(), SizedBox()
+                      SizedBox(),
+                      SizedBox(),
+                      SizedBox(),
+                      SizedBox(),
+                      SizedBox(),
+                      SizedBox()
                     ]);
                   }
 
-                  final isSelected = selectedPOs[material.partNo]?[po.poNo] ?? false;
+                  final isSelected =
+                      selectedPOs[material.partNo]?[po.poNo] ?? false;
 
                   return TableRow(
                     children: [
@@ -292,16 +311,18 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         child: Checkbox(
                           value: isSelected,
                           onChanged: (bool? value) {
-    setState(() {
-                              selectedPOs[material.partNo]![po.poNo] = value ?? false;
+                            setState(() {
+                              selectedPOs[material.partNo]![po.poNo] =
+                                  value ?? false;
                               if (value == true) {
-                                poQtyControllers[material.partNo]![po.poNo]?.text = 
-                                    remainingQty.toString();
+                                poQtyControllers[material.partNo]![po.poNo]
+                                    ?.text = remainingQty.toString();
                               } else {
-                                poQtyControllers[material.partNo]![po.poNo]?.text = '0';
+                                poQtyControllers[material.partNo]![po.poNo]
+                                    ?.text = '0';
                               }
                               // Update invoice amount when selection changes
-                              _invoiceAmountController.text = 
+                              _invoiceAmountController.text =
                                   _calculateInvoiceAmount().toStringAsFixed(2);
                             });
                           },
@@ -310,8 +331,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                       // PO No
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(po.poNo,
-                            style: const TextStyle(fontSize: 12)),
+                        child:
+                            Text(po.poNo, style: const TextStyle(fontSize: 12)),
                       ),
                       // Job Numbers
                       Padding(
@@ -337,7 +358,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         child: SizedBox(
                           height: 32,
                           child: TextFormField(
-                            controller: poQtyControllers[material.partNo]![po.poNo],
+                            controller:
+                                poQtyControllers[material.partNo]![po.poNo],
                             enabled: isSelected,
                             decoration: InputDecoration(
                               isDense: true,
@@ -354,7 +376,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             keyboardType: TextInputType.number,
                             validator: (value) {
                               if (!isSelected) return null;
-                              if (value == null || value.isEmpty) return 'Required';
+                              if (value == null || value.isEmpty)
+                                return 'Required';
                               final qty = double.tryParse(value);
                               if (qty == null) return 'Invalid';
                               if (qty <= 0) return 'Invalid';
@@ -365,13 +388,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               if (!isSelected) return;
                               final qty = double.tryParse(value);
                               if (qty != null && qty > remainingQty) {
-                                poQtyControllers[material.partNo]![po.poNo]?.text = 
-                                    remainingQty.toString();
+                                poQtyControllers[material.partNo]![po.poNo]
+                                    ?.text = remainingQty.toString();
                               }
                               // Update invoice amount when quantity changes
                               setState(() {
-                                _invoiceAmountController.text = 
-                                    _calculateInvoiceAmount().toStringAsFixed(2);
+                                _invoiceAmountController.text =
+                                    _calculateInvoiceAmount()
+                                        .toStringAsFixed(2);
                               });
                             },
                           ),
@@ -379,7 +403,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                       ),
                     ],
                   );
-                }).where((row) => row.children.any((cell) => cell is! SizedBox)),
+                }).where(
+                    (row) => row.children.any((cell) => cell is! SizedBox)),
               ],
             ),
           ],
@@ -435,8 +460,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       // Create inward items
       for (var material in materials) {
         final pos = purchaseOrders
-            .where((po) => po.items
-                .any((item) => item.materialCode == material.partNo))
+            .where((po) =>
+                po.items.any((item) => item.materialCode == material.partNo))
             .toList();
 
         if (pos.isNotEmpty) {
@@ -508,19 +533,19 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       if (widget.existingGR != null && widget.index != null) {
         final grNotifier = ref.read(storeInwardProvider.notifier);
         grNotifier.updateInward(widget.index!, newGR);
-          } else {
+      } else {
         final grNotifier = ref.read(storeInwardProvider.notifier);
         grNotifier.addInward(newGR);
       }
 
-        Navigator.pop(context);
+      Navigator.pop(context);
     } catch (e) {
       print('Error saving GR: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving GR: $e')),
-        );
+      );
     } finally {
-        setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     }
   }
 
@@ -540,8 +565,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
     // Get materials that have pending POs from the selected supplier
     final materials = ref.watch(materialListProvider).where((material) {
-      return purchaseOrders.any((po) =>
-          po.items.any((item) => item.materialCode == material.partNo));
+      return purchaseOrders.any(
+          (po) => po.items.any((item) => item.materialCode == material.partNo));
     }).toList();
 
     return Scaffold(
@@ -551,63 +576,63 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             : "Create Goods Receipt"),
       ),
       body: Form(
-              key: _formKey,
+        key: _formKey,
         child: Column(
           children: [
             Padding(
-        padding: const EdgeInsets.all(16),
-                child: Column(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-            children: [
-                        Expanded(
-                child: DropdownButtonFormField2<Supplier>(
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Select Supplier',
-                    border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(vertical: 0),
-                  ),
-                            hint: const Text("Select Supplier"),
-                  value: selectedSupplier,
-                            items: suppliers
-                                .map((supplier) => DropdownMenuItem<Supplier>(
-                      value: supplier,
-                      child: Text(
-                        supplier.name,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                                    ))
-                                .toList(),
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField2<Supplier>(
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Select Supplier',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(vertical: 0),
+                          ),
+                          hint: const Text("Select Supplier"),
+                          value: selectedSupplier,
+                          items: suppliers
+                              .map((supplier) => DropdownMenuItem<Supplier>(
+                                    value: supplier,
+                                    child: Text(
+                                      supplier.name,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ))
+                              .toList(),
                           onChanged: widget.existingGR != null
                               ? null
                               : (val) {
-                    setState(() {
-                      selectedSupplier = val;
-                                selectedPOs.clear();
-                                poQtyControllers.clear();
+                                  setState(() {
+                                    selectedSupplier = val;
+                                    selectedPOs.clear();
+                                    poQtyControllers.clear();
                                     selectedJobNo = 'All';
-                    });
-                  },
-                            dropdownStyleData: DropdownStyleData(
-                              maxHeight: 300,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            menuItemStyleData: const MenuItemStyleData(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                            ),
-                            buttonStyleData: const ButtonStyleData(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              height: 60,
+                                  });
+                                },
+                          dropdownStyleData: DropdownStyleData(
+                            maxHeight: 300,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
+                          menuItemStyleData: const MenuItemStyleData(
+                            padding: EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                          buttonStyleData: const ButtonStyleData(
+                            padding: EdgeInsets.symmetric(horizontal: 16),
+                            height: 60,
+                          ),
                         ),
-                        const SizedBox(width: 16),
+                      ),
+                      const SizedBox(width: 16),
                       // Job Number Filter
-                        Expanded(
+                      Expanded(
                         child: DropdownButtonFormField2<String>(
                           isExpanded: true,
                           decoration: const InputDecoration(
@@ -646,14 +671,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             padding: EdgeInsets.symmetric(horizontal: 16),
                             height: 60,
                           ),
-                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
+                  Row(
+                    children: [
+                      Expanded(
                         child: TextFormField(
                           controller: _grnDateController,
                           decoration: const InputDecoration(
@@ -665,8 +690,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             final date = await showDatePicker(
                               context: context,
                               initialDate: DateTime.now(),
-                              firstDate:
-                                  DateTime.now().subtract(const Duration(days: 30)),
+                              firstDate: DateTime.now()
+                                  .subtract(const Duration(days: 30)),
                               lastDate: DateTime.now(),
                             );
                             if (date != null) {
@@ -677,9 +702,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             }
                           },
                         ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
                         child: TextFormField(
                           controller: _invoiceDateController,
                           decoration: const InputDecoration(
@@ -691,8 +716,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             final date = await showDatePicker(
                               context: context,
                               initialDate: DateTime.now(),
-                              firstDate:
-                                  DateTime.now().subtract(const Duration(days: 30)),
+                              firstDate: DateTime.now()
+                                  .subtract(const Duration(days: 30)),
                               lastDate: DateTime.now(),
                             );
                             if (date != null) {
@@ -703,13 +728,13 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             }
                           },
                         ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
+                  Row(
+                    children: [
+                      Expanded(
                         child: TextFormField(
                           controller: _invoiceNoController,
                           decoration: const InputDecoration(
@@ -717,9 +742,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             border: OutlineInputBorder(),
                           ),
                         ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
                         child: TextFormField(
                           controller: _invoiceAmountController,
                           decoration: const InputDecoration(
@@ -727,17 +752,17 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             border: OutlineInputBorder(),
                           ),
                           readOnly: true,
-                              style: TextStyle(
+                          style: TextStyle(
                             color: Colors.grey[700],
                             fontWeight: FontWeight.bold,
-                              ),
-                            ),
                           ),
+                        ),
+                      ),
                     ],
-                            ),
+                  ),
                   const SizedBox(height: 16),
                   Row(
-                                  children: [
+                    children: [
                       Expanded(
                         child: TextFormField(
                           controller: _receivedByController,
@@ -745,10 +770,10 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             labelText: 'Received By',
                             border: OutlineInputBorder(),
                           ),
-                                    ),
-                                  ),
+                        ),
+                      ),
                       const SizedBox(width: 16),
-                                        Expanded(
+                      Expanded(
                         child: TextFormField(
                           controller: _checkedByController,
                           decoration: const InputDecoration(
@@ -756,12 +781,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             border: OutlineInputBorder(),
                           ),
                         ),
-                                  ),
+                      ),
                     ],
-                                    ),
-                                  ],
-                                ),
-                              ),
+                  ),
+                ],
+              ),
+            ),
             if (selectedSupplier != null) ...[
               Expanded(
                 child: ListView(
@@ -770,8 +795,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                       .map((material) => _buildItemCard(
                             material,
                             purchaseOrders
-                                .where((po) => po.items.any(
-                                    (item) => item.materialCode == material.partNo))
+                                .where((po) => po.items.any((item) =>
+                                    item.materialCode == material.partNo))
                                 .toList(),
                           ))
                       .toList(),
@@ -781,15 +806,15 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 padding: const EdgeInsets.all(16),
                 child: SizedBox(
                   width: double.infinity,
-                        child: ElevatedButton(
+                  child: ElevatedButton(
                     onPressed: _isLoading ? null : _onSavePressed,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 48, vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 48, vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     child: _isLoading
                         ? const CircularProgressIndicator()
                         : const Text(
@@ -798,12 +823,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
-                            ),
                           ),
-                        ),
+                  ),
+                ),
               ),
             ],
-            ],
+          ],
         ),
       ),
     );

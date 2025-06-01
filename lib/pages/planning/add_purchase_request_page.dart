@@ -303,12 +303,10 @@ class _AddPurchaseRequestPageState
                           value: null,
                           child: Text('None'),
                         ),
-                        ...saleOrders
-                            .map((order) => DropdownMenuItem(
-                                  value: order.boardNo,
-                                  child: Text(order.boardNo),
-                                ))
-                            ,
+                        ...saleOrders.map((order) => DropdownMenuItem(
+                              value: order.boardNo,
+                              child: Text(order.boardNo),
+                            )),
                       ],
                       onChanged: (v) => setState(() => _selectedJobNo = v),
                     ),

@@ -213,8 +213,7 @@ class _QualityInspectionListPageState
                       ),
                     ),
                     onChanged: (value) {
-                      setState(() {
-                      });
+                      setState(() {});
                     },
                   ),
                 ),

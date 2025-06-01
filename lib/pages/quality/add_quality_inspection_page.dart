@@ -394,7 +394,6 @@ class _AddQualityInspectionPageState
       return;
     }
 
-
     try {
       // Create quality inspection record
       final inspection = QualityInspection(
@@ -555,8 +554,7 @@ class _AddQualityInspectionPageState
         );
       }
     } finally {
-      if (mounted) {
-      }
+      if (mounted) {}
     }
   }
 

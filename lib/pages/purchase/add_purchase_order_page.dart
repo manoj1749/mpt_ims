@@ -4,11 +4,12 @@ import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../models/po_item.dart';
-import '../../models/supplier.dart';
 import '../../models/material_item.dart';
+import '../../models/supplier.dart';
 import '../../models/pr_item.dart';
-import '../../models/purchase_order.dart' as po;
+import '../../models/po_item.dart';
+import '../../models/purchase_order.dart';
+import '../../models/purchase_request.dart';
 import '../../provider/supplier_provider.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/purchase_request_provider.dart';
@@ -17,7 +18,7 @@ import '../../provider/vendor_material_rate_provider.dart';
 import 'package:collection/collection.dart';
 
 class AddPurchaseOrderPage extends ConsumerStatefulWidget {
-  final po.PurchaseOrder? existingPO;
+  final PurchaseOrder? existingPO;
   final int? index;
 
   const AddPurchaseOrderPage({
@@ -27,8 +28,7 @@ class AddPurchaseOrderPage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AddPurchaseOrderPage> createState() =>
-      _AddPurchaseOrderPageState();
+  ConsumerState<AddPurchaseOrderPage> createState() => _AddPurchaseOrderPageState();
 }
 
 class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
@@ -36,11 +36,10 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   Supplier? selectedSupplier;
   String? selectedJobNo;
   List<POItem> poItems = [];
-  final Map<String, TextEditingController> qtyControllers = {};
-  final Map<String, TextEditingController> maxQtyControllers = {};
+  final Map<String, Map<String, TextEditingController>> qtyControllers = {};
+  final Map<String, Map<String, TextEditingController>> maxQtyControllers = {};
   final TextEditingController _transportController = TextEditingController();
-  final TextEditingController _deliveryRequirementsController =
-      TextEditingController();
+  final TextEditingController _deliveryRequirementsController = TextEditingController();
   Map<String, Map<String, TextEditingController>> prQtyControllers = {};
 
   // Track selected PRs with a map of materialCode -> Map of prNo -> bool
@@ -49,9 +48,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   // Store Job Numbers from PRs
   Set<String> jobNumbers = {};
 
-  // General Stock PO variables
-  Map<String, TextEditingController> generalStockQtyControllers = {};
-  Map<String, bool> selectedMaterials = {};
+  // Store materials with their PR items
+  Map<String, List<PRItem>> materialPRItems = {};
 
   @override
   void initState() {
@@ -67,24 +65,26 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       // Initialize PR quantities and selected PRs from existing PO items
       for (var item in widget.existingPO!.items) {
         selectedPRs[item.materialCode] = {};
-        for (var detail in item.prDetails.values) {
-          selectedPRs[item.materialCode]![detail.prNo] = detail.quantity > 0;
-          prQtyControllers
-              .putIfAbsent(item.materialCode, () => {})
-              .putIfAbsent(detail.prNo, () => TextEditingController())
-              .text = detail.quantity.toString();
+        prQtyControllers[item.materialCode] = {};
+        
+        for (var detail in item.prDetails.entries) {
+          selectedPRs[item.materialCode]![detail.key] = detail.value.quantity > 0;
+          prQtyControllers[item.materialCode]![detail.key] = 
+              TextEditingController(text: detail.value.quantity.toString());
         }
 
         // Initialize general stock quantities if any
-        if (item.prDetails.isEmpty) {
-          selectedMaterials[item.materialCode] = true;
-          generalStockQtyControllers[item.materialCode] =
+        if (item.prDetails.isEmpty || item.prDetails.containsKey('General')) {
+          selectedPRs[item.materialCode]!['General'] = true;
+          prQtyControllers[item.materialCode]!['General'] =
               TextEditingController(text: item.quantity);
         }
 
         // Initialize job numbers from existing PO if editing
-        for (var job in item.jobNumbers) {
-          jobNumbers.add(job);
+        for (var detail in item.prDetails.values) {
+          if (detail.jobNo.isNotEmpty && detail.jobNo != 'General') {
+            jobNumbers.add(detail.jobNo);
+          }
         }
       }
 
@@ -98,12 +98,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   void dispose() {
     _transportController.dispose();
     _deliveryRequirementsController.dispose();
-    for (var controller in qtyControllers.values) {
-      controller.dispose();
-    }
-    for (var controller in maxQtyControllers.values) {
-      controller.dispose();
-    }
     for (var materialControllers in prQtyControllers.values) {
       for (var controller in materialControllers.values) {
         controller.dispose();
@@ -112,36 +106,79 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     super.dispose();
   }
 
+  void _updateMaterialPRItems() {
+    if (selectedSupplier == null) return;
+
+    final materials = ref.read(materialListProvider);
+    final purchaseRequests = ref
+        .read(purchaseRequestListProvider)
+        .where((pr) => pr.status != 'Completed')
+        .toList();
+
+    materialPRItems.clear();
+
+    for (var pr in purchaseRequests) {
+      if (selectedJobNo != null &&
+          selectedJobNo != 'All' &&
+          pr.jobNo != selectedJobNo) {
+        continue;
+      }
+
+      for (var item in pr.items.where((item) => !item.isFullyOrdered)) {
+        final material = materials.firstWhere(
+          (m) => m.partNo == item.materialCode,
+          orElse: () => throw Exception('Material not found: ${item.materialCode}'),
+        );
+
+        final rates = ref
+            .read(vendorMaterialRateProvider.notifier)
+            .getRatesForMaterial(material.slNo);
+
+        if (rates.any((r) => r.vendorId == selectedSupplier!.name)) {
+          materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
+        }
+      }
+    }
+  }
+
   POItem _createPOItem(MaterialItem material, List<PRItem> prItems) {
     final rates = ref
         .read(vendorMaterialRateProvider.notifier)
         .getRatesForMaterial(material.slNo);
 
     // Check if the supplier has a rate for this material
-    final vendorRate =
-        rates.where((r) => r.vendorId == selectedSupplier!.name).firstOrNull;
+    final vendorRate = rates.firstWhere(
+      (r) => r.vendorId == selectedSupplier!.name,
+      orElse: () => throw Exception('Rate not found'),
+    );
 
     // Default values if no rate is found
-    final costPerUnit =
-        vendorRate != null ? double.parse(vendorRate.saleRate) : 0.0;
-    final saleRate =
-        vendorRate != null ? double.parse(vendorRate.saleRate) : 0.0;
+    final costPerUnit = double.parse(vendorRate.saleRate);
+    final saleRate = double.parse(vendorRate.saleRate);
     final marginPerUnit = saleRate - costPerUnit;
 
-    // Calculate total quantity from PR-wise quantities
+    // Calculate total quantity from PR-wise quantities and general stock
     final prDetails = <String, ItemPRDetails>{};
     double totalQty = 0;
 
-    // Handle PR-based items
-    for (var prItem in prItems) {
-      if (selectedPRs[material.partNo]?[prItem.prNo] == true) {
-        final totalQtyNeeded = double.parse(prItem.quantity);
-        final currentOrderedQty = prItem.orderedQuantities.entries
-            .where((e) => e.key != widget.existingPO?.poNo)
-            .fold(0.0, (sum, e) => sum + e.value);
-        final remainingQty = totalQtyNeeded - currentOrderedQty;
-
-        if (remainingQty > 0) {
+    // If this is a general stock item (no PR items), handle it separately
+    if (prItems.isEmpty && selectedPRs[material.partNo]?['General'] == true) {
+      final controller = prQtyControllers[material.partNo]?['General'];
+      if (controller != null) {
+        final orderQty = double.tryParse(controller.text) ?? 0;
+        if (orderQty > 0) {
+          prDetails['General'] = ItemPRDetails(
+            prNo: 'General',
+            jobNo: 'General',
+            quantity: orderQty,
+          );
+          totalQty = orderQty;
+        }
+      }
+    } else {
+      // Handle PR-based items
+      for (var prItem in prItems) {
+        if (selectedPRs[material.partNo]?[prItem.prNo] == true) {
           final controller = prQtyControllers[material.partNo]?[prItem.prNo];
           if (controller != null) {
             final orderQty = double.tryParse(controller.text) ?? 0;
@@ -152,18 +189,34 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                   .firstWhere((pr) => pr.prNo == prItem.prNo);
 
               prDetails[prItem.prNo] = ItemPRDetails(
-                  prNo: prItem.prNo,
-                  jobNo: pr.jobNo ?? 'General',
-                  quantity: orderQty);
+                prNo: prItem.prNo,
+                jobNo: pr.jobNo ?? 'General',
+                quantity: orderQty,
+              );
               totalQty += orderQty;
             }
           }
         }
       }
+
+      // Add general stock for PR-based items if selected
+      if (selectedPRs[material.partNo]?['General'] == true) {
+        final controller = prQtyControllers[material.partNo]?['General'];
+        if (controller != null) {
+          final orderQty = double.tryParse(controller.text) ?? 0;
+          if (orderQty > 0) {
+            prDetails['General'] = ItemPRDetails(
+              prNo: 'General',
+              jobNo: 'General',
+              quantity: orderQty,
+            );
+            totalQty += orderQty;
+          }
+        }
+      }
     }
 
-    // Create POItem
-    final poItem = POItem(
+    return POItem(
       materialCode: material.partNo,
       materialDescription: material.description,
       unit: material.unit,
@@ -175,55 +228,42 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       totalMargin: (marginPerUnit * totalQty).toString(),
       prDetails: prDetails,
     );
-
-    return poItem;
   }
 
-  // New method to create general stock PO item
+  // Method to get job number display text for a material
+  String _getJobNumberDisplay(MaterialItem material, List<PRItem> prItems) {
+    // If this is a general stock item (no PR items)
+    if (prItems.isEmpty && selectedPRs[material.partNo]?['General'] == true) {
+      return 'General Stock';
+    }
 
-  // Method to update job numbers based on selected PRs with quantities
-  void _updateJobNumbers() {
-    jobNumbers.clear();
-    final purchaseRequests = ref.read(purchaseRequestListProvider);
-
-    // Go through all selected PRs that have quantities
-    for (var materialCode in selectedPRs.keys) {
-      for (var entry in selectedPRs[materialCode]!.entries) {
-        final prNo = entry.key;
-        final isSelected = entry.value;
-
-        if (isSelected) {
-          // Check if this PR has a quantity
-          final qty = double.tryParse(
-                  prQtyControllers[materialCode]?[prNo]?.text ?? '0') ??
-              0.0;
-
-          if (qty > 0) {
-            // Find the PR and get its job number
-            final pr = purchaseRequests.firstWhere(
-              (pr) => pr.prNo == prNo,
-              orElse: () => throw Exception('PR not found: $prNo'),
-            );
-
-            if (pr.jobNo?.isNotEmpty ?? false) {
-              jobNumbers.add(pr.jobNo!);
-            }
+    // Get all selected PR job numbers
+    final jobNumbers = <String>{};
+    for (var prItem in prItems) {
+      if (selectedPRs[material.partNo]?[prItem.prNo] == true) {
+        final controller = prQtyControllers[material.partNo]?[prItem.prNo];
+        if (controller != null && double.tryParse(controller.text) != null && double.tryParse(controller.text)! > 0) {
+          final pr = ref
+              .read(purchaseRequestListProvider)
+              .firstWhere((pr) => pr.prNo == prItem.prNo);
+          if (pr.jobNo != null && pr.jobNo!.isNotEmpty) {
+            jobNumbers.add(pr.jobNo!);
           }
         }
       }
     }
-    setState(() {}); // Trigger rebuild to update UI
-  }
 
-  // Add method to get unique job numbers from PRs
-  List<String> _getUniqueJobNumbers(List<dynamic> purchaseRequests) {
-    final Set<String> jobNos = {'All'}; // Include 'All' as default option
-    for (var pr in purchaseRequests) {
-      if (pr.jobNo != null && pr.jobNo!.isNotEmpty) {
-        jobNos.add(pr.jobNo!);
-      }
+    // If no PR job numbers and general stock is selected
+    if (jobNumbers.isEmpty && selectedPRs[material.partNo]?['General'] == true) {
+      return 'General Stock';
     }
-    return jobNos.toList()..sort();
+
+    // If we have PR job numbers
+    if (jobNumbers.isNotEmpty) {
+      return jobNumbers.join(', ');
+    }
+
+    return 'General Stock';
   }
 
   Widget _buildItemCard(MaterialItem material, List<PRItem> prItems) {
@@ -232,26 +272,12 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       selectedPRs[material.partNo] = {};
       prQtyControllers[material.partNo] = {};
       for (var prItem in prItems) {
-        selectedPRs[material.partNo]![prItem.prNo] =
-            false; // Default to not selected
-        prQtyControllers[material.partNo]![prItem.prNo] =
-            TextEditingController();
-
-        // Get the parent PR to access its job number
-        final pr = ref
-            .read(purchaseRequestListProvider)
-            .firstWhere((pr) => pr.prNo == prItem.prNo);
-        // Also collect job numbers if there's a quantity
-        if (pr.jobNo?.isNotEmpty ?? false) {
-          final qty = double.tryParse(
-                  prQtyControllers[material.partNo]?[prItem.prNo]?.text ??
-                      '0') ??
-              0.0;
-          if (qty > 0) {
-            jobNumbers.add(pr.jobNo!);
-          }
-        }
+        selectedPRs[material.partNo]![prItem.prNo] = false;
+        prQtyControllers[material.partNo]![prItem.prNo] = TextEditingController();
       }
+      // Add general stock option
+      selectedPRs[material.partNo]!['General'] = false;
+      prQtyControllers[material.partNo]!['General'] = TextEditingController();
     }
 
     // Get all vendor rates for this material
@@ -262,8 +288,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         .toList();
 
     // Sort rates by price
-    rates.sort(
-        (a, b) => double.parse(a.saleRate).compareTo(double.parse(b.saleRate)));
+    rates.sort((a, b) => double.parse(a.saleRate).compareTo(double.parse(b.saleRate)));
 
     // Find selected supplier's rate
     final selectedRate = rates.firstWhere(
@@ -281,14 +306,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     Color textColor = Colors.black;
 
     if (selectedPrice == lowestPrice) {
-      // Lowest price (or equal to lowest)
       priceColor = Colors.green.shade200;
     } else if (selectedPrice == highestPrice && selectedPrice > lowestPrice) {
-      // Highest price (only if it's not also the lowest)
       priceColor = Colors.red.shade200;
       textColor = Colors.white;
     } else {
-      // Middle price
       priceColor = Colors.yellow.shade200;
     }
 
@@ -320,6 +342,15 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         style: TextStyle(
                           fontSize: 12,
                           color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Job No: ${_getJobNumberDisplay(material, prItems)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: textColor,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -391,6 +422,86 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                             color: textColor)),
                   ],
                 ),
+                // Add General Stock row first
+                TableRow(
+                  children: [
+                    // Checkbox
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Checkbox(
+                        value: selectedPRs[material.partNo]?['General'] ?? false,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            selectedPRs[material.partNo]!['General'] = value ?? false;
+                            if (!value!) {
+                              prQtyControllers[material.partNo]!['General']!.text = '';
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                    // PR No (General Stock)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text('General Stock',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: textColor,
+                              fontStyle: FontStyle.italic)),
+                    ),
+                    // Job No
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text('General Stock',
+                          style: TextStyle(fontSize: 12, color: textColor)),
+                    ),
+                    // Need
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text('-',
+                          style: TextStyle(fontSize: 12, color: textColor)),
+                    ),
+                    // Ordered
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text('-',
+                          style: TextStyle(fontSize: 12, color: textColor)),
+                    ),
+                    // Order Qty
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: SizedBox(
+                        height: 32,
+                        child: TextFormField(
+                          controller: prQtyControllers[material.partNo]!['General'],
+                          enabled: selectedPRs[material.partNo]?['General'] ?? false,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 8),
+                            border: const OutlineInputBorder(),
+                            filled: !(selectedPRs[material.partNo]?['General'] ?? false),
+                            fillColor: !(selectedPRs[material.partNo]?['General'] ?? false)
+                                ? Colors.grey[200]
+                                : null,
+                          ),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: textColor,
+                              fontWeight: FontWeight.w500),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (!(selectedPRs[material.partNo]?['General'] ?? false)) return null;
+                            if (value == null || value.isEmpty) return 'Required';
+                            final qty = double.tryParse(value);
+                            if (qty == null || qty <= 0) return 'Invalid';
+                            return null;
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 ...prItems.map((prItem) {
                   final totalQty = double.parse(prItem.quantity);
                   final orderedQty = prItem.orderedQuantities.entries
@@ -402,7 +513,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                   final parentPR = ref
                       .read(purchaseRequestListProvider)
                       .firstWhereOrNull((pr) => pr.prNo == prItem.prNo);
-                  final jobNo = parentPR?.jobNo ?? '-';
+                  final jobNo = parentPR?.jobNo ?? 'General Stock';
 
                   final isInExistingPO = widget.existingPO?.items.any(
                           (item) => item.prDetails.containsKey(prItem.prNo)) ??
@@ -441,7 +552,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
                               prQtyControllers[material.partNo]!.putIfAbsent(
                                   prItem.prNo, () => TextEditingController());
-
+                              
                               if (value == true) {
                                 prQtyControllers[material.partNo]![prItem.prNo]!
                                     .text = remainingQty.toString();
@@ -449,7 +560,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                 prQtyControllers[material.partNo]![prItem.prNo]!
                                     .text = '0';
                               }
-                              _updateJobNumbers();
                             });
                           },
                         ),
@@ -496,7 +606,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                               fillColor: !isSelected ? Colors.grey[200] : null,
                             ),
                             style: TextStyle(
-                                fontSize: 12,
+                              fontSize: 12,
                                 color: textColor,
                                 fontWeight: FontWeight.w500),
                             keyboardType: TextInputType.number,
@@ -518,7 +628,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                 prQtyControllers[material.partNo]?[prItem.prNo]
                                     ?.text = remainingQty.toString();
                               }
-                              _updateJobNumbers();
                               setState(() {});
                             },
                           ),
@@ -540,78 +649,44 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     if (!_formKey.currentState!.validate()) return;
 
     final materials = ref.read(materialListProvider);
-    final purchaseRequests = ref.read(purchaseRequestListProvider);
-
-    // Group PR items by material code for the selected supplier
-    final materialPRItems = <String, List<PRItem>>{};
-    for (var pr in purchaseRequests) {
-      for (var item in pr.items.where((item) => !item.isFullyOrdered)) {
-        final material = materials.firstWhere(
-          (m) => m.partNo == item.materialCode,
-          orElse: () =>
-              throw Exception('Material not found: ${item.materialCode}'),
-        );
-
-        final rates = ref
-            .read(vendorMaterialRateProvider.notifier)
-            .getRatesForMaterial(material.slNo);
-
-        if (rates.any((r) => r.vendorId == selectedSupplier!.name)) {
-          materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
-        }
-      }
-    }
-
     bool hasItems = false;
-    bool hasPRItems = false;
-    bool hasGeneralStockItems = false;
 
-    // Check PR-based items
+    final updatedPOItems = <POItem>[];
+
+    // Process PR-based and general stock items
     for (var entry in materialPRItems.entries) {
-      for (var prItem in entry.value) {
-        selectedPRs.putIfAbsent(entry.key, () => {});
-        prQtyControllers.putIfAbsent(entry.key, () => {});
+      final material = materials.firstWhere(
+        (m) => m.partNo == entry.key,
+        orElse: () => throw Exception('Material not found: ${entry.key}'),
+      );
+      final prItems = entry.value;
 
-        final isSelected = selectedPRs[entry.key]?[prItem.prNo] ?? false;
-        if (isSelected) {
-          final qtyController = prQtyControllers[entry.key]?[prItem.prNo];
-          if (qtyController != null) {
-            final qtyText = qtyController.text.trim();
-            if (qtyText.isNotEmpty) {
-              final qty = double.tryParse(qtyText) ?? 0.0;
-              if (qty > 0) {
-                hasItems = true;
-                hasPRItems = true;
-                break;
-              }
-            }
-          }
-        }
+      // Create POItem only if there are quantities
+      final poItem = _createPOItem(material, prItems);
+      if (double.parse(poItem.quantity) > 0) {
+        updatedPOItems.add(poItem);
+        hasItems = true;
       }
     }
 
-    // Check general stock items
-    for (var entry in selectedMaterials.entries) {
-      if (entry.value) {
-        final qtyController = generalStockQtyControllers[entry.key];
-        if (qtyController != null) {
-          final qtyText = qtyController.text.trim();
-          if (qtyText.isNotEmpty) {
-            final qty = double.tryParse(qtyText) ?? 0.0;
-            if (qty > 0) {
-              hasItems = true;
-              hasGeneralStockItems = true;
-              break;
-            }
-          }
+    // Process newly added general stock items
+    for (var entry in selectedPRs.entries) {
+      if (!materialPRItems.containsKey(entry.key) && entry.value['General'] == true) {
+        final material = materials.firstWhere(
+          (m) => m.partNo == entry.key,
+          orElse: () => throw Exception('Material not found: ${entry.key}'),
+        );
+        final poItem = _createPOItem(material, []);
+        if (double.parse(poItem.quantity) > 0) {
+          updatedPOItems.add(poItem);
+          hasItems = true;
         }
       }
     }
 
     if (!hasItems) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please add at least one item with quantity')),
+        const SnackBar(content: Text('Please add at least one item with quantity')),
       );
       return;
     }
@@ -630,76 +705,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       return;
     }
 
-    final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-    // Create updated POItems with current quantities
-    final updatedPOItems = <POItem>[];
-
-    // Process PR-based items
-    for (var entry in materialPRItems.entries) {
-      final material = materials.firstWhere(
-        (m) => m.partNo == entry.key,
-        orElse: () => throw Exception('Material not found: ${entry.key}'),
-      );
-      final prItems = entry.value;
-
-      // Create a new POItem for PR-based quantities
-      final prBasedItem = _createPOItem(material, prItems);
-      if (double.parse(prBasedItem.quantity) > 0) {
-        updatedPOItems.add(prBasedItem);
-      }
-    }
-
-    // Process general stock items
-    for (var entry in selectedMaterials.entries) {
-      if (!entry.value) continue;
-
-      final material = materials.firstWhere(
-        (m) => m.partNo == entry.key,
-        orElse: () => throw Exception('Material not found: ${entry.key}'),
-      );
-
-      final qtyController = generalStockQtyControllers[entry.key];
-      if (qtyController == null) continue;
-
-      final qtyText = qtyController.text.trim();
-      if (qtyText.isEmpty) continue;
-
-      final qty = double.tryParse(qtyText) ?? 0.0;
-      if (qty <= 0) continue;
-
-      final rates = ref
-          .read(vendorMaterialRateProvider.notifier)
-          .getRatesForMaterial(material.slNo);
-      final rate = rates.firstWhere(
-        (r) => r.vendorId == selectedSupplier!.name,
-      );
-
-      final costPerUnit = double.parse(rate.saleRate);
-      final totalCost = qty * costPerUnit;
-      const marginPerUnit = 0.0;
-
-      // Create a separate POItem for general stock
-      updatedPOItems.add(POItem(
-        materialCode: material.partNo,
-        materialDescription: material.description,
-        unit: material.unit,
-        quantity: qty.toString(),
-        costPerUnit: costPerUnit.toString(),
-        totalCost: totalCost.toString(),
-        saleRate: rate.saleRate,
-        marginPerUnit: marginPerUnit.toString(),
-        totalMargin: (marginPerUnit * qty).toString(),
-        prDetails: {
-          'General':
-              ItemPRDetails(prNo: 'General', jobNo: 'General', quantity: qty)
-        },
-      ));
-    }
-
-    // Calculate tax amounts based on updated items
+    // Calculate tax amounts
     final subtotal = updatedPOItems.fold(
-        0.0, (sum, item) => sum + double.parse(item.totalCost));
+        0.0, (sum, item) => sum + double.parse(item.totalCost!));
 
     double parseGstRate(String? value) {
       if (value == null || value.isEmpty) return 0.0;
@@ -712,10 +720,10 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     final sgst = subtotal * (parseGstRate(selectedSupplier!.sgst) / 100);
     final grandTotal = subtotal + igst + cgst + sgst;
 
-    final poNo =
-        widget.existingPO?.poNo ?? 'PO${DateTime.now().millisecondsSinceEpoch}';
+    final poNo = widget.existingPO?.poNo ?? 'PO${DateTime.now().millisecondsSinceEpoch}';
+    final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    final newPO = po.PurchaseOrder(
+    final newPO = PurchaseOrder(
       poNo: poNo,
       poDate: widget.existingPO?.poDate ?? now,
       supplierName: selectedSupplier!.name,
@@ -731,6 +739,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
     // Update PR quantities and status
     final prNotifier = ref.read(purchaseRequestListProvider.notifier);
+    final purchaseRequests = ref.read(purchaseRequestListProvider);
 
     // Only update PR quantities for PR-based items
     for (var poItem in updatedPOItems) {
@@ -785,37 +794,28 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         .where((pr) => pr.status != 'Completed')
         .toList();
 
-    // Get unique job numbers
-    final jobNumbers = _getUniqueJobNumbers(purchaseRequests);
-
-    // Filter POs by selected supplier and group by material
-    final materialPRItems = <String, List<PRItem>>{};
-    if (selectedSupplier != null) {
-      for (var pr in purchaseRequests) {
-        // Skip if job number filter is active and doesn't match
-        if (selectedJobNo != null &&
-            selectedJobNo != 'All' &&
-            pr.jobNo != selectedJobNo) {
-          continue;
-        }
-
-        for (var item in pr.items.where((item) => !item.isFullyOrdered)) {
-          final material = materials.firstWhere(
-            (m) => m.partNo == item.materialCode,
-            orElse: () =>
-                throw Exception('Material not found: ${item.materialCode}'),
-          );
-
-          final rates = ref
-              .read(vendorMaterialRateProvider.notifier)
-              .getRatesForMaterial(material.slNo);
-
-          if (rates.any((r) => r.vendorId == selectedSupplier!.name)) {
-            materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
-          }
-        }
+    // Get unique job numbers for filter dropdown
+    final jobNos = {'All'};
+    for (var pr in purchaseRequests) {
+      if (pr.jobNo != null && pr.jobNo!.isNotEmpty) {
+        jobNos.add(pr.jobNo!);
       }
     }
+    final jobNumbers = jobNos.toList()..sort();
+
+    // Update material PR items when supplier or job number changes
+    _updateMaterialPRItems();
+
+    // Get all materials that have general stock items
+    final generalStockMaterials = selectedPRs.entries
+        .where((entry) => 
+          entry.value['General'] == true && 
+          !materialPRItems.containsKey(entry.key))
+        .map((entry) => materials.firstWhere(
+        (m) => m.partNo == entry.key,
+        orElse: () => throw Exception('Material not found: ${entry.key}'),
+        ))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text("Purchase Order Creation")),
@@ -851,11 +851,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         setState(() {
                           selectedSupplier = val;
                           selectedPRs.clear();
-                          jobNumbers.clear();
-                          selectedMaterials.clear();
-                          generalStockQtyControllers.clear();
-                          selectedJobNo =
-                              'All'; // Reset job filter when supplier changes
+                          selectedJobNo = 'All'; // Reset job filter when supplier changes
                         });
                       },
                       dropdownStyleData: DropdownStyleData(
@@ -898,8 +894,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         setState(() {
                           selectedJobNo = val;
                           selectedPRs.clear();
-                          selectedMaterials.clear();
-                          generalStockQtyControllers.clear();
                         });
                       },
                       dropdownStyleData: DropdownStyleData(
@@ -946,15 +940,14 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               ),
               const SizedBox(height: 24),
               if (selectedSupplier != null) ...[
-                Text(
-                  'PR-Based Items',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 16),
                 Expanded(
                   child: ListView(
                     children: [
-                      // PR-based items section
+                      Text(
+                        'PR-Based Items',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 16),
                       ...materialPRItems.entries.map((entry) {
                         final materialCode = entry.key;
                         final prItems = entry.value;
@@ -963,108 +956,26 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         );
                         return _buildItemCard(material, prItems);
                       }),
+                      if (generalStockMaterials.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        Text(
+                          'General Stock Items',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        ...generalStockMaterials.map((material) => 
+                          _buildItemCard(material, [])),
+                      ],
                       const SizedBox(height: 24),
-                      // General stock items section
-                      Text(
-                        'General Stock Items',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      Center(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            _showAddNewItemDialog(context);
+                          },
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add New Item'),
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      ...materials.where((material) {
-                        final rates = ref
-                            .read(vendorMaterialRateProvider.notifier)
-                            .getRatesForMaterial(material.slNo);
-                        return rates
-                            .any((r) => r.vendorId == selectedSupplier!.name);
-                      }).map((material) {
-                        final rates = ref
-                            .read(vendorMaterialRateProvider.notifier)
-                            .getRatesForMaterial(material.slNo);
-                        final rate = rates.firstWhere(
-                          (r) => r.vendorId == selectedSupplier!.name,
-                        );
-
-                        // Initialize controller if not exists
-                        generalStockQtyControllers.putIfAbsent(
-                          material.partNo,
-                          () => TextEditingController(),
-                        );
-
-                        final isSelected =
-                            selectedMaterials[material.partNo] ?? false;
-
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              children: [
-                                Checkbox(
-                                  value: isSelected,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      selectedMaterials[material.partNo] =
-                                          value ?? false;
-                                      if (!value!) {
-                                        generalStockQtyControllers[
-                                                material.partNo]
-                                            ?.text = '';
-                                      }
-                                    });
-                                  },
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        material.description,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Code: ${material.partNo} | Unit: ${material.unit}',
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                SizedBox(
-                                  width: 120,
-                                  child: TextFormField(
-                                    controller: generalStockQtyControllers[
-                                        material.partNo],
-                                    enabled: isSelected,
-                                    decoration: InputDecoration(
-                                      labelText: 'Quantity',
-                                      border: const OutlineInputBorder(),
-                                      filled: !isSelected,
-                                      fillColor:
-                                          !isSelected ? Colors.grey[200] : null,
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                    validator: (value) {
-                                      if (!isSelected) return null;
-                                      if (value == null || value.isEmpty) {
-                                        return 'Required';
-                                      }
-                                      final qty = double.tryParse(value);
-                                      if (qty == null) return 'Invalid';
-                                      if (qty <= 0) return 'Invalid';
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Text('Rate: ₹${rate.saleRate}'),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
                     ],
                   ),
                 ),
@@ -1077,10 +988,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                   ),
                   child: ListenableBuilder(
                     listenable: Listenable.merge([
-                      ...qtyControllers.values,
-                      ...prQtyControllers.values
+                      ...qtyControllers.values
                           .expand((controllers) => controllers.values),
-                      ...generalStockQtyControllers.values,
                     ]),
                     builder: (context, _) {
                       double total = 0;
@@ -1093,30 +1002,6 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         );
                         final poItem = _createPOItem(material, entry.value);
                         total += double.parse(poItem.totalCost);
-                      }
-
-                      // Calculate total for general stock items
-                      for (var entry in selectedMaterials.entries) {
-                        if (!entry.value) continue;
-
-                        final material = materials.firstWhere(
-                          (m) => m.partNo == entry.key,
-                        );
-                        final qtyController =
-                            generalStockQtyControllers[entry.key];
-                        if (qtyController == null) continue;
-
-                        final qty = double.tryParse(qtyController.text) ?? 0;
-                        if (qty <= 0) continue;
-
-                        final rates = ref
-                            .read(vendorMaterialRateProvider.notifier)
-                            .getRatesForMaterial(material.slNo);
-                        final rate = rates.firstWhere(
-                          (r) => r.vendorId == selectedSupplier!.name,
-                        );
-
-                        total += qty * double.parse(rate.saleRate);
                       }
 
                       // Calculate GST
@@ -1191,6 +1076,85 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showAddNewItemDialog(BuildContext context) {
+    MaterialItem? selectedMaterial;
+    final qtyController = TextEditingController();
+    final materials = ref.read(materialListProvider);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add New Item'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<MaterialItem>(
+              decoration: const InputDecoration(
+                labelText: 'Select Material',
+                border: OutlineInputBorder(),
+              ),
+              items: materials
+                  .where((m) {
+                    // Only show materials that:
+                    // 1. Have rates for the selected supplier
+                    // 2. Are not already in the PR list
+                    final rates = ref
+                        .read(vendorMaterialRateProvider.notifier)
+                        .getRatesForMaterial(m.slNo);
+                    final hasRate = rates.any((r) => r.vendorId == selectedSupplier!.name);
+                    final notInPRs = !materialPRItems.containsKey(m.partNo);
+                    return hasRate && notInPRs;
+                  })
+                  .map((m) => DropdownMenuItem(
+                        value: m,
+                        child: Text('${m.partNo} - ${m.description}'),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                selectedMaterial = value;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: qtyController,
+              decoration: const InputDecoration(
+                labelText: 'Quantity',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (selectedMaterial != null && qtyController.text.isNotEmpty) {
+                final qty = double.tryParse(qtyController.text);
+                if (qty != null && qty > 0) {
+                  setState(() {
+                    // Add to general stock items
+                    selectedPRs.putIfAbsent(selectedMaterial!.partNo, () => {})['General'] = true;
+                    prQtyControllers.putIfAbsent(selectedMaterial!.partNo, () => {})['General'] =
+                        TextEditingController(text: qty.toString());
+                    
+                    // Add an empty PR items list for this material
+                    materialPRItems[selectedMaterial!.partNo] = [];
+                  });
+                  Navigator.pop(context);
+                }
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
       ),
     );
   }

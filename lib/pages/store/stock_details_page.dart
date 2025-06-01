@@ -8,6 +8,8 @@ import '../../provider/store_inward_provider.dart';
 import '../../provider/purchase_order.dart';
 import '../../provider/vendor_material_rate_provider.dart';
 import '../../provider/quality_inspection_provider.dart';
+import '../../models/category.dart';
+import '../../provider/category_provider.dart';
 
 class InspectionStatus {
   final String inspectionNo;
@@ -500,7 +502,14 @@ class MaterialStockDetailPage extends ConsumerWidget {
     final storeInwards = ref.watch(storeInwardProvider);
     final purchaseOrders = ref.watch(purchaseOrderListProvider);
     final qualityInspections = ref.watch(qualityInspectionProvider);
+    final categories = ref.watch(categoryListProvider);
     final rows = <PlutoRow>[];
+
+    // Get the material's category
+    final category = categories.firstWhere(
+      (c) => c.name == material.category,
+      orElse: () => Category(name: material.category),
+    );
 
     // Track inspection status per GRN
     final grnInspectionStatus =
@@ -529,6 +538,44 @@ class MaterialStockDetailPage extends ConsumerWidget {
           final inspectionData = grnInspectionStatus[inward.grnNo];
           final totalAccepted = inspectionData?['acceptedQty'] ?? 0.0;
           final totalInspected = inspectionData?['inspectedQty'] ?? 0.0;
+
+          // If quality check is not required, show full quantity in stock
+          if (!category.requiresQualityCheck) {
+            final po = purchaseOrders.firstWhere(
+              (po) => po.poNo == inward.poNo,
+              orElse: () => PurchaseOrder(
+                poNo: '',
+                poDate: '',
+                supplierName: '',
+                transport: '',
+                deliveryRequirements: '',
+                items: [],
+                total: 0,
+                igst: 0,
+                cgst: 0,
+                sgst: 0,
+                grandTotal: 0,
+              ),
+            );
+
+            rows.add(PlutoRow(
+              cells: {
+                'grnNo': PlutoCell(value: inward.grnNo),
+                'jobNo': PlutoCell(value: inward.grnNo),
+                'poNo': PlutoCell(value: inward.poNo),
+                'poDate': PlutoCell(value: po.poDate),
+                'supplier': PlutoCell(value: inward.supplierName),
+                'receivedQty': PlutoCell(value: item.receivedQty),
+                'acceptedQty': PlutoCell(value: item.receivedQty), // Full quantity is accepted
+                'rate': PlutoCell(value: '₹${item.costPerUnit}'),
+                'value': PlutoCell(
+                    value:
+                        '₹${(item.receivedQty * double.parse(item.costPerUnit)).toStringAsFixed(2)}'),
+                'date': PlutoCell(value: inward.grnDate),
+              },
+            ));
+            continue;
+          }
 
           // Only show in stock distribution if:
           // 1. Has accepted quantity
@@ -579,7 +626,19 @@ class MaterialStockDetailPage extends ConsumerWidget {
   List<PlutoRow> _getInspectionRows(WidgetRef ref) {
     final storeInwards = ref.watch(storeInwardProvider);
     final qualityInspections = ref.watch(qualityInspectionProvider);
+    final categories = ref.watch(categoryListProvider);
     final rows = <PlutoRow>[];
+
+    // Get the material's category
+    final category = categories.firstWhere(
+      (c) => c.name == material.category,
+      orElse: () => Category(name: material.category),
+    );
+
+    // Skip inspection rows if quality check is not required
+    if (!category.requiresQualityCheck) {
+      return rows;
+    }
 
     // Track inspection status per GRN
     final grnInspectionStatus =

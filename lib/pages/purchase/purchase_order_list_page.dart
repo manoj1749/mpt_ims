@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/purchase_order.dart';
 import '../../provider/purchase_order.dart';
-import '../../provider/store_inward_provider.dart';
 import '../../provider/purchase_request_provider.dart';
 import 'add_purchase_order_page.dart';
 
@@ -17,7 +16,7 @@ class PurchaseOrderListPage extends ConsumerStatefulWidget {
 class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
   String _searchQuery = '';
   String _selectedStatus = 'All';
-  Set<String> _expandedPOs = {};
+  final Set<String> _expandedPOs = {};
 
   List<PurchaseOrder> _filterOrders(List<PurchaseOrder> orders) {
     return orders.where((order) {
@@ -214,7 +213,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                                 ),
                               ],
                     ),
-                  )).toList(),
+                  )),
                   if (relatedPRs.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     const Text(

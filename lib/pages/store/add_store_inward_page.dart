@@ -12,8 +12,6 @@ import '../../models/supplier.dart';
 import '../../provider/supplier_provider.dart';
 import '../../models/purchase_order.dart';
 import '../../provider/purchase_order.dart';
-import '../../models/purchase_request.dart';
-import '../../provider/purchase_request_provider.dart';
 
 class AddStoreInwardPage extends ConsumerStatefulWidget {
   final StoreInward? existingGR;
@@ -115,7 +113,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       }
 
       if (selectedPOs[material.partNo]![po.poNo] == true) {
-      final poItem = po.items.firstWhere(
+      po.items.firstWhere(
         (item) => item.materialCode == material.partNo,
       );
 

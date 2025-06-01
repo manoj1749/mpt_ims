@@ -516,11 +516,27 @@ class _PurchaseRequestListPageState
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: const Icon(Icons.refresh),
             onPressed: () {
-              // TODO: Implement search
+              // Refresh the grid
+              if (stateManager != null) {
+                final requests = ref.read(purchaseRequestListProvider);
+                final purchaseOrders = ref.read(purchaseOrderListProvider);
+                final storeInwards = ref.read(storeInwardProvider);
+                stateManager!.removeAllRows();
+                stateManager!.appendRows(_getRows(requests, purchaseOrders, storeInwards));
+                
+                // Show a snackbar to confirm refresh
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Page refreshed'),
+                    backgroundColor: Colors.white,
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              }
             },
-            tooltip: 'Search Requests',
+            tooltip: 'Refresh Page',
           ),
         ],
       ),

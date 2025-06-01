@@ -45,6 +45,7 @@ class _AddPurchaseRequestPageState
           quantity: item.quantity,
           partNoController: TextEditingController(text: item.materialCode),
           unitController: TextEditingController(text: item.unit),
+          materialController: TextEditingController(text: item.materialDescription),
         ));
       }
     } else {
@@ -70,6 +71,7 @@ class _AddPurchaseRequestPageState
         quantity: null,
         partNoController: TextEditingController(),
         unitController: TextEditingController(),
+        materialController: TextEditingController(),
       ));
     });
   }
@@ -228,6 +230,7 @@ class _AddPurchaseRequestPageState
                             _items[0].quantity = quantity;
                             _items[0].partNoController.text = material.partNo;
                             _items[0].unitController.text = material.unit;
+                            _items[0].materialController.text = material.description;
                           });
                           hasUsedFirstItem = true;
                         } else {
@@ -239,6 +242,7 @@ class _AddPurchaseRequestPageState
                                 TextEditingController(text: material.partNo),
                             unitController:
                                 TextEditingController(text: material.unit),
+                            materialController: TextEditingController(text: material.description),
                           ));
                         }
                       }
@@ -335,163 +339,213 @@ class _AddPurchaseRequestPageState
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Column(
+                    child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Material Selection - Takes 2/3 of the space
-                            Expanded(
-                              flex: 2,
-                              child: Autocomplete<MaterialItem>(
-                                fieldViewBuilder: (context,
-                                    textEditingController,
-                                    focusNode,
-                                    onFieldSubmitted) {
-                                  // Set initial value without triggering rebuild
-                                  WidgetsBinding.instance
-                                      .addPostFrameCallback((_) {
-                                    if (textEditingController.text.isEmpty &&
-                                        item.selectedMaterial != null) {
-                                      textEditingController.text =
-                                          item.selectedMaterial!;
-                                    }
-                                  });
-                                  return TextFormField(
-                                    controller: textEditingController,
-                                    focusNode: focusNode,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Material',
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    validator: (v) => v == null || v.isEmpty
-                                        ? 'Required'
-                                        : !materials
-                                                .any((m) => m.description == v)
-                                            ? 'Invalid material'
-                                            : null,
-                                  );
-                                },
-                                optionsViewBuilder:
-                                    (context, onSelected, options) {
-                                  return Align(
-                                    alignment: Alignment.topLeft,
-                                    child: Material(
-                                      elevation: 4.0,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                        side: BorderSide(
-                                          color: Theme.of(context).dividerColor,
-                                        ),
-                                      ),
-                                      child: ConstrainedBox(
-                                        constraints: const BoxConstraints(
-                                          maxHeight: 200,
-                                          maxWidth: 600,
-                                        ),
-                                        child: ListView.builder(
-                                          padding: const EdgeInsets.all(8.0),
-                                          itemCount: options.length,
-                                          itemBuilder: (context, index) {
-                                            final option =
-                                                options.elementAt(index);
-                                            return InkWell(
-                                              onTap: () => onSelected(option),
-                                              child: Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  vertical: 12.0,
-                                                  horizontal: 16.0,
-                                                ),
-                                                child: Text(
-                                                  option.description,
-                                                  style: const TextStyle(
-                                                    fontSize: 14.0,
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                                displayStringForOption: (material) =>
-                                    material.description,
-                                optionsBuilder: (textEditingValue) {
-                                  if (textEditingValue.text.isEmpty) {
-                                    return materials;
-                                  }
-                                  return materials.where((material) => material
-                                      .description
-                                      .toLowerCase()
-                                      .contains(
-                                          textEditingValue.text.toLowerCase()));
-                                },
-                                onSelected: (material) {
-                                  setState(() {
-                                    item.selectedMaterial =
-                                        material.description;
-                                    item.partNoController.text =
-                                        material.partNo;
-                                    item.unitController.text = material.unit;
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            // Quantity Field - Takes 1/3 of the space
-                            Expanded(
-                              child: TextFormField(
-                                key: ValueKey('quantity_${item.hashCode}'),
-                                initialValue: item.quantity,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  labelText: 'Quantity',
-                                  border: OutlineInputBorder(),
-                                ),
-                                validator: (v) =>
-                                    v == null || v.isEmpty ? 'Required' : null,
-                                onChanged: (v) => item.quantity = v,
-                                onSaved: (v) => item.quantity = v,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // Delete Button
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => _removeItem(index),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Material Details Row
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: item.partNoController,
-                                enabled: false,
+                        // Material Code Selection
+                        Expanded(
+                          flex: 2,
+                          child: Autocomplete<MaterialItem>(
+                            fieldViewBuilder: (context,
+                                textEditingController,
+                                focusNode,
+                                onFieldSubmitted) {
+                              // Set initial value without triggering rebuild
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (textEditingController.text.isEmpty &&
+                                    item.partNoController.text.isNotEmpty) {
+                                  textEditingController.text = item.partNoController.text;
+                                }
+                              });
+                              return TextFormField(
+                                controller: textEditingController,
+                                focusNode: focusNode,
                                 decoration: const InputDecoration(
                                   labelText: 'Material Code',
                                   border: OutlineInputBorder(),
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: TextFormField(
-                                controller: item.unitController,
-                                enabled: false,
+                                validator: (v) => v == null || v.isEmpty
+                                    ? 'Required'
+                                    : !materials.any((m) => m.partNo == v)
+                                        ? 'Invalid material code'
+                                        : null,
+                              );
+                            },
+                            optionsViewBuilder: (context, onSelected, options) {
+                              return Align(
+                                alignment: Alignment.topLeft,
+                                child: Material(
+                                  elevation: 4.0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    side: BorderSide(
+                                      color: Theme.of(context).dividerColor,
+                                    ),
+                                  ),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxHeight: 200,
+                                      maxWidth: 400,
+                                    ),
+                                    child: ListView.builder(
+                                      padding: const EdgeInsets.all(8.0),
+                                      itemCount: options.length,
+                                      itemBuilder: (context, index) {
+                                        final option = options.elementAt(index);
+                                        return InkWell(
+                                          onTap: () => onSelected(option),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 12.0,
+                                              horizontal: 16.0,
+                                            ),
+                                            child: Text(
+                                              '${option.partNo} - ${option.description}',
+                                              style: const TextStyle(
+                                                fontSize: 14.0,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            displayStringForOption: (material) => material.partNo,
+                            optionsBuilder: (textEditingValue) {
+                              if (textEditingValue.text.isEmpty) {
+                                return materials;
+                              }
+                              return materials.where((material) =>
+                                  material.partNo.toLowerCase().contains(
+                                      textEditingValue.text.toLowerCase()));
+                            },
+                            onSelected: (material) {
+                              setState(() {
+                                item.selectedMaterial = material.description;
+                                item.partNoController.text = material.partNo;
+                                item.unitController.text = material.unit;
+                                item.materialController.text = material.description;
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        // Material Description Selection
+                        Expanded(
+                          flex: 3,
+                          child: Autocomplete<MaterialItem>(
+                            fieldViewBuilder: (context,
+                                textEditingController,
+                                focusNode,
+                                onFieldSubmitted) {
+                              // Set initial value without triggering rebuild
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (textEditingController.text.isEmpty &&
+                                    item.selectedMaterial != null) {
+                                  textEditingController.text = item.selectedMaterial!;
+                                }
+                              });
+                              return TextFormField(
+                                controller: textEditingController,
+                                focusNode: focusNode,
                                 decoration: const InputDecoration(
-                                  labelText: 'Unit',
+                                  labelText: 'Material',
                                   border: OutlineInputBorder(),
                                 ),
-                              ),
+                                validator: (v) => v == null || v.isEmpty
+                                    ? 'Required'
+                                    : !materials.any((m) => m.description == v)
+                                        ? 'Invalid material'
+                                        : null,
+                              );
+                            },
+                            optionsViewBuilder: (context, onSelected, options) {
+                              return Align(
+                                alignment: Alignment.topLeft,
+                                child: Material(
+                                  elevation: 4.0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    side: BorderSide(
+                                      color: Theme.of(context).dividerColor,
+                                    ),
+                                  ),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxHeight: 200,
+                                      maxWidth: 600,
+                                    ),
+                                    child: ListView.builder(
+                                      padding: const EdgeInsets.all(8.0),
+                                      itemCount: options.length,
+                                      itemBuilder: (context, index) {
+                                        final option = options.elementAt(index);
+                                        return InkWell(
+                                          onTap: () => onSelected(option),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 12.0,
+                                              horizontal: 16.0,
+                                            ),
+                                            child: Text(
+                                              option.description,
+                                              style: const TextStyle(
+                                                fontSize: 14.0,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            displayStringForOption: (material) => material.description,
+                            optionsBuilder: (textEditingValue) {
+                              if (textEditingValue.text.isEmpty) {
+                                return materials;
+                              }
+                              return materials.where((material) =>
+                                  material.description.toLowerCase().contains(
+                                      textEditingValue.text.toLowerCase()));
+                            },
+                            onSelected: (material) {
+                              setState(() {
+                                item.selectedMaterial = material.description;
+                                item.partNoController.text = material.partNo;
+                                item.unitController.text = material.unit;
+                                item.materialController.text = material.description;
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        // Quantity Field
+                        Expanded(
+                          flex: 1,
+                          child: TextFormField(
+                            key: ValueKey('quantity_${item.hashCode}'),
+                            initialValue: item.quantity,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Quantity',
+                              border: OutlineInputBorder(),
                             ),
-                          ],
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
+                            onChanged: (v) => item.quantity = v,
+                            onSaved: (v) => item.quantity = v,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Delete Button
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _removeItem(index),
                         ),
                       ],
                     ),
@@ -578,16 +632,19 @@ class PRItemFormData {
   String? quantity;
   final TextEditingController partNoController;
   final TextEditingController unitController;
+  final TextEditingController materialController;
 
   PRItemFormData({
     required this.selectedMaterial,
     required this.quantity,
     required this.partNoController,
     required this.unitController,
+    required this.materialController,
   });
 
   void dispose() {
     partNoController.dispose();
     unitController.dispose();
+    materialController.dispose();
   }
 }

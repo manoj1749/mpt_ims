@@ -1,6 +1,8 @@
 // ignore_for_file: avoid_print
 
 import 'package:hive/hive.dart';
+import '../models/material_item.dart';
+import '../models/category.dart';
 
 part 'store_inward.g.dart';
 
@@ -55,13 +57,40 @@ class StoreInward extends HiveObject {
     print('GRN No: $grnNo');
     print('Current Status: $status');
 
-    bool allItemsInspected = true;
-    bool hasInspectedItems = false;
+    bool allItemsProcessed = true;
+    bool hasProcessedItems = false;
+    bool hasItemsNeedingInspection = false;
 
     for (var item in items) {
       print('\nChecking Item: ${item.materialCode}');
       print('Received Qty: ${item.receivedQty}');
 
+      // Get the material's category from the provider
+      final material = Hive.box<MaterialItem>('materials').values.firstWhere(
+        (m) => m.partNo == item.materialCode || m.slNo == item.materialCode,
+        orElse: () => MaterialItem(
+          slNo: item.materialCode,
+          description: item.materialDescription,
+          partNo: item.materialCode,
+          unit: item.unit,
+          category: 'General',
+          subCategory: '',
+        ),
+      );
+
+      // Get the category settings
+      final category = Hive.box<Category>('categories').values.firstWhere(
+        (c) => c.name == material.category,
+        orElse: () => Category(name: material.category),
+      );
+
+      // If quality check is not required, consider it as inspected
+      if (!category.requiresQualityCheck) {
+        hasProcessedItems = true;
+        continue;
+      }
+
+      hasItemsNeedingInspection = true;
       double totalInspectedQty = 0;
       for (var qty in item.inspectedQuantities.values) {
         totalInspectedQty += qty;
@@ -69,20 +98,21 @@ class StoreInward extends HiveObject {
       print('Total Inspected Qty: $totalInspectedQty');
 
       if (totalInspectedQty > 0) {
-        hasInspectedItems = true;
+        hasProcessedItems = true;
       }
 
       if (totalInspectedQty < item.receivedQty) {
-        allItemsInspected = false;
-        print(
-            'Item not fully inspected: $totalInspectedQty < ${item.receivedQty}');
+        allItemsProcessed = false;
+        print('Item not fully inspected: $totalInspectedQty < ${item.receivedQty}');
       }
     }
 
     String newStatus;
-    if (!hasInspectedItems) {
+    if (!hasItemsNeedingInspection) {
+      newStatus = 'Completed'; // All items are general stock or don't need inspection
+    } else if (!hasProcessedItems) {
       newStatus = 'Under Inspection';
-    } else if (allItemsInspected) {
+    } else if (allItemsProcessed) {
       newStatus = 'Inspected';
     } else {
       newStatus = 'Partially Inspected';

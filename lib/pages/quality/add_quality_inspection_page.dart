@@ -16,6 +16,14 @@ import '../../provider/universal_parameter_provider.dart';
 import '../../provider/purchase_order.dart';
 import '../../provider/purchase_request_provider.dart';
 import 'dart:convert';
+import '../../models/pr_item.dart';
+import '../../models/po_item.dart';
+import '../../models/purchase_order.dart';
+import '../../models/purchase_request.dart';
+import '../../models/category.dart';
+import '../../provider/vendor_material_rate_provider.dart';
+import '../../provider/category_provider.dart';
+import 'package:collection/collection.dart';
 
 class AddQualityInspectionPage extends ConsumerStatefulWidget {
   const AddQualityInspectionPage({super.key});
@@ -34,7 +42,6 @@ class _AddQualityInspectionPageState
 
   Supplier? selectedSupplier;
   List<InspectionItem> _items = [];
-  Map<String, Map<String, bool>> selectedPOs = {};
 
   @override
   void initState() {
@@ -42,6 +49,11 @@ class _AddQualityInspectionPageState
     // Set current date as default inspection date
     _inspectionDateController.text =
         DateFormat('yyyy-MM-dd').format(DateTime.now());
+    
+    // Load all pending items when page opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAllPendingItems();
+    });
   }
 
   @override
@@ -52,43 +64,20 @@ class _AddQualityInspectionPageState
     super.dispose();
   }
 
-  void _onSupplierSelected(Supplier supplier) {
+  void _loadAllPendingItems() {
     final materials = ref.read(materialListProvider);
-    final inwards = ref
-        .watch(storeInwardProvider)
-        .where((inward) => inward.supplierName == supplier.name)
-        .toList();
-
-    // Show message if no GRNs found for supplier
-    if (inwards.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No pending GRNs found for this supplier'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-      setState(() {
-        selectedSupplier = supplier;
-        _items = [];
-      });
-      return;
-    }
-
+    final inwards = ref.watch(storeInwardProvider);
     final inspections = ref.watch(qualityInspectionProvider);
+    final categories = ref.watch(categoryListProvider);
     ref.read(purchaseOrderListProvider);
     ref.read(purchaseRequestListProvider);
 
     // Group items by material and PO
     final materialPOItems = <String, Map<String, List<Map<String, dynamic>>>>{};
-    final grnInfo = <String,
-        Map<String,
-            Map<String, String>>>{}; // materialCode -> poNo -> grnNo -> grnInfo
+    final grnInfo = <String, Map<String, Map<String, String>>>{};
 
     // Track inspected quantities per material and PO
-    final inspectedQtys =
-        <String, Map<String, double>>{}; // materialCode -> poNo -> inspectedQty
+    final inspectedQtys = <String, Map<String, double>>{};
 
     // First, gather all inspected quantities
     for (var inspection in inspections) {
@@ -109,6 +98,30 @@ class _AddQualityInspectionPageState
     // Now process GRNs and check against inspected quantities
     for (var grn in inwards) {
       for (var inwardItem in grn.items) {
+        // Find the material to get its category
+        final material = materials.firstWhere(
+          (m) => m.partNo == inwardItem.materialCode || m.slNo == inwardItem.materialCode,
+          orElse: () => MaterialItem(
+            slNo: inwardItem.materialCode,
+            description: inwardItem.materialDescription,
+            partNo: inwardItem.materialCode,
+            unit: inwardItem.unit,
+            category: 'General',
+            subCategory: '',
+          ),
+        );
+
+        // Get the category settings
+        final category = categories.firstWhere(
+          (c) => c.name == material.category,
+          orElse: () => Category(name: material.category),
+        );
+
+        // Skip items that don't require quality inspection
+        if (!category.requiresQualityCheck) {
+          continue;
+        }
+
         materialPOItems.putIfAbsent(inwardItem.materialCode, () => {});
         grnInfo.putIfAbsent(inwardItem.materialCode, () => {});
 
@@ -129,8 +142,7 @@ class _AddQualityInspectionPageState
               'materialDescription': inwardItem.materialDescription,
               'unit': inwardItem.unit,
               'costPerUnit': inwardItem.costPerUnit,
-              'quantity':
-                  receivedQty - inspectedQty, // Only include remaining quantity
+              'quantity': receivedQty - inspectedQty,
             };
 
             materialPOItems[inwardItem.materialCode]!
@@ -151,7 +163,6 @@ class _AddQualityInspectionPageState
     }
 
     setState(() {
-      selectedSupplier = supplier;
       _items = [];
 
       // Process each material
@@ -216,7 +227,7 @@ class _AddQualityInspectionPageState
             category: material.category,
             receivedQty: poQuantities.values
                 .fold(0.0, (sum, qty) => sum + qty.receivedQty),
-            costPerUnit: double.tryParse(firstItemData['costPerUnit']) ?? 0.0,
+            costPerUnit: double.parse(firstItemData['costPerUnit']),
             totalCost: poQuantities.values.fold(
                 0.0,
                 (sum, qty) =>
@@ -244,6 +255,29 @@ class _AddQualityInspectionPageState
     });
   }
 
+  void _onSupplierSelected(Supplier? supplier) {
+    setState(() {
+      selectedSupplier = supplier;
+      
+      if (supplier == null) {
+        // If supplier is cleared, show all items
+        _loadAllPendingItems();
+      } else {
+        // Filter items for selected supplier
+        _items = _items.where((item) {
+          // Check if any PO for this item belongs to the selected supplier
+          return item.poQuantities.keys.any((poNo) {
+            final inward = ref.read(storeInwardProvider).firstWhere(
+              (inward) => inward.poNo.split(', ').contains(poNo),
+              orElse: () => throw Exception('GRN not found'),
+            );
+            return inward.supplierName == supplier.name;
+          });
+        }).toList();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final suppliers = ref.watch(supplierListProvider);
@@ -261,31 +295,32 @@ class _AddQualityInspectionPageState
               buildTextField(_inspectionDateController, 'Inspection Date',
                   isDate: true),
 
-              // Supplier Dropdown
+              // Optional Supplier Filter Dropdown
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: DropdownButtonFormField2<Supplier>(
+                child: DropdownButtonFormField2<Supplier?>(
                   decoration: const InputDecoration(
-                    labelText: 'Select Supplier',
+                    labelText: 'Filter by Supplier (Optional)',
                     border: OutlineInputBorder(),
                   ),
                   isExpanded: true,
                   value: selectedSupplier,
-                  items: suppliers.map((supplier) {
-                    return DropdownMenuItem<Supplier>(
-                      value: supplier,
-                      child: Text(
-                        supplier.name,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      _onSupplierSelected(value);
-                    }
-                  },
-                  validator: (value) => value == null ? 'Required' : null,
+                  items: [
+                    const DropdownMenuItem<Supplier?>(
+                      value: null,
+                      child: Text('All Suppliers'),
+                    ),
+                    ...suppliers.map((supplier) {
+                      return DropdownMenuItem<Supplier>(
+                        value: supplier,
+                        child: Text(
+                          supplier.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }),
+                  ],
+                  onChanged: _onSupplierSelected,
                   dropdownStyleData: DropdownStyleData(
                     maxHeight: 300,
                     decoration: BoxDecoration(
@@ -304,7 +339,7 @@ class _AddQualityInspectionPageState
               const SizedBox(height: 20),
 
               // Material Groups
-              if (_items.isEmpty && selectedSupplier != null)
+              if (_items.isEmpty)
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -327,7 +362,9 @@ class _AddQualityInspectionPageState
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'There are no GRNs pending inspection for this supplier',
+                          selectedSupplier != null
+                              ? 'No pending items for ${selectedSupplier!.name}'
+                              : 'There are no GRNs pending inspection',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[500],

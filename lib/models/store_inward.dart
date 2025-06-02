@@ -169,12 +169,13 @@ class InwardItem {
   String costPerUnit;
 
   @HiveField(8)
-  Map<String, double> poQuantities =
-      {}; // Store PO-wise quantities: PO No -> Quantity
+  Map<String, Map<String, double>> prQuantities = {}; // Store PR-wise quantities: PO No -> {PR No -> Quantity}
 
   @HiveField(9)
-  Map<String, double> inspectedQuantities =
-      {}; // Map of inspection number to inspected quantity
+  Map<String, double> inspectedQuantities = {}; // Map of inspection number to inspected quantity
+
+  @HiveField(10)
+  Map<String, Map<String, String>> prJobNumbers = {}; // Map of PO No -> {PR No -> Job No}
 
   double get inspectedQuantity =>
       inspectedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
@@ -183,6 +184,35 @@ class InwardItem {
 
   void addInspectedQuantity(String inspectionNo, double quantity) {
     inspectedQuantities[inspectionNo] = quantity;
+  }
+
+  // Helper method to get job number for a specific PR
+  String getJobNumberForPR(String poNo, String prNo) {
+    return prJobNumbers[poNo]?[prNo] ?? 'General Stock';
+  }
+
+  // Add job number for a PR
+  void addJobNumberForPR(String poNo, String prNo, String jobNo) {
+    if (!prJobNumbers.containsKey(poNo)) {
+      prJobNumbers[poNo] = {};
+    }
+    prJobNumbers[poNo]![prNo] = jobNo;
+  }
+
+  // Add received quantity for a PR
+  void addPRQuantity(String poNo, String prNo, double quantity) {
+    if (!prQuantities.containsKey(poNo)) {
+      prQuantities[poNo] = {};
+    }
+    prQuantities[poNo]![prNo] = quantity;
+  }
+
+  // Get total received quantity for a PO
+  double getTotalQuantityForPO(String poNo) {
+    if (!prQuantities.containsKey(poNo)) {
+      return 0.0;
+    }
+    return prQuantities[poNo]!.values.fold(0.0, (sum, qty) => sum + qty);
   }
 
   InwardItem({
@@ -194,20 +224,12 @@ class InwardItem {
     required this.acceptedQty,
     required this.rejectedQty,
     required this.costPerUnit,
-    Map<String, double>? poQuantities,
+    Map<String, Map<String, double>>? prQuantities,
     Map<String, double>? inspectedQuantities,
+    Map<String, Map<String, String>>? prJobNumbers,
   }) {
-    this.poQuantities = poQuantities ?? {};
+    this.prQuantities = prQuantities ?? {};
     this.inspectedQuantities = inspectedQuantities ?? {};
-  }
-
-  // Helper method to get total received quantity for a specific PO
-  double getReceivedQuantityForPO(String poNo) {
-    return poQuantities[poNo] ?? 0.0;
-  }
-
-  // Add received quantity for a PO
-  void addReceivedQuantityForPO(String poNo, double quantity) {
-    poQuantities[poNo] = (poQuantities[poNo] ?? 0.0) + quantity;
+    this.prJobNumbers = prJobNumbers ?? {};
   }
 }

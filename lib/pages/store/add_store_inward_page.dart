@@ -68,7 +68,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         }
       }
     } else {
-      _grnDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    _grnDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
       _invoiceAmountController.text = '0.00';
     }
   }
@@ -103,30 +103,357 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     return jobNos.toList()..sort();
   }
 
+  Widget _buildItemCard(MaterialItem material, List<PurchaseOrder> pos) {
+    // Initialize controllers and selected state for this material if not exists
+    if (!selectedPOs.containsKey(material.partNo)) {
+      selectedPOs[material.partNo] = {};
+      poQtyControllers[material.partNo] = {};
+      for (var po in pos) {
+        // Initialize for both PR and general stock if applicable
+        for (var prDetail in po.items
+            .firstWhere((item) => item.materialCode == material.partNo)
+            .prDetails
+            .entries) {
+          final key = '${po.poNo}_${prDetail.key}';
+          selectedPOs[material.partNo]![key] = false;
+          poQtyControllers[material.partNo]![key] =
+              TextEditingController(text: '0');
+        }
+      }
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              material.description,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 4),
+            Text('Code: ${material.partNo}'),
+            const SizedBox(height: 16),
+            // Consolidated PO View
+            ...pos.map((po) {
+              final poItem = po.items.firstWhere(
+                (item) => item.materialCode == material.partNo,
+              );
+              
+              // Calculate total ordered quantity for this PO
+              final totalOrdered = poItem.prDetails.values
+                  .fold(0.0, (sum, detail) => sum + detail.quantity);
+              
+              // Get all job numbers for this PO
+              final jobNumbers = poItem.prDetails.values
+                  .map((detail) => detail.jobNo == 'General' ? 'General Stock' : detail.jobNo)
+                  .join(', ');
+              
+              // Calculate total received quantity for this PO
+              final totalReceivedQty = ref
+                  .read(storeInwardProvider.notifier)
+                  .getTotalReceivedQuantity(material.partNo, po.poNo);
+
+              // Create a controller for consolidated inward quantity if not exists
+              final consolidatedKey = '${po.poNo}_consolidated';
+              if (!poQtyControllers[material.partNo]!.containsKey(consolidatedKey)) {
+                poQtyControllers[material.partNo]![consolidatedKey] =
+                    TextEditingController(text: '0');
+              }
+
+              return Column(
+                children: [
+                  // Consolidated PO row
+            Row(
+              children: [
+                Expanded(
+                        flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                            Text('PO: ${po.poNo}',
+                                style: const TextStyle(fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 4),
+                            Text('Job Numbers: $jobNumbers',
+                                style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Text('Ordered: $totalOrdered',
+                            style: const TextStyle(fontSize: 12)),
+                      ),
+                      Expanded(
+                        child: Text('Received: $totalReceivedQty',
+                            style: const TextStyle(fontSize: 12)),
+                ),
+                Expanded(
+                        child: TextFormField(
+                          controller: poQtyControllers[material.partNo]![consolidatedKey],
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            hintText: 'Enter Qty',
+                          ),
+                          keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 12),
+                          onChanged: (value) {
+                            setState(() {
+                              final inwardQty = double.tryParse(value) ?? 0.0;
+                              
+                              if (inwardQty > 0) {
+                                // Calculate total remaining quantity for all PRs
+                                double totalRemainingQty = 0.0;
+                                for (var prDetail in poItem.prDetails.entries) {
+                                  final prReceivedQty = ref
+                                      .read(storeInwardProvider.notifier)
+                                      .getPRReceivedQuantity(material.partNo, po.poNo, prDetail.key);
+                                  final prRemainingQty = prDetail.value.quantity - prReceivedQty;
+                                  if (prRemainingQty > 0) {
+                                    totalRemainingQty += prRemainingQty;
+                                  }
+                                }
+
+                                if (totalRemainingQty > 0) {
+                                  // Distribute the inward quantity proportionally among PRs
+                                  double remainingInward = inwardQty;
+                                  
+                                  for (var prDetail in poItem.prDetails.entries) {
+                                    final key = '${po.poNo}_${prDetail.key}';
+                                    final prReceivedQty = ref
+                                        .read(storeInwardProvider.notifier)
+                                        .getPRReceivedQuantity(material.partNo, po.poNo, prDetail.key);
+                                    final prRemainingQty = prDetail.value.quantity - prReceivedQty;
+                                    
+                                    if (prRemainingQty > 0) {
+                                      selectedPOs[material.partNo]![key] = true;
+                                      final proportion = prRemainingQty / totalRemainingQty;
+                                      final allocatedQty = (remainingInward * proportion).roundToDouble();
+                                      poQtyControllers[material.partNo]![key]?.text = allocatedQty.toString();
+                                      remainingInward -= allocatedQty;
+                                    }
+                                  }
+                                  
+                                  // Add any remaining quantity due to rounding to the last PR
+                                  if (remainingInward > 0) {
+                                    for (var prDetail in poItem.prDetails.entries.toList().reversed) {
+                                      final key = '${po.poNo}_${prDetail.key}';
+                                      if (selectedPOs[material.partNo]![key] == true) {
+                                        final currentQty = double.tryParse(
+                                                poQtyControllers[material.partNo]![key]?.text ?? '0') ??
+                                            0.0;
+                                        poQtyControllers[material.partNo]![key]?.text =
+                                            (currentQty + remainingInward).toString();
+                                        break;
+                                      }
+                                    }
+                                  }
+                                }
+                              } else {
+                                // Reset PR-wise quantities
+                                for (var prDetail in poItem.prDetails.entries) {
+                                  final key = '${po.poNo}_${prDetail.key}';
+                                  poQtyControllers[material.partNo]![key]?.text = '0';
+                                  selectedPOs[material.partNo]![key] = false;
+                                }
+                              }
+                              _invoiceAmountController.text =
+                                  _calculateInvoiceAmount().toStringAsFixed(2);
+                            });
+                          },
+                  ),
+                ),
+              ],
+            ),
+                  // Show detailed PR view only if inward qty < remaining total
+                  if ((double.tryParse(poQtyControllers[material.partNo]?[consolidatedKey]?.text ?? '0') ?? 0) > 0 &&
+                      (double.tryParse(poQtyControllers[material.partNo]?[consolidatedKey]?.text ?? '0') ?? 0) < (totalOrdered - totalReceivedQty))
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16, top: 8),
+                      child: Table(
+              columnWidths: const {
+                          0: FlexColumnWidth(0.5), // Checkbox
+                          1: FlexColumnWidth(1.5), // Job No
+                2: FlexColumnWidth(1), // Ordered
+                3: FlexColumnWidth(1), // Received
+                4: FlexColumnWidth(1.5), // Inward Qty
+              },
+              children: [
+                const TableRow(
+                  children: [
+                              Text(''), // Checkbox
+                              Text('Job No',
+                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                    Text('Ordered',
+                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                    Text('Received',
+                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                    Text('Inward Qty',
+                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                  ],
+                ),
+                          ...poItem.prDetails.entries.map((prDetail) {
+                            final key = '${po.poNo}_${prDetail.key}';
+                            final orderedQty = prDetail.value.quantity;
+                            final receivedQty = ref
+                                .read(storeInwardProvider.notifier)
+                                .getPRReceivedQuantity(material.partNo, po.poNo, prDetail.key);
+                            final remainingQty = orderedQty - receivedQty;
+                            
+                            if (remainingQty <= 0) return null;
+                            
+                            final isSelected = selectedPOs[material.partNo]?[key] ?? false;
+
+                  return TableRow(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Checkbox(
+                          value: isSelected,
+                          onChanged: (bool? value) {
+    setState(() {
+                                        selectedPOs[material.partNo]![key] = value ?? false;
+                              if (value == true) {
+                                          // Calculate proportional quantity based on remaining quantities
+                                          final totalPOInwardQty = double.tryParse(
+                                              poQtyControllers[material.partNo]![
+                                                      '${po.poNo}_consolidated']?.text ??
+                                                  '0') ??
+                                              0.0;
+                                          final totalRemainingQty = poItem.prDetails.entries.fold(
+                                              0.0,
+                                              (sum, pr) =>
+                                                  sum +
+                                                  (pr.value.quantity -
+                                                      ref
+                                                          .read(storeInwardProvider.notifier)
+                                                          .getPRReceivedQuantity(
+                                                              material.partNo,
+                                                              po.poNo,
+                                                              pr.key)));
+                                          
+                                          if (totalRemainingQty > 0) {
+                                            final proportion = remainingQty / totalRemainingQty;
+                                            final allocatedQty =
+                                                (totalPOInwardQty * proportion).roundToDouble();
+                                            poQtyControllers[material.partNo]![key]?.text =
+                                                allocatedQty.toString();
+                                          }
+                              } else {
+                                          poQtyControllers[material.partNo]![key]?.text = '0';
+                              }
+                                        _invoiceAmountController.text =
+                                            _calculateInvoiceAmount().toStringAsFixed(2);
+                            });
+                          },
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Text(
+                                    prDetail.value.jobNo == 'General' ? 'General Stock' : prDetail.value.jobNo,
+                                    style: const TextStyle(fontSize: 12),
+                      ),
+                                ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Text(orderedQty.toString(),
+                            style: const TextStyle(fontSize: 12)),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Text(receivedQty.toString(),
+                                      style: const TextStyle(fontSize: 12)),
+                        ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: TextFormField(
+                                    controller: poQtyControllers[material.partNo]![key],
+                            enabled: isSelected,
+                                    decoration: const InputDecoration(
+                              isDense: true,
+                                      contentPadding:
+                                          EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    ),
+                            keyboardType: TextInputType.number,
+                                    style: const TextStyle(fontSize: 12),
+                            validator: (value) {
+                              if (!isSelected) return null;
+                                      if (value == null || value.isEmpty) return 'Required';
+                              final qty = double.tryParse(value);
+                                      if (qty == null || qty <= 0) return 'Invalid';
+                                      if (qty > remainingQty)
+                                        return 'Max ${remainingQty.toStringAsFixed(2)}';
+                              return null;
+                            },
+                            onChanged: (value) {
+                                      setState(() {
+                                        // Update consolidated quantity when PR-wise quantity changes
+                                        double totalPRQty = 0.0;
+                                        for (var pr in poItem.prDetails.entries) {
+                                          final prKey = '${po.poNo}_${pr.key}';
+                                          if (selectedPOs[material.partNo]?[prKey] == true) {
+                                            totalPRQty += double.tryParse(
+                                                    poQtyControllers[material.partNo]?[prKey]
+                                                            ?.text ??
+                                                        '0') ??
+                                                0.0;
+                                          }
+                                        }
+                                        poQtyControllers[material.partNo]![
+                                                '${po.poNo}_consolidated']
+                                            ?.text = totalPRQty.toString();
+                                        _invoiceAmountController.text =
+                                            _calculateInvoiceAmount().toStringAsFixed(2);
+                                      });
+                            },
+                        ),
+                      ),
+                    ],
+                  );
+                          }).whereType<TableRow>().toList(),
+              ],
+                      ),
+            ),
+                ],
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
   InwardItem _createInwardItem(MaterialItem material, List<PurchaseOrder> pos) {
     final poQuantities = <String, double>{};
+    final jobNumbers = <String, String>{};
     double totalQty = 0;
 
     for (var po in pos) {
-      if (!selectedPOs[material.partNo]!.containsKey(po.poNo)) {
-        selectedPOs[material.partNo]![po.poNo] = false;
-      }
+      final poItem = po.items.firstWhere(
+        (item) => item.materialCode == material.partNo,
+      );
 
-      if (selectedPOs[material.partNo]![po.poNo] == true) {
-        po.items.firstWhere(
-          (item) => item.materialCode == material.partNo,
-        );
+      for (var prDetail in poItem.prDetails.entries) {
+        final key = '${po.poNo}_${prDetail.key}';
+        if (!selectedPOs[material.partNo]!.containsKey(key)) {
+          selectedPOs[material.partNo]![key] = false;
+    }
 
-        final inwardController = poQtyControllers[material.partNo]?[po.poNo] ??
-            TextEditingController(text: '0');
-        poQtyControllers
-            .putIfAbsent(material.partNo, () => {})
-            .putIfAbsent(po.poNo, () => inwardController);
-
-        final inwardQty = double.tryParse(inwardController.text) ?? 0;
-        if (inwardQty > 0) {
-          poQuantities[po.poNo] = inwardQty;
-          totalQty += inwardQty;
+        if (selectedPOs[material.partNo]![key] == true) {
+          final inwardController = poQtyControllers[material.partNo]?[key] ??
+              TextEditingController(text: '0');
+          final inwardQty = double.tryParse(inwardController.text) ?? 0;
+          
+          if (inwardQty > 0) {
+            poQuantities[po.poNo] = (poQuantities[po.poNo] ?? 0.0) + inwardQty;
+            totalQty += inwardQty;
+            jobNumbers[po.poNo] = prDetail.value.jobNo == 'General' 
+                ? 'General Stock' 
+                : prDetail.value.jobNo;
+          }
         }
       }
     }
@@ -143,6 +470,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           .firstWhere((item) => item.materialCode == material.partNo)
           .costPerUnit,
       poQuantities: poQuantities,
+      jobNumbers: jobNumbers,
     );
   }
 
@@ -154,264 +482,31 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       if (selectedPOs.containsKey(material.partNo)) {
         for (var entry in selectedPOs[material.partNo]!.entries) {
           if (entry.value) {
-            // if PO is selected
-            final poNo = entry.key;
+            // Extract PO number from the composite key (poNo_prKey)
+            final poNo = entry.key.split('_')[0];
             final qty = double.tryParse(
-                    poQtyControllers[material.partNo]?[poNo]?.text ?? '0') ??
+                    poQtyControllers[material.partNo]?[entry.key]?.text ?? '0') ??
                 0.0;
 
             // Find the PO and get the cost per unit
-            final po = ref
+            final pos = ref
                 .read(purchaseOrderListProvider)
-                .firstWhere((po) => po.poNo == poNo);
-            final poItem = po.items
-                .firstWhere((item) => item.materialCode == material.partNo);
-            final costPerUnit = double.tryParse(poItem.costPerUnit) ?? 0.0;
+                .where((po) => po.poNo == poNo);
+                
+            if (pos.isNotEmpty) {
+              final po = pos.first;
+              final poItem = po.items
+                  .firstWhere((item) => item.materialCode == material.partNo);
+              final costPerUnit = double.tryParse(poItem.costPerUnit) ?? 0.0;
 
-            total += qty * costPerUnit;
+              total += qty * costPerUnit;
+            }
           }
         }
       }
     }
 
     return total;
-  }
-
-  Widget _buildItemCard(MaterialItem material, List<PurchaseOrder> pos) {
-    // Initialize controllers and selected state for this material if not exists
-    if (!selectedPOs.containsKey(material.partNo)) {
-      selectedPOs[material.partNo] = {};
-      poQtyControllers[material.partNo] = {};
-      for (var po in pos) {
-        selectedPOs[material.partNo]![po.poNo] = false;
-        poQtyControllers[material.partNo]![po.poNo] =
-            TextEditingController(text: '0');
-      }
-    }
-
-    // Get all store inwards for this material and supplier
-    ref
-        .watch(storeInwardProvider.notifier)
-        .getInwardsByMaterial(material.partNo)
-        .where((inward) => inward.supplierName == selectedSupplier!.name)
-        .toList();
-
-    // Calculate total received quantity for each PO
-    final poReceivedQty = <String, double>{};
-    for (var po in pos) {
-      poReceivedQty[po.poNo] = ref
-          .read(storeInwardProvider.notifier)
-          .getTotalReceivedQuantity(material.partNo, po.poNo);
-    }
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        material.description,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      Text(
-                        'Code: ${material.partNo} | Unit: ${material.unit}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 16),
-            Table(
-              columnWidths: const {
-                0: FlexColumnWidth(0.5), // Checkbox
-                1: FlexColumnWidth(1.5), // PO No
-                2: FlexColumnWidth(1.5), // Job No
-                3: FlexColumnWidth(1), // Ordered
-                4: FlexColumnWidth(1), // Received
-                5: FlexColumnWidth(1.5), // Inward Qty
-              },
-              children: [
-                const TableRow(
-                  children: [
-                    Text(''), // Checkbox
-                    Text('PO No',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
-                    Text('Job No',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
-                    Text('Ordered',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
-                    Text('Received',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
-                    Text('Inward Qty',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
-                  ],
-                ),
-                ...pos.map((po) {
-                  // Skip if job number filter is active and doesn't match
-                  if (selectedJobNo != null &&
-                      selectedJobNo != 'All' &&
-                      !po.jobNumbers.contains(selectedJobNo) &&
-                      !(selectedJobNo == 'General' &&
-                          po.hasGeneralStockItems)) {
-                    return const TableRow(children: [
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox()
-                    ]);
-                  }
-
-                  final poItem = po.items.firstWhere(
-                    (item) => item.materialCode == material.partNo,
-                  );
-                  final orderedQty = double.parse(poItem.quantity);
-                  final receivedQty = poReceivedQty[po.poNo] ?? 0;
-                  final remainingQty = orderedQty - receivedQty;
-
-                  if (remainingQty <= 0) {
-                    return const TableRow(children: [
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox()
-                    ]);
-                  }
-
-                  final isSelected =
-                      selectedPOs[material.partNo]?[po.poNo] ?? false;
-
-                  return TableRow(
-                    children: [
-                      // Checkbox
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Checkbox(
-                          value: isSelected,
-                          onChanged: (bool? value) {
-                            setState(() {
-                              selectedPOs[material.partNo]![po.poNo] =
-                                  value ?? false;
-                              if (value == true) {
-                                poQtyControllers[material.partNo]![po.poNo]
-                                    ?.text = remainingQty.toString();
-                              } else {
-                                poQtyControllers[material.partNo]![po.poNo]
-                                    ?.text = '0';
-                              }
-                              // Update invoice amount when selection changes
-                              _invoiceAmountController.text =
-                                  _calculateInvoiceAmount().toStringAsFixed(2);
-                            });
-                          },
-                        ),
-                      ),
-                      // PO No
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child:
-                            Text(po.poNo, style: const TextStyle(fontSize: 12)),
-                      ),
-                      // Job Numbers
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(po.formattedBoardNo,
-                            style: const TextStyle(fontSize: 12)),
-                      ),
-                      // Ordered Qty
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(orderedQty.toString(),
-                            style: const TextStyle(fontSize: 12)),
-                      ),
-                      // Received Qty
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(receivedQty.toString(),
-                            style: const TextStyle(fontSize: 12)),
-                      ),
-                      // Inward Qty
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: SizedBox(
-                          height: 32,
-                          child: TextFormField(
-                            controller:
-                                poQtyControllers[material.partNo]![po.poNo],
-                            enabled: isSelected,
-                            decoration: InputDecoration(
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 8),
-                              border: const OutlineInputBorder(),
-                              filled: !isSelected,
-                              fillColor: !isSelected ? Colors.grey[200] : null,
-                            ),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            keyboardType: TextInputType.number,
-                            validator: (value) {
-                              if (!isSelected) return null;
-                              if (value == null || value.isEmpty) {
-                                return 'Required';
-                              }
-                              final qty = double.tryParse(value);
-                              if (qty == null) return 'Invalid';
-                              if (qty <= 0) return 'Invalid';
-                              if (qty > remainingQty) return 'Exceeds';
-                              return null;
-                            },
-                            onChanged: (value) {
-                              if (!isSelected) return;
-                              final qty = double.tryParse(value);
-                              if (qty != null && qty > remainingQty) {
-                                poQtyControllers[material.partNo]![po.poNo]
-                                    ?.text = remainingQty.toString();
-                              }
-                              // Update invoice amount when quantity changes
-                              setState(() {
-                                _invoiceAmountController.text =
-                                    _calculateInvoiceAmount()
-                                        .toStringAsFixed(2);
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }).where(
-                    (row) => row.children.any((cell) => cell is! SizedBox)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _onSavePressed() async {
@@ -534,19 +629,19 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       if (widget.existingGR != null && widget.index != null) {
         final grNotifier = ref.read(storeInwardProvider.notifier);
         grNotifier.updateInward(widget.index!, newGR);
-      } else {
+          } else {
         final grNotifier = ref.read(storeInwardProvider.notifier);
         grNotifier.addInward(newGR);
       }
 
-      Navigator.pop(context);
+        Navigator.pop(context);
     } catch (e) {
       print('Error saving GR: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving GR: $e')),
-      );
+        );
     } finally {
-      setState(() => _isLoading = false);
+        setState(() => _isLoading = false);
     }
   }
 
@@ -577,63 +672,63 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             : "Create Goods Receipt"),
       ),
       body: Form(
-        key: _formKey,
+              key: _formKey,
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+        padding: const EdgeInsets.all(16),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField2<Supplier>(
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Select Supplier',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(vertical: 0),
-                          ),
-                          hint: const Text("Select Supplier"),
-                          value: selectedSupplier,
-                          items: suppliers
-                              .map((supplier) => DropdownMenuItem<Supplier>(
-                                    value: supplier,
-                                    child: Text(
-                                      supplier.name,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ))
-                              .toList(),
+                  children: [
+                    Row(
+            children: [
+                        Expanded(
+                child: DropdownButtonFormField2<Supplier>(
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Select Supplier',
+                    border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(vertical: 0),
+                  ),
+                            hint: const Text("Select Supplier"),
+                  value: selectedSupplier,
+                            items: suppliers
+                                .map((supplier) => DropdownMenuItem<Supplier>(
+                      value: supplier,
+                      child: Text(
+                        supplier.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                                    ))
+                                .toList(),
                           onChanged: widget.existingGR != null
                               ? null
                               : (val) {
-                                  setState(() {
-                                    selectedSupplier = val;
-                                    selectedPOs.clear();
-                                    poQtyControllers.clear();
+                    setState(() {
+                      selectedSupplier = val;
+                                selectedPOs.clear();
+                                poQtyControllers.clear();
                                     selectedJobNo = 'All';
-                                  });
-                                },
-                          dropdownStyleData: DropdownStyleData(
-                            maxHeight: 300,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
+                    });
+                  },
+                            dropdownStyleData: DropdownStyleData(
+                              maxHeight: 300,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            menuItemStyleData: const MenuItemStyleData(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                            ),
+                            buttonStyleData: const ButtonStyleData(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              height: 60,
                             ),
                           ),
-                          menuItemStyleData: const MenuItemStyleData(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
-                          ),
-                          buttonStyleData: const ButtonStyleData(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
-                            height: 60,
-                          ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
+                        const SizedBox(width: 16),
                       // Job Number Filter
-                      Expanded(
+                        Expanded(
                         child: DropdownButtonFormField2<String>(
                           isExpanded: true,
                           decoration: const InputDecoration(
@@ -672,14 +767,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             padding: EdgeInsets.symmetric(horizontal: 16),
                             height: 60,
                           ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
+                    Row(
+                      children: [
+                        Expanded(
                         child: TextFormField(
                           controller: _grnDateController,
                           decoration: const InputDecoration(
@@ -703,9 +798,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             }
                           },
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
                         child: TextFormField(
                           controller: _invoiceDateController,
                           decoration: const InputDecoration(
@@ -729,13 +824,13 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             }
                           },
                         ),
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
+                    Row(
+                      children: [
+                        Expanded(
                         child: TextFormField(
                           controller: _invoiceNoController,
                           decoration: const InputDecoration(
@@ -743,9 +838,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             border: OutlineInputBorder(),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
                         child: TextFormField(
                           controller: _invoiceAmountController,
                           decoration: const InputDecoration(
@@ -753,17 +848,17 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             border: OutlineInputBorder(),
                           ),
                           readOnly: true,
-                          style: TextStyle(
+                              style: TextStyle(
                             color: Colors.grey[700],
                             fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
                     ],
-                  ),
+                            ),
                   const SizedBox(height: 16),
                   Row(
-                    children: [
+                                  children: [
                       Expanded(
                         child: TextFormField(
                           controller: _receivedByController,
@@ -771,10 +866,10 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             labelText: 'Received By',
                             border: OutlineInputBorder(),
                           ),
-                        ),
-                      ),
+                                    ),
+                                  ),
                       const SizedBox(width: 16),
-                      Expanded(
+                                        Expanded(
                         child: TextFormField(
                           controller: _checkedByController,
                           decoration: const InputDecoration(
@@ -782,12 +877,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             border: OutlineInputBorder(),
                           ),
                         ),
-                      ),
+                                  ),
                     ],
-                  ),
-                ],
-              ),
-            ),
+                                    ),
+                                  ],
+                                ),
+                              ),
             if (selectedSupplier != null) ...[
               Expanded(
                 child: ListView(
@@ -807,15 +902,15 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 padding: const EdgeInsets.all(16),
                 child: SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                        child: ElevatedButton(
                     onPressed: _isLoading ? null : _onSavePressed,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 48, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 48, vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                     child: _isLoading
                         ? const CircularProgressIndicator()
                         : const Text(
@@ -824,12 +919,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
+                            ),
                           ),
-                  ),
-                ),
+                        ),
               ),
             ],
-          ],
+            ],
         ),
       ),
     );

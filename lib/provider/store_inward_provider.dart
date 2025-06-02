@@ -89,14 +89,31 @@ class StoreInwardNotifier extends StateNotifier<List<StoreInward>> {
 
   // Get total received quantity for a material from a specific PO
   double getTotalReceivedQuantity(String materialCode, String poNo) {
-    double total = 0;
-    for (var inward in state) {
-      for (var item in inward.items) {
-        if (item.materialCode == materialCode) {
-          total += item.poQuantities[poNo] ?? 0;
-        }
-      }
+    return state
+        .where((inward) => inward.items
+            .any((item) => item.materialCode == materialCode && item.poQuantities.containsKey(poNo)))
+        .fold(0.0, (sum, inward) {
+      final item = inward.items
+          .firstWhere((item) => item.materialCode == materialCode);
+      return sum + (item.poQuantities[poNo] ?? 0);
+    });
+  }
+
+  double getPRReceivedQuantity(String materialCode, String poNo, String prKey) {
+    return state
+        .where((inward) => inward.items
+            .any((item) => item.materialCode == materialCode && 
+                          item.poQuantities.containsKey(poNo) &&
+                          item.jobNumbers.containsKey(poNo)))
+        .fold(0.0, (sum, inward) {
+      final item = inward.items
+          .firstWhere((item) => item.materialCode == materialCode);
+      
+      // Only count quantities for this specific PR
+      if (item.jobNumbers[poNo] == prKey) {
+        return sum + (item.poQuantities[poNo] ?? 0);
     }
-    return total;
+      return sum;
+    });
   }
 }

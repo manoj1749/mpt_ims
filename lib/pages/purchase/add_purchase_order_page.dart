@@ -180,7 +180,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       }
     } else {
       // Handle PR-based items
-    for (var prItem in prItems) {
+      for (var prItem in prItems) {
         if (selectedPRs[material.partNo]?[prItem.prNo] == true) {
           final controller = prQtyControllers[material.partNo]?[prItem.prNo];
           if (controller != null) {
@@ -206,14 +206,14 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       if (selectedPRs[material.partNo]?['General'] == true) {
         final controller = prQtyControllers[material.partNo]?['General'];
         if (controller != null) {
-        final orderQty = double.tryParse(controller.text) ?? 0;
-        if (orderQty > 0) {
+          final orderQty = double.tryParse(controller.text) ?? 0;
+          if (orderQty > 0) {
             prDetails['General'] = ItemPRDetails(
               prNo: 'General',
               jobNo: 'General',
               quantity: orderQty,
             );
-          totalQty += orderQty;
+            totalQty += orderQty;
           }
         }
       }
@@ -252,11 +252,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               .read(purchaseRequestListProvider)
               .firstWhere((pr) => pr.prNo == prItem.prNo);
           if (pr.jobNo != null && pr.jobNo!.isNotEmpty) {
-              jobNumbers.add(pr.jobNo!);
-            }
+            jobNumbers.add(pr.jobNo!);
           }
         }
       }
+    }
 
     // If no PR job numbers and general stock is selected
     if (jobNumbers.isEmpty &&
@@ -267,7 +267,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     // If we have PR job numbers
     if (jobNumbers.isNotEmpty) {
       return jobNumbers.join(', ');
-  }
+    }
 
     return 'General Stock';
   }
@@ -571,7 +571,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
                               prQtyControllers[material.partNo]!.putIfAbsent(
                                   prItem.prNo, () => TextEditingController());
-                              
+
                               if (value == true) {
                                 prQtyControllers[material.partNo]![prItem.prNo]!
                                     .text = remainingQty.toString();
@@ -625,7 +625,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                               fillColor: !isSelected ? Colors.grey[200] : null,
                             ),
                             style: TextStyle(
-                              fontSize: 12,
+                                fontSize: 12,
                                 color: textColor,
                                 fontWeight: FontWeight.w500),
                             keyboardType: TextInputType.number,
@@ -674,7 +674,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
     // Process PR-based and general stock items
     for (var entry in materialPRItems.entries) {
-        final material = materials.firstWhere(
+      final material = materials.firstWhere(
         (m) => m.partNo == entry.key,
         orElse: () => throw Exception('Material not found: ${entry.key}'),
       );
@@ -699,9 +699,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         final poItem = _createPOItem(material, []);
         if (double.parse(poItem.quantity) > 0) {
           updatedPOItems.add(poItem);
-                hasItems = true;
-              }
-            }
+          hasItems = true;
+        }
+      }
     }
 
     if (!hasItems) {
@@ -818,7 +818,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
     // Get unique job numbers for filter dropdown
     final jobNos = {'All'};
-      for (var pr in purchaseRequests) {
+    for (var pr in purchaseRequests) {
       if (pr.jobNo != null && pr.jobNo!.isNotEmpty) {
         jobNos.add(pr.jobNo!);
       }
@@ -834,8 +834,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
             entry.value['General'] == true &&
             !materialPRItems.containsKey(entry.key))
         .map((entry) => materials.firstWhere(
-        (m) => m.partNo == entry.key,
-        orElse: () => throw Exception('Material not found: ${entry.key}'),
+              (m) => m.partNo == entry.key,
+              orElse: () => throw Exception('Material not found: ${entry.key}'),
             ))
         .toList();
 
@@ -966,22 +966,22 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                 Expanded(
                   child: ListView(
                     children: [
-              Text(
+                      Text(
                         'PR-Based Items',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 16),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 16),
                       ...materialPRItems.entries.map((entry) {
                         final materialCode = entry.key;
                         final prItems = entry.value;
-                      final material = materials.firstWhere(
-                        (m) => m.partNo == materialCode,
-                      );
+                        final material = materials.firstWhere(
+                          (m) => m.partNo == materialCode,
+                        );
                         return _buildItemCard(material, prItems);
                       }),
                       if (generalStockMaterials.isNotEmpty) ...[
                         const SizedBox(height: 24),
-                                        Text(
+                        Text(
                           'General Stock Items',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
@@ -1055,7 +1055,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           const SizedBox(height: 8),
                           Text('Sub Total: ₹${total.toStringAsFixed(2)}'),
                           if (igst > 0)
-                          Text(
+                            Text(
                                 'IGST (${selectedSupplier!.igst}): ₹${igst.toStringAsFixed(2)}'),
                           if (cgst > 0)
                             Text(

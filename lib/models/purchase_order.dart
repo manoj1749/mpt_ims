@@ -73,10 +73,10 @@ class PurchaseOrder extends HiveObject {
     final jobs = jobNumbers;
     if (jobs.isEmpty && hasGeneralStockItems) {
       return 'General Stock';
-    } else if (jobs.isNotEmpty && !hasGeneralStockItems) {
+    } else if (jobs.isNotEmpty) {
       return jobs.join(', ');
     } else {
-      return 'Mixed (${jobs.join(', ')})';
+      return 'General Stock';
     }
   }
 

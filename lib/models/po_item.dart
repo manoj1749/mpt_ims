@@ -59,10 +59,10 @@ class POItem extends HiveObject {
     final jobs = jobNumbers;
     if (jobs.isEmpty && isGeneralStock) {
       return 'General Stock';
-    } else if (jobs.isNotEmpty && !isGeneralStock) {
+    } else if (jobs.isNotEmpty) {
       return jobs.join(', ');
     } else {
-      return 'Mixed (${jobs.join(', ')})';
+      return 'General Stock';
     }
   }
 

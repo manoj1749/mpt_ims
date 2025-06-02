@@ -40,17 +40,17 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
 
   Widget _buildStatusBadge(String status) {
     Color color;
-    switch (status.toLowerCase()) {
-      case 'completed':
+          switch (status.toLowerCase()) {
+            case 'completed':
         color = Colors.green;
-        break;
-      case 'partially received':
+              break;
+            case 'partially received':
         color = Colors.orange;
-        break;
-      case 'pending':
+              break;
+            case 'pending':
         color = Colors.grey;
-        break;
-      default:
+              break;
+            default:
         color = Colors.grey;
     }
 
@@ -61,15 +61,15 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
         border: Border.all(color: color.withOpacity(0.5)),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        status,
-        style: TextStyle(
+            child: Text(
+              status,
+              style: TextStyle(
           color: color,
           fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          );
   }
 
   Widget _buildPOCard(PurchaseOrder order, int index) {
@@ -127,16 +127,16 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
               ],
             ),
             trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            mainAxisSize: MainAxisSize.min,
+                              children: [
                 IconButton(
                   icon: Icon(Icons.edit, color: Colors.grey[300]),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
                         builder: (context) => AddPurchaseOrderPage(
-                          existingPO: order,
+                                                          existingPO: order,
                           index: index,
                         ),
                       ),
@@ -201,9 +201,9 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                                   item.materialDescription,
                                   style: TextStyle(
                                       fontSize: 13, color: Colors.grey[300]),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
+                ),
+                                          ),
+                                          const SizedBox(width: 8),
                               Text(
                                 '${item.quantity} ${item.unit}',
                                 style: TextStyle(
@@ -320,7 +320,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
             ),
           ],
         ],
-      ),
+            ),
     );
   }
 
@@ -422,42 +422,42 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                       }
                     },
                   ),
-                ),
-              ],
-            ),
+          ),
+        ],
+      ),
           ),
           Expanded(
             child: filteredOrders.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.shopping_cart_outlined,
-                          size: 64,
-                          color: Colors.grey[300],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 64,
+                    color: Colors.grey[300],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
                           'No purchase orders found',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        FilledButton(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
                               builder: (_) => const AddPurchaseOrderPage(),
                             ),
-                          ),
-                          child: const Text('Add New Order'),
-                        ),
-                      ],
                     ),
-                  )
+                    child: const Text('Add New Order'),
+                  ),
+                ],
+              ),
+            )
                 : ListView.builder(
                     itemCount: filteredOrders.length,
                     itemBuilder: (context, index) {
@@ -467,10 +467,10 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                         purchaseOrders.indexOf(order),
                       );
                     },
+                        ),
+                      ),
+                    ],
                   ),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.push(
           context,

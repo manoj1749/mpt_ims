@@ -9,7 +9,6 @@ import '../../models/supplier.dart';
 import '../../models/pr_item.dart';
 import '../../models/po_item.dart';
 import '../../models/purchase_order.dart';
-import '../../models/purchase_request.dart';
 import '../../provider/supplier_provider.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/purchase_request_provider.dart';
@@ -707,7 +706,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
     // Calculate tax amounts
     final subtotal = updatedPOItems.fold(
-        0.0, (sum, item) => sum + double.parse(item.totalCost!));
+        0.0, (sum, item) => sum + double.parse(item.totalCost));
 
     double parseGstRate(String? value) {
       if (value == null || value.isEmpty) return 0.0;

@@ -376,8 +376,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             keyboardType: TextInputType.number,
                             validator: (value) {
                               if (!isSelected) return null;
-                              if (value == null || value.isEmpty)
+                              if (value == null || value.isEmpty) {
                                 return 'Required';
+                              }
                               final qty = double.tryParse(value);
                               if (qty == null) return 'Invalid';
                               if (qty <= 0) return 'Invalid';

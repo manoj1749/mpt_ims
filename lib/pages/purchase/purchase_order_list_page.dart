@@ -18,6 +18,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
   String _searchQuery = '';
   String _selectedStatus = 'All';
   final Set<String> _expandedPOs = {};
+  final Set<String> _fullyExpandedPOs = {};
 
   List<PurchaseOrder> _filterOrders(List<PurchaseOrder> orders) {
     return orders.where((order) {
@@ -73,6 +74,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
 
   Widget _buildPOCard(PurchaseOrder order, int index) {
     final isExpanded = _expandedPOs.contains(order.poNo);
+    final isFullyExpanded = _fullyExpandedPOs.contains(order.poNo);
     final relatedPRs = ref
         .watch(purchaseRequestListProvider)
         .where((pr) => order.items.any((poItem) => pr.items
@@ -148,15 +150,21 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                 ),
                 IconButton(
                   icon: Icon(
-                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    !isExpanded 
+                        ? Icons.expand_more 
+                        : (isFullyExpanded ? Icons.expand_less : Icons.more_horiz),
                     color: Colors.grey[300],
                   ),
                   onPressed: () {
                     setState(() {
-                      if (isExpanded) {
-                        _expandedPOs.remove(order.poNo);
-                      } else {
+                      if (!isExpanded) {
                         _expandedPOs.add(order.poNo);
+                        _fullyExpandedPOs.remove(order.poNo);
+                      } else if (!isFullyExpanded) {
+                        _fullyExpandedPOs.add(order.poNo);
+                      } else {
+                        _expandedPOs.remove(order.poNo);
+                        _fullyExpandedPOs.remove(order.poNo);
                       }
                     });
                   },
@@ -180,81 +188,126 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ...order.items.map((item) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: Text(
-                                item.materialDescription,
+                  if (!isFullyExpanded) ...[
+                    ...order.items.map((item) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  item.materialDescription,
+                                  style: TextStyle(
+                                      fontSize: 13, color: Colors.grey[300]),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${item.quantity} ${item.unit}',
                                 style: TextStyle(
                                     fontSize: 13, color: Colors.grey[300]),
                               ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                item.quantity,
-                                style: TextStyle(
-                                    fontSize: 13, color: Colors.grey[300]),
-                                textAlign: TextAlign.right,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                item.unit,
-                                style: TextStyle(
-                                    fontSize: 13, color: Colors.grey[300]),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                NumberFormat.currency(
-                                  symbol: '₹',
-                                  locale: 'en_IN',
-                                  decimalDigits: 2,
-                                ).format(double.parse(item.totalCost)),
-                                style: TextStyle(
-                                    fontSize: 13, color: Colors.grey[300]),
-                                textAlign: TextAlign.right,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
-                  if (relatedPRs.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Related Purchase Requests',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...relatedPRs.map((pr) => Card(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
+                            ],
+                          ),
+                        )),
+                  ] else ...[
+                    ...order.items.map((item) => Card(
                           color: Colors.grey[800],
-                          child: ListTile(
-                            title: Text(
-                              'PR No: ${pr.prNo}',
-                              style: TextStyle(
-                                  fontSize: 13, color: Colors.grey[300]),
-                            ),
-                            subtitle: Text(
-                              'Status: ${pr.status}',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey[400]),
-                            ),
-                            trailing: Text(
-                              'Items: ${pr.items.length}',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey[400]),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.materialDescription,
+                                  style: const TextStyle(
+                                      fontSize: 13, color: Colors.white),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Quantity: ${item.quantity} ${item.unit}',
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.grey[300]),
+                                    ),
+                                    Text(
+                                      'Rate: ₹${item.costPerUnit}',
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.grey[300]),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Total Cost: ₹${item.totalCost}',
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.grey[300]),
+                                    ),
+                                  ],
+                                ),
+                                if (item.prDetails.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  const Divider(),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'PR References:',
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey[400]),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  ...item.prDetails.entries.map(
+                                    (entry) => Text(
+                                      '${entry.value.prNo} (${entry.value.quantity} ${item.unit})',
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.grey[300]),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                         )),
+                    if (relatedPRs.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Related Purchase Requests',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...relatedPRs.map((pr) => Card(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            color: Colors.grey[800],
+                            child: ListTile(
+                              title: Text(
+                                'PR No: ${pr.prNo}',
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.grey[300]),
+                              ),
+                              subtitle: Text(
+                                'Status: ${pr.status}',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey[400]),
+                              ),
+                              trailing: Text(
+                                'Items: ${pr.items.length}',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey[400]),
+                              ),
+                            ),
+                          )),
+                    ],
                   ],
                 ],
               ),

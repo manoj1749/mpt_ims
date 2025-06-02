@@ -524,8 +524,9 @@ class _PurchaseRequestListPageState
                 final purchaseOrders = ref.read(purchaseOrderListProvider);
                 final storeInwards = ref.read(storeInwardProvider);
                 stateManager!.removeAllRows();
-                stateManager!.appendRows(_getRows(requests, purchaseOrders, storeInwards));
-                
+                stateManager!.appendRows(
+                    _getRows(requests, purchaseOrders, storeInwards));
+
                 // Show a snackbar to confirm refresh
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(

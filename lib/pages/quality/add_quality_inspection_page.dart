@@ -43,7 +43,7 @@ class _AddQualityInspectionPageState
     // Set current date as default inspection date
     _inspectionDateController.text =
         DateFormat('yyyy-MM-dd').format(DateTime.now());
-    
+
     // Load all pending items when page opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllPendingItems();
@@ -94,7 +94,9 @@ class _AddQualityInspectionPageState
       for (var inwardItem in grn.items) {
         // Find the material to get its category
         final material = materials.firstWhere(
-          (m) => m.partNo == inwardItem.materialCode || m.slNo == inwardItem.materialCode,
+          (m) =>
+              m.partNo == inwardItem.materialCode ||
+              m.slNo == inwardItem.materialCode,
           orElse: () => MaterialItem(
             slNo: inwardItem.materialCode,
             description: inwardItem.materialDescription,
@@ -252,7 +254,7 @@ class _AddQualityInspectionPageState
   void _onSupplierSelected(Supplier? supplier) {
     setState(() {
       selectedSupplier = supplier;
-      
+
       if (supplier == null) {
         // If supplier is cleared, show all items
         _loadAllPendingItems();
@@ -262,9 +264,9 @@ class _AddQualityInspectionPageState
           // Check if any PO for this item belongs to the selected supplier
           return item.poQuantities.keys.any((poNo) {
             final inward = ref.read(storeInwardProvider).firstWhere(
-              (inward) => inward.poNo.split(', ').contains(poNo),
-              orElse: () => throw Exception('GRN not found'),
-            );
+                  (inward) => inward.poNo.split(', ').contains(poNo),
+                  orElse: () => throw Exception('GRN not found'),
+                );
             return inward.supplierName == supplier.name;
           });
         }).toList();

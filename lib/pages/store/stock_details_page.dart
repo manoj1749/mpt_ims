@@ -566,7 +566,8 @@ class MaterialStockDetailPage extends ConsumerWidget {
                 'poDate': PlutoCell(value: po.poDate),
                 'supplier': PlutoCell(value: inward.supplierName),
                 'receivedQty': PlutoCell(value: item.receivedQty),
-                'acceptedQty': PlutoCell(value: item.receivedQty), // Full quantity is accepted
+                'acceptedQty': PlutoCell(
+                    value: item.receivedQty), // Full quantity is accepted
                 'rate': PlutoCell(value: '₹${item.costPerUnit}'),
                 'value': PlutoCell(
                     value:

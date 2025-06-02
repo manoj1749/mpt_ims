@@ -45,7 +45,8 @@ class _AddPurchaseRequestPageState
           quantity: item.quantity,
           partNoController: TextEditingController(text: item.materialCode),
           unitController: TextEditingController(text: item.unit),
-          materialController: TextEditingController(text: item.materialDescription),
+          materialController:
+              TextEditingController(text: item.materialDescription),
         ));
       }
     } else {
@@ -230,7 +231,8 @@ class _AddPurchaseRequestPageState
                             _items[0].quantity = quantity;
                             _items[0].partNoController.text = material.partNo;
                             _items[0].unitController.text = material.unit;
-                            _items[0].materialController.text = material.description;
+                            _items[0].materialController.text =
+                                material.description;
                           });
                           hasUsedFirstItem = true;
                         } else {
@@ -242,7 +244,8 @@ class _AddPurchaseRequestPageState
                                 TextEditingController(text: material.partNo),
                             unitController:
                                 TextEditingController(text: material.unit),
-                            materialController: TextEditingController(text: material.description),
+                            materialController: TextEditingController(
+                                text: material.description),
                           ));
                         }
                       }
@@ -346,15 +349,14 @@ class _AddPurchaseRequestPageState
                         Expanded(
                           flex: 2,
                           child: Autocomplete<MaterialItem>(
-                            fieldViewBuilder: (context,
-                                textEditingController,
-                                focusNode,
-                                onFieldSubmitted) {
+                            fieldViewBuilder: (context, textEditingController,
+                                focusNode, onFieldSubmitted) {
                               // Set initial value without triggering rebuild
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 if (textEditingController.text.isEmpty &&
                                     item.partNoController.text.isNotEmpty) {
-                                  textEditingController.text = item.partNoController.text;
+                                  textEditingController.text =
+                                      item.partNoController.text;
                                 }
                               });
                               return TextFormField(
@@ -413,7 +415,8 @@ class _AddPurchaseRequestPageState
                                 ),
                               );
                             },
-                            displayStringForOption: (material) => material.partNo,
+                            displayStringForOption: (material) =>
+                                material.partNo,
                             optionsBuilder: (textEditingValue) {
                               if (textEditingValue.text.isEmpty) {
                                 return materials;
@@ -427,7 +430,8 @@ class _AddPurchaseRequestPageState
                                 item.selectedMaterial = material.description;
                                 item.partNoController.text = material.partNo;
                                 item.unitController.text = material.unit;
-                                item.materialController.text = material.description;
+                                item.materialController.text =
+                                    material.description;
                               });
                             },
                           ),
@@ -437,15 +441,14 @@ class _AddPurchaseRequestPageState
                         Expanded(
                           flex: 3,
                           child: Autocomplete<MaterialItem>(
-                            fieldViewBuilder: (context,
-                                textEditingController,
-                                focusNode,
-                                onFieldSubmitted) {
+                            fieldViewBuilder: (context, textEditingController,
+                                focusNode, onFieldSubmitted) {
                               // Set initial value without triggering rebuild
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 if (textEditingController.text.isEmpty &&
                                     item.selectedMaterial != null) {
-                                  textEditingController.text = item.selectedMaterial!;
+                                  textEditingController.text =
+                                      item.selectedMaterial!;
                                 }
                               });
                               return TextFormField(
@@ -504,7 +507,8 @@ class _AddPurchaseRequestPageState
                                 ),
                               );
                             },
-                            displayStringForOption: (material) => material.description,
+                            displayStringForOption: (material) =>
+                                material.description,
                             optionsBuilder: (textEditingValue) {
                               if (textEditingValue.text.isEmpty) {
                                 return materials;
@@ -518,7 +522,8 @@ class _AddPurchaseRequestPageState
                                 item.selectedMaterial = material.description;
                                 item.partNoController.text = material.partNo;
                                 item.unitController.text = material.unit;
-                                item.materialController.text = material.description;
+                                item.materialController.text =
+                                    material.description;
                               });
                             },
                           ),

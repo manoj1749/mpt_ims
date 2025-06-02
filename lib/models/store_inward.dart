@@ -67,22 +67,22 @@ class StoreInward extends HiveObject {
 
       // Get the material's category from the provider
       final material = Hive.box<MaterialItem>('materials').values.firstWhere(
-        (m) => m.partNo == item.materialCode || m.slNo == item.materialCode,
-        orElse: () => MaterialItem(
-          slNo: item.materialCode,
-          description: item.materialDescription,
-          partNo: item.materialCode,
-          unit: item.unit,
-          category: 'General',
-          subCategory: '',
-        ),
-      );
+            (m) => m.partNo == item.materialCode || m.slNo == item.materialCode,
+            orElse: () => MaterialItem(
+              slNo: item.materialCode,
+              description: item.materialDescription,
+              partNo: item.materialCode,
+              unit: item.unit,
+              category: 'General',
+              subCategory: '',
+            ),
+          );
 
       // Get the category settings
       final category = Hive.box<Category>('categories').values.firstWhere(
-        (c) => c.name == material.category,
-        orElse: () => Category(name: material.category),
-      );
+            (c) => c.name == material.category,
+            orElse: () => Category(name: material.category),
+          );
 
       // If quality check is not required, consider it as inspected
       if (!category.requiresQualityCheck) {
@@ -103,13 +103,15 @@ class StoreInward extends HiveObject {
 
       if (totalInspectedQty < item.receivedQty) {
         allItemsProcessed = false;
-        print('Item not fully inspected: $totalInspectedQty < ${item.receivedQty}');
+        print(
+            'Item not fully inspected: $totalInspectedQty < ${item.receivedQty}');
       }
     }
 
     String newStatus;
     if (!hasItemsNeedingInspection) {
-      newStatus = 'Completed'; // All items are general stock or don't need inspection
+      newStatus =
+          'Completed'; // All items are general stock or don't need inspection
     } else if (!hasProcessedItems) {
       newStatus = 'Under Inspection';
     } else if (allItemsProcessed) {

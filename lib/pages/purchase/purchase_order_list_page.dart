@@ -150,9 +150,11 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                 ),
                 IconButton(
                   icon: Icon(
-                    !isExpanded 
-                        ? Icons.expand_more 
-                        : (isFullyExpanded ? Icons.expand_less : Icons.more_horiz),
+                    !isExpanded
+                        ? Icons.expand_more
+                        : (isFullyExpanded
+                            ? Icons.expand_less
+                            : Icons.more_horiz),
                     color: Colors.grey[300],
                   ),
                   onPressed: () {
@@ -232,12 +234,14 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                                     Text(
                                       'Quantity: ${item.quantity} ${item.unit}',
                                       style: TextStyle(
-                                          fontSize: 12, color: Colors.grey[300]),
+                                          fontSize: 12,
+                                          color: Colors.grey[300]),
                                     ),
                                     Text(
                                       'Rate: ₹${item.costPerUnit}',
                                       style: TextStyle(
-                                          fontSize: 12, color: Colors.grey[300]),
+                                          fontSize: 12,
+                                          color: Colors.grey[300]),
                                     ),
                                   ],
                                 ),
@@ -249,7 +253,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                                     Text(
                                       'Total Cost: ₹${item.totalCost}',
                                       style: TextStyle(
-                                          fontSize: 12, color: Colors.grey[300]),
+                                          fontSize: 12,
+                                          color: Colors.grey[300]),
                                     ),
                                   ],
                                 ),
@@ -267,7 +272,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                                     (entry) => Text(
                                       '${entry.value.prNo} (${entry.value.quantity} ${item.unit})',
                                       style: TextStyle(
-                                          fontSize: 12, color: Colors.grey[300]),
+                                          fontSize: 12,
+                                          color: Colors.grey[300]),
                                     ),
                                   ),
                                 ],

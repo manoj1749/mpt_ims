@@ -372,7 +372,7 @@ class _PurchaseRequestListPageState
         storeInwards
             .where((si) => si.items.any((siItem) =>
                 siItem.materialCode == item.materialCode &&
-                siItem.poQuantities.keys.any((poNo) => purchaseOrders.any((po) =>
+                siItem.prQuantities.keys.any((poNo) => purchaseOrders.any((po) =>
                     po.poNo == poNo &&
                     po.items.any((poItem) =>
                         poItem.materialCode == item.materialCode &&
@@ -401,7 +401,7 @@ class _PurchaseRequestListPageState
         final transfers = storeInwards
             .where((si) => si.items.any((siItem) =>
                 siItem.materialCode == item.materialCode &&
-                siItem.poQuantities.keys.any((poNo) => purchaseOrders.any(
+                siItem.prQuantities.keys.any((poNo) => purchaseOrders.any(
                     (po) =>
                         po.poNo == poNo &&
                         po.items.any((poItem) =>

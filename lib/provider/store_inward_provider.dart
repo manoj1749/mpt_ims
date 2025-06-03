@@ -92,29 +92,38 @@ class StoreInwardNotifier extends StateNotifier<List<StoreInward>> {
     return state
         .where((inward) => inward.items.any((item) =>
             item.materialCode == materialCode &&
-            item.poQuantities.containsKey(poNo)))
+            item.prQuantities.containsKey(poNo)))
         .fold(0.0, (sum, inward) {
       final item =
           inward.items.firstWhere((item) => item.materialCode == materialCode);
-      return sum + (item.poQuantities[poNo] ?? 0);
+      return sum + item.getTotalQuantityForPO(poNo);
     });
   }
 
-  double getPRReceivedQuantity(String materialCode, String poNo, String prKey) {
+  // Get total received quantity for a specific PR
+  double getTotalReceivedQuantityForPR(String materialCode, String poNo, String prNo) {
     return state
         .where((inward) => inward.items.any((item) =>
             item.materialCode == materialCode &&
-            item.poQuantities.containsKey(poNo) &&
-            item.jobNumbers.containsKey(poNo)))
+            item.prQuantities.containsKey(poNo) &&
+            item.prQuantities[poNo]?.containsKey(prNo) == true))
         .fold(0.0, (sum, inward) {
       final item =
           inward.items.firstWhere((item) => item.materialCode == materialCode);
+      return sum + (item.prQuantities[poNo]?[prNo] ?? 0.0);
+    });
+  }
 
-      // Only count quantities for this specific PR
-      if (item.jobNumbers[poNo] == prKey) {
-        return sum + (item.poQuantities[poNo] ?? 0);
-      }
-      return sum;
+  // Get total received quantity for a PO
+  double getTotalReceivedQuantityForPO(String materialCode, String poNo) {
+    return state
+        .where((inward) => inward.items.any((item) =>
+            item.materialCode == materialCode &&
+            item.prQuantities.containsKey(poNo)))
+        .fold(0.0, (sum, inward) {
+      final item =
+          inward.items.firstWhere((item) => item.materialCode == materialCode);
+      return sum + item.prQuantities[poNo]!.values.fold(0.0, (sum, qty) => sum + qty);
     });
   }
 }

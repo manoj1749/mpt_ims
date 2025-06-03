@@ -3,8 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
-import '../../provider/store_inward_provider.dart';
 import '../../models/store_inward.dart';
+import '../../provider/store_inward_provider.dart';
+import '../../widgets/pluto_grid_configuration.dart';
 import 'add_store_inward_page.dart';
 
 class StoreInwardListPage extends ConsumerStatefulWidget {
@@ -82,7 +83,9 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         title: 'GRN No',
         field: 'grnNo',
         type: PlutoColumnType.text(),
-        width: 150,
+        width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -90,13 +93,17 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         field: 'poNo',
         type: PlutoColumnType.text(),
         width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
         title: 'Supplier',
         field: 'supplier',
         type: PlutoColumnType.text(),
-        width: 150,
+        width: 180,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.left,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -104,6 +111,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         field: 'grDate',
         type: PlutoColumnType.text(),
         width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -111,6 +120,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         field: 'partNo',
         type: PlutoColumnType.text(),
         width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -118,6 +129,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         field: 'description',
         type: PlutoColumnType.text(),
         width: 200,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.left,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -125,6 +138,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         field: 'qty',
         type: PlutoColumnType.number(),
         width: 100,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -132,6 +147,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         field: 'unit',
         type: PlutoColumnType.text(),
         width: 80,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -139,6 +156,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         field: 'costPerUnit',
         type: PlutoColumnType.number(),
         width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
         renderer: (rendererContext) {
           final value = rendererContext.cell.value as num;
@@ -150,6 +169,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         field: 'totalCost',
         type: PlutoColumnType.number(),
         width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
         renderer: (rendererContext) {
           final value = rendererContext.cell.value as num;
@@ -161,6 +182,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         field: 'invoiceNo',
         type: PlutoColumnType.text(),
         width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -168,20 +191,30 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         field: 'invoiceDate',
         type: PlutoColumnType.text(),
         width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
         title: 'Invoice Amount',
         field: 'invoiceAmount',
-        type: PlutoColumnType.text(),
+        type: PlutoColumnType.number(),
         width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
+        renderer: (rendererContext) {
+          final value = rendererContext.cell.value as num;
+          return Text('₹${value.toStringAsFixed(2)}');
+        },
       ),
       PlutoColumn(
         title: 'Received By',
         field: 'receivedBy',
         type: PlutoColumnType.text(),
         width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -189,6 +222,8 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         field: 'checkedBy',
         type: PlutoColumnType.text(),
         width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -318,30 +353,7 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
                             stateManager = event.stateManager;
                             event.stateManager.setShowColumnFilter(true);
                           },
-                          configuration: PlutoGridConfiguration(
-                            columnFilter: const PlutoGridColumnFilterConfig(
-                              filters: [
-                                ...FilterHelper.defaultFilters,
-                              ],
-                            ),
-                            style: PlutoGridStyleConfig(
-                              gridBorderColor: Colors.grey[700]!,
-                              gridBackgroundColor: Colors.grey[900]!,
-                              borderColor: Colors.grey[700]!,
-                              iconColor: Colors.grey[300]!,
-                              rowColor: Colors.grey[850]!,
-                              oddRowColor: Colors.grey[800]!,
-                              evenRowColor: Colors.grey[850]!,
-                              activatedColor: Colors.blue[900]!,
-                              cellTextStyle:
-                                  const TextStyle(color: Colors.white),
-                              columnTextStyle: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              rowHeight: 45,
-                            ),
-                          ),
+                          configuration: PlutoGridConfigurations.darkMode(),
                         ),
                       ),
                   ],

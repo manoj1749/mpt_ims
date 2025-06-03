@@ -11,7 +11,9 @@ import '../../models/material_item.dart';
 import '../../models/supplier.dart';
 import '../../provider/supplier_provider.dart';
 import '../../models/purchase_order.dart';
+import '../../models/po_item.dart';
 import '../../provider/purchase_order.dart';
+import 'package:pluto_grid/pluto_grid.dart';
 
 class AddStoreInwardPage extends ConsumerStatefulWidget {
   final StoreInward? existingGR;
@@ -38,9 +40,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
   Supplier? selectedSupplier;
   String? selectedJobNo;
-  Map<String, Map<String, TextEditingController>> poQtyControllers = {};
-  Map<String, Map<String, bool>> selectedPOs = {};
+  Map<String, Map<String, Map<String, TextEditingController>>> prQtyControllers = {};
+  Map<String, Map<String, Map<String, bool>>> selectedPRs = {};
+  Map<String, Map<String, PlutoGridStateManager?>> gridStateManagers = {};
   bool _isLoading = false;
+
+  String _generateGRNNo() {
+    return ref.read(storeInwardProvider.notifier).generateGRNNumber();
+  }
 
   @override
   void initState() {
@@ -56,15 +63,22 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       _receivedByController.text = widget.existingGR!.receivedBy;
       _checkedByController.text = widget.existingGR!.checkedBy;
 
-      // Initialize PO quantities from existing GR
+      // Initialize PR quantities from existing GR
       for (var item in widget.existingGR!.items) {
-        selectedPOs[item.materialCode] = {};
-        poQtyControllers[item.materialCode] = {};
+        selectedPRs[item.materialCode] = {};
+        prQtyControllers[item.materialCode] = {};
 
-        for (var entry in item.poQuantities.entries) {
-          selectedPOs[item.materialCode]![entry.key] = true;
-          poQtyControllers[item.materialCode]![entry.key] =
-              TextEditingController(text: entry.value.toString());
+        for (var poEntry in item.prQuantities.entries) {
+          final poNo = poEntry.key;
+          selectedPRs[item.materialCode]![poNo] = {};
+          prQtyControllers[item.materialCode]![poNo] = {};
+
+          for (var prEntry in poEntry.value.entries) {
+            final prNo = prEntry.key;
+            selectedPRs[item.materialCode]![poNo]![prNo] = true;
+            prQtyControllers[item.materialCode]![poNo]![prNo] =
+                TextEditingController(text: prEntry.value.toString());
+          }
         }
       }
     } else {
@@ -81,9 +95,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     _invoiceAmountController.dispose();
     _receivedByController.dispose();
     _checkedByController.dispose();
-    for (var materialControllers in poQtyControllers.values) {
-      for (var controller in materialControllers.values) {
-        controller.dispose();
+    for (var materialControllers in prQtyControllers.values) {
+      for (var poControllers in materialControllers.values) {
+        for (var controller in poControllers.values) {
+          controller.dispose();
+        }
       }
     }
     super.dispose();
@@ -103,572 +119,725 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     return jobNos.toList()..sort();
   }
 
-  Widget _buildItemCard(MaterialItem material, List<PurchaseOrder> pos) {
-    // Initialize controllers and selected state for this material if not exists
-    if (!selectedPOs.containsKey(material.partNo)) {
-      selectedPOs[material.partNo] = {};
-      poQtyControllers[material.partNo] = {};
-      for (var po in pos) {
-        // Initialize for both PR and general stock if applicable
-        for (var prDetail in po.items
-            .firstWhere((item) => item.materialCode == material.partNo)
-            .prDetails
-            .entries) {
-          final key = '${po.poNo}_${prDetail.key}';
-          selectedPOs[material.partNo]![key] = false;
-          poQtyControllers[material.partNo]![key] =
-              TextEditingController(text: '0');
-        }
-      }
-    }
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              material.description,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 4),
-            Text('Code: ${material.partNo}'),
-            const SizedBox(height: 16),
-            // Consolidated PO View
-            ...pos.map((po) {
-              final poItem = po.items.firstWhere(
-                (item) => item.materialCode == material.partNo,
-              );
-
-              // Calculate total ordered quantity for this PO
-              final totalOrdered = poItem.prDetails.values
-                  .fold(0.0, (sum, detail) => sum + detail.quantity);
-
-              // Get all job numbers for this PO
-              final jobNumbers = poItem.prDetails.values
-                  .map((detail) => detail.jobNo == 'General'
-                      ? 'General Stock'
-                      : detail.jobNo)
-                  .join(', ');
-
-              // Calculate total received quantity for this PO
-              final totalReceivedQty = ref
-                  .read(storeInwardProvider.notifier)
-                  .getTotalReceivedQuantity(material.partNo, po.poNo);
-
-              // Create a controller for consolidated inward quantity if not exists
-              final consolidatedKey = '${po.poNo}_consolidated';
-              if (!poQtyControllers[material.partNo]!
-                  .containsKey(consolidatedKey)) {
-                poQtyControllers[material.partNo]![consolidatedKey] =
-                    TextEditingController(text: '0');
-              }
-
-              return Column(
-                children: [
-                  // Consolidated PO row
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('PO: ${po.poNo}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w500)),
-                            const SizedBox(height: 4),
-                            Text('Job Numbers: $jobNumbers',
-                                style: const TextStyle(fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Text('Ordered: $totalOrdered',
-                            style: const TextStyle(fontSize: 12)),
-                      ),
-                      Expanded(
-                        child: Text('Received: $totalReceivedQty',
-                            style: const TextStyle(fontSize: 12)),
-                      ),
-                      Expanded(
-                        child: TextFormField(
-                          controller: poQtyControllers[material.partNo]![
-                              consolidatedKey],
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 8),
-                            hintText: 'Enter Qty',
-                          ),
-                          keyboardType: TextInputType.number,
-                          style: const TextStyle(fontSize: 12),
-                          onChanged: (value) {
-                            setState(() {
-                              final inwardQty = double.tryParse(value) ?? 0.0;
-
-                              if (inwardQty > 0) {
-                                // Calculate total remaining quantity for all PRs
-                                double totalRemainingQty = 0.0;
-                                for (var prDetail in poItem.prDetails.entries) {
-                                  final prReceivedQty = ref
-                                      .read(storeInwardProvider.notifier)
-                                      .getPRReceivedQuantity(material.partNo,
-                                          po.poNo, prDetail.key);
-                                  final prRemainingQty =
-                                      prDetail.value.quantity - prReceivedQty;
-                                  if (prRemainingQty > 0) {
-                                    totalRemainingQty += prRemainingQty;
-                                  }
-                                }
-
-                                if (totalRemainingQty > 0) {
-                                  // Distribute the inward quantity proportionally among PRs
-                                  double remainingInward = inwardQty;
-
-                                  for (var prDetail
-                                      in poItem.prDetails.entries) {
-                                    final key = '${po.poNo}_${prDetail.key}';
-                                    final prReceivedQty = ref
-                                        .read(storeInwardProvider.notifier)
-                                        .getPRReceivedQuantity(material.partNo,
-                                            po.poNo, prDetail.key);
-                                    final prRemainingQty =
-                                        prDetail.value.quantity - prReceivedQty;
-
-                                    if (prRemainingQty > 0) {
-                                      selectedPOs[material.partNo]![key] = true;
-                                      final proportion =
-                                          prRemainingQty / totalRemainingQty;
-                                      final allocatedQty =
-                                          (remainingInward * proportion)
-                                              .roundToDouble();
-                                      poQtyControllers[material.partNo]![key]
-                                          ?.text = allocatedQty.toString();
-                                      remainingInward -= allocatedQty;
-                                    }
-                                  }
-
-                                  // Add any remaining quantity due to rounding to the last PR
-                                  if (remainingInward > 0) {
-                                    for (var prDetail in poItem
-                                        .prDetails.entries
-                                        .toList()
-                                        .reversed) {
-                                      final key = '${po.poNo}_${prDetail.key}';
-                                      if (selectedPOs[material.partNo]![key] ==
-                                          true) {
-                                        final currentQty = double.tryParse(
-                                                poQtyControllers[material
-                                                            .partNo]![key]
-                                                        ?.text ??
-                                                    '0') ??
-                                            0.0;
-                                        poQtyControllers[material.partNo]![key]
-                                                ?.text =
-                                            (currentQty + remainingInward)
-                                                .toString();
-                                        break;
-                                      }
-                                    }
-                                  }
-                                }
-                              } else {
-                                // Reset PR-wise quantities
-                                for (var prDetail in poItem.prDetails.entries) {
-                                  final key = '${po.poNo}_${prDetail.key}';
-                                  poQtyControllers[material.partNo]![key]
-                                      ?.text = '0';
-                                  selectedPOs[material.partNo]![key] = false;
-                                }
-                              }
-                              _invoiceAmountController.text =
-                                  _calculateInvoiceAmount().toStringAsFixed(2);
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Show detailed PR view only if inward qty < remaining total
-                  if ((double.tryParse(poQtyControllers[material.partNo]
-                                          ?[consolidatedKey]
-                                      ?.text ??
-                                  '0') ??
-                              0) >
-                          0 &&
-                      (double.tryParse(poQtyControllers[material.partNo]
-                                          ?[consolidatedKey]
-                                      ?.text ??
-                                  '0') ??
-                              0) <
-                          (totalOrdered - totalReceivedQty))
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16, top: 8),
-                      child: Table(
-                        columnWidths: const {
-                          0: FlexColumnWidth(0.5), // Checkbox
-                          1: FlexColumnWidth(1.5), // Job No
-                          2: FlexColumnWidth(1), // Ordered
-                          3: FlexColumnWidth(1), // Received
-                          4: FlexColumnWidth(1.5), // Inward Qty
-                        },
-                        children: [
-                          const TableRow(
-                            children: [
-                              Text(''), // Checkbox
-                              Text('Job No',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12)),
-                              Text('Ordered',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12)),
-                              Text('Received',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12)),
-                              Text('Inward Qty',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12)),
-                            ],
-                          ),
-                          ...poItem.prDetails.entries
-                              .map((prDetail) {
-                                final key = '${po.poNo}_${prDetail.key}';
-                                final orderedQty = prDetail.value.quantity;
-                                final receivedQty = ref
-                                    .read(storeInwardProvider.notifier)
-                                    .getPRReceivedQuantity(
-                                        material.partNo, po.poNo, prDetail.key);
-                                final remainingQty = orderedQty - receivedQty;
-
-                                if (remainingQty <= 0) return null;
-
-                                final isSelected =
-                                    selectedPOs[material.partNo]?[key] ?? false;
-
-                                return TableRow(
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 4),
-                                      child: Checkbox(
-                                        value: isSelected,
-                                        onChanged: (bool? value) {
-                                          setState(() {
-                                            selectedPOs[material.partNo]![key] =
-                                                value ?? false;
-                                            if (value == true) {
-                                              // Calculate proportional quantity based on remaining quantities
-                                              final totalPOInwardQty = double
-                                                      .tryParse(poQtyControllers[
-                                                                      material
-                                                                          .partNo]![
-                                                                  '${po.poNo}_consolidated']
-                                                              ?.text ??
-                                                          '0') ??
-                                                  0.0;
-                                              final totalRemainingQty =
-                                                  poItem.prDetails.entries.fold(
-                                                      0.0,
-                                                      (sum, pr) =>
-                                                          sum +
-                                                          (pr.value.quantity -
-                                                              ref
-                                                                  .read(storeInwardProvider
-                                                                      .notifier)
-                                                                  .getPRReceivedQuantity(
-                                                                      material
-                                                                          .partNo,
-                                                                      po.poNo,
-                                                                      pr.key)));
-
-                                              if (totalRemainingQty > 0) {
-                                                final proportion =
-                                                    remainingQty /
-                                                        totalRemainingQty;
-                                                final allocatedQty =
-                                                    (totalPOInwardQty *
-                                                            proportion)
-                                                        .roundToDouble();
-                                                poQtyControllers[material
-                                                            .partNo]![key]
-                                                        ?.text =
-                                                    allocatedQty.toString();
-                                              }
-                                            } else {
-                                              poQtyControllers[
-                                                      material.partNo]![key]
-                                                  ?.text = '0';
-                                            }
-                                            _invoiceAmountController.text =
-                                                _calculateInvoiceAmount()
-                                                    .toStringAsFixed(2);
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 4),
-                                      child: Text(
-                                        prDetail.value.jobNo == 'General'
-                                            ? 'General Stock'
-                                            : prDetail.value.jobNo,
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 4),
-                                      child: Text(orderedQty.toString(),
-                                          style: const TextStyle(fontSize: 12)),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 4),
-                                      child: Text(receivedQty.toString(),
-                                          style: const TextStyle(fontSize: 12)),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 4),
-                                      child: TextFormField(
-                                        controller: poQtyControllers[
-                                            material.partNo]![key],
-                                        enabled: isSelected,
-                                        decoration: const InputDecoration(
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 8),
-                                        ),
-                                        keyboardType: TextInputType.number,
-                                        style: const TextStyle(fontSize: 12),
-                                        validator: (value) {
-                                          if (!isSelected) return null;
-                                          if (value == null || value.isEmpty)
-                                            return 'Required';
-                                          final qty = double.tryParse(value);
-                                          if (qty == null || qty <= 0)
-                                            return 'Invalid';
-                                          if (qty > remainingQty)
-                                            return 'Max ${remainingQty.toStringAsFixed(2)}';
-                                          return null;
-                                        },
-                                        onChanged: (value) {
-                                          setState(() {
-                                            // Update consolidated quantity when PR-wise quantity changes
-                                            double totalPRQty = 0.0;
-                                            for (var pr
-                                                in poItem.prDetails.entries) {
-                                              final prKey =
-                                                  '${po.poNo}_${pr.key}';
-                                              if (selectedPOs[material.partNo]
-                                                      ?[prKey] ==
-                                                  true) {
-                                                totalPRQty += double.tryParse(
-                                                        poQtyControllers[material
-                                                                        .partNo]
-                                                                    ?[prKey]
-                                                                ?.text ??
-                                                            '0') ??
-                                                    0.0;
-                                              }
-                                            }
-                                            poQtyControllers[material.partNo]![
-                                                    '${po.poNo}_consolidated']
-                                                ?.text = totalPRQty.toString();
-                                            _invoiceAmountController.text =
-                                                _calculateInvoiceAmount()
-                                                    .toStringAsFixed(2);
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              })
-                              .whereType<TableRow>()
-                              .toList(),
-                        ],
-                      ),
-                    ),
-                ],
-              );
-            }).toList(),
-          ],
-        ),
+  List<PlutoColumn> _getPOColumns() {
+    return [
+      PlutoColumn(
+        title: 'PO Details',
+        field: 'poDetails',
+        type: PlutoColumnType.text(),
+        width: 200,
+        enableEditingMode: false,
       ),
-    );
+      PlutoColumn(
+        title: 'Ordered',
+        field: 'ordered',
+        type: PlutoColumnType.number(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Received',
+        field: 'received',
+        type: PlutoColumnType.number(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Inward Qty',
+        field: 'inwardQty',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: true,
+        renderer: (rendererContext) {
+          return TextFormField(
+            controller: prQtyControllers[rendererContext.row.cells['materialCode']?.value]![rendererContext.row.cells['poNo']?.value]!['_po'],
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              hintText: 'Max: ${rendererContext.row.cells['pending']?.value ?? 0}',
+            ),
+            keyboardType: TextInputType.number,
+            onChanged: (value) {
+              final qty = double.tryParse(value) ?? 0;
+              final pendingQty = rendererContext.row.cells['pending']?.value ?? 0;
+              
+              // Show PR mapping if entered quantity is less than pending
+              if (qty > 0 && qty < pendingQty) {
+                setState(() {
+                  selectedPRs[rendererContext.row.cells['materialCode']?.value]![rendererContext.row.cells['poNo']?.value]!['_showPRMapping'] = true;
+                });
+              } else {
+                setState(() {
+                  selectedPRs[rendererContext.row.cells['materialCode']?.value]![rendererContext.row.cells['poNo']?.value]!['_showPRMapping'] = false;
+                  // Clear PR quantities
+                  final poItem = ref.read(purchaseOrderListProvider)
+                      .firstWhere((po) => po.poNo == rendererContext.row.cells['poNo']?.value)
+                      .items.firstWhere((item) => item.materialCode == rendererContext.row.cells['materialCode']?.value);
+                  
+                  for (var prNo in poItem.prDetails.keys) {
+                    if (prNo != '_po') {
+                      prQtyControllers[rendererContext.row.cells['materialCode']?.value]![rendererContext.row.cells['poNo']?.value]![prNo]?.text = '0';
+                    }
+                  }
+                });
+              }
+            },
+          );
+        },
+      ),
+    ];
   }
 
-  InwardItem _createInwardItem(MaterialItem material, List<PurchaseOrder> pos) {
-    final poQuantities = <String, double>{};
-    final jobNumbers = <String, String>{};
-    double totalQty = 0;
+  List<PlutoColumn> _getPRColumns() {
+    return [
+      PlutoColumn(
+        title: 'PR Details',
+        field: 'prDetails',
+        type: PlutoColumnType.text(),
+        width: 200,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Ordered',
+        field: 'ordered',
+        type: PlutoColumnType.number(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Received',
+        field: 'received',
+        type: PlutoColumnType.number(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Inward Qty',
+        field: 'inwardQty',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: true,
+        renderer: (rendererContext) {
+          return TextFormField(
+            controller: prQtyControllers[rendererContext.row.cells['materialCode']?.value]![rendererContext.row.cells['poNo']?.value]![rendererContext.row.cells['prNo']?.value],
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              hintText: 'Max: ${rendererContext.row.cells['pending']?.value ?? 0}',
+            ),
+            keyboardType: TextInputType.number,
+            onChanged: (value) {
+              // Update PO total when PR quantity changes
+              final materialCode = rendererContext.row.cells['materialCode']?.value;
+              final poNo = rendererContext.row.cells['poNo']?.value;
+              final poItem = ref.read(purchaseOrderListProvider)
+                  .firstWhere((po) => po.poNo == poNo)
+                  .items.firstWhere((item) => item.materialCode == materialCode);
+              
+              double total = 0;
+              for (var prNo in poItem.prDetails.keys) {
+                final qty = double.tryParse(
+                  prQtyControllers[materialCode]![poNo]![prNo]?.text ?? '0'
+                ) ?? 0;
+                total += qty;
+              }
+              
+              // Update PO quantity
+              setState(() {
+                prQtyControllers[materialCode]![poNo]!['_po']?.text = total.toString();
+              });
+            },
+          );
+        },
+      ),
+    ];
+  }
 
+  List<PlutoRow> _getPORows(MaterialItem material, List<PurchaseOrder> pos) {
+    final rows = <PlutoRow>[];
+    
     for (var po in pos) {
       final poItem = po.items.firstWhere(
         (item) => item.materialCode == material.partNo,
       );
 
-      for (var prDetail in poItem.prDetails.entries) {
-        final key = '${po.poNo}_${prDetail.key}';
-        if (!selectedPOs[material.partNo]!.containsKey(key)) {
-          selectedPOs[material.partNo]![key] = false;
+      // Calculate total ordered and received quantities for this PO
+      final totalOrderedQty = poItem.prDetails.values
+          .fold(0.0, (sum, detail) => sum + detail.quantity);
+      final totalReceivedQty = ref
+          .read(storeInwardProvider.notifier)
+          .getTotalReceivedQuantityForPO(material.partNo, po.poNo);
+      final pendingQty = totalOrderedQty - totalReceivedQty;
+
+      // Initialize controllers if not exists
+      if (!prQtyControllers.containsKey(material.partNo)) {
+        prQtyControllers[material.partNo] = {};
+      }
+      if (!prQtyControllers[material.partNo]!.containsKey(po.poNo)) {
+        prQtyControllers[material.partNo]![po.poNo] = {};
+        prQtyControllers[material.partNo]![po.poNo]!['_po'] = TextEditingController(text: '0');
+      }
+
+      rows.add(PlutoRow(
+        cells: {
+          'materialCode': PlutoCell(value: material.partNo),
+          'poNo': PlutoCell(value: po.poNo),
+          'poDetails': PlutoCell(value: 'PO: ${po.poNo}\nDate: ${po.poDate}'),
+          'ordered': PlutoCell(value: totalOrderedQty),
+          'received': PlutoCell(value: totalReceivedQty),
+          'pending': PlutoCell(value: pendingQty),
+          'inwardQty': PlutoCell(value: ''),
+        },
+      ));
+    }
+
+    return rows;
+  }
+
+  List<PlutoRow> _getPRRows(MaterialItem material, PurchaseOrder po) {
+    final rows = <PlutoRow>[];
+    final poItem = po.items.firstWhere(
+      (item) => item.materialCode == material.partNo,
+    );
+
+    for (var prEntry in poItem.prDetails.entries) {
+      final prNo = prEntry.key;
+      final prDetail = prEntry.value;
+      final totalReceivedQty = ref
+          .read(storeInwardProvider.notifier)
+          .getTotalReceivedQuantityForPR(
+            material.partNo,
+            po.poNo,
+            prNo,
+          );
+      
+      final prPendingQty = prDetail.quantity - totalReceivedQty;
+      if (prPendingQty <= 0) continue;
+
+      // Initialize controller if not exists
+      if (!prQtyControllers[material.partNo]![po.poNo]!.containsKey(prNo)) {
+        prQtyControllers[material.partNo]![po.poNo]![prNo] = TextEditingController(text: '0');
+      }
+
+      rows.add(PlutoRow(
+        cells: {
+          'materialCode': PlutoCell(value: material.partNo),
+          'poNo': PlutoCell(value: po.poNo),
+          'prNo': PlutoCell(value: prNo),
+          'prDetails': PlutoCell(value: 'PR: $prNo\nJob: ${prDetail.jobNo}'),
+          'ordered': PlutoCell(value: prDetail.quantity),
+          'received': PlutoCell(value: totalReceivedQty),
+          'pending': PlutoCell(value: prPendingQty),
+          'inwardQty': PlutoCell(value: ''),
+        },
+      ));
+    }
+
+    return rows;
+  }
+
+  // Helper method to calculate total invoice amount
+  void _updateInvoiceAmount() {
+    double total = 0.0;
+    for (var entry in prQtyControllers.entries) {
+      final materialCode = entry.key;
+      final poControllers = entry.value;
+
+      for (var poEntry in poControllers.entries) {
+        final poNo = poEntry.key;
+        final prControllers = poEntry.value;
+
+        // Get material cost from PO
+        final po = ref.read(purchaseOrderListProvider).firstWhere(
+          (po) => po.poNo == poNo,
+          orElse: () => PurchaseOrder(
+            poNo: '',
+            poDate: '',
+            supplierName: '',
+            transport: '',
+            deliveryRequirements: '',
+            items: [],
+            total: 0,
+            igst: 0,
+            cgst: 0,
+            sgst: 0,
+            grandTotal: 0,
+          ),
+        );
+        
+        POItem? poItem;
+        try {
+          poItem = po.items.firstWhere((item) => item.materialCode == materialCode);
+        } catch (_) {
+          poItem = null;
+        }
+        final cost = double.tryParse(poItem?.costPerUnit ?? '0') ?? 0.0;
+
+        // If PO-level quantity is entered and PR mapping is not shown
+        final showPRMapping = selectedPRs[materialCode]?[poNo]?['_showPRMapping'] ?? false;
+        if (!showPRMapping) {
+          final poQty = double.tryParse(prControllers['_po']?.text ?? '0') ?? 0;
+          total += poQty * cost;
+          continue;
         }
 
-        if (selectedPOs[material.partNo]![key] == true) {
-          final inwardController = poQtyControllers[material.partNo]?[key] ??
-              TextEditingController(text: '0');
-          final inwardQty = double.tryParse(inwardController.text) ?? 0;
+        // Calculate PR-wise quantities
+        for (var prEntry in prControllers.entries) {
+          if (prEntry.key == '_po') continue;
+          final qty = double.tryParse(prEntry.value.text) ?? 0;
+          total += qty * cost;
+        }
+      }
+    }
 
-          if (inwardQty > 0) {
-            poQuantities[po.poNo] = (poQuantities[po.poNo] ?? 0.0) + inwardQty;
-            totalQty += inwardQty;
-            jobNumbers[po.poNo] = prDetail.value.jobNo == 'General'
-                ? 'General Stock'
-                : prDetail.value.jobNo;
+    setState(() {
+      _invoiceAmountController.text = total.toStringAsFixed(2);
+    });
+  }
+
+  Widget _buildItemCard(MaterialItem material, List<PurchaseOrder> pos) {
+    // Initialize controllers and selected state for this material if not exists
+    if (!selectedPRs.containsKey(material.partNo)) {
+      selectedPRs[material.partNo] = {};
+      prQtyControllers[material.partNo] = {};
+      for (var po in pos) {
+        selectedPRs[material.partNo]![po.poNo] = {};
+        prQtyControllers[material.partNo]![po.poNo] = {};
+        
+        // Add a controller for PO-level quantity
+        prQtyControllers[material.partNo]![po.poNo]!['_po'] = TextEditingController(text: '0');
+        
+        final poItem = po.items.firstWhere(
+          (item) => item.materialCode == material.partNo,
+        );
+
+        for (var prDetail in poItem.prDetails.entries) {
+          final prNo = prDetail.key;
+          // Only add PR if it matches the selected job number or if no job is selected
+          if (selectedJobNo == null || selectedJobNo == 'All' || 
+              prDetail.value.jobNo == selectedJobNo) {
+            selectedPRs[material.partNo]![po.poNo]![prNo] = false;
+            prQtyControllers[material.partNo]![po.poNo]![prNo] =
+                TextEditingController(text: '0');
           }
         }
       }
     }
 
-    return InwardItem(
-      materialCode: material.partNo,
-      materialDescription: material.description,
-      unit: material.unit,
-      orderedQty: totalQty,
-      receivedQty: totalQty,
-      acceptedQty: totalQty,
-      rejectedQty: 0,
-      costPerUnit: pos.first.items
-          .firstWhere((item) => item.materialCode == material.partNo)
-          .costPerUnit,
-      poQuantities: poQuantities,
-      jobNumbers: jobNumbers,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Material Header
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  material.description,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Code: ${material.partNo}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          // PO List
+          ...pos.map((po) {
+            final poItem = po.items.firstWhere(
+              (item) => item.materialCode == material.partNo,
+            );
+
+            // Filter PR details based on selected job
+            final filteredPRDetails = Map.fromEntries(
+              poItem.prDetails.entries.where((entry) =>
+                selectedJobNo == null || 
+                selectedJobNo == 'All' || 
+                entry.value.jobNo == selectedJobNo
+              )
+            );
+            
+            if (filteredPRDetails.isEmpty) return const SizedBox.shrink();
+            
+            final totalOrderedQty = filteredPRDetails.values
+                .fold(0.0, (sum, detail) => sum + detail.quantity);
+            final totalReceivedQty = ref
+                .read(storeInwardProvider.notifier)
+                .getTotalReceivedQuantityForPO(material.partNo, po.poNo);
+            final pendingQty = totalOrderedQty - totalReceivedQty;
+
+            if (pendingQty <= 0) return const SizedBox.shrink();
+
+            final showPRMapping = prQtyControllers[material.partNo]![po.poNo]!['_po']!.text.isNotEmpty &&
+                (double.tryParse(prQtyControllers[material.partNo]![po.poNo]!['_po']!.text) ?? 0) < pendingQty;
+
+            return Column(
+              children: [
+                // PO Header with Quantity Input
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      // PO Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'PO: ${po.poNo}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Ordered: $totalOrderedQty',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Received: $totalReceivedQty',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (po.poDate.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Date: ${po.poDate}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      // Inward Quantity Input
+                      SizedBox(
+                        width: 120,
+                        child: TextFormField(
+                          controller: prQtyControllers[material.partNo]![po.poNo]!['_po'],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            hintText: 'Max: $pendingQty',
+                            hintStyle: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) return null;
+                            final qty = double.tryParse(value);
+                            if (qty == null) return 'Invalid number';
+                            if (qty < 0) return 'Cannot be negative';
+                            if (qty > pendingQty) return 'Exceeds pending qty';
+                            return null;
+                          },
+                          onChanged: (value) {
+                            final qty = double.tryParse(value) ?? 0;
+                            
+                            // Auto-adjust if exceeds pending qty
+                            if (qty > pendingQty) {
+                              setState(() {
+                                prQtyControllers[material.partNo]![po.poNo]!['_po']?.text = pendingQty.toString();
+                              });
+                              return;
+                            }
+
+                            setState(() {
+                              if (qty > 0 && qty < pendingQty) {
+                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = true;
+                              } else {
+                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = false;
+                                // Clear PR quantities
+                                for (var prNo in filteredPRDetails.keys) {
+                                  if (prNo != '_po') {
+                                    prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '0';
+                                  }
+                                }
+                              }
+                            });
+
+                            _updateInvoiceAmount();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // PR Distribution (if needed)
+                if (showPRMapping)
+                  Container(
+                    padding: const EdgeInsets.only(left: 32, right: 16, bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'PR Distribution',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.blue[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...filteredPRDetails.entries.map((prEntry) {
+                          final prNo = prEntry.key;
+                          final prDetail = prEntry.value;
+                          final totalReceivedQty = ref
+                              .read(storeInwardProvider.notifier)
+                              .getTotalReceivedQuantityForPR(
+                                material.partNo,
+                                po.poNo,
+                                prNo,
+                              );
+                          
+                          final prPendingQty = prDetail.quantity - totalReceivedQty;
+                          if (prPendingQty <= 0) return const SizedBox.shrink();
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                // PR Info
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        'PR: $prNo',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '(${prDetail.jobNo})',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[500],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Ordered: ${prDetail.quantity}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Received: $totalReceivedQty',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // PR Quantity Input
+                                SizedBox(
+                                  width: 120,
+                                  child: TextFormField(
+                                    controller: prQtyControllers[material.partNo]![po.poNo]![prNo],
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                      hintText: 'Max: $prPendingQty',
+                                      hintStyle: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) return null;
+                                      final qty = double.tryParse(value);
+                                      if (qty == null) return 'Invalid number';
+                                      if (qty < 0) return 'Cannot be negative';
+                                      if (qty > prPendingQty) return 'Exceeds pending qty';
+                                      return null;
+                                    },
+                                    onChanged: (value) {
+                                      final qty = double.tryParse(value) ?? 0;
+                                      
+                                      // Auto-adjust if exceeds pending qty
+                                      if (qty > prPendingQty) {
+                                        setState(() {
+                                          prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = prPendingQty.toString();
+                                        });
+                                        return;
+                                      }
+
+                                      double total = 0;
+                                      for (var prNo in filteredPRDetails.keys) {
+                                        final qty = double.tryParse(
+                                          prQtyControllers[material.partNo]![po.poNo]![prNo]?.text ?? '0'
+                                        ) ?? 0;
+                                        total += qty;
+                                      }
+                                      setState(() {
+                                        prQtyControllers[material.partNo]![po.poNo]!['_po']?.text = total.toString();
+                                      });
+
+                                      _updateInvoiceAmount();
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  ),
+                if (po != pos.last) const Divider(height: 1),
+              ],
+            );
+          }).toList(),
+        ],
+      ),
     );
   }
 
-  // Add this method to calculate total invoice amount
-  double _calculateInvoiceAmount() {
-    double total = 0.0;
-
-    for (var material in ref.read(materialListProvider)) {
-      if (selectedPOs.containsKey(material.partNo)) {
-        for (var entry in selectedPOs[material.partNo]!.entries) {
-          if (entry.value) {
-            // Extract PO number from the composite key (poNo_prKey)
-            final poNo = entry.key.split('_')[0];
-            final qty = double.tryParse(
-                    poQtyControllers[material.partNo]?[entry.key]?.text ??
-                        '0') ??
-                0.0;
-
-            // Find the PO and get the cost per unit
-            final pos = ref
-                .read(purchaseOrderListProvider)
-                .where((po) => po.poNo == poNo);
-
-            if (pos.isNotEmpty) {
-              final po = pos.first;
-              final poItem = po.items
-                  .firstWhere((item) => item.materialCode == material.partNo);
-              final costPerUnit = double.tryParse(poItem.costPerUnit) ?? 0.0;
-
-              total += qty * costPerUnit;
-            }
-          }
-        }
-      }
-    }
-
-    return total;
-  }
-
-  void _onSavePressed() async {
+  Future<void> _saveGR() async {
     if (!_formKey.currentState!.validate()) return;
-
-    if (_invoiceNoController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter Invoice No')),
-      );
-      return;
-    }
-
-    if (_invoiceDateController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter Invoice Date')),
-      );
-      return;
-    }
-
-    if (_receivedByController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter Received By')),
-      );
-      return;
-    }
-
-    if (_checkedByController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter Checked By')),
-      );
-      return;
-    }
 
     setState(() => _isLoading = true);
 
     try {
-      final materials = ref.read(materialListProvider);
-      final purchaseOrders = ref
-          .read(purchaseOrderListProvider)
-          .where((po) =>
-              po.supplierName == selectedSupplier!.name && !po.isFullyReceived)
-          .toList();
-
-      final inwardItems = <InwardItem>[];
-      bool hasItems = false;
+      final grnNo = widget.existingGR?.grnNo ?? _generateGRNNo();
+      final purchaseOrders = ref.read(purchaseOrderListProvider);
+      final poNotifier = ref.read(purchaseOrderListProvider.notifier);
 
       // Create inward items
-      for (var material in materials) {
-        final pos = purchaseOrders
-            .where((po) =>
-                po.items.any((item) => item.materialCode == material.partNo))
-            .toList();
+      final inwardItems = <InwardItem>[];
+      final poNos = <String>{};  // Track unique PO numbers
+      
+      for (var entry in prQtyControllers.entries) {
+        final materialCode = entry.key;
+        final poControllers = entry.value;
 
-        if (pos.isNotEmpty) {
-          final inwardItem = _createInwardItem(material, pos);
-          if (inwardItem.receivedQty > 0) {
-            inwardItems.add(inwardItem);
-            hasItems = true;
+        double totalReceivedQty = 0;
+        final material = ref
+            .read(materialListProvider)
+            .firstWhere((m) => m.partNo == materialCode);
+
+        final inwardItem = InwardItem(
+          materialCode: materialCode,
+          materialDescription: material.description,
+          unit: material.unit,
+          orderedQty: 0, // Will be calculated
+          receivedQty: 0, // Will be calculated
+          acceptedQty: 0,
+          rejectedQty: 0,
+          costPerUnit: '0',
+        );
+
+        // Process PR quantities
+        for (var poEntry in poControllers.entries) {
+          final poNo = poEntry.key;
+          final prControllers = poEntry.value;
+          final po = purchaseOrders.firstWhere((po) => po.poNo == poNo);
+          final poItem = po.items.firstWhere(
+            (item) => item.materialCode == materialCode,
+          );
+
+          // Get cost from PO
+          inwardItem.costPerUnit = poItem.costPerUnit;
+
+          // If PO-level quantity is entered and PR mapping is not shown
+          final showPRMapping = selectedPRs[materialCode]?[poNo]?['_showPRMapping'] ?? false;
+          if (!showPRMapping) {
+            final poQty = double.tryParse(prControllers['_po']?.text ?? '0') ?? 0;
+            if (poQty > 0) {
+              // Distribute PO quantity evenly among PRs
+              final totalPRQty = poItem.prDetails.values.fold(0.0, (sum, pr) => sum + pr.quantity);
+              for (var prEntry in poItem.prDetails.entries) {
+                final prNo = prEntry.key;
+                final prDetail = prEntry.value;
+                final prQty = (poQty * prDetail.quantity / totalPRQty).roundToDouble();
+                
+                if (prQty > 0) {
+                  inwardItem.addPRQuantity(poNo, prNo, prQty);
+                  totalReceivedQty += prQty;
+                  inwardItem.addJobNumberForPR(poNo, prNo, prDetail.jobNo);
+
+                  // Update PO received quantities
+                  if (widget.existingGR != null) {
+                    poItem.receivedQuantities.remove('${widget.existingGR!.grnNo}_$prNo');
+                  }
+                  poItem.addReceivedQuantity('${grnNo}_$prNo', prQty);
+                }
+              }
+              poNos.add(poNo);  // Track PO number
+              continue;
+            }
           }
+
+          // Process PR-wise quantities
+          for (var prEntry in prControllers.entries) {
+            if (prEntry.key == '_po') continue;
+            
+            final prNo = prEntry.key;
+            final qty = double.tryParse(prEntry.value.text) ?? 0;
+
+            if (qty > 0) {
+              inwardItem.addPRQuantity(poNo, prNo, qty);
+              totalReceivedQty += qty;
+
+              final jobNo = poItem.prDetails[prNo]?.jobNo ?? 'General Stock';
+              inwardItem.addJobNumberForPR(poNo, prNo, jobNo);
+
+              // Update PO received quantities
+              if (widget.existingGR != null) {
+                poItem.receivedQuantities.remove('${widget.existingGR!.grnNo}_$prNo');
+              }
+              poItem.addReceivedQuantity('${grnNo}_$prNo', qty);
+              
+              poNos.add(poNo);  // Track PO number
+            }
+          }
+        }
+
+        if (totalReceivedQty > 0) {
+          inwardItem.receivedQty = totalReceivedQty;
+          inwardItems.add(inwardItem);
         }
       }
 
-      if (!hasItems) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Please add at least one item with quantity')),
-        );
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      final grnNo = widget.existingGR?.grnNo ??
-          'GRN${DateTime.now().millisecondsSinceEpoch}';
-
+      // Create or update GR
       final newGR = StoreInward(
         grnNo: grnNo,
         grnDate: _grnDateController.text,
         supplierName: selectedSupplier!.name,
-        poNo: purchaseOrders.first.poNo,
-        poDate: purchaseOrders.first.poDate,
+        poNo: poNos.join(', '), // Join all PO numbers
+        poDate: '', // Multiple dates possible
         invoiceNo: _invoiceNoController.text,
         invoiceDate: _invoiceDateController.text,
         invoiceAmount: _invoiceAmountController.text,
@@ -677,32 +846,18 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         items: inwardItems,
       );
 
-      // Update PO received quantities
-      final poNotifier = ref.read(purchaseOrderListProvider.notifier);
+      // Update PO status for all affected POs
+      final updatedPOs = <String>{};
       for (var inwardItem in inwardItems) {
-        for (var entry in inwardItem.poQuantities.entries) {
-          final poNo = entry.key;
-          final qty = entry.value;
-
-          final poIndex = purchaseOrders.indexWhere((po) => po.poNo == poNo);
-          if (poIndex >= 0) {
-            final po = purchaseOrders[poIndex];
-            final poItem = po.items.firstWhere(
-              (item) => item.materialCode == inwardItem.materialCode,
-            );
-
-            // Clear existing received quantity for this GR if editing
-            if (widget.existingGR != null) {
-              poItem.receivedQuantities.remove(widget.existingGR!.grnNo);
+        for (var poNo in inwardItem.prQuantities.keys) {
+          if (!updatedPOs.contains(poNo)) {
+            final poIndex = purchaseOrders.indexWhere((po) => po.poNo == poNo);
+            if (poIndex >= 0) {
+              final po = purchaseOrders[poIndex];
+              po.updateStatus();
+              poNotifier.updateOrder(poIndex, po);
+              updatedPOs.add(poNo);
             }
-
-            // Add new received quantity
-            poItem.addReceivedQuantity(grnNo, qty);
-
-            // Update PO status
-            po.updateStatus();
-            final index = ref.read(purchaseOrderListProvider).indexOf(po);
-            poNotifier.updateOrder(index, po);
           }
         }
       }
@@ -743,8 +898,18 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
     // Get materials that have pending POs from the selected supplier
     final materials = ref.watch(materialListProvider).where((material) {
-      return purchaseOrders.any(
-          (po) => po.items.any((item) => item.materialCode == material.partNo));
+      return purchaseOrders.any((po) => po.items.any((item) {
+        if (item.materialCode != material.partNo) return false;
+        
+        // If job number is selected, check if material has PR for that job
+        if (selectedJobNo != null && selectedJobNo != 'All') {
+          return item.prDetails.values.any((detail) => 
+            detail.jobNo == selectedJobNo
+          );
+        }
+        
+        return true;
+      }));
     }).toList();
 
     return Scaffold(
@@ -788,8 +953,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               : (val) {
                                   setState(() {
                                     selectedSupplier = val;
-                                    selectedPOs.clear();
-                                    poQtyControllers.clear();
+                                    selectedPRs.clear();
+                                    prQtyControllers.clear();
                                     selectedJobNo = 'All';
                                   });
                                 },
@@ -811,44 +976,83 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                       const SizedBox(width: 16),
                       // Job Number Filter
                       Expanded(
-                        child: DropdownButtonFormField2<String>(
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Filter by Job',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(vertical: 0),
-                          ),
-                          hint: const Text("Select Job"),
-                          value: selectedJobNo ?? 'All',
-                          items: jobNumbers
-                              .map((jobNo) => DropdownMenuItem<String>(
-                                    value: jobNo,
-                                    child: Text(
-                                      jobNo,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ))
-                              .toList(),
-                          onChanged: (val) {
+                        child: Autocomplete<String>(
+                          fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                            // Set initial value without triggering rebuild
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (textEditingController.text.isEmpty && selectedJobNo != null) {
+                                textEditingController.text = selectedJobNo!;
+                              }
+                            });
+                            return TextFormField(
+                              controller: textEditingController,
+                              focusNode: focusNode,
+                              decoration: const InputDecoration(
+                                labelText: 'Filter by Job',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                              ),
+                            );
+                          },
+                          optionsViewBuilder: (context, onSelected, options) {
+                            return Align(
+                              alignment: Alignment.topLeft,
+                              child: Material(
+                                elevation: 4.0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  side: BorderSide(
+                                    color: Theme.of(context).dividerColor,
+                                  ),
+                                ),
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 200,
+                                    maxWidth: 400,
+                                  ),
+                                  child: ListView.builder(
+                                    padding: const EdgeInsets.all(8.0),
+                                    itemCount: options.length,
+                                    itemBuilder: (context, index) {
+                                      final option = options.elementAt(index);
+                                      return InkWell(
+                                        onTap: () => onSelected(option),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12.0,
+                                            horizontal: 16.0,
+                                          ),
+                                          child: Text(
+                                            option,
+                                            style: const TextStyle(
+                                              fontSize: 14.0,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                          displayStringForOption: (jobNo) => jobNo,
+                          optionsBuilder: (textEditingValue) {
+                            final jobNumbers = _getUniqueJobNumbers(purchaseOrders);
+                            if (textEditingValue.text.isEmpty) {
+                              return jobNumbers;
+                            }
+                            return jobNumbers.where((jobNo) => 
+                              jobNo.toLowerCase().contains(textEditingValue.text.toLowerCase())
+                            );
+                          },
+                          onSelected: (val) {
                             setState(() {
-                              selectedJobNo = val;
-                              selectedPOs.clear();
-                              poQtyControllers.clear();
+                              selectedJobNo = val == 'All' ? null : val;
+                              selectedPRs.clear();
+                              prQtyControllers.clear();
                             });
                           },
-                          dropdownStyleData: DropdownStyleData(
-                            maxHeight: 300,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          menuItemStyleData: const MenuItemStyleData(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
-                          ),
-                          buttonStyleData: const ButtonStyleData(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
-                            height: 60,
-                          ),
                         ),
                       ),
                     ],
@@ -985,7 +1189,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _onSavePressed,
+                    onPressed: _isLoading ? null : _saveGR,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 48, vertical: 16),

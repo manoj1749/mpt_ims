@@ -82,6 +82,63 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
+
+    // Handle old format where prQuantities was stored as double
+    final oldPrQuantity = fields[8];
+    Map<String, Map<String, double>>? prQuantities;
+    
+    if (oldPrQuantity == null) {
+      prQuantities = {};
+    } else if (oldPrQuantity is double) {
+      prQuantities = {};
+    } else if (oldPrQuantity is Map) {
+      try {
+        prQuantities = oldPrQuantity.map((dynamic k, dynamic v) =>
+            MapEntry(k as String, (v as Map).cast<String, double>()));
+      } catch (e) {
+        prQuantities = {};
+      }
+    } else {
+      prQuantities = {};
+    }
+
+    // Handle old format where inspectedQuantities was stored as double
+    final oldInspectedQty = fields[9];
+    Map<String, double>? inspectedQuantities;
+    
+    if (oldInspectedQty == null) {
+      inspectedQuantities = {};
+    } else if (oldInspectedQty is double) {
+      inspectedQuantities = {};
+    } else if (oldInspectedQty is Map) {
+      try {
+        inspectedQuantities = oldInspectedQty.cast<String, double>();
+      } catch (e) {
+        inspectedQuantities = {};
+      }
+    } else {
+      inspectedQuantities = {};
+    }
+
+    // Handle old format where prJobNumbers was stored as double
+    final oldPrJobNumbers = fields[10];
+    Map<String, Map<String, String>>? prJobNumbers;
+    
+    if (oldPrJobNumbers == null) {
+      prJobNumbers = {};
+    } else if (oldPrJobNumbers is double) {
+      prJobNumbers = {};
+    } else if (oldPrJobNumbers is Map) {
+      try {
+        prJobNumbers = oldPrJobNumbers.map((dynamic k, dynamic v) =>
+            MapEntry(k as String, (v as Map).cast<String, String>()));
+      } catch (e) {
+        prJobNumbers = {};
+      }
+    } else {
+      prJobNumbers = {};
+    }
+
     return InwardItem(
       materialCode: fields[0] as String,
       materialDescription: fields[1] as String,
@@ -91,9 +148,9 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
       acceptedQty: fields[5] as double,
       rejectedQty: fields[6] as double,
       costPerUnit: fields[7] as String,
-      poQuantities: (fields[8] as Map?)?.cast<String, double>(),
-      inspectedQuantities: (fields[9] as Map?)?.cast<String, double>(),
-      jobNumbers: (fields[10] as Map?)?.cast<String, String>(),
+      prQuantities: prQuantities,
+      inspectedQuantities: inspectedQuantities,
+      prJobNumbers: prJobNumbers,
     );
   }
 
@@ -118,11 +175,11 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
       ..writeByte(7)
       ..write(obj.costPerUnit)
       ..writeByte(8)
-      ..write(obj.poQuantities)
+      ..write(obj.prQuantities)
       ..writeByte(9)
       ..write(obj.inspectedQuantities)
       ..writeByte(10)
-      ..write(obj.jobNumbers);
+      ..write(obj.prJobNumbers);
   }
 
   @override

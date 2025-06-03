@@ -169,19 +169,47 @@ class InwardItem {
   String costPerUnit;
 
   @HiveField(8)
-  Map<String, Map<String, double>> prQuantities =
-      {}; // Store PR-wise quantities: PO No -> {PR No -> Quantity}
+  Map<String, Map<String, double>> prQuantities = {}; // Store PR-wise quantities: PO No -> {PR No -> Quantity}
 
   @HiveField(9)
-  Map<String, double> inspectedQuantities =
-      {}; // Map of inspection number to inspected quantity
+  Map<String, double> inspectedQuantities = {}; // Map of inspection number to inspected quantity
 
   @HiveField(10)
-  Map<String, Map<String, String>> prJobNumbers =
-      {}; // Map of PO No -> {PR No -> Job No}
+  Map<String, Map<String, String>> prJobNumbers = {}; // Map of PO No -> {PR No -> Job No}
+
+  // Factory constructor to handle migration from old format
+  factory InwardItem.fromFields(Map<int, dynamic> fields) {
+    // Handle old format where quantities were stored as doubles
+    final oldPoQuantity = fields[8];
+    Map<String, Map<String, double>>? prQuantities;
+    
+    if (oldPoQuantity is double) {
+      // Convert old format to new format
+      prQuantities = {};
+    } else if (oldPoQuantity is Map) {
+      // New format, cast appropriately
+      prQuantities = (oldPoQuantity).map((dynamic k, dynamic v) =>
+          MapEntry(k as String, (v as Map).cast<String, double>()));
+    }
+
+    return InwardItem(
+      materialCode: fields[0] as String,
+      materialDescription: fields[1] as String,
+      unit: fields[2] as String,
+      orderedQty: fields[3] as double,
+      receivedQty: fields[4] as double,
+      acceptedQty: fields[5] as double,
+      rejectedQty: fields[6] as double,
+      costPerUnit: fields[7] as String,
+      prQuantities: prQuantities,
+      inspectedQuantities: (fields[9] as Map?)?.cast<String, double>(),
+      prJobNumbers: (fields[10] as Map?)?.map((dynamic k, dynamic v) =>
+          MapEntry(k as String, (v as Map).cast<String, String>())),
+    );
+  }
 
   double get inspectedQuantity =>
-      inspectedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
+      inspectedQuantities.values.fold<double>(0.0, (sum, qty) => sum + (qty ?? 0.0));
 
   bool get isFullyInspected => inspectedQuantity >= receivedQty;
 
@@ -191,30 +219,24 @@ class InwardItem {
 
   // Helper method to get job number for a specific PR
   String getJobNumberForPR(String poNo, String prNo) {
-    return prJobNumbers[poNo]?[prNo] ?? 'General Stock';
+    return prJobNumbers[poNo]?[prNo] ?? '';
   }
 
-  // Add job number for a PR
-  void addJobNumberForPR(String poNo, String prNo, String jobNo) {
-    if (!prJobNumbers.containsKey(poNo)) {
-      prJobNumbers[poNo] = {};
-    }
-    prJobNumbers[poNo]![prNo] = jobNo;
-  }
-
-  // Add received quantity for a PR
+  // Helper method to add PR quantity
   void addPRQuantity(String poNo, String prNo, double quantity) {
-    if (!prQuantities.containsKey(poNo)) {
-      prQuantities[poNo] = {};
-    }
+    prQuantities.putIfAbsent(poNo, () => {});
     prQuantities[poNo]![prNo] = quantity;
   }
 
-  // Get total received quantity for a PO
+  // Helper method to add job number for PR
+  void addJobNumberForPR(String poNo, String prNo, String jobNo) {
+    prJobNumbers.putIfAbsent(poNo, () => {});
+    prJobNumbers[poNo]![prNo] = jobNo;
+  }
+
+  // Helper method to get total quantity for a PO
   double getTotalQuantityForPO(String poNo) {
-    if (!prQuantities.containsKey(poNo)) {
-      return 0.0;
-    }
+    if (!prQuantities.containsKey(poNo)) return 0.0;
     return prQuantities[poNo]!.values.fold(0.0, (sum, qty) => sum + qty);
   }
 

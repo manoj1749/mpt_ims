@@ -169,20 +169,23 @@ class InwardItem {
   String costPerUnit;
 
   @HiveField(8)
-  Map<String, Map<String, double>> prQuantities = {}; // Store PR-wise quantities: PO No -> {PR No -> Quantity}
+  Map<String, Map<String, double>> prQuantities =
+      {}; // Store PR-wise quantities: PO No -> {PR No -> Quantity}
 
   @HiveField(9)
-  Map<String, double> inspectedQuantities = {}; // Map of inspection number to inspected quantity
+  Map<String, double> inspectedQuantities =
+      {}; // Map of inspection number to inspected quantity
 
   @HiveField(10)
-  Map<String, Map<String, String>> prJobNumbers = {}; // Map of PO No -> {PR No -> Job No}
+  Map<String, Map<String, String>> prJobNumbers =
+      {}; // Map of PO No -> {PR No -> Job No}
 
   // Factory constructor to handle migration from old format
   factory InwardItem.fromFields(Map<int, dynamic> fields) {
     // Handle old format where quantities were stored as doubles
     final oldPoQuantity = fields[8];
     Map<String, Map<String, double>>? prQuantities;
-    
+
     if (oldPoQuantity is double) {
       // Convert old format to new format
       prQuantities = {};

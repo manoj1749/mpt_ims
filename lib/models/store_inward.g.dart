@@ -86,7 +86,7 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
     // Handle old format where prQuantities was stored as double
     final oldPrQuantity = fields[8];
     Map<String, Map<String, double>>? prQuantities;
-    
+
     if (oldPrQuantity == null) {
       prQuantities = {};
     } else if (oldPrQuantity is double) {
@@ -105,7 +105,7 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
     // Handle old format where inspectedQuantities was stored as double
     final oldInspectedQty = fields[9];
     Map<String, double>? inspectedQuantities;
-    
+
     if (oldInspectedQty == null) {
       inspectedQuantities = {};
     } else if (oldInspectedQty is double) {
@@ -123,7 +123,7 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
     // Handle old format where prJobNumbers was stored as double
     final oldPrJobNumbers = fields[10];
     Map<String, Map<String, String>>? prJobNumbers;
-    
+
     if (oldPrJobNumbers == null) {
       prJobNumbers = {};
     } else if (oldPrJobNumbers is double) {

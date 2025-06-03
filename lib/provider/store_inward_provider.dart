@@ -101,7 +101,8 @@ class StoreInwardNotifier extends StateNotifier<List<StoreInward>> {
   }
 
   // Get total received quantity for a specific PR
-  double getTotalReceivedQuantityForPR(String materialCode, String poNo, String prNo) {
+  double getTotalReceivedQuantityForPR(
+      String materialCode, String poNo, String prNo) {
     return state
         .where((inward) => inward.items.any((item) =>
             item.materialCode == materialCode &&
@@ -123,7 +124,8 @@ class StoreInwardNotifier extends StateNotifier<List<StoreInward>> {
         .fold(0.0, (sum, inward) {
       final item =
           inward.items.firstWhere((item) => item.materialCode == materialCode);
-      return sum + item.prQuantities[poNo]!.values.fold(0.0, (sum, qty) => sum + qty);
+      return sum +
+          item.prQuantities[poNo]!.values.fold(0.0, (sum, qty) => sum + qty);
     });
   }
 }

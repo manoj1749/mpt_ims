@@ -40,7 +40,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
   Supplier? selectedSupplier;
   String? selectedJobNo;
-  Map<String, Map<String, Map<String, TextEditingController>>> prQtyControllers = {};
+  Map<String, Map<String, Map<String, TextEditingController>>>
+      prQtyControllers = {};
   Map<String, Map<String, Map<String, bool>>> selectedPRs = {};
   Map<String, Map<String, PlutoGridStateManager?>> gridStateManagers = {};
   bool _isLoading = false;
@@ -119,10 +120,6 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     return jobNos.toList()..sort();
   }
 
-
-
-
-
   // Helper method to calculate total invoice amount
   void _updateInvoiceAmount() {
     double total = 0.0;
@@ -136,32 +133,34 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
         // Get material cost from PO
         final po = ref.read(purchaseOrderListProvider).firstWhere(
-          (po) => po.poNo == poNo,
-          orElse: () => PurchaseOrder(
-            poNo: '',
-            poDate: '',
-            supplierName: '',
-            transport: '',
-            deliveryRequirements: '',
-            items: [],
-            total: 0,
-            igst: 0,
-            cgst: 0,
-            sgst: 0,
-            grandTotal: 0,
-          ),
-        );
-        
+              (po) => po.poNo == poNo,
+              orElse: () => PurchaseOrder(
+                poNo: '',
+                poDate: '',
+                supplierName: '',
+                transport: '',
+                deliveryRequirements: '',
+                items: [],
+                total: 0,
+                igst: 0,
+                cgst: 0,
+                sgst: 0,
+                grandTotal: 0,
+              ),
+            );
+
         POItem? poItem;
         try {
-          poItem = po.items.firstWhere((item) => item.materialCode == materialCode);
+          poItem =
+              po.items.firstWhere((item) => item.materialCode == materialCode);
         } catch (_) {
           poItem = null;
         }
         final cost = double.tryParse(poItem?.costPerUnit ?? '0') ?? 0.0;
 
         // If PO-level quantity is entered and PR mapping is not shown
-        final showPRMapping = selectedPRs[materialCode]?[poNo]?['_showPRMapping'] ?? false;
+        final showPRMapping =
+            selectedPRs[materialCode]?[poNo]?['_showPRMapping'] ?? false;
         if (!showPRMapping) {
           final poQty = double.tryParse(prControllers['_po']?.text ?? '0') ?? 0;
           total += poQty * cost;
@@ -190,10 +189,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       for (var po in pos) {
         selectedPRs[material.partNo]![po.poNo] = {};
         prQtyControllers[material.partNo]![po.poNo] = {};
-        
+
         // Add a controller for PO-level quantity
-        prQtyControllers[material.partNo]![po.poNo]!['_po'] = TextEditingController(text: '0');
-        
+        prQtyControllers[material.partNo]![po.poNo]!['_po'] =
+            TextEditingController(text: '0');
+
         final poItem = po.items.firstWhere(
           (item) => item.materialCode == material.partNo,
         );
@@ -201,7 +201,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         for (var prDetail in poItem.prDetails.entries) {
           final prNo = prDetail.key;
           // Only add PR if it matches the selected job number or if no job is selected
-          if (selectedJobNo == null || selectedJobNo == 'All' || 
+          if (selectedJobNo == null ||
+              selectedJobNo == 'All' ||
               prDetail.value.jobNo == selectedJobNo) {
             selectedPRs[material.partNo]![po.poNo]![prNo] = false;
             prQtyControllers[material.partNo]![po.poNo]![prNo] =
@@ -248,16 +249,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             );
 
             // Filter PR details based on selected job
-            final filteredPRDetails = Map.fromEntries(
-              poItem.prDetails.entries.where((entry) =>
-                selectedJobNo == null || 
-                selectedJobNo == 'All' || 
-                entry.value.jobNo == selectedJobNo
-              )
-            );
-            
+            final filteredPRDetails = Map.fromEntries(poItem.prDetails.entries
+                .where((entry) =>
+                    selectedJobNo == null ||
+                    selectedJobNo == 'All' ||
+                    entry.value.jobNo == selectedJobNo));
+
             if (filteredPRDetails.isEmpty) return const SizedBox.shrink();
-            
+
             final totalOrderedQty = filteredPRDetails.values
                 .fold(0.0, (sum, detail) => sum + detail.quantity);
             final totalReceivedQty = ref
@@ -267,14 +266,22 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
             if (pendingQty <= 0) return const SizedBox.shrink();
 
-            final showPRMapping = prQtyControllers[material.partNo]![po.poNo]!['_po']!.text.isNotEmpty &&
-                (double.tryParse(prQtyControllers[material.partNo]![po.poNo]!['_po']!.text) ?? 0) < pendingQty;
+            final showPRMapping = prQtyControllers[material.partNo]![po.poNo]![
+                        '_po']!
+                    .text
+                    .isNotEmpty &&
+                (double.tryParse(
+                            prQtyControllers[material.partNo]![po.poNo]!['_po']!
+                                .text) ??
+                        0) <
+                    pendingQty;
 
             return Column(
               children: [
                 // PO Header with Quantity Input
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(
                     children: [
                       // PO Info
@@ -325,12 +332,15 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                       SizedBox(
                         width: 120,
                         child: TextFormField(
-                          controller: prQtyControllers[material.partNo]![po.poNo]!['_po'],
+                          controller: prQtyControllers[material.partNo]![
+                              po.poNo]!['_po'],
                           decoration: InputDecoration(
                             isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 8),
                             hintText: 'Max: $pendingQty',
-                            hintStyle: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                            hintStyle: TextStyle(
+                                fontSize: 12, color: Colors.grey[500]),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(4),
                             ),
@@ -346,24 +356,30 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                           },
                           onChanged: (value) {
                             final qty = double.tryParse(value) ?? 0;
-                            
+
                             // Auto-adjust if exceeds pending qty
                             if (qty > pendingQty) {
                               setState(() {
-                                prQtyControllers[material.partNo]![po.poNo]!['_po']?.text = pendingQty.toString();
+                                prQtyControllers[material.partNo]![po.poNo]![
+                                        '_po']
+                                    ?.text = pendingQty.toString();
                               });
                               return;
                             }
 
                             setState(() {
                               if (qty > 0 && qty < pendingQty) {
-                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = true;
+                                selectedPRs[material.partNo]![po.poNo]![
+                                    '_showPRMapping'] = true;
                               } else {
-                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = false;
+                                selectedPRs[material.partNo]![po.poNo]![
+                                    '_showPRMapping'] = false;
                                 // Clear PR quantities
                                 for (var prNo in filteredPRDetails.keys) {
                                   if (prNo != '_po') {
-                                    prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '0';
+                                    prQtyControllers[material.partNo]![
+                                            po.poNo]![prNo]
+                                        ?.text = '0';
                                   }
                                 }
                               }
@@ -379,7 +395,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 // PR Distribution (if needed)
                 if (showPRMapping)
                   Container(
-                    padding: const EdgeInsets.only(left: 32, right: 16, bottom: 12),
+                    padding:
+                        const EdgeInsets.only(left: 32, right: 16, bottom: 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -402,8 +419,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                 po.poNo,
                                 prNo,
                               );
-                          
-                          final prPendingQty = prDetail.quantity - totalReceivedQty;
+
+                          final prPendingQty =
+                              prDetail.quantity - totalReceivedQty;
                           if (prPendingQty <= 0) return const SizedBox.shrink();
 
                           return Padding(
@@ -451,32 +469,41 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                 SizedBox(
                                   width: 120,
                                   child: TextFormField(
-                                    controller: prQtyControllers[material.partNo]![po.poNo]![prNo],
+                                    controller: prQtyControllers[
+                                        material.partNo]![po.poNo]![prNo],
                                     decoration: InputDecoration(
                                       isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 8),
                                       hintText: 'Max: $prPendingQty',
-                                      hintStyle: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                                      hintStyle: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[500]),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                     ),
                                     keyboardType: TextInputType.number,
                                     validator: (value) {
-                                      if (value == null || value.isEmpty) return null;
+                                      if (value == null || value.isEmpty)
+                                        return null;
                                       final qty = double.tryParse(value);
                                       if (qty == null) return 'Invalid number';
                                       if (qty < 0) return 'Cannot be negative';
-                                      if (qty > prPendingQty) return 'Exceeds pending qty';
+                                      if (qty > prPendingQty)
+                                        return 'Exceeds pending qty';
                                       return null;
                                     },
                                     onChanged: (value) {
                                       final qty = double.tryParse(value) ?? 0;
-                                      
+
                                       // Auto-adjust if exceeds pending qty
                                       if (qty > prPendingQty) {
                                         setState(() {
-                                          prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = prPendingQty.toString();
+                                          prQtyControllers[material.partNo]![
+                                                  po.poNo]![prNo]
+                                              ?.text = prPendingQty.toString();
                                         });
                                         return;
                                       }
@@ -484,12 +511,18 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                       double total = 0;
                                       for (var prNo in filteredPRDetails.keys) {
                                         final qty = double.tryParse(
-                                          prQtyControllers[material.partNo]![po.poNo]![prNo]?.text ?? '0'
-                                        ) ?? 0;
+                                                prQtyControllers[material
+                                                                .partNo]![
+                                                            po.poNo]![prNo]
+                                                        ?.text ??
+                                                    '0') ??
+                                            0;
                                         total += qty;
                                       }
                                       setState(() {
-                                        prQtyControllers[material.partNo]![po.poNo]!['_po']?.text = total.toString();
+                                        prQtyControllers[material.partNo]![
+                                                po.poNo]!['_po']
+                                            ?.text = total.toString();
                                       });
 
                                       _updateInvoiceAmount();
@@ -524,8 +557,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
       // Create inward items
       final inwardItems = <InwardItem>[];
-      final poNos = <String>{};  // Track unique PO numbers
-      
+      final poNos = <String>{}; // Track unique PO numbers
+
       for (var entry in prQtyControllers.entries) {
         final materialCode = entry.key;
         final poControllers = entry.value;
@@ -559,17 +592,21 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           inwardItem.costPerUnit = poItem.costPerUnit;
 
           // If PO-level quantity is entered and PR mapping is not shown
-          final showPRMapping = selectedPRs[materialCode]?[poNo]?['_showPRMapping'] ?? false;
+          final showPRMapping =
+              selectedPRs[materialCode]?[poNo]?['_showPRMapping'] ?? false;
           if (!showPRMapping) {
-            final poQty = double.tryParse(prControllers['_po']?.text ?? '0') ?? 0;
+            final poQty =
+                double.tryParse(prControllers['_po']?.text ?? '0') ?? 0;
             if (poQty > 0) {
               // Distribute PO quantity evenly among PRs
-              final totalPRQty = poItem.prDetails.values.fold(0.0, (sum, pr) => sum + pr.quantity);
+              final totalPRQty = poItem.prDetails.values
+                  .fold(0.0, (sum, pr) => sum + pr.quantity);
               for (var prEntry in poItem.prDetails.entries) {
                 final prNo = prEntry.key;
                 final prDetail = prEntry.value;
-                final prQty = (poQty * prDetail.quantity / totalPRQty).roundToDouble();
-                
+                final prQty =
+                    (poQty * prDetail.quantity / totalPRQty).roundToDouble();
+
                 if (prQty > 0) {
                   inwardItem.addPRQuantity(poNo, prNo, prQty);
                   totalReceivedQty += prQty;
@@ -577,12 +614,13 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
                   // Update PO received quantities
                   if (widget.existingGR != null) {
-                    poItem.receivedQuantities.remove('${widget.existingGR!.grnNo}_$prNo');
+                    poItem.receivedQuantities
+                        .remove('${widget.existingGR!.grnNo}_$prNo');
                   }
                   poItem.addReceivedQuantity('${grnNo}_$prNo', prQty);
                 }
               }
-              poNos.add(poNo);  // Track PO number
+              poNos.add(poNo); // Track PO number
               continue;
             }
           }
@@ -590,7 +628,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           // Process PR-wise quantities
           for (var prEntry in prControllers.entries) {
             if (prEntry.key == '_po') continue;
-            
+
             final prNo = prEntry.key;
             final qty = double.tryParse(prEntry.value.text) ?? 0;
 
@@ -603,11 +641,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
               // Update PO received quantities
               if (widget.existingGR != null) {
-                poItem.receivedQuantities.remove('${widget.existingGR!.grnNo}_$prNo');
+                poItem.receivedQuantities
+                    .remove('${widget.existingGR!.grnNo}_$prNo');
               }
               poItem.addReceivedQuantity('${grnNo}_$prNo', qty);
-              
-              poNos.add(poNo);  // Track PO number
+
+              poNos.add(poNo); // Track PO number
             }
           }
         }
@@ -686,17 +725,16 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     // Get materials that have pending POs from the selected supplier
     final materials = ref.watch(materialListProvider).where((material) {
       return purchaseOrders.any((po) => po.items.any((item) {
-        if (item.materialCode != material.partNo) return false;
-        
-        // If job number is selected, check if material has PR for that job
-        if (selectedJobNo != null && selectedJobNo != 'All') {
-          return item.prDetails.values.any((detail) => 
-            detail.jobNo == selectedJobNo
-          );
-        }
-        
-        return true;
-      }));
+            if (item.materialCode != material.partNo) return false;
+
+            // If job number is selected, check if material has PR for that job
+            if (selectedJobNo != null && selectedJobNo != 'All') {
+              return item.prDetails.values
+                  .any((detail) => detail.jobNo == selectedJobNo);
+            }
+
+            return true;
+          }));
     }).toList();
 
     return Scaffold(
@@ -764,10 +802,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                       // Job Number Filter
                       Expanded(
                         child: Autocomplete<String>(
-                          fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                          fieldViewBuilder: (context, textEditingController,
+                              focusNode, onFieldSubmitted) {
                             // Set initial value without triggering rebuild
                             WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (textEditingController.text.isEmpty && selectedJobNo != null) {
+                              if (textEditingController.text.isEmpty &&
+                                  selectedJobNo != null) {
                                 textEditingController.text = selectedJobNo!;
                               }
                             });
@@ -777,7 +817,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               decoration: const InputDecoration(
                                 labelText: 'Filter by Job',
                                 border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 0),
                               ),
                             );
                           },
@@ -825,13 +866,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                           },
                           displayStringForOption: (jobNo) => jobNo,
                           optionsBuilder: (textEditingValue) {
-                            final jobNumbers = _getUniqueJobNumbers(purchaseOrders);
+                            final jobNumbers =
+                                _getUniqueJobNumbers(purchaseOrders);
                             if (textEditingValue.text.isEmpty) {
                               return jobNumbers;
                             }
-                            return jobNumbers.where((jobNo) => 
-                              jobNo.toLowerCase().contains(textEditingValue.text.toLowerCase())
-                            );
+                            return jobNumbers.where((jobNo) => jobNo
+                                .toLowerCase()
+                                .contains(textEditingValue.text.toLowerCase()));
                           },
                           onSelected: (val) {
                             setState(() {

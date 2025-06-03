@@ -20,7 +20,7 @@ class POItemAdapter extends TypeAdapter<POItem> {
     // Handle old format where receivedQuantities was stored as double
     final oldReceivedQty = fields[10];
     Map<String, Map<String, double>>? receivedQuantities;
-    
+
     if (oldReceivedQty == null) {
       receivedQuantities = {};
     } else if (oldReceivedQty is double) {

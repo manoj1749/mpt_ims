@@ -35,14 +35,15 @@ class POItem extends HiveObject {
   Map<String, ItemPRDetails> prDetails = {}; // PR No -> PR Details
 
   @HiveField(10)
-  Map<String, Map<String, double>> receivedQuantities = {}; // GRN_PR -> received quantity
+  Map<String, Map<String, double>> receivedQuantities =
+      {}; // GRN_PR -> received quantity
 
   // Factory constructor to handle migration from old format
   factory POItem.fromFields(Map<int, dynamic> fields) {
     // Handle old format where quantities were stored as doubles
     final oldReceivedQty = fields[10];
     Map<String, Map<String, double>>? receivedQuantities;
-    
+
     if (oldReceivedQty is double) {
       // Convert old format to new format
       receivedQuantities = {};
@@ -92,12 +93,12 @@ class POItem extends HiveObject {
       final prNo = prDetail.key;
       final prQty = prDetail.value.quantity;
       final receivedQty = getReceivedQuantityForPR(prNo);
-      
+
       if (receivedQty < prQty) {
         return false;
       }
     }
-    
+
     return true;
   }
 
@@ -133,13 +134,13 @@ class POItem extends HiveObject {
   void addReceivedQuantity(String grnPrKey, double quantity) {
     final parts = grnPrKey.split('_');
     if (parts.length != 2) return;
-    
+
     final grnNo = parts[0];
     final prNo = parts[1];
-    
+
     // Remove any existing quantity for this GRN and PR
     receivedQuantities.remove(grnNo);
-    
+
     // Add the new quantity
     receivedQuantities.putIfAbsent(grnNo, () => {});
     receivedQuantities[grnNo]![prNo] = quantity;
@@ -149,10 +150,10 @@ class POItem extends HiveObject {
   double getPendingQuantityForPR(String prNo) {
     final prDetail = prDetails[prNo];
     if (prDetail == null) return 0.0;
-    
+
     final orderedQty = prDetail.quantity;
     final receivedQty = getReceivedQuantityForPR(prNo);
-    
+
     return orderedQty - receivedQty;
   }
 

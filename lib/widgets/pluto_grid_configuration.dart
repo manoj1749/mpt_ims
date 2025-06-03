@@ -32,9 +32,12 @@ class PlutoGridConfigurations {
         rowHeight: rowHeight,
         columnHeight: headerHeight,
         columnFilterHeight: columnFilterHeight,
-        defaultColumnTitlePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        defaultColumnFilterPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        defaultCellPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        defaultColumnTitlePadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        defaultColumnFilterPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        defaultCellPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         enableColumnBorderVertical: true,
         enableColumnBorderHorizontal: true,
         enableCellBorderVertical: true,
@@ -56,4 +59,4 @@ class PlutoGridConfigurations {
       ),
     );
   }
-} 
+}

@@ -47,7 +47,9 @@ class PurchaseOrder extends HiveObject {
     _status = value;
   }
 
-  bool get isFullyReceived => items.every((item) => item.isFullyReceived);
+  bool get isFullyReceived {
+    return items.every((item) => item.isFullyReceived);
+  }
 
   // Get all unique job numbers from all items
   Set<String> get jobNumbers {
@@ -80,14 +82,28 @@ class PurchaseOrder extends HiveObject {
     }
   }
 
+  // Update PO status based on received quantities
   void updateStatus() {
     if (isFullyReceived) {
       status = 'Completed';
-    } else if (items.any((item) => item.totalReceivedQuantity > 0)) {
-      status = 'Partially Received';
-    } else {
-      status = 'Draft';
+      return;
     }
+
+    // Check if any PR in any item has received quantities
+    bool hasPartiallyReceived = false;
+    for (var item in items) {
+      for (var prDetail in item.prDetails.entries) {
+        final prNo = prDetail.key;
+        final receivedQty = item.getReceivedQuantityForPR(prNo);
+        if (receivedQty > 0) {
+          hasPartiallyReceived = true;
+          break;
+        }
+      }
+      if (hasPartiallyReceived) break;
+    }
+
+    status = hasPartiallyReceived ? 'Partially Received' : 'Draft';
   }
 
   PurchaseOrder({

@@ -35,8 +35,71 @@ class POItem extends HiveObject {
   Map<String, ItemPRDetails> prDetails = {}; // PR No -> PR Details
 
   @HiveField(10)
-  Map<String, double> receivedQuantities =
-      {}; // GRN number -> received quantity
+  Map<String, Map<String, double>> receivedQuantities = {}; // GRN_PR -> received quantity
+
+  // Factory constructor to handle migration from old format
+  factory POItem.fromFields(Map<int, dynamic> fields) {
+    // Handle old format where quantities were stored as doubles
+    final oldReceivedQty = fields[10];
+    Map<String, Map<String, double>>? receivedQuantities;
+    
+    if (oldReceivedQty is double) {
+      // Convert old format to new format
+      receivedQuantities = {};
+    } else if (oldReceivedQty is Map) {
+      // New format, cast appropriately
+      receivedQuantities = (oldReceivedQty).map((dynamic k, dynamic v) =>
+          MapEntry(k as String, (v as Map).cast<String, double>()));
+    }
+
+    return POItem(
+      materialCode: fields[0] as String,
+      materialDescription: fields[1] as String,
+      unit: fields[2] as String,
+      quantity: fields[3] as String,
+      costPerUnit: fields[4] as String,
+      totalCost: fields[5] as String,
+      saleRate: fields[6] as String,
+      marginPerUnit: fields[7] as String,
+      totalMargin: fields[8] as String,
+      prDetails: (fields[9] as Map?)?.cast<String, ItemPRDetails>(),
+      receivedQuantities: receivedQuantities,
+    );
+  }
+
+  // Get total received quantity
+  double get totalReceivedQuantity {
+    double total = 0.0;
+    for (var grnQtys in receivedQuantities.values) {
+      total += grnQtys.values.fold(0.0, (sum, qty) => sum + qty);
+    }
+    return total;
+  }
+
+  // Get total received quantity for a specific PR
+  double getReceivedQuantityForPR(String prNo) {
+    double total = 0.0;
+    for (var grnQtys in receivedQuantities.values) {
+      total += grnQtys[prNo] ?? 0.0;
+    }
+    return total;
+  }
+
+  // Check if this item is fully received
+  bool get isFullyReceived {
+    // Check if each PR has received its full quantity
+    for (var prDetail in prDetails.entries) {
+      final prNo = prDetail.key;
+      final prQty = prDetail.value.quantity;
+      final receivedQty = getReceivedQuantityForPR(prNo);
+      
+      if (receivedQty < prQty) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
 
   // Get all unique job numbers for this item
   Set<String> get jobNumbers {
@@ -66,16 +129,31 @@ class POItem extends HiveObject {
     }
   }
 
-  double get totalReceivedQuantity =>
-      receivedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
-
-  bool get isFullyReceived {
-    final totalQty = double.tryParse(quantity) ?? 0.0;
-    return totalReceivedQuantity >= totalQty;
+  // Helper method to add received quantity
+  void addReceivedQuantity(String grnPrKey, double quantity) {
+    final parts = grnPrKey.split('_');
+    if (parts.length != 2) return;
+    
+    final grnNo = parts[0];
+    final prNo = parts[1];
+    
+    // Remove any existing quantity for this GRN and PR
+    receivedQuantities.remove(grnNo);
+    
+    // Add the new quantity
+    receivedQuantities.putIfAbsent(grnNo, () => {});
+    receivedQuantities[grnNo]![prNo] = quantity;
   }
 
-  void addReceivedQuantity(String grnNo, double quantity) {
-    receivedQuantities[grnNo] = quantity;
+  // Get pending quantity for a specific PR
+  double getPendingQuantityForPR(String prNo) {
+    final prDetail = prDetails[prNo];
+    if (prDetail == null) return 0.0;
+    
+    final orderedQty = prDetail.quantity;
+    final receivedQty = getReceivedQuantityForPR(prNo);
+    
+    return orderedQty - receivedQty;
   }
 
   POItem({
@@ -89,7 +167,7 @@ class POItem extends HiveObject {
     required this.marginPerUnit,
     required this.totalMargin,
     Map<String, ItemPRDetails>? prDetails,
-    Map<String, double>? receivedQuantities,
+    Map<String, Map<String, double>>? receivedQuantities,
   }) {
     this.prDetails = prDetails ?? {};
     this.receivedQuantities = receivedQuantities ?? {};
@@ -139,7 +217,7 @@ class POItem extends HiveObject {
     String? marginPerUnit,
     String? totalMargin,
     Map<String, ItemPRDetails>? prDetails,
-    Map<String, double>? receivedQuantities,
+    Map<String, Map<String, double>>? receivedQuantities,
   }) {
     return POItem(
       materialCode: materialCode ?? this.materialCode,
@@ -153,7 +231,7 @@ class POItem extends HiveObject {
       totalMargin: totalMargin ?? this.totalMargin,
       prDetails: prDetails ?? Map<String, ItemPRDetails>.from(this.prDetails),
       receivedQuantities: receivedQuantities ??
-          Map<String, double>.from(this.receivedQuantities),
+          Map<String, Map<String, double>>.from(this.receivedQuantities),
     );
   }
 }

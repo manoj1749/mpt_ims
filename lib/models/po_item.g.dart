@@ -16,6 +16,26 @@ class POItemAdapter extends TypeAdapter<POItem> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
+
+    // Handle old format where receivedQuantities was stored as double
+    final oldReceivedQty = fields[10];
+    Map<String, Map<String, double>>? receivedQuantities;
+    
+    if (oldReceivedQty == null) {
+      receivedQuantities = {};
+    } else if (oldReceivedQty is double) {
+      receivedQuantities = {};
+    } else if (oldReceivedQty is Map) {
+      try {
+        receivedQuantities = oldReceivedQty.map((dynamic k, dynamic v) =>
+            MapEntry(k as String, (v as Map).cast<String, double>()));
+      } catch (e) {
+        receivedQuantities = {};
+      }
+    } else {
+      receivedQuantities = {};
+    }
+
     return POItem(
       materialCode: fields[0] as String,
       materialDescription: fields[1] as String,
@@ -27,7 +47,7 @@ class POItemAdapter extends TypeAdapter<POItem> {
       marginPerUnit: fields[7] as String,
       totalMargin: fields[8] as String,
       prDetails: (fields[9] as Map?)?.cast<String, ItemPRDetails>(),
-      receivedQuantities: (fields[10] as Map?)?.cast<String, double>(),
+      receivedQuantities: receivedQuantities,
     );
   }
 

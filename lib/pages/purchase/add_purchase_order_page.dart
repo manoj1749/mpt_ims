@@ -1105,6 +1105,31 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   }
 
   void _showAddNewItemDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add New Item'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FilledButton.icon(
+              onPressed: () => _showSingleItemDialog(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Single Item'),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () => _showBulkEntryDialog(context),
+              icon: const Icon(Icons.playlist_add),
+              label: const Text('Add Multiple Items'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSingleItemDialog(BuildContext context) {
     MaterialItem? selectedMaterial;
     final qtyController = TextEditingController();
     final materials = ref.read(materialListProvider);
@@ -1112,7 +1137,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add New Item'),
+        title: const Text('Add Single Item'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1176,12 +1201,192 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     materialPRItems[selectedMaterial!.partNo] = [];
                   });
                   Navigator.pop(context);
+                  Navigator.pop(context);
                 }
               }
             },
             child: const Text('Add'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showBulkEntryDialog(BuildContext context) {
+    final materialCodesController = TextEditingController();
+    final quantitiesController = TextEditingController();
+    bool isQuantityStep = false;
+    List<String> materialCodes = [];
+    final materials = ref.read(materialListProvider);
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text(isQuantityStep ? 'Enter Quantities' : 'Enter Material Codes'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!isQuantityStep) ...[
+                  const Text(
+                    'Enter material codes, one per line:',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: materialCodesController,
+                    maxLines: 8,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: 'e.g.\nM001\nM002\nM003',
+                    ),
+                  ),
+                ] else ...[
+                  const Text(
+                    'Enter quantities in the same order:',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: quantitiesController,
+                    maxLines: 8,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      hintText: 'Enter quantities for:\n${materialCodes.join('\n')}',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  if (!isQuantityStep) {
+                    // Process material codes
+                    materialCodes = materialCodesController.text
+                        .split('\n')
+                        .where((code) => code.trim().isNotEmpty)
+                        .map((code) => code.trim())
+                        .toList();
+
+                    // Validate material codes and check supplier rates
+                    final invalidCodes = <String>[];
+                    final noRateCodes = <String>[];
+
+                    for (final code in materialCodes) {
+                      final material = materials.firstWhereOrNull(
+                        (m) => m.partNo == code,
+                      );
+
+                      if (material == null) {
+                        invalidCodes.add(code);
+                        continue;
+                      }
+
+                      final rates = ref
+                          .read(vendorMaterialRateProvider.notifier)
+                          .getRatesForMaterial(material.slNo);
+                      
+                      if (!rates.any((r) => r.vendorId == selectedSupplier!.name)) {
+                        noRateCodes.add(code);
+                      }
+                    }
+
+                    if (invalidCodes.isNotEmpty || noRateCodes.isNotEmpty) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Invalid Material Codes'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (invalidCodes.isNotEmpty) ...[
+                                const Text('The following codes were not found:'),
+                                const SizedBox(height: 8),
+                                Text(invalidCodes.join('\n')),
+                                const SizedBox(height: 16),
+                              ],
+                              if (noRateCodes.isNotEmpty) ...[
+                                const Text('No supplier rates found for:'),
+                                const SizedBox(height: 8),
+                                Text(noRateCodes.join('\n')),
+                              ],
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
+                      );
+                      return;
+                    }
+
+                    setState(() {
+                      isQuantityStep = true;
+                    });
+                  } else {
+                    // Process quantities
+                    final quantities = quantitiesController.text
+                        .split('\n')
+                        .where((qty) => qty.trim().isNotEmpty)
+                        .map((qty) => qty.trim())
+                        .toList();
+
+                    if (quantities.length != materialCodes.length) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Quantity Mismatch'),
+                          content: Text(
+                              'Please enter ${materialCodes.length} quantities, one for each material code.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Add all items
+                    for (var i = 0; i < materialCodes.length; i++) {
+                      final material = materials.firstWhere(
+                        (m) => m.partNo == materialCodes[i],
+                      );
+                      final quantity = quantities[i];
+
+                      // Add to general stock items
+                      selectedPRs.putIfAbsent(material.partNo, () => {})['General'] = true;
+                      prQtyControllers.putIfAbsent(material.partNo, () => {})['General'] =
+                          TextEditingController(text: quantity);
+
+                      // Add an empty PR items list for this material
+                      materialPRItems[material.partNo] = [];
+                    }
+
+                    Navigator.pop(context);
+                    Navigator.pop(context);
+                    setState(() {});
+                  }
+                },
+                child: Text(isQuantityStep ? 'Add Items' : 'Next'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

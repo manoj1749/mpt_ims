@@ -123,7 +123,8 @@ class _AddQualityInspectionPageState
 
         final poNos = grn.poNo.split(', ');
         for (var poNo in poNos) {
-          final receivedQty = inwardItem.getReceivedQuantityForPO(poNo);
+          // Get total received quantity for this PO
+          final receivedQty = inwardItem.getTotalQuantityForPO(poNo);
           if (receivedQty <= 0) continue;
 
           // Get inspected quantity for this material and PO

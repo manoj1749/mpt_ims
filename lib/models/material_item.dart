@@ -58,9 +58,36 @@ class MaterialItem extends HiveObject {
 
   // Helper methods to work with VendorMaterialRateProvider
   String getPreferredVendorName(WidgetRef ref) {
-    final rates = getRankedVendors(ref);
-    if (rates.isEmpty) return '';
-    return rates.first.vendorId;
+    final rates = ref
+        .watch(vendorMaterialRateProvider.notifier)
+        .getRatesForMaterial(slNo);
+    
+    // First check for explicitly set preferred vendor
+    final preferredRate = rates.firstWhere(
+      (rate) => rate.isPreferred,
+      orElse: () => rates.isEmpty ? 
+        VendorMaterialRate(
+          materialId: slNo,
+          vendorId: '',
+          saleRate: '',
+          lastPurchaseDate: '',
+          remarks: '',
+          totalReceivedQty: '0',
+          issuedQty: '0',
+          receivedQty: '0',
+          avlStock: '0',
+          avlStockValue: '0',
+          billingQtyDiff: '0',
+          totalReceivedCost: '0',
+          totalBilledCost: '0',
+          costDiff: '0',
+        ) : rates.reduce((a, b) => 
+          double.parse(a.saleRate.isEmpty ? '999999' : a.saleRate) <= 
+          double.parse(b.saleRate.isEmpty ? '999999' : b.saleRate) ? a : b
+        ),
+    );
+    
+    return preferredRate.vendorId;
   }
 
   String getLowestRate(WidgetRef ref) {

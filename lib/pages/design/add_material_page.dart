@@ -382,6 +382,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         totalBilledCost: (receivedQty * saleRate).toString(),
         costDiff: '0',
         inspectionStock: _inspectionStockController.text,
+        isPreferred: false,
       );
 
       if (existingRate != null) {
@@ -463,11 +464,34 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                       totalReceivedCost: '0',
                       totalBilledCost: '0',
                       costDiff: '0',
+                      isPreferred: false,
                     ),
                   );
 
                   return Card(
                     child: ListTile(
+                      leading: IconButton(
+                        icon: Icon(
+                          rate.isPreferred ? Icons.star : Icons.star_border,
+                          color: rate.isPreferred ? Colors.amber : null,
+                        ),
+                        onPressed: () {
+                          // Update preferred vendor
+                          final rateProvider = ref.read(vendorMaterialRateProvider.notifier);
+                          
+                          // First, remove preferred status from all vendors for this material
+                          for (final r in rates) {
+                            if (r.isPreferred) {
+                              rateProvider.updateRate(r.copyWith(isPreferred: false));
+                            }
+                          }
+                          
+                          // Then set the new preferred vendor
+                          rateProvider.updateRate(rate.copyWith(isPreferred: !rate.isPreferred));
+                          setState(() {}); // Refresh UI
+                        },
+                        tooltip: 'Set as preferred vendor',
+                      ),
                       title: Text(vendorName),
                       subtitle: rate.saleRate.isNotEmpty
                           ? Column(

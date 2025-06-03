@@ -49,6 +49,9 @@ class VendorMaterialRate extends HiveObject {
   @HiveField(16, defaultValue: '0')
   String inspectionStock; // Stock under inspection/quality check
 
+  @HiveField(17, defaultValue: false)
+  bool isPreferred; // Whether this is the preferred vendor for this material
+
   VendorMaterialRate({
     required this.materialId,
     required this.vendorId,
@@ -65,6 +68,7 @@ class VendorMaterialRate extends HiveObject {
     required this.totalBilledCost,
     required this.costDiff,
     this.inspectionStock = '0', // Default to 0 for new records
+    this.isPreferred = false, // Default to false for new records
   });
 
   // Create a unique key for this rate
@@ -120,6 +124,7 @@ class VendorMaterialRate extends HiveObject {
     String? totalBilledCost,
     String? costDiff,
     String? inspectionStock,
+    bool? isPreferred,
   }) {
     return VendorMaterialRate(
       materialId: materialId ?? this.materialId,
@@ -137,6 +142,7 @@ class VendorMaterialRate extends HiveObject {
       totalBilledCost: totalBilledCost ?? this.totalBilledCost,
       costDiff: costDiff ?? this.costDiff,
       inspectionStock: inspectionStock ?? this.inspectionStock,
+      isPreferred: isPreferred ?? this.isPreferred,
     );
   }
 }

@@ -14,6 +14,7 @@ import '../../models/purchase_order.dart';
 import '../../models/po_item.dart';
 import '../../provider/purchase_order.dart';
 import 'package:pluto_grid/pluto_grid.dart';
+import 'package:mpt_ims/pages/store/select_jobs_dialog.dart';
 
 class AddStoreInwardPage extends ConsumerStatefulWidget {
   final StoreInward? existingGR;
@@ -39,7 +40,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
   final _checkedByController = TextEditingController();
 
   Supplier? selectedSupplier;
-  String? selectedJobNo;
+  List<String> selectedJobs = ['All'];
   Map<String, Map<String, Map<String, TextEditingController>>>
       prQtyControllers = {};
   Map<String, Map<String, Map<String, bool>>> selectedPRs = {};
@@ -106,8 +107,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     super.dispose();
   }
 
-  // Get unique job numbers from POs
-  List<String> _getUniqueJobNumbers(List<PurchaseOrder> purchaseOrders) {
+  // Update _getUniqueJobNumbers to return Set instead of List
+  Set<String> _getUniqueJobNumbers(List<PurchaseOrder> purchaseOrders) {
     final Set<String> jobNos = {'All'}; // Include 'All' as default option
     for (var po in purchaseOrders) {
       for (var jobNo in po.jobNumbers) {
@@ -117,7 +118,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         jobNos.add('General');
       }
     }
-    return jobNos.toList()..sort();
+    return jobNos;
   }
 
   // Helper method to calculate total invoice amount
@@ -200,10 +201,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
         for (var prDetail in poItem.prDetails.entries) {
           final prNo = prDetail.key;
-          // Only add PR if it matches the selected job number or if no job is selected
-          if (selectedJobNo == null ||
-              selectedJobNo == 'All' ||
-              prDetail.value.jobNo == selectedJobNo) {
+          // Show PR if its job matches any selected job or if 'All' is selected
+          if (selectedJobs.contains('All') ||
+              selectedJobs.contains(prDetail.value.jobNo)) {
             selectedPRs[material.partNo]![po.poNo]![prNo] = false;
             prQtyControllers[material.partNo]![po.poNo]![prNo] =
                 TextEditingController(text: '0');
@@ -251,9 +251,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             // Filter PR details based on selected job
             final filteredPRDetails = Map.fromEntries(poItem.prDetails.entries
                 .where((entry) =>
-                    selectedJobNo == null ||
-                    selectedJobNo == 'All' ||
-                    entry.value.jobNo == selectedJobNo));
+                    selectedJobs.contains('All') ||
+                    selectedJobs.contains(entry.value.jobNo)));
 
             if (filteredPRDetails.isEmpty) return const SizedBox.shrink();
 
@@ -598,30 +597,37 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             final poQty =
                 double.tryParse(prControllers['_po']?.text ?? '0') ?? 0;
             if (poQty > 0) {
-              // Distribute PO quantity evenly among PRs
-              final totalPRQty = poItem.prDetails.values
-                  .fold(0.0, (sum, pr) => sum + pr.quantity);
-              for (var prEntry in poItem.prDetails.entries) {
-                final prNo = prEntry.key;
-                final prDetail = prEntry.value;
-                final prQty =
-                    (poQty * prDetail.quantity / totalPRQty).roundToDouble();
+              // Distribute PO quantity evenly among PRs that match selected jobs
+              final matchingPRs = poItem.prDetails.entries.where((entry) =>
+                  selectedJobs.contains('All') ||
+                  selectedJobs.contains(entry.value.jobNo));
+              
+              if (matchingPRs.isNotEmpty) {
+                final totalPRQty = matchingPRs.fold(
+                    0.0, (sum, entry) => sum + entry.value.quantity);
+                
+                for (var prEntry in matchingPRs) {
+                  final prNo = prEntry.key;
+                  final prDetail = prEntry.value;
+                  final prQty =
+                      (poQty * prDetail.quantity / totalPRQty).roundToDouble();
 
-                if (prQty > 0) {
-                  inwardItem.addPRQuantity(poNo, prNo, prQty);
-                  totalReceivedQty += prQty;
-                  inwardItem.addJobNumberForPR(poNo, prNo, prDetail.jobNo);
+                  if (prQty > 0) {
+                    inwardItem.addPRQuantity(poNo, prNo, prQty);
+                    totalReceivedQty += prQty;
+                    inwardItem.addJobNumberForPR(poNo, prNo, prDetail.jobNo);
 
-                  // Update PO received quantities
-                  if (widget.existingGR != null) {
-                    poItem.receivedQuantities
-                        .remove('${widget.existingGR!.grnNo}_$prNo');
+                    // Update PO received quantities
+                    if (widget.existingGR != null) {
+                      poItem.receivedQuantities
+                          .remove('${widget.existingGR!.grnNo}_$prNo');
+                    }
+                    poItem.addReceivedQuantity('${grnNo}_$prNo', prQty);
                   }
-                  poItem.addReceivedQuantity('${grnNo}_$prNo', prQty);
                 }
+                poNos.add(poNo); // Track PO number
+                continue;
               }
-              poNos.add(poNo); // Track PO number
-              continue;
             }
           }
 
@@ -631,12 +637,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
             final prNo = prEntry.key;
             final qty = double.tryParse(prEntry.value.text) ?? 0;
+            final jobNo = poItem.prDetails[prNo]?.jobNo ?? 'General';
 
-            if (qty > 0) {
+            // Only process if job matches selection
+            if (qty > 0 &&
+                (selectedJobs.contains('All') ||
+                    selectedJobs.contains(jobNo))) {
               inwardItem.addPRQuantity(poNo, prNo, qty);
               totalReceivedQty += qty;
-
-              final jobNo = poItem.prDetails[prNo]?.jobNo ?? 'General Stock';
               inwardItem.addJobNumberForPR(poNo, prNo, jobNo);
 
               // Update PO received quantities
@@ -720,20 +728,18 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         .toList();
 
     // Get unique job numbers
-    _getUniqueJobNumbers(purchaseOrders);
+    final availableJobs = _getUniqueJobNumbers(purchaseOrders);
 
     // Get materials that have pending POs from the selected supplier
     final materials = ref.watch(materialListProvider).where((material) {
       return purchaseOrders.any((po) => po.items.any((item) {
             if (item.materialCode != material.partNo) return false;
 
-            // If job number is selected, check if material has PR for that job
-            if (selectedJobNo != null && selectedJobNo != 'All') {
-              return item.prDetails.values
-                  .any((detail) => detail.jobNo == selectedJobNo);
-            }
-
-            return true;
+            // Show material if it has PRs matching any selected job or if 'All' is selected
+            if (selectedJobs.contains('All')) return true;
+            
+            return item.prDetails.values.any((detail) =>
+                selectedJobs.contains(detail.jobNo));
           }));
     }).toList();
 
@@ -780,7 +786,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                     selectedSupplier = val;
                                     selectedPRs.clear();
                                     prQtyControllers.clear();
-                                    selectedJobNo = 'All';
+                                    selectedJobs = ['All'];
                                   });
                                 },
                           dropdownStyleData: DropdownStyleData(
@@ -799,88 +805,39 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // Job Number Filter
+                      // Replace job filter with button to open SelectJobsDialog
                       Expanded(
-                        child: Autocomplete<String>(
-                          fieldViewBuilder: (context, textEditingController,
-                              focusNode, onFieldSubmitted) {
-                            // Set initial value without triggering rebuild
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (textEditingController.text.isEmpty &&
-                                  selectedJobNo != null) {
-                                textEditingController.text = selectedJobNo!;
-                              }
-                            });
-                            return TextFormField(
-                              controller: textEditingController,
-                              focusNode: focusNode,
-                              decoration: const InputDecoration(
-                                labelText: 'Filter by Job',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 0),
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.filter_list),
+                          label: Text(
+                            selectedJobs.contains('All')
+                                ? 'All Jobs'
+                                : '${selectedJobs.length} Jobs Selected',
+                          ),
+                          onPressed: () async {
+                            final result = await showDialog<List<String>>(
+                              context: context,
+                              builder: (context) => SelectJobsDialog(
+                                selectedJobs: selectedJobs,
+                                availableJobs: availableJobs.toList(),
                               ),
                             );
-                          },
-                          optionsViewBuilder: (context, onSelected, options) {
-                            return Align(
-                              alignment: Alignment.topLeft,
-                              child: Material(
-                                elevation: 4.0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  side: BorderSide(
-                                    color: Theme.of(context).dividerColor,
-                                  ),
-                                ),
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxHeight: 200,
-                                    maxWidth: 400,
-                                  ),
-                                  child: ListView.builder(
-                                    padding: const EdgeInsets.all(8.0),
-                                    itemCount: options.length,
-                                    itemBuilder: (context, index) {
-                                      final option = options.elementAt(index);
-                                      return InkWell(
-                                        onTap: () => onSelected(option),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12.0,
-                                            horizontal: 16.0,
-                                          ),
-                                          child: Text(
-                                            option,
-                                            style: const TextStyle(
-                                              fontSize: 14.0,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                          displayStringForOption: (jobNo) => jobNo,
-                          optionsBuilder: (textEditingValue) {
-                            final jobNumbers =
-                                _getUniqueJobNumbers(purchaseOrders);
-                            if (textEditingValue.text.isEmpty) {
-                              return jobNumbers;
+
+                            if (result != null) {
+                              setState(() {
+                                selectedJobs = result;
+                                // If no jobs selected, default to 'All'
+                                if (selectedJobs.isEmpty) {
+                                  selectedJobs = ['All'];
+                                }
+                                // If 'All' is selected, clear other selections
+                                if (selectedJobs.contains('All')) {
+                                  selectedJobs = ['All'];
+                                }
+                                selectedPRs.clear();
+                                prQtyControllers.clear();
+                              });
                             }
-                            return jobNumbers.where((jobNo) => jobNo
-                                .toLowerCase()
-                                .contains(textEditingValue.text.toLowerCase()));
-                          },
-                          onSelected: (val) {
-                            setState(() {
-                              selectedJobNo = val == 'All' ? null : val;
-                              selectedPRs.clear();
-                              prQtyControllers.clear();
-                            });
                           },
                         ),
                       ),

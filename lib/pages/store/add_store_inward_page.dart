@@ -119,222 +119,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     return jobNos.toList()..sort();
   }
 
-  List<PlutoColumn> _getPOColumns() {
-    return [
-      PlutoColumn(
-        title: 'PO Details',
-        field: 'poDetails',
-        type: PlutoColumnType.text(),
-        width: 200,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Ordered',
-        field: 'ordered',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Received',
-        field: 'received',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Inward Qty',
-        field: 'inwardQty',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: true,
-        renderer: (rendererContext) {
-          return TextFormField(
-            controller: prQtyControllers[rendererContext.row.cells['materialCode']?.value]![rendererContext.row.cells['poNo']?.value]!['_po'],
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              hintText: 'Max: ${rendererContext.row.cells['pending']?.value ?? 0}',
-            ),
-            keyboardType: TextInputType.number,
-            onChanged: (value) {
-              final qty = double.tryParse(value) ?? 0;
-              final pendingQty = rendererContext.row.cells['pending']?.value ?? 0;
-              
-              // Show PR mapping if entered quantity is less than pending
-              if (qty > 0 && qty < pendingQty) {
-                setState(() {
-                  selectedPRs[rendererContext.row.cells['materialCode']?.value]![rendererContext.row.cells['poNo']?.value]!['_showPRMapping'] = true;
-                });
-              } else {
-                setState(() {
-                  selectedPRs[rendererContext.row.cells['materialCode']?.value]![rendererContext.row.cells['poNo']?.value]!['_showPRMapping'] = false;
-                  // Clear PR quantities
-                  final poItem = ref.read(purchaseOrderListProvider)
-                      .firstWhere((po) => po.poNo == rendererContext.row.cells['poNo']?.value)
-                      .items.firstWhere((item) => item.materialCode == rendererContext.row.cells['materialCode']?.value);
-                  
-                  for (var prNo in poItem.prDetails.keys) {
-                    if (prNo != '_po') {
-                      prQtyControllers[rendererContext.row.cells['materialCode']?.value]![rendererContext.row.cells['poNo']?.value]![prNo]?.text = '0';
-                    }
-                  }
-                });
-              }
-            },
-          );
-        },
-      ),
-    ];
-  }
 
-  List<PlutoColumn> _getPRColumns() {
-    return [
-      PlutoColumn(
-        title: 'PR Details',
-        field: 'prDetails',
-        type: PlutoColumnType.text(),
-        width: 200,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Ordered',
-        field: 'ordered',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Received',
-        field: 'received',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Inward Qty',
-        field: 'inwardQty',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: true,
-        renderer: (rendererContext) {
-          return TextFormField(
-            controller: prQtyControllers[rendererContext.row.cells['materialCode']?.value]![rendererContext.row.cells['poNo']?.value]![rendererContext.row.cells['prNo']?.value],
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              hintText: 'Max: ${rendererContext.row.cells['pending']?.value ?? 0}',
-            ),
-            keyboardType: TextInputType.number,
-            onChanged: (value) {
-              // Update PO total when PR quantity changes
-              final materialCode = rendererContext.row.cells['materialCode']?.value;
-              final poNo = rendererContext.row.cells['poNo']?.value;
-              final poItem = ref.read(purchaseOrderListProvider)
-                  .firstWhere((po) => po.poNo == poNo)
-                  .items.firstWhere((item) => item.materialCode == materialCode);
-              
-              double total = 0;
-              for (var prNo in poItem.prDetails.keys) {
-                final qty = double.tryParse(
-                  prQtyControllers[materialCode]![poNo]![prNo]?.text ?? '0'
-                ) ?? 0;
-                total += qty;
-              }
-              
-              // Update PO quantity
-              setState(() {
-                prQtyControllers[materialCode]![poNo]!['_po']?.text = total.toString();
-              });
-            },
-          );
-        },
-      ),
-    ];
-  }
 
-  List<PlutoRow> _getPORows(MaterialItem material, List<PurchaseOrder> pos) {
-    final rows = <PlutoRow>[];
-    
-    for (var po in pos) {
-      final poItem = po.items.firstWhere(
-        (item) => item.materialCode == material.partNo,
-      );
 
-      // Calculate total ordered and received quantities for this PO
-      final totalOrderedQty = poItem.prDetails.values
-          .fold(0.0, (sum, detail) => sum + detail.quantity);
-      final totalReceivedQty = ref
-          .read(storeInwardProvider.notifier)
-          .getTotalReceivedQuantityForPO(material.partNo, po.poNo);
-      final pendingQty = totalOrderedQty - totalReceivedQty;
-
-      // Initialize controllers if not exists
-      if (!prQtyControllers.containsKey(material.partNo)) {
-        prQtyControllers[material.partNo] = {};
-      }
-      if (!prQtyControllers[material.partNo]!.containsKey(po.poNo)) {
-        prQtyControllers[material.partNo]![po.poNo] = {};
-        prQtyControllers[material.partNo]![po.poNo]!['_po'] = TextEditingController(text: '0');
-      }
-
-      rows.add(PlutoRow(
-        cells: {
-          'materialCode': PlutoCell(value: material.partNo),
-          'poNo': PlutoCell(value: po.poNo),
-          'poDetails': PlutoCell(value: 'PO: ${po.poNo}\nDate: ${po.poDate}'),
-          'ordered': PlutoCell(value: totalOrderedQty),
-          'received': PlutoCell(value: totalReceivedQty),
-          'pending': PlutoCell(value: pendingQty),
-          'inwardQty': PlutoCell(value: ''),
-        },
-      ));
-    }
-
-    return rows;
-  }
-
-  List<PlutoRow> _getPRRows(MaterialItem material, PurchaseOrder po) {
-    final rows = <PlutoRow>[];
-    final poItem = po.items.firstWhere(
-      (item) => item.materialCode == material.partNo,
-    );
-
-    for (var prEntry in poItem.prDetails.entries) {
-      final prNo = prEntry.key;
-      final prDetail = prEntry.value;
-      final totalReceivedQty = ref
-          .read(storeInwardProvider.notifier)
-          .getTotalReceivedQuantityForPR(
-            material.partNo,
-            po.poNo,
-            prNo,
-          );
-      
-      final prPendingQty = prDetail.quantity - totalReceivedQty;
-      if (prPendingQty <= 0) continue;
-
-      // Initialize controller if not exists
-      if (!prQtyControllers[material.partNo]![po.poNo]!.containsKey(prNo)) {
-        prQtyControllers[material.partNo]![po.poNo]![prNo] = TextEditingController(text: '0');
-      }
-
-      rows.add(PlutoRow(
-        cells: {
-          'materialCode': PlutoCell(value: material.partNo),
-          'poNo': PlutoCell(value: po.poNo),
-          'prNo': PlutoCell(value: prNo),
-          'prDetails': PlutoCell(value: 'PR: $prNo\nJob: ${prDetail.jobNo}'),
-          'ordered': PlutoCell(value: prDetail.quantity),
-          'received': PlutoCell(value: totalReceivedQty),
-          'pending': PlutoCell(value: prPendingQty),
-          'inwardQty': PlutoCell(value: ''),
-        },
-      ));
-    }
-
-    return rows;
-  }
 
   // Helper method to calculate total invoice amount
   void _updateInvoiceAmount() {
@@ -712,14 +499,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                               ],
                             ),
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   ),
                 if (po != pos.last) const Divider(height: 1),
               ],
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -894,7 +681,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         .toList();
 
     // Get unique job numbers
-    final jobNumbers = _getUniqueJobNumbers(purchaseOrders);
+    _getUniqueJobNumbers(purchaseOrders);
 
     // Get materials that have pending POs from the selected supplier
     final materials = ref.watch(materialListProvider).where((material) {

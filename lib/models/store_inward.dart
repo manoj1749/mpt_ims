@@ -209,7 +209,7 @@ class InwardItem {
   }
 
   double get inspectedQuantity =>
-      inspectedQuantities.values.fold<double>(0.0, (sum, qty) => sum + (qty ?? 0.0));
+      inspectedQuantities.values.fold<double>(0.0, (sum, qty) => sum + (qty));
 
   bool get isFullyInspected => inspectedQuantity >= receivedQty;
 

@@ -510,8 +510,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           validator: (value) {
                             if (!(selectedPRs[material.partNo]?['General'] ??
                                 false)) return null;
-                            if (value == null || value.isEmpty)
+                            if (value == null || value.isEmpty) {
                               return 'Required';
+                            }
                             final qty = double.tryParse(value);
                             if (qty == null || qty <= 0) return 'Invalid';
                             return null;

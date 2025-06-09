@@ -84,18 +84,32 @@ class StoreInward extends HiveObject {
             orElse: () => Category(name: material.category),
           );
 
-      // If quality check is not required, consider it as inspected
+      // If quality check is not required, consider it as fully processed
       if (!category.requiresQualityCheck) {
         hasProcessedItems = true;
+        item.acceptedQty = item.receivedQty; // Set full quantity as accepted
+        item.rejectedQty = 0;
         continue;
       }
 
       hasItemsNeedingInspection = true;
       double totalInspectedQty = 0;
-      for (var qty in item.inspectedQuantities.values) {
-        totalInspectedQty += qty;
+      double totalAcceptedQty = 0;
+      double totalRejectedQty = 0;
+
+      for (var status in item.inspectionStatus.values) {
+        totalInspectedQty += status.inspectedQty;
+        totalAcceptedQty += status.acceptedQty;
+        totalRejectedQty += status.rejectedQty;
       }
+
+      // Update item's accepted and rejected quantities
+      item.acceptedQty = totalAcceptedQty;
+      item.rejectedQty = totalRejectedQty;
+
       print('Total Inspected Qty: $totalInspectedQty');
+      print('Total Accepted Qty: $totalAcceptedQty');
+      print('Total Rejected Qty: $totalRejectedQty');
 
       if (totalInspectedQty > 0) {
         hasProcessedItems = true;
@@ -110,8 +124,7 @@ class StoreInward extends HiveObject {
 
     String newStatus;
     if (!hasItemsNeedingInspection) {
-      newStatus =
-          'Completed'; // All items are general stock or don't need inspection
+      newStatus = 'Completed'; // All items are general stock or don't need inspection
     } else if (!hasProcessedItems) {
       newStatus = 'Under Inspection';
     } else if (allItemsProcessed) {
@@ -169,55 +182,34 @@ class InwardItem {
   String costPerUnit;
 
   @HiveField(8)
-  Map<String, Map<String, double>> prQuantities =
-      {}; // Store PR-wise quantities: PO No -> {PR No -> Quantity}
+  Map<String, Map<String, double>> prQuantities = {}; // Store PR-wise quantities: PO No -> {PR No -> Quantity}
 
   @HiveField(9)
-  Map<String, double> inspectedQuantities =
-      {}; // Map of inspection number to inspected quantity
+  Map<String, InspectionQuantityStatus> inspectionStatus = {}; // Map of inspection number to inspection status
 
   @HiveField(10)
-  Map<String, Map<String, String>> prJobNumbers =
-      {}; // Map of PO No -> {PR No -> Job No}
+  Map<String, Map<String, String>> prJobNumbers = {}; // Map of PO No -> {PR No -> Job No}
 
-  // Factory constructor to handle migration from old format
-  factory InwardItem.fromFields(Map<int, dynamic> fields) {
-    // Handle old format where quantities were stored as doubles
-    final oldPoQuantity = fields[8];
-    Map<String, Map<String, double>>? prQuantities;
-
-    if (oldPoQuantity is double) {
-      // Convert old format to new format
-      prQuantities = {};
-    } else if (oldPoQuantity is Map) {
-      // New format, cast appropriately
-      prQuantities = (oldPoQuantity).map((dynamic k, dynamic v) =>
-          MapEntry(k as String, (v as Map).cast<String, double>()));
-    }
-
-    return InwardItem(
-      materialCode: fields[0] as String,
-      materialDescription: fields[1] as String,
-      unit: fields[2] as String,
-      orderedQty: fields[3] as double,
-      receivedQty: fields[4] as double,
-      acceptedQty: fields[5] as double,
-      rejectedQty: fields[6] as double,
-      costPerUnit: fields[7] as String,
-      prQuantities: prQuantities,
-      inspectedQuantities: (fields[9] as Map?)?.cast<String, double>(),
-      prJobNumbers: (fields[10] as Map?)?.map((dynamic k, dynamic v) =>
-          MapEntry(k as String, (v as Map).cast<String, String>())),
-    );
-  }
-
+  // Helper property to get total inspected quantity
   double get inspectedQuantity =>
-      inspectedQuantities.values.fold<double>(0.0, (sum, qty) => sum + (qty));
+      inspectionStatus.values.fold<double>(0.0, (sum, status) => sum + status.inspectedQty);
+
+  // Helper property to get total accepted quantity
+  double get totalAcceptedQty =>
+      inspectionStatus.values.fold<double>(0.0, (sum, status) => sum + status.acceptedQty);
+
+  // Helper property to get total rejected quantity
+  double get totalRejectedQty =>
+      inspectionStatus.values.fold<double>(0.0, (sum, status) => sum + status.rejectedQty);
+
+  // Helper property to get quantity under inspection
+  double get underInspectionQty => receivedQty - (totalAcceptedQty + totalRejectedQty);
 
   bool get isFullyInspected => inspectedQuantity >= receivedQty;
 
-  void addInspectedQuantity(String inspectionNo, double quantity) {
-    inspectedQuantities[inspectionNo] = quantity;
+  // Helper method to update inspection status
+  void updateInspectionStatus(String inspectionNo, InspectionQuantityStatus status) {
+    inspectionStatus[inspectionNo] = status;
   }
 
   // Helper method to get job number for a specific PR
@@ -253,11 +245,127 @@ class InwardItem {
     required this.rejectedQty,
     required this.costPerUnit,
     Map<String, Map<String, double>>? prQuantities,
-    Map<String, double>? inspectedQuantities,
+    Map<String, InspectionQuantityStatus>? inspectionStatus,
     Map<String, Map<String, String>>? prJobNumbers,
   }) {
     this.prQuantities = prQuantities ?? {};
-    this.inspectedQuantities = inspectedQuantities ?? {};
+    this.inspectionStatus = inspectionStatus ?? {};
     this.prJobNumbers = prJobNumbers ?? {};
   }
+
+  // Helper method to safely cast map values
+  static Map<String, Map<String, double>> castPRQuantities(dynamic value) {
+    if (value == null) return {};
+    if (value is Map<String, Map<String, double>>) return value;
+    
+    try {
+      if (value is double || value is String) {
+        // Handle legacy double or string values
+        return {};
+      }
+      
+      return (value as Map).map((key, val) {
+        if (val is Map) {
+          return MapEntry(
+            key.toString(),
+            (val as Map).map((k, v) => MapEntry(k.toString(), (v is num) ? v.toDouble() : 0.0)),
+          );
+        }
+        return MapEntry(key.toString(), <String, double>{});
+      });
+    } catch (e) {
+      print('Error casting PR quantities: $e');
+      return {};
+    }
+  }
+
+  // Helper method to safely cast inspection status
+  static Map<String, InspectionQuantityStatus> castInspectionStatus(dynamic value) {
+    if (value == null) return {};
+    if (value is Map<String, InspectionQuantityStatus>) return value;
+    
+    try {
+      if (value is double || value is String) {
+        // Handle legacy double or string values
+        return {};
+      }
+      
+      return (value as Map).map((key, val) {
+        if (val is InspectionQuantityStatus) {
+          return MapEntry(key.toString(), val);
+        }
+        if (val is Map) {
+          return MapEntry(
+            key.toString(),
+            InspectionQuantityStatus(
+              inspectedQty: (val['inspectedQty'] as num?)?.toDouble() ?? 0.0,
+              acceptedQty: (val['acceptedQty'] as num?)?.toDouble() ?? 0.0,
+              rejectedQty: (val['rejectedQty'] as num?)?.toDouble() ?? 0.0,
+              status: val['status']?.toString() ?? 'Pending',
+            ),
+          );
+        }
+        return MapEntry(
+          key.toString(),
+          InspectionQuantityStatus(
+            inspectedQty: 0.0,
+            acceptedQty: 0.0,
+            rejectedQty: 0.0,
+            status: 'Pending',
+          ),
+        );
+      });
+    } catch (e) {
+      print('Error casting inspection status: $e');
+      return {};
+    }
+  }
+
+  // Helper method to safely cast PR job numbers
+  static Map<String, Map<String, String>> castPRJobNumbers(dynamic value) {
+    if (value == null) return {};
+    if (value is Map<String, Map<String, String>>) return value;
+    
+    try {
+      if (value is double || value is String) {
+        // Handle legacy double or string values
+        return {};
+      }
+      
+      return (value as Map).map((key, val) {
+        if (val is Map) {
+          return MapEntry(
+            key.toString(),
+            (val as Map).map((k, v) => MapEntry(k.toString(), v.toString())),
+          );
+        }
+        return MapEntry(key.toString(), <String, String>{});
+      });
+    } catch (e) {
+      print('Error casting PR job numbers: $e');
+      return {};
+    }
+  }
+}
+
+@HiveType(typeId: 23)
+class InspectionQuantityStatus {
+  @HiveField(0)
+  double inspectedQty;
+
+  @HiveField(1)
+  double acceptedQty;
+
+  @HiveField(2)
+  double rejectedQty;
+
+  @HiveField(3)
+  String status; // 'Pending', 'Accepted', 'Rejected', 'Partially Accepted'
+
+  InspectionQuantityStatus({
+    required this.inspectedQty,
+    required this.acceptedQty,
+    required this.rejectedQty,
+    required this.status,
+  });
 }

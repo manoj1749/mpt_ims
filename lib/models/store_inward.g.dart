@@ -83,60 +83,41 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
 
-    // Handle old format where prQuantities was stored as double
-    final oldPrQuantity = fields[8];
+    // Handle legacy data formats
     Map<String, Map<String, double>>? prQuantities;
-
-    if (oldPrQuantity == null) {
+    if (fields[8] is double || fields[8] is String) {
       prQuantities = {};
-    } else if (oldPrQuantity is double) {
-      prQuantities = {};
-    } else if (oldPrQuantity is Map) {
+    } else {
       try {
-        prQuantities = oldPrQuantity.map((dynamic k, dynamic v) =>
-            MapEntry(k as String, (v as Map).cast<String, double>()));
+        prQuantities = InwardItem.castPRQuantities(fields[8]);
       } catch (e) {
+        print('Error casting PR quantities: $e');
         prQuantities = {};
       }
-    } else {
-      prQuantities = {};
     }
 
-    // Handle old format where inspectedQuantities was stored as double
-    final oldInspectedQty = fields[9];
-    Map<String, double>? inspectedQuantities;
-
-    if (oldInspectedQty == null) {
-      inspectedQuantities = {};
-    } else if (oldInspectedQty is double) {
-      inspectedQuantities = {};
-    } else if (oldInspectedQty is Map) {
+    Map<String, InspectionQuantityStatus>? inspectionStatus;
+    if (fields[9] is double || fields[9] is String) {
+      inspectionStatus = {};
+    } else {
       try {
-        inspectedQuantities = oldInspectedQty.cast<String, double>();
+        inspectionStatus = (fields[9] as Map?)?.cast<String, InspectionQuantityStatus>();
       } catch (e) {
-        inspectedQuantities = {};
+        print('Error casting inspection status: $e');
+        inspectionStatus = {};
       }
-    } else {
-      inspectedQuantities = {};
     }
 
-    // Handle old format where prJobNumbers was stored as double
-    final oldPrJobNumbers = fields[10];
     Map<String, Map<String, String>>? prJobNumbers;
-
-    if (oldPrJobNumbers == null) {
+    if (fields[10] is double || fields[10] is String) {
       prJobNumbers = {};
-    } else if (oldPrJobNumbers is double) {
-      prJobNumbers = {};
-    } else if (oldPrJobNumbers is Map) {
+    } else {
       try {
-        prJobNumbers = oldPrJobNumbers.map((dynamic k, dynamic v) =>
-            MapEntry(k as String, (v as Map).cast<String, String>()));
+        prJobNumbers = InwardItem.castPRJobNumbers(fields[10]);
       } catch (e) {
+        print('Error casting PR job numbers: $e');
         prJobNumbers = {};
       }
-    } else {
-      prJobNumbers = {};
     }
 
     return InwardItem(
@@ -149,7 +130,7 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
       rejectedQty: fields[6] as double,
       costPerUnit: fields[7] as String,
       prQuantities: prQuantities,
-      inspectedQuantities: inspectedQuantities,
+      inspectionStatus: inspectionStatus,
       prJobNumbers: prJobNumbers,
     );
   }
@@ -177,7 +158,7 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
       ..writeByte(8)
       ..write(obj.prQuantities)
       ..writeByte(9)
-      ..write(obj.inspectedQuantities)
+      ..write(obj.inspectionStatus)
       ..writeByte(10)
       ..write(obj.prJobNumbers);
   }
@@ -189,6 +170,50 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is InwardItemAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class InspectionQuantityStatusAdapter
+    extends TypeAdapter<InspectionQuantityStatus> {
+  @override
+  final int typeId = 23;
+
+  @override
+  InspectionQuantityStatus read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return InspectionQuantityStatus(
+      inspectedQty: fields[0] as double,
+      acceptedQty: fields[1] as double,
+      rejectedQty: fields[2] as double,
+      status: fields[3] as String,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, InspectionQuantityStatus obj) {
+    writer
+      ..writeByte(4)
+      ..writeByte(0)
+      ..write(obj.inspectedQty)
+      ..writeByte(1)
+      ..write(obj.acceptedQty)
+      ..writeByte(2)
+      ..write(obj.rejectedQty)
+      ..writeByte(3)
+      ..write(obj.status);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InspectionQuantityStatusAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

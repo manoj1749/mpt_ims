@@ -41,7 +41,7 @@ class PurchaseOrder extends HiveObject {
   @HiveField(12)
   String? _status;
 
-  String get status => _status ?? 'Draft';
+  String get status => _status ?? 'Placed';
 
   set status(String value) {
     _status = value;
@@ -103,7 +103,7 @@ class PurchaseOrder extends HiveObject {
       if (hasPartiallyReceived) break;
     }
 
-    status = hasPartiallyReceived ? 'Partially Received' : 'Draft';
+    status = hasPartiallyReceived ? 'Partially Received' : 'Placed';
   }
 
   PurchaseOrder({

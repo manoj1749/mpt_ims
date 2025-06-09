@@ -16,7 +16,7 @@ class PurchaseOrderListPage extends ConsumerStatefulWidget {
 
 class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
   String _searchQuery = '';
-  String _selectedStatus = 'All';
+  String _selectedStatus = 'Active';
   final Set<String> _expandedPOs = {};
   final Set<String> _fullyExpandedPOs = {};
 
@@ -32,6 +32,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
               .contains(_searchQuery.toLowerCase()));
 
       final matchesStatus = _selectedStatus == 'All' ||
+          (_selectedStatus == 'Active' && 
+           (order.status == 'Placed' || order.status == 'Partially Received')) ||
           order.status.toLowerCase() == _selectedStatus.toLowerCase();
 
       return matchesSearch && matchesStatus;
@@ -47,8 +49,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       case 'partially received':
         color = Colors.orange;
         break;
-      case 'pending':
-        color = Colors.grey;
+      case 'placed':
+        color = Colors.blue;
         break;
       default:
         color = Colors.grey;
@@ -408,7 +410,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                     value: _selectedStatus,
                     dropdownColor: Colors.grey[850],
                     style: const TextStyle(color: Colors.white),
-                    items: ['All', 'Pending', 'Partially Received', 'Completed']
+                    items: ['Active', 'Placed', 'Partially Received', 'Completed', 'All']
                         .map((status) => DropdownMenuItem(
                               value: status,
                               child: Text(status),

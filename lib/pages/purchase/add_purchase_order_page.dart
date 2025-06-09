@@ -439,6 +439,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       child: Checkbox(
                         value:
                             selectedPRs[material.partNo]?['General'] ?? false,
+                        side: const BorderSide(color: Colors.black, width: 1.5),
                         onChanged: (bool? value) {
                           setState(() {
                             selectedPRs[material.partNo]!['General'] =
@@ -560,6 +561,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Checkbox(
                           value: isSelected,
+                          side: const BorderSide(color: Colors.black, width: 1.5),
                           onChanged: (bool? value) {
                             setState(() {
                               selectedPRs.putIfAbsent(

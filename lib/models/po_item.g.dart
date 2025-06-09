@@ -17,23 +17,29 @@ class POItemAdapter extends TypeAdapter<POItem> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
 
-    // Handle old format where receivedQuantities was stored as double
-    final oldReceivedQty = fields[10];
-    Map<String, Map<String, double>>? receivedQuantities;
-
-    if (oldReceivedQty == null) {
-      receivedQuantities = {};
-    } else if (oldReceivedQty is double) {
-      receivedQuantities = {};
-    } else if (oldReceivedQty is Map) {
+    // Handle legacy data formats
+    Map<String, ItemPRDetails>? prDetails;
+    if (fields[9] is double || fields[9] is String) {
+      prDetails = {};
+    } else {
       try {
-        receivedQuantities = oldReceivedQty.map((dynamic k, dynamic v) =>
-            MapEntry(k as String, (v as Map).cast<String, double>()));
+        prDetails = POItem.castPRDetails(fields[9]);
       } catch (e) {
+        print('Error casting PR details: $e');
+        prDetails = {};
+      }
+    }
+
+    Map<String, Map<String, double>>? receivedQuantities;
+    if (fields[10] is double || fields[10] is String) {
+      receivedQuantities = {};
+    } else {
+      try {
+        receivedQuantities = POItem.castReceivedQuantities(fields[10]);
+      } catch (e) {
+        print('Error casting received quantities: $e');
         receivedQuantities = {};
       }
-    } else {
-      receivedQuantities = {};
     }
 
     return POItem(
@@ -46,7 +52,7 @@ class POItemAdapter extends TypeAdapter<POItem> {
       saleRate: fields[6] as String,
       marginPerUnit: fields[7] as String,
       totalMargin: fields[8] as String,
-      prDetails: (fields[9] as Map?)?.cast<String, ItemPRDetails>(),
+      prDetails: prDetails,
       receivedQuantities: receivedQuantities,
     );
   }
@@ -92,7 +98,7 @@ class POItemAdapter extends TypeAdapter<POItem> {
 
 class ItemPRDetailsAdapter extends TypeAdapter<ItemPRDetails> {
   @override
-  final int typeId = 22;
+  final int typeId = 24;
 
   @override
   ItemPRDetails read(BinaryReader reader) {

@@ -20,10 +20,7 @@ import '../models/quality.dart';
 import '../models/universal_parameter.dart';
 
 Future<void> initializeHive() async {
-  // Initialize Hive
-  await Hive.initFlutter();
-
-  // Register adapters
+  // Register adapters first
   Hive.registerAdapter(SupplierAdapter());
   Hive.registerAdapter(MaterialItemAdapter());
   Hive.registerAdapter(CustomerAdapter());
@@ -45,9 +42,10 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(QualityAdapter());
   Hive.registerAdapter(UniversalParameterAdapter());
   Hive.registerAdapter(EmployeeAdapter());
+  Hive.registerAdapter(InspectionQuantityStatusAdapter());
   Hive.registerAdapter(ItemPRDetailsAdapter());
 
-  // Open boxes with schema version
+  // Then open boxes
   await Future.wait([
     Hive.openBox<Supplier>('suppliers'),
     Hive.openBox<MaterialItem>('materials'),
@@ -69,38 +67,31 @@ Future<void> initializeHive() async {
 
 Future<void> clearIncompatibleData() async {
   try {
-    // Get the schema version
+    // Delete all boxes
+    await Future.wait([
+      Hive.deleteBoxFromDisk('customers'),
+      Hive.deleteBoxFromDisk('employees'),
+      Hive.deleteBoxFromDisk('materials'),
+      Hive.deleteBoxFromDisk('purchaseOrders'),
+      Hive.deleteBoxFromDisk('purchaseRequests'),
+      Hive.deleteBoxFromDisk('storeInwards'),
+      Hive.deleteBoxFromDisk('suppliers'),
+      Hive.deleteBoxFromDisk('vendorMaterialRates'),
+      Hive.deleteBoxFromDisk('qualityInspections'),
+      Hive.deleteBoxFromDisk('categoryParameterMappings'),
+      Hive.deleteBoxFromDisk('saleOrders'),
+      Hive.deleteBoxFromDisk('categories'),
+      Hive.deleteBoxFromDisk('subCategories'),
+      Hive.deleteBoxFromDisk('qualities'),
+      Hive.deleteBoxFromDisk('universal_parameters'),
+      Hive.deleteBoxFromDisk('schemaVersion'),
+    ]);
+
+    // Create and initialize schema version box
     final box = await Hive.openBox('schemaVersion');
-    final currentVersion = box.get('version') ?? 0;
-
-    // If schema version is less than required, clear data
-    if (currentVersion < 11) {
-      // Increment version for PRItem totalReceivedQuantity field
-      // Delete all boxes since we've made significant model changes
-      await Future.wait([
-        Hive.deleteBoxFromDisk('customers'),
-        Hive.deleteBoxFromDisk('employees'),
-        Hive.deleteBoxFromDisk('materials'),
-        Hive.deleteBoxFromDisk('purchaseOrders'),
-        Hive.deleteBoxFromDisk('purchaseRequests'),
-        Hive.deleteBoxFromDisk('storeInwards'),
-        Hive.deleteBoxFromDisk('suppliers'),
-        Hive.deleteBoxFromDisk('vendorMaterialRates'),
-        Hive.deleteBoxFromDisk('qualityInspections'),
-        Hive.deleteBoxFromDisk('categoryParameterMappings'),
-        Hive.deleteBoxFromDisk('saleOrders'),
-        Hive.deleteBoxFromDisk('categories'),
-        Hive.deleteBoxFromDisk('subCategories'),
-        Hive.deleteBoxFromDisk('qualities'),
-        Hive.deleteBoxFromDisk('universal_parameters'),
-      ]);
-
-      // Update schema version
-      await box.put('version', 11);
-    }
+    await box.put('version', 12);
   } catch (e) {
     print('Error clearing incompatible data: $e');
-    // If there's an error, try to delete all boxes
     try {
       await Future.wait([
         Hive.deleteBoxFromDisk('customers'),

@@ -318,22 +318,18 @@ class _PurchaseRequestListPageState
     List<PurchaseOrder> purchaseOrders,
     List<StoreInward> storeInwards,
   ) {
-    
     // Filter based on selected status
     if (_selectedStatus == 'Active') {
       requests = requests.where((pr) => pr.status != 'Completed').toList();
     } else if (_selectedStatus != 'All') {
       requests = requests.where((pr) => pr.status == _selectedStatus).toList();
     }
-    
 
     final rows = <PlutoRow>[];
     var serialNo = 1;
 
     for (var request in requests) {
-      
       for (var item in request.items) {
-        
         // Calculate total ordered quantity for this PR item
         final totalOrderedQty = item.totalOrderedQuantity;
 
@@ -345,7 +341,6 @@ class _PurchaseRequestListPageState
                     .any((detail) => detail.prNo == request.prNo)))
             .map((po) => '${po.poNo}\n(${po.poDate})')
             .join('\n\n');
-
 
         // Get stock transfer details
         final transfers = storeInwards
@@ -369,14 +364,12 @@ class _PurchaseRequestListPageState
             .where((s) => s.isNotEmpty)
             .join('\n');
 
-
         final pendingQty = double.parse(item.quantity) - totalOrderedQty;
         final status = pendingQty <= 0
             ? 'Completed'
             : totalOrderedQty > 0
                 ? 'Partially Ordered'
                 : 'Placed';
-
 
         rows.add(
           PlutoRow(
@@ -502,7 +495,8 @@ class _PurchaseRequestListPageState
                     final purchaseOrders = ref.read(purchaseOrderListProvider);
                     final storeInwards = ref.read(storeInwardProvider);
                     stateManager!.removeAllRows();
-                    stateManager!.appendRows(_getRows(requests, purchaseOrders, storeInwards));
+                    stateManager!.appendRows(
+                        _getRows(requests, purchaseOrders, storeInwards));
                   }
                 }
               },
@@ -518,7 +512,8 @@ class _PurchaseRequestListPageState
                 final purchaseOrders = ref.read(purchaseOrderListProvider);
                 final storeInwards = ref.read(storeInwardProvider);
                 stateManager!.removeAllRows();
-                stateManager!.appendRows(_getRows(requests, purchaseOrders, storeInwards));
+                stateManager!.appendRows(
+                    _getRows(requests, purchaseOrders, storeInwards));
 
                 // Show a snackbar to confirm refresh
                 ScaffoldMessenger.of(context).showSnackBar(

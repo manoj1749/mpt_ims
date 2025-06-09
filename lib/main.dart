@@ -45,7 +45,13 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize Hive and open all boxes
+  // Initialize Hive first
+  await Hive.initFlutter();
+  
+  // Then clear incompatible data
+  // await clearIncompatibleData();
+  
+  // Finally initialize adapters and boxes
   await initializeHive();
 
   // Get references to boxes for providers

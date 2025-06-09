@@ -15,6 +15,7 @@ import '../../provider/purchase_request_provider.dart';
 import '../../provider/purchase_order.dart';
 import '../../provider/vendor_material_rate_provider.dart';
 import 'package:collection/collection.dart';
+import '../store/select_jobs_dialog.dart';
 
 class AddPurchaseOrderPage extends ConsumerStatefulWidget {
   final PurchaseOrder? existingPO;
@@ -34,7 +35,7 @@ class AddPurchaseOrderPage extends ConsumerStatefulWidget {
 class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   final _formKey = GlobalKey<FormState>();
   Supplier? selectedSupplier;
-  String? selectedJobNo;
+  List<String> selectedJobs = ['All'];
   List<POItem> poItems = [];
   final Map<String, Map<String, TextEditingController>> qtyControllers = {};
   final Map<String, Map<String, TextEditingController>> maxQtyControllers = {};
@@ -51,6 +52,23 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
   // Store materials with their PR items
   Map<String, List<PRItem>> materialPRItems = {};
+
+  // Get unique job numbers from PRs
+  Set<String> _getUniqueJobNumbers() {
+    final Set<String> jobNos = {'All'}; // Include 'All' as default option
+    final purchaseRequests = ref
+        .read(purchaseRequestListProvider)
+        .where((pr) => pr.status != 'Completed')
+        .toList();
+
+    for (var pr in purchaseRequests) {
+      if (pr.jobNo != null && pr.jobNo!.isNotEmpty) {
+        jobNos.add(pr.jobNo!);
+      }
+    }
+    jobNos.add('General'); // Add General option
+    return jobNos;
+  }
 
   @override
   void initState() {
@@ -120,9 +138,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     materialPRItems.clear();
 
     for (var pr in purchaseRequests) {
-      if (selectedJobNo != null &&
-          selectedJobNo != 'All' &&
-          pr.jobNo != selectedJobNo) {
+      // Skip if PR's job doesn't match selected jobs
+      if (!selectedJobs.contains('All') && !selectedJobs.contains(pr.jobNo)) {
         continue;
       }
 
@@ -869,13 +886,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         .toList();
 
     // Get unique job numbers for filter dropdown
-    final jobNos = {'All'};
-    for (var pr in purchaseRequests) {
-      if (pr.jobNo != null && pr.jobNo!.isNotEmpty) {
-        jobNos.add(pr.jobNo!);
-      }
-    }
-    final jobNumbers = jobNos.toList()..sort();
+    final availableJobs = _getUniqueJobNumbers();
 
     // Update material PR items when supplier or job number changes
     _updateMaterialPRItems();
@@ -925,8 +936,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         setState(() {
                           selectedSupplier = val;
                           selectedPRs.clear();
-                          selectedJobNo =
-                              'All'; // Reset job filter when supplier changes
+                          prQtyControllers.clear();
+                          selectedJobs = ['All']; // Reset job filter when supplier changes
                         });
                       },
                       dropdownStyleData: DropdownStyleData(
@@ -945,45 +956,40 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  // Add Job Number Filter Dropdown
+                  // Add Job Filter Button
                   Expanded(
-                    child: DropdownButtonFormField2<String>(
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Filter by Job',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(vertical: 0),
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.filter_list),
+                      label: Text(
+                        selectedJobs.contains('All')
+                            ? 'All Jobs'
+                            : '${selectedJobs.length} Jobs Selected',
                       ),
-                      hint: const Text("Select Job"),
-                      value: selectedJobNo ?? 'All',
-                      items: jobNumbers
-                          .map((jobNo) => DropdownMenuItem<String>(
-                                value: jobNo,
-                                child: Text(
-                                  jobNo,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (val) {
-                        setState(() {
-                          selectedJobNo = val;
-                          selectedPRs.clear();
-                        });
+                      onPressed: () async {
+                        final result = await showDialog<List<String>>(
+                          context: context,
+                          builder: (context) => SelectJobsDialog(
+                            selectedJobs: selectedJobs,
+                            availableJobs: availableJobs.toList(),
+                          ),
+                        );
+
+                        if (result != null) {
+                          setState(() {
+                            selectedJobs = result;
+                            // If no jobs selected, default to 'All'
+                            if (selectedJobs.isEmpty) {
+                              selectedJobs = ['All'];
+                            }
+                            // If 'All' is selected, clear other selections
+                            if (selectedJobs.contains('All')) {
+                              selectedJobs = ['All'];
+                            }
+                            selectedPRs.clear();
+                            prQtyControllers.clear();
+                          });
+                        }
                       },
-                      dropdownStyleData: DropdownStyleData(
-                        maxHeight: 300,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      menuItemStyleData: const MenuItemStyleData(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                      ),
-                      buttonStyleData: const ButtonStyleData(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        height: 60,
-                      ),
                     ),
                   ),
                 ],

@@ -72,23 +72,62 @@ class VendorMaterialRateNotifier
     String vendorId,
     double quantity,
   ) async {
-    final rate = state.firstWhere(
+    print('\nAccepting from inspection stock:');
+    print('Material ID: $materialId');
+    print('Vendor ID: $vendorId');
+    print('Quantity: $quantity');
+    print('Current state length: ${state.length}');
+    print('Available rates: ${state.map((r) => '${r.materialId}-${r.vendorId}').join(', ')}');
+
+    // Try to find existing rate
+    final existingRate = state.firstWhere(
       (r) => r.materialId == materialId && r.vendorId == vendorId,
+      orElse: () {
+        print('Creating new vendor material rate record');
+        // Create a new rate record if none exists
+        final newRate = VendorMaterialRate(
+          materialId: materialId,
+          vendorId: vendorId,
+          saleRate: '0',
+          lastPurchaseDate: DateTime.now().toString().split(' ')[0],
+          remarks: '',
+          totalReceivedQty: '0',
+          issuedQty: '0',
+          receivedQty: '0',
+          avlStock: '0',
+          avlStockValue: '0',
+          billingQtyDiff: '0',
+          totalReceivedCost: '0',
+          totalBilledCost: '0',
+          costDiff: '0',
+          inspectionStock: quantity.toString(),
+        );
+        return newRate;
+      },
     );
 
-    final currentInspectionStock = double.tryParse(rate.inspectionStock) ?? 0;
-    final currentAvailableStock = double.tryParse(rate.avlStock) ?? 0;
+    print('Found/Created rate record: ${existingRate.materialId}-${existingRate.vendorId}');
+    print('Current inspection stock: ${existingRate.inspectionStock}');
+    print('Current available stock: ${existingRate.avlStock}');
+
+    final currentInspectionStock = double.tryParse(existingRate.inspectionStock) ?? 0;
+    final currentAvailableStock = double.tryParse(existingRate.avlStock) ?? 0;
 
     if (currentInspectionStock >= quantity) {
-      final updatedRate = rate.copyWith(
+      final updatedRate = existingRate.copyWith(
         inspectionStock: (currentInspectionStock - quantity).toString(),
         avlStock: (currentAvailableStock + quantity).toString(),
         avlStockValue: ((currentAvailableStock + quantity) *
-                (double.tryParse(rate.saleRate) ?? 0))
+                (double.tryParse(existingRate.saleRate) ?? 0))
             .toString(),
       );
 
+      print('Updated inspection stock: ${updatedRate.inspectionStock}');
+      print('Updated available stock: ${updatedRate.avlStock}');
+
       await updateRate(updatedRate);
+    } else {
+      print('Error: Not enough inspection stock (have: $currentInspectionStock, need: $quantity)');
     }
   }
 
@@ -98,18 +137,55 @@ class VendorMaterialRateNotifier
     String vendorId,
     double quantity,
   ) async {
-    final rate = state.firstWhere(
+    print('\nRejecting from inspection stock:');
+    print('Material ID: $materialId');
+    print('Vendor ID: $vendorId');
+    print('Quantity: $quantity');
+    print('Current state length: ${state.length}');
+    print('Available rates: ${state.map((r) => '${r.materialId}-${r.vendorId}').join(', ')}');
+
+    // Try to find existing rate
+    final existingRate = state.firstWhere(
       (r) => r.materialId == materialId && r.vendorId == vendorId,
+      orElse: () {
+        print('Creating new vendor material rate record');
+        // Create a new rate record if none exists
+        final newRate = VendorMaterialRate(
+          materialId: materialId,
+          vendorId: vendorId,
+          saleRate: '0',
+          lastPurchaseDate: DateTime.now().toString().split(' ')[0],
+          remarks: '',
+          totalReceivedQty: '0',
+          issuedQty: '0',
+          receivedQty: '0',
+          avlStock: '0',
+          avlStockValue: '0',
+          billingQtyDiff: '0',
+          totalReceivedCost: '0',
+          totalBilledCost: '0',
+          costDiff: '0',
+          inspectionStock: quantity.toString(),
+        );
+        return newRate;
+      },
     );
 
-    final currentInspectionStock = double.tryParse(rate.inspectionStock) ?? 0;
+    print('Found/Created rate record: ${existingRate.materialId}-${existingRate.vendorId}');
+    print('Current inspection stock: ${existingRate.inspectionStock}');
+
+    final currentInspectionStock = double.tryParse(existingRate.inspectionStock) ?? 0;
 
     if (currentInspectionStock >= quantity) {
-      final updatedRate = rate.copyWith(
+      final updatedRate = existingRate.copyWith(
         inspectionStock: (currentInspectionStock - quantity).toString(),
       );
 
+      print('Updated inspection stock: ${updatedRate.inspectionStock}');
+
       await updateRate(updatedRate);
+    } else {
+      print('Error: Not enough inspection stock (have: $currentInspectionStock, need: $quantity)');
     }
   }
 }

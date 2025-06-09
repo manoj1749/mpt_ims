@@ -10,7 +10,6 @@ import '../../provider/store_inward_provider.dart';
 import '../../models/purchase_request.dart';
 import '../../models/purchase_order.dart';
 import '../../models/store_inward.dart';
-import '../../models/po_item.dart';
 import '../../widgets/pluto_grid_configuration.dart';
 import 'add_purchase_request_page.dart';
 
@@ -319,9 +318,6 @@ class _PurchaseRequestListPageState
     List<PurchaseOrder> purchaseOrders,
     List<StoreInward> storeInwards,
   ) {
-    print('\n=== Debug: Generating PR List Rows ===');
-    print('Total PRs before filter: ${requests.length}');
-    print('Selected Status: $_selectedStatus');
     
     // Filter based on selected status
     if (_selectedStatus == 'Active') {
@@ -330,22 +326,16 @@ class _PurchaseRequestListPageState
       requests = requests.where((pr) => pr.status == _selectedStatus).toList();
     }
     
-    print('PRs after filter: ${requests.length}');
 
     final rows = <PlutoRow>[];
     var serialNo = 1;
 
     for (var request in requests) {
-      print('\nProcessing PR: ${request.prNo}');
-      print('PR Status: ${request.status}');
-      print('Items count: ${request.items.length}');
       
       for (var item in request.items) {
-        print('\nProcessing Item: ${item.materialCode}');
         
         // Calculate total ordered quantity for this PR item
         final totalOrderedQty = item.totalOrderedQuantity;
-        print('Total Ordered Qty: $totalOrderedQty');
 
         // Get PO details
         final relatedPOs = purchaseOrders
@@ -356,7 +346,6 @@ class _PurchaseRequestListPageState
             .map((po) => '${po.poNo}\n(${po.poDate})')
             .join('\n\n');
 
-        print('Related POs: ${relatedPOs.isEmpty ? "None" : relatedPOs}');
 
         // Get stock transfer details
         final transfers = storeInwards
@@ -380,7 +369,6 @@ class _PurchaseRequestListPageState
             .where((s) => s.isNotEmpty)
             .join('\n');
 
-        print('Stock Transfers: ${transfers.isEmpty ? "None" : transfers}');
 
         final pendingQty = double.parse(item.quantity) - totalOrderedQty;
         final status = pendingQty <= 0
@@ -389,8 +377,6 @@ class _PurchaseRequestListPageState
                 ? 'Partially Ordered'
                 : 'Placed';
 
-        print('Pending Qty: $pendingQty');
-        print('Status: $status');
 
         rows.add(
           PlutoRow(
@@ -415,11 +401,9 @@ class _PurchaseRequestListPageState
             },
           ),
         );
-        print('Added row for item');
       }
     }
 
-    print('\nTotal rows generated: ${rows.length}');
     return rows;
   }
 

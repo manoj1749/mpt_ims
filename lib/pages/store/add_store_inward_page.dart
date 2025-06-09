@@ -603,11 +603,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               final matchingPRs = poItem.prDetails.entries.where((entry) =>
                   selectedJobs.contains('All') ||
                   selectedJobs.contains(entry.value.jobNo));
-              
+
               if (matchingPRs.isNotEmpty) {
                 final totalPRQty = matchingPRs.fold(
                     0.0, (sum, entry) => sum + entry.value.quantity);
-                
+
                 for (var prEntry in matchingPRs) {
                   final prNo = prEntry.key;
                   final prDetail = prEntry.value;
@@ -739,9 +739,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
             // Show material if it has PRs matching any selected job or if 'All' is selected
             if (selectedJobs.contains('All')) return true;
-            
-            return item.prDetails.values.any((detail) =>
-                selectedJobs.contains(detail.jobNo));
+
+            return item.prDetails.values
+                .any((detail) => selectedJobs.contains(detail.jobNo));
           }));
     }).toList();
 

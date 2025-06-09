@@ -18,7 +18,11 @@ class CategoryAdapter extends TypeAdapter<Category> {
     };
     return Category(
       name: fields[0] as String,
-      requiresQualityCheck: fields[1] == null ? true : (fields[1] is bool ? fields[1] as bool : fields[1].toString().toLowerCase() == 'true'),
+      requiresQualityCheck: fields[1] == null
+          ? true
+          : (fields[1] is bool
+              ? fields[1] as bool
+              : fields[1].toString().toLowerCase() == 'true'),
     );
   }
 

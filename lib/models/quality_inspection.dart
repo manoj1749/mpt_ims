@@ -386,6 +386,7 @@ class QualityParameter {
   static const String platingQuality = 'Plating Quality';
   static const String gradeCheck = 'Grade Check';
   static const String colourShade = 'Colour/Shade';
-  static const String referenceStandard = 'Check for Reference Standard (IS/IEC)';
+  static const String referenceStandard =
+      'Check for Reference Standard (IS/IEC)';
   static const String conformanceReport = 'Review & Verify Conformance Report';
 }

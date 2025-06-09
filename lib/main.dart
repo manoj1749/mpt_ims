@@ -46,10 +46,10 @@ void main() async {
 
   // Initialize Hive first
   await Hive.initFlutter();
-  
+
   // Then clear incompatible data
   // await clearIncompatibleData();
-  
+
   // Finally initialize adapters and boxes
   await initializeHive();
 

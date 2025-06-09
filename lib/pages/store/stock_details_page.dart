@@ -185,7 +185,7 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
             subCategory: '',
           ),
         );
-        
+
         final category = categories.firstWhere(
           (c) => c.name == material.category,
           orElse: () => Category(name: material.category),
@@ -214,7 +214,8 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
 
         // Add quantity under inspection
         if (underInspectionQty > 0) {
-          materialInspectionStock[item.materialCode]![inward.grnNo] = underInspectionQty;
+          materialInspectionStock[item.materialCode]![inward.grnNo] =
+              underInspectionQty;
         }
 
         // Add rejected quantity
@@ -577,10 +578,12 @@ class MaterialStockDetailPage extends ConsumerWidget {
                 'poDate': PlutoCell(value: po.poDate),
                 'supplier': PlutoCell(value: inward.supplierName),
                 'receivedQty': PlutoCell(value: item.receivedQty),
-                'acceptedQty': PlutoCell(value: item.receivedQty), // Full quantity is accepted
+                'acceptedQty': PlutoCell(
+                    value: item.receivedQty), // Full quantity is accepted
                 'rate': PlutoCell(value: '₹${item.costPerUnit}'),
                 'value': PlutoCell(
-                    value: '₹${(item.receivedQty * double.parse(item.costPerUnit)).toStringAsFixed(2)}'),
+                    value:
+                        '₹${(item.receivedQty * double.parse(item.costPerUnit)).toStringAsFixed(2)}'),
                 'date': PlutoCell(value: inward.grnDate),
               },
             ));
@@ -601,7 +604,8 @@ class MaterialStockDetailPage extends ConsumerWidget {
                 'acceptedQty': PlutoCell(value: acceptedQty),
                 'rate': PlutoCell(value: '₹${item.costPerUnit}'),
                 'value': PlutoCell(
-                    value: '₹${(acceptedQty * double.parse(item.costPerUnit)).toStringAsFixed(2)}'),
+                    value:
+                        '₹${(acceptedQty * double.parse(item.costPerUnit)).toStringAsFixed(2)}'),
                 'date': PlutoCell(value: inward.grnDate),
               },
             ));
@@ -635,21 +639,21 @@ class MaterialStockDetailPage extends ConsumerWidget {
       for (var item in inward.items) {
         if (item.materialCode == material.partNo) {
           final underInspectionQty = item.underInspectionQty;
-          
+
           if (underInspectionQty > 0) {
             // Get latest inspection status
             final inspectionEntries = item.inspectionStatus.entries.toList();
             inspectionEntries.sort((a, b) => b.key.compareTo(a.key));
-            final latestInspection = inspectionEntries.isEmpty ? null : inspectionEntries.first;
+            final latestInspection =
+                inspectionEntries.isEmpty ? null : inspectionEntries.first;
 
-            final status = latestInspection?.value.status ?? 'Pending Inspection';
+            final status =
+                latestInspection?.value.status ?? 'Pending Inspection';
             final inspectedQty = item.inspectedQuantity;
 
             rows.add(PlutoRow(
               cells: {
-                'inspectionNo': PlutoCell(
-                  value: latestInspection?.key ?? '-'
-                ),
+                'inspectionNo': PlutoCell(value: latestInspection?.key ?? '-'),
                 'grnNo': PlutoCell(value: inward.grnNo),
                 'jobNo': PlutoCell(value: '-'),
                 'poNo': PlutoCell(value: inward.poNo),

@@ -477,17 +477,20 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                         ),
                         onPressed: () {
                           // Update preferred vendor
-                          final rateProvider = ref.read(vendorMaterialRateProvider.notifier);
-                          
+                          final rateProvider =
+                              ref.read(vendorMaterialRateProvider.notifier);
+
                           // First, remove preferred status from all vendors for this material
                           for (final r in rates) {
                             if (r.isPreferred) {
-                              rateProvider.updateRate(r.copyWith(isPreferred: false));
+                              rateProvider
+                                  .updateRate(r.copyWith(isPreferred: false));
                             }
                           }
-                          
+
                           // Then set the new preferred vendor
-                          rateProvider.updateRate(rate.copyWith(isPreferred: !rate.isPreferred));
+                          rateProvider.updateRate(
+                              rate.copyWith(isPreferred: !rate.isPreferred));
                           setState(() {}); // Refresh UI
                         },
                         tooltip: 'Set as preferred vendor',

@@ -124,7 +124,8 @@ class StoreInward extends HiveObject {
 
     String newStatus;
     if (!hasItemsNeedingInspection) {
-      newStatus = 'Completed'; // All items are general stock or don't need inspection
+      newStatus =
+          'Completed'; // All items are general stock or don't need inspection
     } else if (!hasProcessedItems) {
       newStatus = 'Under Inspection';
     } else if (allItemsProcessed) {
@@ -182,33 +183,38 @@ class InwardItem {
   String costPerUnit;
 
   @HiveField(8)
-  Map<String, Map<String, double>> prQuantities = {}; // Store PR-wise quantities: PO No -> {PR No -> Quantity}
+  Map<String, Map<String, double>> prQuantities =
+      {}; // Store PR-wise quantities: PO No -> {PR No -> Quantity}
 
   @HiveField(9)
-  Map<String, InspectionQuantityStatus> inspectionStatus = {}; // Map of inspection number to inspection status
+  Map<String, InspectionQuantityStatus> inspectionStatus =
+      {}; // Map of inspection number to inspection status
 
   @HiveField(10)
-  Map<String, Map<String, String>> prJobNumbers = {}; // Map of PO No -> {PR No -> Job No}
+  Map<String, Map<String, String>> prJobNumbers =
+      {}; // Map of PO No -> {PR No -> Job No}
 
   // Helper property to get total inspected quantity
-  double get inspectedQuantity =>
-      inspectionStatus.values.fold<double>(0.0, (sum, status) => sum + status.inspectedQty);
+  double get inspectedQuantity => inspectionStatus.values
+      .fold<double>(0.0, (sum, status) => sum + status.inspectedQty);
 
   // Helper property to get total accepted quantity
-  double get totalAcceptedQty =>
-      inspectionStatus.values.fold<double>(0.0, (sum, status) => sum + status.acceptedQty);
+  double get totalAcceptedQty => inspectionStatus.values
+      .fold<double>(0.0, (sum, status) => sum + status.acceptedQty);
 
   // Helper property to get total rejected quantity
-  double get totalRejectedQty =>
-      inspectionStatus.values.fold<double>(0.0, (sum, status) => sum + status.rejectedQty);
+  double get totalRejectedQty => inspectionStatus.values
+      .fold<double>(0.0, (sum, status) => sum + status.rejectedQty);
 
   // Helper property to get quantity under inspection
-  double get underInspectionQty => receivedQty - (totalAcceptedQty + totalRejectedQty);
+  double get underInspectionQty =>
+      receivedQty - (totalAcceptedQty + totalRejectedQty);
 
   bool get isFullyInspected => inspectedQuantity >= receivedQty;
 
   // Helper method to update inspection status
-  void updateInspectionStatus(String inspectionNo, InspectionQuantityStatus status) {
+  void updateInspectionStatus(
+      String inspectionNo, InspectionQuantityStatus status) {
     inspectionStatus[inspectionNo] = status;
   }
 
@@ -257,18 +263,19 @@ class InwardItem {
   static Map<String, Map<String, double>> castPRQuantities(dynamic value) {
     if (value == null) return {};
     if (value is Map<String, Map<String, double>>) return value;
-    
+
     try {
       if (value is double || value is String) {
         // Handle legacy double or string values
         return {};
       }
-      
+
       return (value as Map).map((key, val) {
         if (val is Map) {
           return MapEntry(
             key.toString(),
-            (val).map((k, v) => MapEntry(k.toString(), (v is num) ? v.toDouble() : 0.0)),
+            (val).map((k, v) =>
+                MapEntry(k.toString(), (v is num) ? v.toDouble() : 0.0)),
           );
         }
         return MapEntry(key.toString(), <String, double>{});
@@ -280,16 +287,17 @@ class InwardItem {
   }
 
   // Helper method to safely cast inspection status
-  static Map<String, InspectionQuantityStatus> castInspectionStatus(dynamic value) {
+  static Map<String, InspectionQuantityStatus> castInspectionStatus(
+      dynamic value) {
     if (value == null) return {};
     if (value is Map<String, InspectionQuantityStatus>) return value;
-    
+
     try {
       if (value is double || value is String) {
         // Handle legacy double or string values
         return {};
       }
-      
+
       return (value as Map).map((key, val) {
         if (val is InspectionQuantityStatus) {
           return MapEntry(key.toString(), val);
@@ -325,13 +333,13 @@ class InwardItem {
   static Map<String, Map<String, String>> castPRJobNumbers(dynamic value) {
     if (value == null) return {};
     if (value is Map<String, Map<String, String>>) return value;
-    
+
     try {
       if (value is double || value is String) {
         // Handle legacy double or string values
         return {};
       }
-      
+
       return (value as Map).map((key, val) {
         if (val is Map) {
           return MapEntry(

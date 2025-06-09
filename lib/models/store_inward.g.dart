@@ -103,7 +103,8 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
       inspectionStatus = {};
     } else {
       try {
-        inspectionStatus = (fields[9] as Map?)?.cast<String, InspectionQuantityStatus>();
+        inspectionStatus =
+            (fields[9] as Map?)?.cast<String, InspectionQuantityStatus>();
       } catch (e) {
         print('Error casting inspection status: $e');
         inspectionStatus = {};

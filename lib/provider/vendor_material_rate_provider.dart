@@ -79,7 +79,8 @@ class VendorMaterialRateNotifier
     print('Vendor ID: $vendorId');
     print('Quantity: $quantity');
     print('Current state length: ${state.length}');
-    print('Available rates: ${state.map((r) => '${r.materialId}-${r.vendorId}').join(', ')}');
+    print(
+        'Available rates: ${state.map((r) => '${r.materialId}-${r.vendorId}').join(', ')}');
 
     // Try to find existing rate
     final existingRate = state.firstWhere(
@@ -108,11 +109,13 @@ class VendorMaterialRateNotifier
       },
     );
 
-    print('Found/Created rate record: ${existingRate.materialId}-${existingRate.vendorId}');
+    print(
+        'Found/Created rate record: ${existingRate.materialId}-${existingRate.vendorId}');
     print('Current inspection stock: ${existingRate.inspectionStock}');
     print('Current available stock: ${existingRate.avlStock}');
 
-    final currentInspectionStock = double.tryParse(existingRate.inspectionStock) ?? 0;
+    final currentInspectionStock =
+        double.tryParse(existingRate.inspectionStock) ?? 0;
     final currentAvailableStock = double.tryParse(existingRate.avlStock) ?? 0;
 
     if (currentInspectionStock >= quantity) {
@@ -129,7 +132,8 @@ class VendorMaterialRateNotifier
 
       await updateRate(updatedRate);
     } else {
-      print('Error: Not enough inspection stock (have: $currentInspectionStock, need: $quantity)');
+      print(
+          'Error: Not enough inspection stock (have: $currentInspectionStock, need: $quantity)');
     }
   }
 
@@ -144,7 +148,8 @@ class VendorMaterialRateNotifier
     print('Vendor ID: $vendorId');
     print('Quantity: $quantity');
     print('Current state length: ${state.length}');
-    print('Available rates: ${state.map((r) => '${r.materialId}-${r.vendorId}').join(', ')}');
+    print(
+        'Available rates: ${state.map((r) => '${r.materialId}-${r.vendorId}').join(', ')}');
 
     // Try to find existing rate
     final existingRate = state.firstWhere(
@@ -173,10 +178,12 @@ class VendorMaterialRateNotifier
       },
     );
 
-    print('Found/Created rate record: ${existingRate.materialId}-${existingRate.vendorId}');
+    print(
+        'Found/Created rate record: ${existingRate.materialId}-${existingRate.vendorId}');
     print('Current inspection stock: ${existingRate.inspectionStock}');
 
-    final currentInspectionStock = double.tryParse(existingRate.inspectionStock) ?? 0;
+    final currentInspectionStock =
+        double.tryParse(existingRate.inspectionStock) ?? 0;
 
     if (currentInspectionStock >= quantity) {
       final updatedRate = existingRate.copyWith(
@@ -187,7 +194,8 @@ class VendorMaterialRateNotifier
 
       await updateRate(updatedRate);
     } else {
-      print('Error: Not enough inspection stock (have: $currentInspectionStock, need: $quantity)');
+      print(
+          'Error: Not enough inspection stock (have: $currentInspectionStock, need: $quantity)');
     }
   }
 }

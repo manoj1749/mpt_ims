@@ -239,21 +239,23 @@ class POItem extends HiveObject {
   }
 
   // Helper method to safely cast map values
-  static Map<String, Map<String, double>> castReceivedQuantities(dynamic value) {
+  static Map<String, Map<String, double>> castReceivedQuantities(
+      dynamic value) {
     if (value == null) return {};
     if (value is Map<String, Map<String, double>>) return value;
-    
+
     try {
       if (value is double || value is String) {
         // Handle legacy double or string values
         return {};
       }
-      
+
       return (value as Map).map((key, val) {
         if (val is Map) {
           return MapEntry(
             key.toString(),
-            (val).map((k, v) => MapEntry(k.toString(), (v is num) ? v.toDouble() : 0.0)),
+            (val).map((k, v) =>
+                MapEntry(k.toString(), (v is num) ? v.toDouble() : 0.0)),
           );
         }
         return MapEntry(key.toString(), <String, double>{});
@@ -268,13 +270,13 @@ class POItem extends HiveObject {
   static Map<String, ItemPRDetails> castPRDetails(dynamic value) {
     if (value == null) return {};
     if (value is Map<String, ItemPRDetails>) return value;
-    
+
     try {
       if (value is double || value is String) {
         // Handle legacy double or string values
         return {};
       }
-      
+
       return (value as Map).map((key, val) {
         if (val is ItemPRDetails) {
           return MapEntry(key.toString(), val);

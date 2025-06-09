@@ -561,7 +561,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Checkbox(
                           value: isSelected,
-                          side: const BorderSide(color: Colors.black, width: 1.5),
+                          side:
+                              const BorderSide(color: Colors.black, width: 1.5),
                           onChanged: (bool? value) {
                             setState(() {
                               selectedPRs.putIfAbsent(
@@ -1226,7 +1227,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: Text(isQuantityStep ? 'Enter Quantities' : 'Enter Material Codes'),
+            title: Text(
+                isQuantityStep ? 'Enter Quantities' : 'Enter Material Codes'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1257,7 +1259,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       border: const OutlineInputBorder(),
-                      hintText: 'Enter quantities for:\n${materialCodes.join('\n')}',
+                      hintText:
+                          'Enter quantities for:\n${materialCodes.join('\n')}',
                     ),
                   ),
                 ],
@@ -1295,8 +1298,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       final rates = ref
                           .read(vendorMaterialRateProvider.notifier)
                           .getRatesForMaterial(material.slNo);
-                      
-                      if (!rates.any((r) => r.vendorId == selectedSupplier!.name)) {
+
+                      if (!rates
+                          .any((r) => r.vendorId == selectedSupplier!.name)) {
                         noRateCodes.add(code);
                       }
                     }
@@ -1311,7 +1315,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (invalidCodes.isNotEmpty) ...[
-                                const Text('The following codes were not found:'),
+                                const Text(
+                                    'The following codes were not found:'),
                                 const SizedBox(height: 8),
                                 Text(invalidCodes.join('\n')),
                                 const SizedBox(height: 16),
@@ -1371,8 +1376,10 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       final quantity = quantities[i];
 
                       // Add to general stock items
-                      selectedPRs.putIfAbsent(material.partNo, () => {})['General'] = true;
-                      prQtyControllers.putIfAbsent(material.partNo, () => {})['General'] =
+                      selectedPRs.putIfAbsent(
+                          material.partNo, () => {})['General'] = true;
+                      prQtyControllers.putIfAbsent(
+                              material.partNo, () => {})['General'] =
                           TextEditingController(text: quantity);
 
                       // Add an empty PR items list for this material

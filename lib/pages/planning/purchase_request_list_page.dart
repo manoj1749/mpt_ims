@@ -25,6 +25,7 @@ class _PurchaseRequestListPageState
     extends ConsumerState<PurchaseRequestListPage> {
   late final List<PlutoColumn> columns;
   PlutoGridStateManager? stateManager;
+  String _selectedStatus = 'Active'; // Default to Active view
 
   @override
   void initState() {
@@ -317,76 +318,33 @@ class _PurchaseRequestListPageState
     List<PurchaseOrder> purchaseOrders,
     List<StoreInward> storeInwards,
   ) {
+    print('\n=== Debug: Generating PR List Rows ===');
+    print('Total PRs before filter: ${requests.length}');
+    print('Selected Status: $_selectedStatus');
+    
+    // Filter based on selected status
+    if (_selectedStatus == 'Active') {
+      requests = requests.where((pr) => pr.status != 'Completed').toList();
+    } else if (_selectedStatus != 'All') {
+      requests = requests.where((pr) => pr.status == _selectedStatus).toList();
+    }
+    
+    print('PRs after filter: ${requests.length}');
+
     final rows = <PlutoRow>[];
     var serialNo = 1;
 
     for (var request in requests) {
+      print('\nProcessing PR: ${request.prNo}');
+      print('PR Status: ${request.status}');
+      print('Items count: ${request.items.length}');
+      
       for (var item in request.items) {
-        // Check if this PR's items are in any PO
-        ref.read(purchaseOrderListProvider).any((po) => po.items.any((poItem) =>
-            poItem.materialCode == item.materialCode &&
-            poItem.prDetails.values
-                .any((detail) => detail.prNo == request.prNo)));
-
+        print('\nProcessing Item: ${item.materialCode}');
+        
         // Calculate total ordered quantity for this PR item
-        final totalOrderedQty = ref
-            .read(purchaseOrderListProvider)
-            .where((po) => po.items.any((poItem) =>
-                poItem.materialCode == item.materialCode &&
-                poItem.prDetails.values
-                    .any((detail) => detail.prNo == request.prNo)))
-            .fold(
-                0.0,
-                (sum, po) =>
-                    sum +
-                    po.items
-                        .where((poItem) =>
-                            poItem.materialCode == item.materialCode)
-                        .fold(
-                            0.0,
-                            (itemSum, poItem) =>
-                                itemSum +
-                                (poItem.prDetails.values
-                                    .firstWhere(
-                                        (detail) => detail.prNo == request.prNo,
-                                        orElse: () => ItemPRDetails(
-                                            prNo: request.prNo,
-                                            jobNo: 'General',
-                                            quantity: 0))
-                                    .quantity)));
-
-        // Check if any PO exists for this PR
-        ref.read(purchaseOrderListProvider).any((po) => po.items.any((poItem) =>
-            poItem.materialCode == item.materialCode &&
-            poItem.prDetails.values
-                .any((detail) => detail.prNo == request.prNo)));
-
-        // Check if all items in this PR are fully ordered
-        request.items.every((item) => ref.read(purchaseOrderListProvider).any(
-            (po) => po.items.any((poItem) =>
-                poItem.materialCode == item.materialCode &&
-                poItem.prDetails.values
-                    .any((detail) => detail.prNo == request.prNo))));
-
-        // Calculate received quantity from Store Inwards
-        storeInwards
-            .where((si) => si.items.any((siItem) =>
-                siItem.materialCode == item.materialCode &&
-                siItem.prQuantities.keys.any((poNo) => purchaseOrders.any((po) =>
-                    po.poNo == poNo &&
-                    po.items.any((poItem) =>
-                        poItem.materialCode == item.materialCode &&
-                        poItem.prDetails.values
-                            .any((detail) => detail.prNo == request.prNo))))))
-            .fold<double>(
-                0,
-                (sum, si) =>
-                    sum +
-                    si.items
-                        .where((siItem) =>
-                            siItem.materialCode == item.materialCode)
-                        .fold<double>(
-                            0, (sum, siItem) => sum + siItem.acceptedQty));
+        final totalOrderedQty = item.totalOrderedQuantity;
+        print('Total Ordered Qty: $totalOrderedQty');
 
         // Get PO details
         final relatedPOs = purchaseOrders
@@ -396,6 +354,8 @@ class _PurchaseRequestListPageState
                     .any((detail) => detail.prNo == request.prNo)))
             .map((po) => '${po.poNo}\n(${po.poDate})')
             .join('\n\n');
+
+        print('Related POs: ${relatedPOs.isEmpty ? "None" : relatedPOs}');
 
         // Get stock transfer details
         final transfers = storeInwards
@@ -419,12 +379,17 @@ class _PurchaseRequestListPageState
             .where((s) => s.isNotEmpty)
             .join('\n');
 
+        print('Stock Transfers: ${transfers.isEmpty ? "None" : transfers}');
+
         final pendingQty = double.parse(item.quantity) - totalOrderedQty;
         final status = pendingQty <= 0
             ? 'Completed'
             : totalOrderedQty > 0
                 ? 'Partially Ordered'
-                : 'Pending';
+                : 'Placed';
+
+        print('Pending Qty: $pendingQty');
+        print('Status: $status');
 
         rows.add(
           PlutoRow(
@@ -449,9 +414,11 @@ class _PurchaseRequestListPageState
             },
           ),
         );
+        print('Added row for item');
       }
     }
 
+    print('\nTotal rows generated: ${rows.length}');
     return rows;
   }
 
@@ -511,10 +478,52 @@ class _PurchaseRequestListPageState
     final storeInwards = ref.watch(storeInwardProvider);
 
     return Scaffold(
+      backgroundColor: Colors.grey[900],
       appBar: AppBar(
         title: const Text('Purchase Requests'),
         elevation: 0,
         actions: [
+          // Add filter dropdown in the app bar
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: DropdownButton<String>(
+              value: _selectedStatus,
+              dropdownColor: Colors.grey[850],
+              style: TextStyle(color: Colors.grey[200]),
+              icon: Icon(Icons.filter_list, color: Colors.grey[200]),
+              underline: Container(),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Active',
+                  child: Text('Active'),
+                ),
+                DropdownMenuItem(
+                  value: 'Completed',
+                  child: Text('Completed'),
+                ),
+                DropdownMenuItem(
+                  value: 'All',
+                  child: Text('All'),
+                ),
+              ],
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _selectedStatus = newValue;
+                  });
+                  // Refresh grid when filter changes
+                  if (stateManager != null) {
+                    final requests = ref.read(purchaseRequestListProvider);
+                    final purchaseOrders = ref.read(purchaseOrderListProvider);
+                    final storeInwards = ref.read(storeInwardProvider);
+                    stateManager!.removeAllRows();
+                    stateManager!.appendRows(_getRows(requests, purchaseOrders, storeInwards));
+                  }
+                }
+              },
+            ),
+          ),
+          // Add refresh button
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -524,44 +533,22 @@ class _PurchaseRequestListPageState
                 final purchaseOrders = ref.read(purchaseOrderListProvider);
                 final storeInwards = ref.read(storeInwardProvider);
                 stateManager!.removeAllRows();
-                stateManager!.appendRows(
-                    _getRows(requests, purchaseOrders, storeInwards));
+                stateManager!.appendRows(_getRows(requests, purchaseOrders, storeInwards));
 
                 // Show a snackbar to confirm refresh
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Page refreshed'),
-                    backgroundColor: Colors.white,
-                    duration: Duration(seconds: 1),
+                  SnackBar(
+                    content: const Text('Page refreshed'),
+                    backgroundColor: Colors.grey[850],
+                    duration: const Duration(seconds: 1),
                   ),
                 );
               }
             },
             tooltip: 'Refresh Page',
           ),
+          const SizedBox(width: 8), // Add some padding after the refresh button
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) => const AddPurchaseRequestPage(
-                      existingRequest: null,
-                      index: null,
-                    )),
-          );
-          // Refresh the grid after returning from add page
-          if (stateManager != null) {
-            final requests = ref.read(purchaseRequestListProvider);
-            final purchaseOrders = ref.read(purchaseOrderListProvider);
-            final storeInwards = ref.read(storeInwardProvider);
-            stateManager!.removeAllRows();
-            stateManager!
-                .appendRows(_getRows(requests, purchaseOrders, storeInwards));
-          }
-        },
-        child: const Icon(Icons.add),
       ),
       body: requests.isEmpty
           ? Center(
@@ -569,13 +556,13 @@ class _PurchaseRequestListPageState
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.description_outlined,
+                    Icons.shopping_cart_outlined,
                     size: 64,
                     color: Colors.grey[300],
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No purchase requests yet',
+                    'No purchase requests found',
                     style: TextStyle(
                       fontSize: 18,
                       color: Colors.grey[600],
@@ -586,10 +573,11 @@ class _PurchaseRequestListPageState
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const AddPurchaseRequestPage(
-                                existingRequest: null,
-                                index: null,
-                              )),
+                        builder: (_) => const AddPurchaseRequestPage(
+                          existingRequest: null,
+                          index: null,
+                        ),
+                      ),
                     ),
                     child: const Text('Add New Request'),
                   ),
@@ -601,27 +589,9 @@ class _PurchaseRequestListPageState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        '${requests.length} Purchase Requests',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(width: 16),
-                      FilledButton.tonal(
-                        onPressed: () {
-                          // TODO: Implement filtering
-                        },
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.filter_list, size: 20),
-                            SizedBox(width: 8),
-                            Text('Filter'),
-                          ],
-                        ),
-                      ),
-                    ],
+                  Text(
+                    '${requests.length} Purchase Requests',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 16),
                   Expanded(
@@ -673,6 +643,29 @@ class _PurchaseRequestListPageState
                 ],
               ),
             ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AddPurchaseRequestPage(
+                existingRequest: null,
+                index: null,
+              ),
+            ),
+          );
+          // Refresh the grid after returning from add page
+          if (stateManager != null) {
+            final requests = ref.read(purchaseRequestListProvider);
+            final purchaseOrders = ref.read(purchaseOrderListProvider);
+            final storeInwards = ref.read(storeInwardProvider);
+            stateManager!.removeAllRows();
+            stateManager!
+                .appendRows(_getRows(requests, purchaseOrders, storeInwards));
+          }
+        },
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }

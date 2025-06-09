@@ -1,5 +1,7 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
+// ignore_for_file: avoid_print
+
 part of 'po_item.dart';
 
 // **************************************************************************

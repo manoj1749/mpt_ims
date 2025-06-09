@@ -485,13 +485,15 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                     ),
                                     keyboardType: TextInputType.number,
                                     validator: (value) {
-                                      if (value == null || value.isEmpty)
+                                      if (value == null || value.isEmpty) {
                                         return null;
+                                      }
                                       final qty = double.tryParse(value);
                                       if (qty == null) return 'Invalid number';
                                       if (qty < 0) return 'Cannot be negative';
-                                      if (qty > prPendingQty)
+                                      if (qty > prPendingQty) {
                                         return 'Exceeds pending qty';
+                                      }
                                       return null;
                                     },
                                     onChanged: (value) {

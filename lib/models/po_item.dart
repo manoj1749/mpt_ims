@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:hive/hive.dart';
 
 part 'po_item.g.dart';
@@ -251,7 +253,7 @@ class POItem extends HiveObject {
         if (val is Map) {
           return MapEntry(
             key.toString(),
-            (val as Map).map((k, v) => MapEntry(k.toString(), (v is num) ? v.toDouble() : 0.0)),
+            (val).map((k, v) => MapEntry(k.toString(), (v is num) ? v.toDouble() : 0.0)),
           );
         }
         return MapEntry(key.toString(), <String, double>{});

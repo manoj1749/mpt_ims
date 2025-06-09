@@ -159,7 +159,7 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
     final materials = ref.watch(materialListProvider);
     final storeInwards = ref.watch(storeInwardProvider);
     ref.watch(vendorMaterialRateProvider);
-    final qualityInspections = ref.watch(qualityInspectionProvider);
+    ref.watch(qualityInspectionProvider);
     final categories = ref.watch(categoryListProvider);
 
     // Calculate stock for each material
@@ -535,7 +535,7 @@ class MaterialStockDetailPage extends ConsumerWidget {
   List<PlutoRow> _getStockRows(WidgetRef ref) {
     final storeInwards = ref.watch(storeInwardProvider);
     final purchaseOrders = ref.watch(purchaseOrderListProvider);
-    final qualityInspections = ref.watch(qualityInspectionProvider);
+    ref.watch(qualityInspectionProvider);
     final categories = ref.watch(categoryListProvider);
     final rows = <PlutoRow>[];
 
@@ -615,7 +615,7 @@ class MaterialStockDetailPage extends ConsumerWidget {
 
   List<PlutoRow> _getInspectionRows(WidgetRef ref) {
     final storeInwards = ref.watch(storeInwardProvider);
-    final qualityInspections = ref.watch(qualityInspectionProvider);
+    ref.watch(qualityInspectionProvider);
     final categories = ref.watch(categoryListProvider);
     final rows = <PlutoRow>[];
 

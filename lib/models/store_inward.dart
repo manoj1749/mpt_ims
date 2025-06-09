@@ -268,7 +268,7 @@ class InwardItem {
         if (val is Map) {
           return MapEntry(
             key.toString(),
-            (val as Map).map((k, v) => MapEntry(k.toString(), (v is num) ? v.toDouble() : 0.0)),
+            (val).map((k, v) => MapEntry(k.toString(), (v is num) ? v.toDouble() : 0.0)),
           );
         }
         return MapEntry(key.toString(), <String, double>{});
@@ -336,7 +336,7 @@ class InwardItem {
         if (val is Map) {
           return MapEntry(
             key.toString(),
-            (val as Map).map((k, v) => MapEntry(k.toString(), v.toString())),
+            (val).map((k, v) => MapEntry(k.toString(), v.toString())),
           );
         }
         return MapEntry(key.toString(), <String, String>{});

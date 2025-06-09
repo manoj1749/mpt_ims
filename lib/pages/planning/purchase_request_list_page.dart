@@ -514,7 +514,6 @@ class _PurchaseRequestListPageState
                 stateManager!.removeAllRows();
                 stateManager!.appendRows(
                     _getRows(requests, purchaseOrders, storeInwards));
-
                 // Show a snackbar to confirm refresh
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

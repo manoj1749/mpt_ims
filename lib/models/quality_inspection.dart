@@ -369,6 +369,12 @@ class QualityParameter {
   @HiveField(2)
   bool isAcceptable;
 
+  QualityParameter({
+    required this.parameter,
+    this.specification = '',
+    this.isAcceptable = true,
+  });
+
   // Standard Quality Parameters - Exact names as per sheet
   static const String visualCheck = 'Visual Check';
   static const String approvedMake = 'Check for Approved Make/Supplier';
@@ -380,36 +386,6 @@ class QualityParameter {
   static const String platingQuality = 'Plating Quality';
   static const String gradeCheck = 'Grade Check';
   static const String colourShade = 'Colour/Shade';
-  static const String referenceStandard =
-      'Check for Reference Standard (IS/IEC)';
+  static const String referenceStandard = 'Check for Reference Standard (IS/IEC)';
   static const String conformanceReport = 'Review & Verify Conformance Report';
-
-  // Get list of standard parameters
-  static List<String> get standardParameters => [
-        visualCheck,
-        approvedMake,
-        surfaceFinish,
-        dimensionalCheck,
-        ratingType,
-        functionalCheck,
-        mouldingQuality,
-        platingQuality,
-        gradeCheck,
-        colourShade,
-        referenceStandard,
-        conformanceReport,
-      ];
-
-  QualityParameter({
-    required this.parameter,
-    required this.specification,
-    required this.isAcceptable,
-  });
-
-  // Helper method to convert String to bool for migration
-  static bool convertToBool(dynamic value) {
-    if (value is bool) return value;
-    if (value is String) return value.toLowerCase() == 'true';
-    return false;
-  }
 }

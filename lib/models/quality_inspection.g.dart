@@ -294,8 +294,8 @@ class QualityParameterAdapter extends TypeAdapter<QualityParameter> {
     };
     return QualityParameter(
       parameter: fields[0] as String,
-      specification: fields[1] as String,
-      isAcceptable: QualityParameter.convertToBool(fields[2]),
+      specification: fields[1] as String? ?? '',
+      isAcceptable: fields[2] == null ? true : (fields[2] is bool ? fields[2] as bool : fields[2].toString().toLowerCase() == 'true'),
     );
   }
 

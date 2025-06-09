@@ -18,6 +18,8 @@ import '../../provider/purchase_request_provider.dart';
 import 'dart:convert';
 import '../../models/category.dart';
 import '../../provider/category_provider.dart';
+import '../../provider/vendor_material_rate_provider.dart';
+import '../../models/store_inward.dart';
 
 class AddQualityInspectionPage extends ConsumerStatefulWidget {
   const AddQualityInspectionPage({super.key});
@@ -421,14 +423,53 @@ class _AddQualityInspectionPageState
       return;
     }
 
-    if (selectedSupplier == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a supplier')),
-      );
-      return;
-    }
-
     try {
+      print('\n=== Debug: Starting Inspection Save ===');
+      
+      if (_items.isEmpty) {
+        print('Error: No items to inspect');
+        throw Exception('No items to inspect');
+      }
+
+      print('Number of items to inspect: ${_items.length}');
+
+      // Get supplier from the first item's first PO's store inward
+      final firstItem = _items.first;
+      print('First item: ${firstItem.materialCode}');
+      
+      if (firstItem.poQuantities.isEmpty) {
+        print('Error: No PO quantities found for first item');
+        throw Exception('No PO quantities found for inspection');
+      }
+
+      print('PO quantities for first item: ${firstItem.poQuantities.keys.join(', ')}');
+      
+      final firstPONo = firstItem.poQuantities.keys.first;
+      print('First PO number: $firstPONo');
+      
+      final inwards = ref.read(storeInwardProvider);
+      print('Total inwards available: ${inwards.length}');
+      print('Looking for inward with PO: $firstPONo');
+      
+      // Debug print all inwards PO numbers
+      for (var inward in inwards) {
+        print('Inward ${inward.grnNo} has POs: ${inward.poNo}');
+      }
+
+      final inward = inwards.firstWhere(
+        (inward) {
+          final poNos = inward.poNo.split(', ');
+          print('Checking inward ${inward.grnNo} with POs: $poNos');
+          return poNos.contains(firstPONo);
+        },
+        orElse: () {
+          print('Error: No inward found containing PO: $firstPONo');
+          throw Exception('GRN not found for PO: $firstPONo');
+        },
+      );
+
+      print('Found inward: ${inward.grnNo} for PO: $firstPONo');
+
       // Create quality inspection record
       final inspection = QualityInspection(
         inspectionNo: ref
@@ -436,7 +477,7 @@ class _AddQualityInspectionPageState
             .generateInspectionNumber(),
         inspectionDate: _inspectionDateController.text,
         grnNo: '', // Will be populated when saving
-        supplierName: selectedSupplier!.name,
+        supplierName: selectedSupplier?.name ?? inward.supplierName,
         poNo: '', // Will be populated when saving
         billNo: '', // Will be populated when saving
         billDate: '', // Will be populated when saving
@@ -448,50 +489,109 @@ class _AddQualityInspectionPageState
         status: 'Pending',
       );
 
-      print('\n=== Debug: Saving Quality Inspection ===');
-      print('Inspection No: ${inspection.inspectionNo}');
-      print('Status: ${inspection.status}');
+      print('\nProcessing inspection items...');
 
       // Update GRN status and collect PR/Job numbers
-      final inwards = ref.read(storeInwardProvider);
       final purchaseOrders = ref.read(purchaseOrderListProvider);
       final purchaseRequests = ref.read(purchaseRequestListProvider);
       final prNumbers = <String, String>{};
       final jobNumbers = <String, String>{};
+      final inwardNotifier = ref.read(storeInwardProvider.notifier);
+      final vendorRateNotifier = ref.read(vendorMaterialRateProvider.notifier);
 
       for (var item in _items) {
-        print('\nProcessing Item: ${item.materialCode}');
-        print('Usage Decision: ${item.usageDecision}');
-
+        print('\nProcessing item: ${item.materialCode}');
+        print('PO quantities: ${item.poQuantities.keys.join(', ')}');
+        
         for (var poEntry in item.poQuantities.entries) {
           final poNo = poEntry.key;
           final poQty = poEntry.value;
-          print('\nPO: $poNo');
-          print('Received Qty: ${poQty.receivedQty}');
-          print('Accepted Qty: ${poQty.acceptedQty}');
-          print('Rejected Qty: ${poQty.rejectedQty}');
-          print('Usage Decision: ${poQty.usageDecision}');
+          print('\nProcessing PO: $poNo');
+          print('Quantities - Accepted: ${poQty.acceptedQty}, Rejected: ${poQty.rejectedQty}');
 
           // Find the GRN and update its item quantities
+          print('Looking for inward with PO: $poNo');
           final inward = inwards.firstWhere(
-            (inward) => inward.poNo.split(', ').contains(poNo),
-            orElse: () => throw Exception('GRN not found'),
+            (inward) {
+              final poNos = inward.poNo.split(', ');
+              print('Checking inward ${inward.grnNo} with POs: $poNos');
+              return poNos.contains(poNo);
+            },
+            orElse: () {
+              print('Error: No inward found containing PO: $poNo');
+              throw Exception('GRN not found for PO: $poNo');
+            },
           );
 
-          print('\nGRN Details:');
-          print('GRN No: ${inward.grnNo}');
-          print('Current Status: ${inward.status}');
+          print('Found inward: ${inward.grnNo}');
+
+          // Find the inward item
+          print('Looking for item ${item.materialCode} in inward ${inward.grnNo}');
+          print('Available items in inward: ${inward.items.map((i) => i.materialCode).join(', ')}');
+          
+          final inwardItem = inward.items.firstWhere(
+            (i) => i.materialCode == item.materialCode,
+            orElse: () {
+              print('Error: Item ${item.materialCode} not found in inward ${inward.grnNo}');
+              throw Exception('Inward item not found for material: ${item.materialCode}');
+            },
+          );
+
+          print('Found inward item: ${inwardItem.materialCode}');
+
+          // Create inspection status
+          final inspectionStatus = InspectionQuantityStatus(
+            inspectedQty: poQty.acceptedQty + poQty.rejectedQty,
+            acceptedQty: poQty.acceptedQty,
+            rejectedQty: poQty.rejectedQty,
+            status: poQty.usageDecision,
+          );
+
+          // Update inward item inspection status
+          inwardItem.updateInspectionStatus(inspection.inspectionNo, inspectionStatus);
+
+          // Update vendor material rate stock
+          if (poQty.acceptedQty > 0) {
+            await vendorRateNotifier.acceptFromInspectionStock(
+              item.materialCode,
+              inward.supplierName,
+              poQty.acceptedQty,
+            );
+          }
+
+          if (poQty.rejectedQty > 0) {
+            await vendorRateNotifier.rejectFromInspectionStock(
+              item.materialCode,
+              inward.supplierName,
+              poQty.rejectedQty,
+            );
+          }
 
           // Find PR numbers and job numbers from PO items
+          print('\nLooking for PO: $poNo');
+          print('Available POs: ${purchaseOrders.map((po) => po.poNo).join(', ')}');
+          
           final po = purchaseOrders.firstWhere(
             (po) => po.poNo == poNo,
-            orElse: () => throw Exception('PO not found'),
+            orElse: () {
+              print('Error: PO $poNo not found in purchase orders');
+              throw Exception('PO not found: $poNo');
+            },
           );
+
+          print('Found PO: ${po.poNo}');
+          print('Looking for item ${item.materialCode} in PO ${po.poNo}');
+          print('Available items in PO: ${po.items.map((i) => i.materialCode).join(', ')}');
 
           final poItem = po.items.firstWhere(
             (i) => i.materialCode == item.materialCode,
-            orElse: () => throw Exception('PO item not found'),
+            orElse: () {
+              print('Error: Item ${item.materialCode} not found in PO ${po.poNo}');
+              throw Exception('PO item not found for material: ${item.materialCode}');
+            },
           );
+
+          print('Found PO item: ${poItem.materialCode}');
 
           // Get PR numbers for this PO item
           final prNos = poItem.prDetails.values
@@ -499,38 +599,60 @@ class _AddQualityInspectionPageState
               .where((prNo) => prNo != 'General')
               .toList();
 
+          print('PR numbers for PO item: ${prNos.join(', ')}');
+
           // Get job numbers for these PRs
           final jobNos = prNos
               .map((prNo) {
-                final pr = ref
-                    .read(purchaseRequestListProvider)
-                    .firstWhere((pr) => pr.prNo == prNo);
+                print('Looking for PR: $prNo');
+                print('Available PRs: ${purchaseRequests.map((pr) => pr.prNo).join(', ')}');
+                
+                final pr = purchaseRequests.firstWhere(
+                  (pr) => pr.prNo == prNo,
+                  orElse: () {
+                    print('Error: PR $prNo not found');
+                    throw Exception('PR not found: $prNo');
+                  },
+                );
                 return pr.jobNo ?? '';
               })
               .where((jobNo) => jobNo.isNotEmpty)
               .join(', ');
 
+          print('Job numbers: $jobNos');
+
           // Display job numbers if available, otherwise show 'General Stock'
           final displayText = jobNos.isNotEmpty ? jobNos : 'General Stock';
 
           // Find the PR to get its job number
-          final pr = purchaseRequests.firstWhere(
-            (pr) => pr.prNo == prNos.first,
-            orElse: () => throw Exception('PR not found'),
-          );
-          prNumbers[poNo] = displayText;
-          if (pr.jobNo != null) {
-            jobNumbers[poNo] = pr.jobNo!;
+          if (prNos.isNotEmpty) {
+            final pr = purchaseRequests.firstWhere(
+              (pr) => pr.prNo == prNos.first,
+              orElse: () {
+                print('Error: PR ${prNos.first} not found for job number');
+                throw Exception('PR not found: ${prNos.first}');
+              },
+            );
+            prNumbers[poNo] = displayText;
+            if (pr.jobNo != null) {
+              jobNumbers[poNo] = pr.jobNo!;
+            }
           }
+
+          // Update GRN status
+          inward.updateStatus();
+          final inwardIndex = inwards.indexOf(inward);
+          inwardNotifier.updateInward(inwardIndex, inward);
         }
       }
+
+      print('\nUpdating inspection with PR and job numbers');
+      print('PR numbers: $prNumbers');
+      print('Job numbers: $jobNumbers');
 
       // Update inspection with PR and job numbers
       inspection.prNumbers = prNumbers;
       inspection.jobNumbers = jobNumbers;
-      print('\nUpdating PR and Job Numbers:');
-      print('PR Numbers: $prNumbers');
-      print('Job Numbers: $jobNumbers');
 
       // Determine inspection status based on items
       bool hasRejectedItems = false;
@@ -565,30 +687,24 @@ class _AddQualityInspectionPageState
         inspection.status = 'Pending';
       }
 
-      print('\nDetermined Inspection Status: ${inspection.status}');
-      print('Has Rejected Items: $hasRejectedItems');
-      print('Has Recheck Items: $hasRecheckItems');
-      print('All Items Accepted: $allItemsAccepted');
+      print('\nSaving inspection with status: ${inspection.status}');
 
       // Save the inspection
       ref.read(qualityInspectionProvider.notifier).addInspection(inspection);
-      print('\nQuality Inspection Saved Successfully');
-      print('Final Status: ${inspection.status}');
-      print('Final GRN No: ${inspection.grnNo}');
-      print('Final PO No: ${inspection.poNo}');
+
+      print('Inspection saved successfully');
 
       if (mounted) {
         Navigator.pop(context);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('\nError saving inspection: $e');
+      print('Stack trace: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving inspection: $e')),
         );
       }
-    } finally {
-      if (mounted) {}
     }
   }
 

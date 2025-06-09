@@ -11,6 +11,7 @@ import '../../models/purchase_request.dart';
 import '../../models/purchase_order.dart';
 import '../../models/store_inward.dart';
 import '../../models/po_item.dart';
+import '../../widgets/pluto_grid_configuration.dart';
 import 'add_purchase_request_page.dart';
 
 class PurchaseRequestListPage extends ConsumerStatefulWidget {
@@ -547,7 +548,7 @@ class _PurchaseRequestListPageState
             },
             tooltip: 'Refresh Page',
           ),
-          const SizedBox(width: 8), // Add some padding after the refresh button
+          const SizedBox(width: 8),
         ],
       ),
       body: requests.isEmpty
@@ -602,42 +603,7 @@ class _PurchaseRequestListPageState
                         stateManager = event.stateManager;
                         stateManager?.setShowColumnFilter(true);
                       },
-                      configuration: PlutoGridConfiguration(
-                        columnFilter: const PlutoGridColumnFilterConfig(
-                          filters: [
-                            ...FilterHelper.defaultFilters,
-                          ],
-                        ),
-                        style: PlutoGridStyleConfig(
-                          gridBorderColor: Colors.grey[700]!,
-                          gridBackgroundColor: Colors.grey[900]!,
-                          borderColor: Colors.grey[700]!,
-                          iconColor: Colors.grey[300]!,
-                          rowColor: Colors.grey[850]!,
-                          oddRowColor: Colors.grey[800]!,
-                          evenRowColor: Colors.grey[850]!,
-                          activatedColor: Colors.blue[900]!,
-                          cellTextStyle: TextStyle(
-                            color: Colors.grey[200]!,
-                            fontSize: 13,
-                          ),
-                          columnTextStyle: TextStyle(
-                            color: Colors.grey[200]!,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                          rowHeight: 45,
-                        ),
-                        columnSize: const PlutoGridColumnSizeConfig(
-                          autoSizeMode: PlutoAutoSizeMode.none,
-                          resizeMode: PlutoResizeMode.normal,
-                        ),
-                        scrollbar: const PlutoGridScrollbarConfig(
-                          isAlwaysShown: true,
-                          scrollbarThickness: 8,
-                          hoverWidth: 20,
-                        ),
-                      ),
+                      configuration: PlutoGridConfigurations.darkMode(),
                     ),
                   ),
                 ],

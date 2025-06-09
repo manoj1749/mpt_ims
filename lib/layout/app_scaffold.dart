@@ -119,7 +119,7 @@ class _AppScaffoldState extends State<AppScaffold> {
         page = const PurchaseOrderListPage();
         break;
       case 'Employee Details':
-        page = const EmployeeListPage();
+        page = EmployeeListPage();
         break;
       case 'Customer Master':
         page = const CustomerListPage();

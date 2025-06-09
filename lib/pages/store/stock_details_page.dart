@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mpt_ims/widgets/pluto_grid_configuration.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/material_item.dart';
 import '../../models/purchase_order.dart';
@@ -350,29 +351,7 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
                       columns: _getColumns(),
                       rows: _getRows(),
                       onLoaded: _onPlutoGridLoaded,
-                      configuration: PlutoGridConfiguration(
-                        columnFilter: const PlutoGridColumnFilterConfig(
-                          filters: [
-                            ...FilterHelper.defaultFilters,
-                          ],
-                        ),
-                        style: PlutoGridStyleConfig(
-                          gridBorderColor: Colors.grey[700]!,
-                          gridBackgroundColor: Colors.grey[900]!,
-                          borderColor: Colors.grey[700]!,
-                          iconColor: Colors.grey[300]!,
-                          rowColor: Colors.grey[850]!,
-                          oddRowColor: Colors.grey[800]!,
-                          evenRowColor: Colors.grey[850]!,
-                          activatedColor: Colors.blue[900]!,
-                          cellTextStyle: const TextStyle(color: Colors.white),
-                          columnTextStyle: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          rowHeight: 45,
-                        ),
-                      ),
+                      configuration: PlutoGridConfigurations.darkMode(),
                     ),
                   ),
                 ],
@@ -717,29 +696,7 @@ class MaterialStockDetailPage extends ConsumerWidget {
               child: PlutoGrid(
                 columns: _getStockColumns(),
                 rows: _getStockRows(ref),
-                configuration: PlutoGridConfiguration(
-                  columnFilter: const PlutoGridColumnFilterConfig(
-                    filters: [
-                      ...FilterHelper.defaultFilters,
-                    ],
-                  ),
-                  style: PlutoGridStyleConfig(
-                    gridBorderColor: Colors.grey[700]!,
-                    gridBackgroundColor: Colors.grey[900]!,
-                    borderColor: Colors.grey[700]!,
-                    iconColor: Colors.grey[300]!,
-                    rowColor: Colors.grey[850]!,
-                    oddRowColor: Colors.grey[800]!,
-                    evenRowColor: Colors.grey[850]!,
-                    activatedColor: Colors.blue[900]!,
-                    cellTextStyle: const TextStyle(color: Colors.white),
-                    columnTextStyle: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    rowHeight: 45,
-                  ),
-                ),
+                configuration: PlutoGridConfigurations.darkMode(),
               ),
             ),
             const SizedBox(height: 16),
@@ -752,29 +709,7 @@ class MaterialStockDetailPage extends ConsumerWidget {
               child: PlutoGrid(
                 columns: _getInspectionColumns(),
                 rows: _getInspectionRows(ref),
-                configuration: PlutoGridConfiguration(
-                  columnFilter: const PlutoGridColumnFilterConfig(
-                    filters: [
-                      ...FilterHelper.defaultFilters,
-                    ],
-                  ),
-                  style: PlutoGridStyleConfig(
-                    gridBorderColor: Colors.grey[700]!,
-                    gridBackgroundColor: Colors.grey[900]!,
-                    borderColor: Colors.grey[700]!,
-                    iconColor: Colors.grey[300]!,
-                    rowColor: Colors.grey[850]!,
-                    oddRowColor: Colors.grey[800]!,
-                    evenRowColor: Colors.grey[850]!,
-                    activatedColor: Colors.blue[900]!,
-                    cellTextStyle: const TextStyle(color: Colors.white),
-                    columnTextStyle: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    rowHeight: 45,
-                  ),
-                ),
+                configuration: PlutoGridConfigurations.darkMode(),
               ),
             ),
           ],

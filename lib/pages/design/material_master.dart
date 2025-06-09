@@ -8,6 +8,7 @@ import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:collection/collection.dart';
+import '../../widgets/pluto_grid_configuration.dart';
 
 class MaterialMasterPage extends ConsumerStatefulWidget {
   const MaterialMasterPage({super.key});
@@ -416,30 +417,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                           columns: _getColumns(context, ref),
                           rows: _getRows(materials, ref),
                           onLoaded: _onPlutoGridLoaded,
-                          configuration: PlutoGridConfiguration(
-                            columnFilter: const PlutoGridColumnFilterConfig(
-                              filters: [
-                                ...FilterHelper.defaultFilters,
-                              ],
-                            ),
-                            style: PlutoGridStyleConfig(
-                              gridBorderColor: Colors.grey[700]!,
-                              gridBackgroundColor: Colors.grey[900]!,
-                              borderColor: Colors.grey[700]!,
-                              iconColor: Colors.grey[300]!,
-                              rowColor: Colors.grey[850]!,
-                              oddRowColor: Colors.grey[800]!,
-                              evenRowColor: Colors.grey[850]!,
-                              activatedColor: Colors.blue[900]!,
-                              cellTextStyle:
-                                  const TextStyle(color: Colors.white),
-                              columnTextStyle: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              rowHeight: 45,
-                            ),
-                          ),
+                          configuration: PlutoGridConfigurations.darkMode(),
                         ),
                       ),
                     ],

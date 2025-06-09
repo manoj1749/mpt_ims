@@ -4,9 +4,12 @@ import 'package:mpt_ims/models/employee.dart';
 import 'package:mpt_ims/provider/employee_provider.dart';
 import 'add_employee_page.dart';
 import 'package:pluto_grid/pluto_grid.dart';
+import '../../widgets/pluto_grid_configuration.dart';
 
 class EmployeeListPage extends ConsumerWidget {
-  const EmployeeListPage({super.key});
+  EmployeeListPage({super.key});
+
+  PlutoGridStateManager? stateManager;
 
   List<PlutoColumn> _getColumns(BuildContext context, WidgetRef ref) {
     return [
@@ -280,31 +283,10 @@ class EmployeeListPage extends ConsumerWidget {
                       columns: _getColumns(context, ref),
                       rows: _getRows(employees),
                       onLoaded: (PlutoGridOnLoadedEvent event) {
-                        event.stateManager.setShowColumnFilter(true);
+                        stateManager = event.stateManager;
+                        stateManager?.setShowColumnFilter(true);
                       },
-                      configuration: PlutoGridConfiguration(
-                        columnFilter: const PlutoGridColumnFilterConfig(
-                          filters: [
-                            ...FilterHelper.defaultFilters,
-                          ],
-                        ),
-                        style: PlutoGridStyleConfig(
-                          gridBorderColor: Colors.grey[700]!,
-                          gridBackgroundColor: Colors.grey[900]!,
-                          borderColor: Colors.grey[700]!,
-                          iconColor: Colors.grey[300]!,
-                          rowColor: Colors.grey[850]!,
-                          oddRowColor: Colors.grey[800]!,
-                          evenRowColor: Colors.grey[850]!,
-                          activatedColor: Colors.blue[900]!,
-                          cellTextStyle: const TextStyle(color: Colors.white),
-                          columnTextStyle: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          rowHeight: 45,
-                        ),
-                      ),
+                      configuration: PlutoGridConfigurations.darkMode(),
                     ),
                   ),
                 ],

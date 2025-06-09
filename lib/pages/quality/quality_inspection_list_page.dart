@@ -8,6 +8,7 @@ import '../../models/quality_inspection.dart';
 import '../../provider/quality_inspection_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
 import 'add_quality_inspection_page.dart';
+import '../../widgets/pluto_grid_configuration.dart';
 
 class QualityInspectionListPage extends ConsumerStatefulWidget {
   const QualityInspectionListPage({super.key});
@@ -712,42 +713,7 @@ class _QualityInspectionListPageState
                             stateManager = event.stateManager;
                             stateManager?.setShowColumnFilter(true);
                           },
-                          configuration: PlutoGridConfiguration(
-                            columnFilter: const PlutoGridColumnFilterConfig(
-                              filters: [
-                                ...FilterHelper.defaultFilters,
-                              ],
-                            ),
-                            style: PlutoGridStyleConfig(
-                              gridBorderColor: Colors.grey[700]!,
-                              gridBackgroundColor: Colors.grey[900]!,
-                              borderColor: Colors.grey[700]!,
-                              iconColor: Colors.grey[300]!,
-                              rowColor: Colors.grey[850]!,
-                              oddRowColor: Colors.grey[800]!,
-                              evenRowColor: Colors.grey[850]!,
-                              activatedColor: Colors.blue[900]!,
-                              cellTextStyle: TextStyle(
-                                color: Colors.grey[200]!,
-                                fontSize: 13,
-                              ),
-                              columnTextStyle: TextStyle(
-                                color: Colors.grey[200]!,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                              rowHeight: 45,
-                            ),
-                            columnSize: const PlutoGridColumnSizeConfig(
-                              autoSizeMode: PlutoAutoSizeMode.none,
-                              resizeMode: PlutoResizeMode.normal,
-                            ),
-                            scrollbar: const PlutoGridScrollbarConfig(
-                              isAlwaysShown: true,
-                              scrollbarThickness: 8,
-                              hoverWidth: 20,
-                            ),
-                          ),
+                          configuration: PlutoGridConfigurations.darkMode(),
                         ),
                       ),
                     ),

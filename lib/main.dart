@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:mpt_ims/db/hive_initializer.dart';
 import 'package:mpt_ims/layout/app_scaffold.dart';
 import 'package:mpt_ims/models/customer.dart';
@@ -106,17 +107,21 @@ class IMSApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MPT IMS',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
-      home: isLoggedIn ? const AppScaffold() : const LoginPage(),
+    return ResponsiveSizer(
+      builder: (context, orientation, screenType) {
+        return MaterialApp(
+          title: 'MPT IMS',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.dark,
+            ),
+            useMaterial3: true,
+          ),
+          home: isLoggedIn ? const AppScaffold() : const LoginPage(),
+        );
+      },
     );
   }
 }

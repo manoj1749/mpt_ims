@@ -70,6 +70,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _controllers['storageLocation'] =
         TextEditingController(text: item.storageLocation);
     _controllers['rackNumber'] = TextEditingController(text: item.rackNumber);
+    _controllers['actualWeight'] = TextEditingController(text: item.actualWeight);
     _inspectionStockController = TextEditingController(text: '0');
 
     // Set initial category and subcategory if editing
@@ -154,6 +155,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         item.unit = _controllers['unit']!.text;
         item.storageLocation = _controllers['storageLocation']!.text;
         item.rackNumber = _controllers['rackNumber']!.text;
+        item.actualWeight = _controllers['actualWeight']!.text;
         item.category = _selectedCategory?.name ?? '';
         item.subCategory = _selectedSubCategory?.name ?? '';
 
@@ -189,7 +191,9 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   }
 
   Widget _buildTextField(String label, String field,
-      {TextInputType type = TextInputType.text}) {
+      {TextInputType type = TextInputType.text,
+      String? hint,
+      FormFieldValidator<String>? validator}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
@@ -197,10 +201,10 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
+          hintText: hint,
         ),
         keyboardType: type,
-        validator: (value) =>
-            value == null || value.isEmpty ? 'Required' : null,
+        validator: validator,
       ),
     );
   }
@@ -597,6 +601,23 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                     _buildTextField('Sl No', 'slNo'),
                     _buildTextField('Description', 'description'),
                     _buildTextField('Part No', 'partNo'),
+                    _buildTextField(
+                      'Actual Weight',
+                      'actualWeight',
+                      type: TextInputType.numberWithOptions(decimal: true),
+                      hint: 'Enter actual/finished goods weight',
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty) {
+                          if (double.tryParse(value) == null) {
+                            return 'Please enter a valid number';
+                          }
+                          if (double.parse(value) < 0) {
+                            return 'Weight cannot be negative';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
                     _buildTextField('Unit', 'unit'),
                     _buildTextField('Storage Location', 'storageLocation'),
                     _buildTextField('Rack Number', 'rackNumber'),

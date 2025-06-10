@@ -78,13 +78,12 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
   Widget _buildPOCard(PurchaseOrder order, int index) {
     final isExpanded = _expandedPOs.contains(order.poNo);
     final isFullyExpanded = _fullyExpandedPOs.contains(order.poNo);
-    
+
     // Get only PRs that are actually referenced in this PO's items
     final relatedPRs = ref
         .watch(purchaseRequestListProvider)
-        .where((pr) => order.items.any((poItem) => 
-          poItem.prDetails.values.any((detail) => detail.prNo == pr.prNo)
-        ))
+        .where((pr) => order.items.any((poItem) =>
+            poItem.prDetails.values.any((detail) => detail.prNo == pr.prNo)))
         .toList();
 
     return Card(
@@ -220,75 +219,75 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                         )),
                   ] else ...[
                     ...order.items.map((item) => Card(
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      color: Colors.grey[900],
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.materialDescription,
-                              style: const TextStyle(
-                                  fontSize: 13, color: Colors.white),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          color: Colors.grey[900],
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Quantity: ${item.quantity} ${item.unit}',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[300]),
+                                  item.materialDescription,
+                                  style: const TextStyle(
+                                      fontSize: 13, color: Colors.white),
                                 ),
-                                Text(
-                                  'Rate: ₹${item.costPerUnit}',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[300]),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Quantity: ${item.quantity} ${item.unit}',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[300]),
+                                    ),
+                                    Text(
+                                      'Rate: ₹${item.costPerUnit}',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[300]),
+                                    ),
+                                  ],
                                 ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Total Cost: ₹${item.totalCost}',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[300]),
+                                    ),
+                                  ],
+                                ),
+                                if (item.prDetails.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  const Divider(),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'PR References:',
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey[400]),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  ...item.prDetails.entries.map(
+                                    (entry) => Text(
+                                      entry.key == 'General'
+                                          ? 'General Stock (${entry.value.quantity} ${item.unit})'
+                                          : '${entry.value.prNo} (Job: ${entry.value.jobNo}) - ${entry.value.quantity} ${item.unit}',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[300]),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Total Cost: ₹${item.totalCost}',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[300]),
-                                ),
-                              ],
-                            ),
-                            if (item.prDetails.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              const Divider(),
-                              const SizedBox(height: 4),
-                              Text(
-                                'PR References:',
-                                style: TextStyle(
-                                    fontSize: 12, color: Colors.grey[400]),
-                              ),
-                              const SizedBox(height: 4),
-                              ...item.prDetails.entries.map(
-                                (entry) => Text(
-                                  entry.key == 'General' 
-                                    ? 'General Stock (${entry.value.quantity} ${item.unit})'
-                                    : '${entry.value.prNo} (Job: ${entry.value.jobNo}) - ${entry.value.quantity} ${item.unit}',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[300]),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    )),
+                          ),
+                        )),
                     if (relatedPRs.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       const Text(
@@ -301,28 +300,28 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                       ),
                       const SizedBox(height: 8),
                       ...relatedPRs.map((pr) => Card(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        color: Colors.grey[800],
-                        child: ListTile(
-                          title: Text(
-                            pr.prNo == 'General' 
-                              ? 'General Stock'
-                              : 'PR No: ${pr.prNo}${pr.jobNo != null && pr.jobNo!.isNotEmpty ? ' (Job: ${pr.jobNo})' : ''}',
-                            style: TextStyle(
-                                fontSize: 13, color: Colors.grey[300]),
-                          ),
-                          subtitle: Text(
-                            'Status: ${pr.status}',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey[400]),
-                          ),
-                          trailing: Text(
-                            'Items: ${pr.items.length}',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey[400]),
-                          ),
-                        ),
-                      )),
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            color: Colors.grey[800],
+                            child: ListTile(
+                              title: Text(
+                                pr.prNo == 'General'
+                                    ? 'General Stock'
+                                    : 'PR No: ${pr.prNo}${pr.jobNo != null && pr.jobNo!.isNotEmpty ? ' (Job: ${pr.jobNo})' : ''}',
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.grey[300]),
+                              ),
+                              subtitle: Text(
+                                'Status: ${pr.status}',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey[400]),
+                              ),
+                              trailing: Text(
+                                'Items: ${pr.items.length}',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey[400]),
+                              ),
+                            ),
+                          )),
                     ],
                   ],
                 ],

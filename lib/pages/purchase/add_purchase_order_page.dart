@@ -423,45 +423,57 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Checkbox(
-                        value: selectedPRs[material.partNo]?['General'] == true && 
-                          prItems.every((prItem) => 
-                            selectedPRs[material.partNo]?[prItem.prNo] == true),
+                        value: selectedPRs[material.partNo]?['General'] ==
+                                true &&
+                            prItems.every((prItem) =>
+                                selectedPRs[material.partNo]?[prItem.prNo] ==
+                                true),
                         tristate: true,
                         side: const BorderSide(color: Colors.black, width: 1.5),
                         onChanged: (_) {
                           setState(() {
                             // Check if all items (including General Stock) are currently selected
-                            final allSelected = selectedPRs[material.partNo]?['General'] == true && 
-                              prItems.every((prItem) => 
-                                selectedPRs[material.partNo]?[prItem.prNo] == true);
-                            
+                            final allSelected = selectedPRs[material.partNo]
+                                        ?['General'] ==
+                                    true &&
+                                prItems.every((prItem) =>
+                                    selectedPRs[material.partNo]
+                                        ?[prItem.prNo] ==
+                                    true);
+
                             // If all are selected, deselect all. Otherwise, select all
                             final newValue = !allSelected;
-                            
+
                             // Update General Stock
                             selectedPRs[material.partNo]!['General'] = newValue;
                             if (newValue) {
-                              prQtyControllers[material.partNo]!['General']?.text = '0';
+                              prQtyControllers[material.partNo]!['General']
+                                  ?.text = '0';
                             } else {
-                              prQtyControllers[material.partNo]!['General']?.text = '';
+                              prQtyControllers[material.partNo]!['General']
+                                  ?.text = '';
                             }
-                            
+
                             // Update PR items
                             for (var prItem in prItems) {
-                              selectedPRs[material.partNo]![prItem.prNo] = newValue;
-                              
+                              selectedPRs[material.partNo]![prItem.prNo] =
+                                  newValue;
+
                               // Update quantity
                               if (newValue) {
                                 final totalQty = double.parse(prItem.quantity);
-                                final orderedQty = prItem.orderedQuantities.entries
-                                    .where((e) => e.key != widget.existingPO?.poNo)
+                                final orderedQty = prItem
+                                    .orderedQuantities.entries
+                                    .where(
+                                        (e) => e.key != widget.existingPO?.poNo)
                                     .fold(0.0, (sum, e) => sum + e.value);
                                 final remainingQty = totalQty - orderedQty;
-                                
-                                prQtyControllers[material.partNo]![prItem.prNo]?.text = 
-                                    remainingQty.toString();
+
+                                prQtyControllers[material.partNo]![prItem.prNo]
+                                    ?.text = remainingQty.toString();
                               } else {
-                                prQtyControllers[material.partNo]![prItem.prNo]?.text = '0';
+                                prQtyControllers[material.partNo]![prItem.prNo]
+                                    ?.text = '0';
                               }
                             }
                           });
@@ -937,7 +949,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           selectedSupplier = val;
                           selectedPRs.clear();
                           prQtyControllers.clear();
-                          selectedJobs = ['All']; // Reset job filter when supplier changes
+                          selectedJobs = [
+                            'All'
+                          ]; // Reset job filter when supplier changes
                         });
                       },
                       dropdownStyleData: DropdownStyleData(
@@ -1083,7 +1097,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           (m) => m.partNo == entry.key,
                           orElse: () => throw Exception('Material not found'),
                         );
-                        
+
                         // Get the vendor rate for this material
                         final rates = ref
                             .read(vendorMaterialRateProvider.notifier)
@@ -1096,7 +1110,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
                         // Calculate total for general stock
                         if (entry.value['General'] == true) {
-                          final controller = prQtyControllers[entry.key]?['General'];
+                          final controller =
+                              prQtyControllers[entry.key]?['General'];
                           if (controller != null) {
                             final qty = double.tryParse(controller.text) ?? 0;
                             total += costPerUnit * qty;
@@ -1107,7 +1122,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         final prItems = materialPRItems[entry.key] ?? [];
                         for (var prItem in prItems) {
                           if (entry.value[prItem.prNo] == true) {
-                            final controller = prQtyControllers[entry.key]?[prItem.prNo];
+                            final controller =
+                                prQtyControllers[entry.key]?[prItem.prNo];
                             if (controller != null) {
                               final qty = double.tryParse(controller.text) ?? 0;
                               total += costPerUnit * qty;

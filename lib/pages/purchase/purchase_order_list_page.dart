@@ -21,24 +21,46 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
   final Set<String> _fullyExpandedPOs = {};
 
   List<PurchaseOrder> _filterOrders(List<PurchaseOrder> orders) {
+    if (_searchQuery.isEmpty) {
+      return orders.where((order) => _matchesStatus(order)).toList();
+    }
+
+    final searchLower = _searchQuery.toLowerCase();
     return orders.where((order) {
-      final matchesSearch = _searchQuery.isEmpty ||
-          order.poNo.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          order.supplierName
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase()) ||
-          order.items.any((item) => item.materialDescription
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase()));
+      // Check if matches status filter first
+      if (!_matchesStatus(order)) return false;
 
-      final matchesStatus = _selectedStatus == 'All' ||
-          (_selectedStatus == 'Active' &&
-              (order.status == 'Placed' ||
-                  order.status == 'Partially Received')) ||
-          order.status.toLowerCase() == _selectedStatus.toLowerCase();
+      // Search in PO details
+      if (order.poNo.toLowerCase().contains(searchLower)) return true;
+      if (order.supplierName.toLowerCase().contains(searchLower)) return true;
 
-      return matchesSearch && matchesStatus;
+      // Search in items
+      for (var item in order.items) {
+        // Check material description
+        if (item.materialDescription.toLowerCase().contains(searchLower)) return true;
+        // Check material code
+        if (item.materialCode.toLowerCase().contains(searchLower)) return true;
+
+        // Check PR details for job numbers
+        for (var prDetail in item.prDetails.values) {
+          // Check PR number
+          if (prDetail.prNo.toLowerCase().contains(searchLower)) return true;
+          // Check job number if it exists
+          if (prDetail.jobNo != null && 
+              prDetail.jobNo!.toLowerCase().contains(searchLower)) return true;
+        }
+      }
+
+      return false;
     }).toList();
+  }
+
+  bool _matchesStatus(PurchaseOrder order) {
+    return _selectedStatus == 'All' ||
+        (_selectedStatus == 'Active' &&
+            (order.status == 'Placed' ||
+                order.status == 'Partially Received')) ||
+        order.status.toLowerCase() == _selectedStatus.toLowerCase();
   }
 
   Widget _buildStatusBadge(String status) {
@@ -111,23 +133,15 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 8),
-                Text(
-                  'Supplier: ${order.supplierName}',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[300]),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Date: ${order.poDate}',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[300]),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Total: ${NumberFormat.currency(symbol: '₹', locale: 'en_IN', decimalDigits: 2).format(order.grandTotal)}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey[300],
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Supplier: ${order.supplierName} | Date: ${order.poDate} | Total: ${NumberFormat.currency(symbol: '₹', locale: 'en_IN', decimalDigits: 2).format(order.grandTotal)}',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[300]),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

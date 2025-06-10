@@ -25,13 +25,14 @@ class MaterialItemAdapter extends TypeAdapter<MaterialItem> {
       subCategory: fields[5] as String,
       storageLocation: fields[6] as String?,
       rackNumber: fields[7] as String?,
+      actualWeight: fields[8] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, MaterialItem obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.slNo)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class MaterialItemAdapter extends TypeAdapter<MaterialItem> {
       ..writeByte(6)
       ..write(obj.storageLocation)
       ..writeByte(7)
-      ..write(obj.rackNumber);
+      ..write(obj.rackNumber)
+      ..writeByte(8)
+      ..write(obj.actualWeight);
   }
 
   @override

@@ -1,7 +1,5 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-// ignore_for_file: avoid_print
-
 part of 'store_inward.dart';
 
 // **************************************************************************
@@ -84,45 +82,6 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-
-    // Handle legacy data formats
-    Map<String, Map<String, double>>? prQuantities;
-    if (fields[8] is double || fields[8] is String) {
-      prQuantities = {};
-    } else {
-      try {
-        prQuantities = InwardItem.castPRQuantities(fields[8]);
-      } catch (e) {
-        print('Error casting PR quantities: $e');
-        prQuantities = {};
-      }
-    }
-
-    Map<String, InspectionQuantityStatus>? inspectionStatus;
-    if (fields[9] is double || fields[9] is String) {
-      inspectionStatus = {};
-    } else {
-      try {
-        inspectionStatus =
-            (fields[9] as Map?)?.cast<String, InspectionQuantityStatus>();
-      } catch (e) {
-        print('Error casting inspection status: $e');
-        inspectionStatus = {};
-      }
-    }
-
-    Map<String, Map<String, String>>? prJobNumbers;
-    if (fields[10] is double || fields[10] is String) {
-      prJobNumbers = {};
-    } else {
-      try {
-        prJobNumbers = InwardItem.castPRJobNumbers(fields[10]);
-      } catch (e) {
-        print('Error casting PR job numbers: $e');
-        prJobNumbers = {};
-      }
-    }
-
     return InwardItem(
       materialCode: fields[0] as String,
       materialDescription: fields[1] as String,
@@ -132,9 +91,12 @@ class InwardItemAdapter extends TypeAdapter<InwardItem> {
       acceptedQty: fields[5] as double,
       rejectedQty: fields[6] as double,
       costPerUnit: fields[7] as String,
-      prQuantities: prQuantities,
-      inspectionStatus: inspectionStatus,
-      prJobNumbers: prJobNumbers,
+      prQuantities: (fields[8] as Map?)?.map((dynamic k, dynamic v) =>
+          MapEntry(k as String, (v as Map).cast<String, double>())),
+      inspectionStatus:
+          (fields[9] as Map?)?.cast<String, InspectionQuantityStatus>(),
+      prJobNumbers: (fields[10] as Map?)?.map((dynamic k, dynamic v) =>
+          MapEntry(k as String, (v as Map).cast<String, String>())),
     );
   }
 

@@ -1,7 +1,5 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-// ignore_for_file: avoid_print
-
 part of 'po_item.dart';
 
 // **************************************************************************
@@ -18,32 +16,6 @@ class POItemAdapter extends TypeAdapter<POItem> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-
-    // Handle legacy data formats
-    Map<String, ItemPRDetails>? prDetails;
-    if (fields[9] is double || fields[9] is String) {
-      prDetails = {};
-    } else {
-      try {
-        prDetails = POItem.castPRDetails(fields[9]);
-      } catch (e) {
-        print('Error casting PR details: $e');
-        prDetails = {};
-      }
-    }
-
-    Map<String, Map<String, double>>? receivedQuantities;
-    if (fields[10] is double || fields[10] is String) {
-      receivedQuantities = {};
-    } else {
-      try {
-        receivedQuantities = POItem.castReceivedQuantities(fields[10]);
-      } catch (e) {
-        print('Error casting received quantities: $e');
-        receivedQuantities = {};
-      }
-    }
-
     return POItem(
       materialCode: fields[0] as String,
       materialDescription: fields[1] as String,
@@ -54,8 +26,9 @@ class POItemAdapter extends TypeAdapter<POItem> {
       saleRate: fields[6] as String,
       marginPerUnit: fields[7] as String,
       totalMargin: fields[8] as String,
-      prDetails: prDetails,
-      receivedQuantities: receivedQuantities,
+      prDetails: (fields[9] as Map?)?.cast<String, ItemPRDetails>(),
+      receivedQuantities: (fields[10] as Map?)?.map((dynamic k, dynamic v) =>
+          MapEntry(k as String, (v as Map).cast<String, double>())),
     );
   }
 

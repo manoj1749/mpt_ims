@@ -163,6 +163,12 @@ class InspectionItem extends HiveObject {
   Map<String, InspectionGRNQuantity> grnQuantities =
       {}; // Store GRN-wise quantities and decisions
 
+  @HiveField(28)
+  String? inspectionRemark; // Remark for inspection
+
+  @HiveField(29)
+  bool capaRequired = false; // CAPA status for rejected/partially accepted lots
+
   InspectionItem({
     required this.materialCode,
     required this.materialDescription,
@@ -191,6 +197,8 @@ class InspectionItem extends HiveObject {
     this.invoiceDate = '',
     Map<String, Map<String, String>>? grnDetails,
     Map<String, InspectionGRNQuantity>? grnQuantities,
+    this.inspectionRemark,
+    this.capaRequired = false,
   }) {
     this.poQuantities = poQuantities ?? {};
     this.grnDetails = grnDetails ?? {};

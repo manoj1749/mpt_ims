@@ -356,29 +356,24 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                           onChanged: (value) {
                             final qty = double.tryParse(value) ?? 0;
 
-                            // Auto-adjust if exceeds pending qty
+                            // Only check if it exceeds pending quantity
                             if (qty > pendingQty) {
                               setState(() {
-                                prQtyControllers[material.partNo]![po.poNo]![
-                                        '_po']
-                                    ?.text = pendingQty.toString();
+                                prQtyControllers[material.partNo]![po.poNo]!['_po']?.text = pendingQty.toString();
                               });
                               return;
                             }
 
+                            // Show PR mapping if quantity is entered
                             setState(() {
-                              if (qty > 0 && qty < pendingQty) {
-                                selectedPRs[material.partNo]![po.poNo]![
-                                    '_showPRMapping'] = true;
+                              if (qty > 0) {
+                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = true;
                               } else {
-                                selectedPRs[material.partNo]![po.poNo]![
-                                    '_showPRMapping'] = false;
+                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = false;
                                 // Clear PR quantities
                                 for (var prNo in filteredPRDetails.keys) {
                                   if (prNo != '_po') {
-                                    prQtyControllers[material.partNo]![
-                                            po.poNo]![prNo]
-                                        ?.text = '0';
+                                    prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '0';
                                   }
                                 }
                               }
@@ -599,38 +594,21 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             final poQty =
                 double.tryParse(prControllers['_po']?.text ?? '0') ?? 0;
             if (poQty > 0) {
-              // Distribute PO quantity evenly among PRs that match selected jobs
-              final matchingPRs = poItem.prDetails.entries.where((entry) =>
-                  selectedJobs.contains('All') ||
-                  selectedJobs.contains(entry.value.jobNo));
+              // Use General PR for PO-level quantities
+              const prNo = 'General';
+              inwardItem.addPRQuantity(poNo, prNo, poQty);
+              totalReceivedQty += poQty;
+              inwardItem.addJobNumberForPR(poNo, prNo, 'General');
 
-              if (matchingPRs.isNotEmpty) {
-                final totalPRQty = matchingPRs.fold(
-                    0.0, (sum, entry) => sum + entry.value.quantity);
-
-                for (var prEntry in matchingPRs) {
-                  final prNo = prEntry.key;
-                  final prDetail = prEntry.value;
-                  final prQty =
-                      (poQty * prDetail.quantity / totalPRQty).roundToDouble();
-
-                  if (prQty > 0) {
-                    inwardItem.addPRQuantity(poNo, prNo, prQty);
-                    totalReceivedQty += prQty;
-                    inwardItem.addJobNumberForPR(poNo, prNo, prDetail.jobNo);
-
-                    // Update PO received quantities
-                    if (widget.existingGR != null) {
-                      poItem.receivedQuantities
-                          .remove('${widget.existingGR!.grnNo}_$prNo');
-                    }
-                    poItem.addReceivedQuantity('${grnNo}_$prNo', prQty);
-                  }
-                }
-                poNos.add(poNo); // Track PO number
-                continue;
+              // Update PO received quantities
+              if (widget.existingGR != null) {
+                poItem.receivedQuantities
+                    .remove('${widget.existingGR!.grnNo}_$prNo');
               }
+              poItem.addReceivedQuantity('${grnNo}_$prNo', poQty);
+              poNos.add(poNo); // Track PO number
             }
+            continue;
           }
 
           // Process PR-wise quantities

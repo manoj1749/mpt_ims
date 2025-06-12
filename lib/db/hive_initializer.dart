@@ -94,7 +94,8 @@ Future<void> clearIncompatibleData() async {
         Hive.deleteBoxFromDisk('subCategories'),
         Hive.deleteBoxFromDisk('qualities'),
         Hive.deleteBoxFromDisk('universal_parameters'),
-      Hive.deleteBoxFromDisk('schemaVersion'),
+        Hive.deleteBoxFromDisk('schemaVersion'),
+        Hive.deleteBoxFromDisk('stock_maintenance'),
       ]);
 
     // Create and initialize schema version box
@@ -120,6 +121,7 @@ Future<void> clearIncompatibleData() async {
         Hive.deleteBoxFromDisk('qualities'),
         Hive.deleteBoxFromDisk('universal_parameters'),
         Hive.deleteBoxFromDisk('schemaVersion'),
+        Hive.deleteBoxFromDisk('stock_maintenance'),
       ]);
     } catch (e) {
       print('Error deleting boxes: $e');

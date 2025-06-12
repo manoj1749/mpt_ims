@@ -86,6 +86,7 @@ void main() async {
         purchaseRequestBoxProvider.overrideWithValue(purchaseRequestBox),
         prPurchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
         storeInwardBoxProvider.overrideWithValue(storeInwardBox),
+        storeInwardMaterialBoxProvider.overrideWithValue(materialBox),
         vendorMaterialRateBoxProvider.overrideWithValue(vendorMaterialRateBox),
         qualityInspectionBoxProvider.overrideWithValue(qualityInspectionBox),
         saleOrderBoxProvider.overrideWithValue(saleOrderBox),

@@ -105,10 +105,27 @@ class StockMaintenance extends HiveObject {
 
   // Private method to update total stock value
   void _updateTotalStockValue() {
-    double total = 0.0;
-    for (var vendor in vendorDetails.values) {
-      total += vendor.quantity * vendor.rate;
+    if (currentStock <= 0) {
+      totalStockValue = 0.0;
+      return;
     }
+
+    // Calculate based on current stock and latest rates
+    double total = 0.0;
+    double remainingQty = currentStock;
+    
+    // Sort GRN details by date (newest first) to use latest rates
+    final sortedGRNs = grnDetails.entries.toList()
+      ..sort((a, b) => b.value.grnDate.compareTo(a.value.grnDate));
+
+    for (var grn in sortedGRNs) {
+      if (remainingQty <= 0) break;
+      
+      final qtyFromThisGRN = grn.value.acceptedQuantity.clamp(0, remainingQty);
+      total += qtyFromThisGRN * grn.value.rate;
+      remainingQty -= qtyFromThisGRN;
+    }
+
     totalStockValue = total;
   }
 

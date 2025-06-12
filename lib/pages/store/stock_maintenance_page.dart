@@ -9,12 +9,14 @@ class StockMaintenancePage extends ConsumerStatefulWidget {
   const StockMaintenancePage({super.key});
 
   @override
-  ConsumerState<StockMaintenancePage> createState() => _StockMaintenancePageState();
+  StockMaintenancePageState createState() => StockMaintenancePageState();
 }
 
-class _StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
+class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
   PlutoGridStateManager? stateManager;
   bool _isLoading = false;
+  final Map<String, bool> _expandedGRNs = {};
+  final Map<String, bool> _expandedPOs = {};
 
   List<PlutoRow> _buildRows(List<StockMaintenance> stocks) {
     return stocks.map((stock) {
@@ -28,7 +30,7 @@ class _StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
           'unit': PlutoCell(value: stock.unit),
           'location': PlutoCell(value: stock.storageLocation),
           'rack': PlutoCell(value: stock.rackNumber),
-          'value': PlutoCell(value: stock.totalStockValue),
+          'stockValue': PlutoCell(value: stock.currentStock > 0 ? stock.totalStockValue : 0),
           'avgRate': PlutoCell(value: stock.averageRate),
           'actions': PlutoCell(value: stock),
         },
@@ -112,28 +114,28 @@ class _StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
       ),
       PlutoColumn(
         title: 'Stock Value',
-        field: 'value',
-        type: PlutoColumnType.number(),
+        field: 'stockValue',
+        type: PlutoColumnType.text(),
         width: 120,
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          final value = rendererContext.cell.value as num;
-          return Text('₹${value.toStringAsFixed(2)}');
+        formatter: (value) {
+          if (value == null || value == 0) return '₹0.00';
+          return '₹${value.toStringAsFixed(2)}';
         },
       ),
       PlutoColumn(
         title: 'Avg. Rate',
         field: 'avgRate',
-        type: PlutoColumnType.number(),
+        type: PlutoColumnType.text(),
         width: 120,
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
-        renderer: (rendererContext) {
-          final value = rendererContext.cell.value as num;
-          return Text('₹${value.toStringAsFixed(2)}');
+        formatter: (value) {
+          if (value == null || value == 0) return '₹0.00';
+          return '₹${value.toStringAsFixed(2)}';
         },
       ),
       PlutoColumn(
@@ -151,7 +153,7 @@ class _StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
             children: [
               IconButton(
                 icon: const Icon(Icons.info_outline, size: 20),
-                onPressed: () => _showStockDetails(stock),
+                onPressed: () => _showStockDetails(context, stock.materialCode),
                 color: Colors.blue,
                 tooltip: 'View Details',
                 constraints: const BoxConstraints(
@@ -176,176 +178,84 @@ class _StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
     ];
   }
 
-  Future<void> _showStockDetails(StockMaintenance stock) async {
-    await showDialog(
+  void _showStockDetails(BuildContext context, String materialCode) {
+    final stock = ref.read(stockMaintenanceProvider.notifier)
+        .getStockForMaterial(materialCode);
+    if (stock == null) return;
+
+    showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Stock Details - ${stock.materialDescription}'),
-        content: SizedBox(
+      builder: (context) => Dialog(
+        child: Container(
           width: MediaQuery.of(context).size.width * 0.8,
           height: MediaQuery.of(context).size.height * 0.8,
-          child: DefaultTabController(
-            length: 5,
-            child: Column(
-              children: [
-                const TabBar(
-                  tabs: [
-                    Tab(text: 'GRN Details'),
-                    Tab(text: 'PO Details'),
-                    Tab(text: 'PR Details'),
-                    Tab(text: 'Job Details'),
-                    Tab(text: 'Vendor Details'),
-                  ],
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Stock Details - ${stock.materialDescription}',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _buildStockHistoryView(stock),
+              ),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
                 ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _buildGRNDetailsTable(stock),
-                      _buildPODetailsTable(stock),
-                      _buildPRDetailsTable(stock),
-                      _buildJobDetailsTable(stock),
-                      _buildVendorDetailsTable(stock),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
       ),
     );
   }
 
-  Widget _buildGRNDetailsTable(StockMaintenance stock) {
-    final columns = [
-      DataColumn(label: Text('GRN No')),
-      DataColumn(label: Text('Date')),
-      DataColumn(label: Text('Received')),
-      DataColumn(label: Text('Accepted')),
-      DataColumn(label: Text('Rejected')),
-      DataColumn(label: Text('Rate')),
-    ];
+  Widget _buildStockHistoryView(StockMaintenance stock) {
+    // Sort GRNs by date (newest first)
+    final sortedGRNs = stock.grnDetails.entries.toList()
+      ..sort((a, b) => b.value.grnDate.compareTo(a.value.grnDate));
 
-    final rows = stock.grnDetails.entries.map((entry) {
-      final grn = entry.value;
-      return DataRow(cells: [
-        DataCell(Text(grn.grnNo)),
-        DataCell(Text(grn.grnDate)),
-        DataCell(Text(grn.receivedQuantity.toString())),
-        DataCell(Text(grn.acceptedQuantity.toString())),
-        DataCell(Text(grn.rejectedQuantity.toString())),
-        DataCell(Text('₹${grn.rate.toStringAsFixed(2)}')),
-      ]);
-    }).toList();
+    return ListView.builder(
+      itemCount: sortedGRNs.length,
+      itemBuilder: (context, index) {
+        final grnEntry = sortedGRNs[index];
+        final grn = grnEntry.value;
+        
+        // Get vendor details
+        final vendorDetails = stock.vendorDetails[grn.vendorId];
+        final vendorName = vendorDetails?.vendorName ?? 'Unknown Vendor';
 
-    return SingleChildScrollView(
-      child: DataTable(columns: columns, rows: rows),
-    );
-  }
-
-  Widget _buildPODetailsTable(StockMaintenance stock) {
-    final columns = [
-      DataColumn(label: Text('PO No')),
-      DataColumn(label: Text('Date')),
-      DataColumn(label: Text('Ordered')),
-      DataColumn(label: Text('Received')),
-      DataColumn(label: Text('Rate')),
-    ];
-
-    final rows = stock.poDetails.entries.map((entry) {
-      final po = entry.value;
-      return DataRow(cells: [
-        DataCell(Text(po.poNo)),
-        DataCell(Text(po.poDate)),
-        DataCell(Text(po.orderedQuantity.toString())),
-        DataCell(Text(po.receivedQuantity.toString())),
-        DataCell(Text('₹${po.rate.toStringAsFixed(2)}')),
-      ]);
-    }).toList();
-
-    return SingleChildScrollView(
-      child: DataTable(columns: columns, rows: rows),
-    );
-  }
-
-  Widget _buildPRDetailsTable(StockMaintenance stock) {
-    final columns = [
-      DataColumn(label: Text('PR No')),
-      DataColumn(label: Text('Date')),
-      DataColumn(label: Text('Requested')),
-      DataColumn(label: Text('Ordered')),
-      DataColumn(label: Text('Received')),
-    ];
-
-    final rows = stock.prDetails.entries.map((entry) {
-      final pr = entry.value;
-      return DataRow(cells: [
-        DataCell(Text(pr.prNo)),
-        DataCell(Text(pr.prDate)),
-        DataCell(Text(pr.requestedQuantity.toString())),
-        DataCell(Text(pr.orderedQuantity.toString())),
-        DataCell(Text(pr.receivedQuantity.toString())),
-      ]);
-    }).toList();
-
-    return SingleChildScrollView(
-      child: DataTable(columns: columns, rows: rows),
-    );
-  }
-
-  Widget _buildJobDetailsTable(StockMaintenance stock) {
-    final columns = [
-      DataColumn(label: Text('Job No')),
-      DataColumn(label: Text('PR No')),
-      DataColumn(label: Text('Allocated')),
-      DataColumn(label: Text('Consumed')),
-      DataColumn(label: Text('Balance')),
-    ];
-
-    final rows = stock.jobDetails.entries.map((entry) {
-      final job = entry.value;
-      return DataRow(cells: [
-        DataCell(Text(job.jobNo)),
-        DataCell(Text(job.prNo)),
-        DataCell(Text(job.allocatedQuantity.toString())),
-        DataCell(Text(job.consumedQuantity.toString())),
-        DataCell(Text((job.allocatedQuantity - job.consumedQuantity).toString())),
-      ]);
-    }).toList();
-
-    return SingleChildScrollView(
-      child: DataTable(columns: columns, rows: rows),
-    );
-  }
-
-  Widget _buildVendorDetailsTable(StockMaintenance stock) {
-    final columns = [
-      DataColumn(label: Text('Vendor')),
-      DataColumn(label: Text('Quantity')),
-      DataColumn(label: Text('Rate')),
-      DataColumn(label: Text('Value')),
-      DataColumn(label: Text('Last Purchase')),
-    ];
-
-    final rows = stock.vendorDetails.entries.map((entry) {
-      final vendor = entry.value;
-      return DataRow(cells: [
-        DataCell(Text(vendor.vendorName)),
-        DataCell(Text(vendor.quantity.toString())),
-        DataCell(Text('₹${vendor.rate.toStringAsFixed(2)}')),
-        DataCell(Text('₹${vendor.totalValue.toStringAsFixed(2)}')),
-        DataCell(Text(vendor.lastPurchaseDate)),
-      ]);
-    }).toList();
-
-    return SingleChildScrollView(
-      child: DataTable(columns: columns, rows: rows),
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 8.0),
+          child: ExpansionTile(
+            title: Text('GRN: ${grnEntry.key}'),
+            subtitle: Text('Date: ${grn.grnDate}'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Vendor: $vendorName'),
+                    const SizedBox(height: 8),
+                    Text('Received: ${grn.receivedQuantity} ${stock.unit}'),
+                    Text('Accepted: ${grn.acceptedQuantity} ${stock.unit}'),
+                    Text('Rejected: ${grn.rejectedQuantity} ${stock.unit}'),
+                    Text('Rate: ₹${grn.rate.toStringAsFixed(2)}'),
+                    if (grn.acceptedQuantity > 0)
+                      Text('Value: ₹${(grn.acceptedQuantity * grn.rate).toStringAsFixed(2)}'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

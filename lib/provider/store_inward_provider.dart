@@ -38,7 +38,8 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
     // Find the highest GRN number
     _lastGRNNumber = _inwardBox.values.fold(0, (maxNum, inward) {
-      final grnNum = int.tryParse(inward.grnNo.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      final grnNum =
+          int.tryParse(inward.grnNo.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
       return grnNum > maxNum ? grnNum : maxNum;
     });
   }
@@ -56,7 +57,9 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
     await _inwardBox.add(inward);
 
     // Update stock maintenance
-    await ref.read(stockMaintenanceProvider.notifier).updateStockFromGRN(inward);
+    await ref
+        .read(stockMaintenanceProvider.notifier)
+        .updateStockFromGRN(inward);
 
     // Update state
     state = [..._inwardBox.values];
@@ -75,7 +78,9 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
       await _reverseStockUpdate(oldInward);
     }
     // Then apply the new GRN's effect
-    await ref.read(stockMaintenanceProvider.notifier).updateStockFromGRN(inward);
+    await ref
+        .read(stockMaintenanceProvider.notifier)
+        .updateStockFromGRN(inward);
 
     // Update state
     state = [..._inwardBox.values];
@@ -95,13 +100,13 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
   // Helper method to reverse a GRN's effect on stock
   Future<void> _reverseStockUpdate(StoreInward inward) async {
     final stockProvider = ref.read(stockMaintenanceProvider.notifier);
-    
+
     for (var item in inward.items) {
       final stock = stockProvider.getStockForMaterial(item.materialCode);
       if (stock != null) {
         // Reverse the stock quantities
         stock.updateCurrentStock(stock.currentStock - item.acceptedQty);
-        stock.updateStockUnderInspection(stock.stockUnderInspection - 
+        stock.updateStockUnderInspection(stock.stockUnderInspection -
             (item.receivedQty - (item.acceptedQty + item.rejectedQty)));
 
         // Remove GRN details
@@ -111,10 +116,10 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
         for (var poNo in item.prQuantities.keys) {
           bool hasOtherGRsForPO = _inwardBox.values
               .where((gr) => gr.grnNo != inward.grnNo)
-              .any((gr) => gr.items
-                  .any((i) => i.materialCode == item.materialCode && 
-                      i.prQuantities.containsKey(poNo)));
-          
+              .any((gr) => gr.items.any((i) =>
+                  i.materialCode == item.materialCode &&
+                  i.prQuantities.containsKey(poNo)));
+
           if (!hasOtherGRsForPO) {
             stock.poDetails.remove(poNo);
           }
@@ -126,10 +131,10 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
           for (var prNo in poEntry.value.keys) {
             bool hasOtherGRsForPR = _inwardBox.values
                 .where((gr) => gr.grnNo != inward.grnNo)
-                .any((gr) => gr.items
-                    .any((i) => i.materialCode == item.materialCode && 
-                        i.prQuantities[poNo]?.containsKey(prNo) == true));
-            
+                .any((gr) => gr.items.any((i) =>
+                    i.materialCode == item.materialCode &&
+                    i.prQuantities[poNo]?.containsKey(prNo) == true));
+
             if (!hasOtherGRsForPR) {
               stock.prDetails.remove(prNo);
             }
@@ -141,10 +146,10 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
         for (var jobNo in jobsToCheck) {
           bool hasOtherGRsForJob = _inwardBox.values
               .where((gr) => gr.grnNo != inward.grnNo)
-              .any((gr) => gr.items
-                  .any((i) => i.materialCode == item.materialCode && 
-                      i.getJobNumbers().contains(jobNo)));
-          
+              .any((gr) => gr.items.any((i) =>
+                  i.materialCode == item.materialCode &&
+                  i.getJobNumbers().contains(jobNo)));
+
           if (!hasOtherGRsForJob) {
             stock.jobDetails.remove(jobNo);
           }
@@ -182,9 +187,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
   // Get all inwards for a specific PO
   List<StoreInward> getInwardsForPO(String poNo) {
-    return _inwardBox.values
-        .where((inward) => inward.poNo == poNo)
-        .toList();
+    return _inwardBox.values.where((inward) => inward.poNo == poNo).toList();
   }
 
   // Get all inwards between two dates
@@ -206,7 +209,8 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
         .fold(0.0, (sum, inward) {
       final item =
           inward.items.firstWhere((item) => item.materialCode == materialCode);
-      return sum + item.prQuantities[poNo]!.values.fold(0.0, (sum, qty) => sum + qty);
+      return sum +
+          item.prQuantities[poNo]!.values.fold(0.0, (sum, qty) => sum + qty);
     });
   }
 
@@ -255,7 +259,8 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
       // Also update stock maintenance
       ref.read(stockMaintenanceProvider.notifier);
-      final stockBox = await Hive.openBox<StockMaintenance>('stock_maintenance');
+      final stockBox =
+          await Hive.openBox<StockMaintenance>('stock_maintenance');
       final stocks = stockBox.values.toList();
       for (var stock in stocks) {
         stock.poDetails.remove(poNo);
@@ -269,7 +274,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
   Future<void> deleteGR(String grnNo) async {
     try {
       final inward = _inwardBox.values.firstWhere((gr) => gr.grnNo == grnNo);
-      
+
       // Get all PO numbers from this GR
       final poNumbers = <String>{};
       for (var item in inward.items) {

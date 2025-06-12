@@ -117,7 +117,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       child: Column(
         children: [
           ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             dense: true,
             title: Row(
               crossAxisAlignment: CrossAxisAlignment.center,

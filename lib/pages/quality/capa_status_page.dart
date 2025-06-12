@@ -118,8 +118,10 @@ class _CapaStatusPageState extends ConsumerState<CapaStatusPage> {
 
   List<PlutoRow> _getRows(List<QualityInspection> inspections) {
     // Filter inspections that require CAPA
-    final capaInspections = inspections.where((inspection) =>
-        inspection.items.any((item) => item.capaRequired == true)).toList();
+    final capaInspections = inspections
+        .where((inspection) =>
+            inspection.items.any((item) => item.capaRequired == true))
+        .toList();
 
     // Filter based on search query if any
     final filteredInspections = _searchQuery.isEmpty
@@ -129,8 +131,9 @@ class _CapaStatusPageState extends ConsumerState<CapaStatusPage> {
             return inspection.grnNo.toLowerCase().contains(searchLower) ||
                 inspection.poNo.toLowerCase().contains(searchLower) ||
                 inspection.supplierName.toLowerCase().contains(searchLower) ||
-                inspection.items.any((item) =>
-                    item.materialDescription.toLowerCase().contains(searchLower));
+                inspection.items.any((item) => item.materialDescription
+                    .toLowerCase()
+                    .contains(searchLower));
           }).toList();
 
     final rows = <PlutoRow>[];
@@ -151,7 +154,10 @@ class _CapaStatusPageState extends ConsumerState<CapaStatusPage> {
                 'inspectionDate': PlutoCell(value: inspection.inspectionDate),
                 'usageDecision': PlutoCell(value: item.usageDecision),
                 'capaStatus': PlutoCell(
-                    value: item.inspectionRemark?.contains('CAPA Completed') ?? false ? 'Completed' : 'Pending'),
+                    value: item.inspectionRemark?.contains('CAPA Completed') ??
+                            false
+                        ? 'Completed'
+                        : 'Pending'),
                 'remarks': PlutoCell(
                     value: item.inspectionRemark?.isEmpty ?? true
                         ? '-'
@@ -243,4 +249,4 @@ class _CapaStatusPageState extends ConsumerState<CapaStatusPage> {
       ),
     );
   }
-} 
+}

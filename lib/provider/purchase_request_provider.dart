@@ -37,13 +37,11 @@ class PurchaseRequestNotifier extends StateNotifier<List<PurchaseRequest>> {
 
   Future<bool> deleteRequest(PurchaseRequest request) async {
     // Check if PR has partial or completed orders
-    if (request.status == 'Partially Ordered' || request.status == 'Completed') {
+    if (request.status == 'Partially Ordered' ||
+        request.status == 'Completed') {
       // Check if any PO exists for this PR
-      bool hasActivePO = poBox.values.any((po) => 
-        po.items.any((poItem) => 
-          poItem.prDetails.containsKey(request.prNo)
-        )
-      );
+      bool hasActivePO = poBox.values.any((po) =>
+          po.items.any((poItem) => poItem.prDetails.containsKey(request.prNo)));
 
       if (hasActivePO) {
         return false; // Cannot delete PR while PO exists

@@ -64,14 +64,18 @@ void main() async {
   final employeeBox = Hive.box<Employee>('employees');
   final customerBox = Hive.box<Customer>('customers');
   final storeInwardBox = Hive.box<StoreInward>('store_inward');
-  final vendorMaterialRateBox = Hive.box<VendorMaterialRate>('vendorMaterialRates');
-  final qualityInspectionBox = Hive.box<QualityInspection>('qualityInspections');
+  final vendorMaterialRateBox =
+      Hive.box<VendorMaterialRate>('vendorMaterialRates');
+  final qualityInspectionBox =
+      Hive.box<QualityInspection>('qualityInspections');
   final saleOrderBox = Hive.box<SaleOrder>('saleOrders');
-  final categoryParameterBox = Hive.box<CategoryParameterMapping>('categoryParameterMappings');
+  final categoryParameterBox =
+      Hive.box<CategoryParameterMapping>('categoryParameterMappings');
   final categoryBox = Hive.box<Category>('categories');
   final subCategoryBox = Hive.box<SubCategory>('subCategories');
   final qualityBox = Hive.box<Quality>('qualities');
-  final universalParameterBox = Hive.box<UniversalParameter>('universalParameters');
+  final universalParameterBox =
+      Hive.box<UniversalParameter>('universalParameters');
   final stockMaintenanceBox = Hive.box<StockMaintenance>('stock_maintenance');
 
   final user = FirebaseAuth.instance.currentUser;

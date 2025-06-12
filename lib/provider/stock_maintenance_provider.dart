@@ -15,7 +15,7 @@ final stockMaintenanceProvider =
 
 class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
   late Box<StockMaintenance> _stockBox;
-  
+
   @override
   List<StockMaintenance> build() {
     _stockBox = ref.watch(stockMaintenanceBoxProvider);
@@ -68,7 +68,7 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
       // Update stock details
       stock.addGRNDetails(grn.grnNo, grnDetails);
-      
+
       // Update vendor details
       final vendorDetails = StockVendorDetails(
         vendorId: grn.supplierName,
@@ -125,7 +125,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
       // Update current stock and inspection stock
       stock.updateCurrentStock(item.acceptedQty);
-      stock.updateStockUnderInspection(item.receivedQty - (item.acceptedQty + item.rejectedQty));
+      stock.updateStockUnderInspection(
+          item.receivedQty - (item.acceptedQty + item.rejectedQty));
 
       // Save to Hive if it's a new stock entry
       if (!_stockBox.values.contains(stock)) {
@@ -180,14 +181,14 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
     final stock = getStockForMaterial(materialCode);
     if (stock != null && stock.currentStock >= quantity) {
       stock.updateCurrentStock(stock.currentStock - quantity);
-      
+
       // Update job consumption if job exists
       if (stock.jobDetails.containsKey(jobNo)) {
         final jobDetails = stock.jobDetails[jobNo]!;
         jobDetails.consumedQuantity += quantity;
       }
-      
+
       state = [..._stockBox.values];
     }
   }
-} 
+}

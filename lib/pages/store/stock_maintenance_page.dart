@@ -29,7 +29,8 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
           'unit': PlutoCell(value: stock.unit),
           'location': PlutoCell(value: stock.storageLocation),
           'rack': PlutoCell(value: stock.rackNumber),
-          'stockValue': PlutoCell(value: stock.currentStock > 0 ? stock.totalStockValue : 0),
+          'stockValue': PlutoCell(
+              value: stock.currentStock > 0 ? stock.totalStockValue : 0),
           'avgRate': PlutoCell(value: stock.averageRate),
           'actions': PlutoCell(value: stock),
         },
@@ -178,7 +179,8 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
   }
 
   void _showStockDetails(BuildContext context, String materialCode) {
-    final stock = ref.read(stockMaintenanceProvider.notifier)
+    final stock = ref
+        .read(stockMaintenanceProvider.notifier)
         .getStockForMaterial(materialCode);
     if (stock == null) return;
 
@@ -224,7 +226,7 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
       itemBuilder: (context, index) {
         final grnEntry = sortedGRNs[index];
         final grn = grnEntry.value;
-        
+
         // Get vendor details
         final vendorDetails = stock.vendorDetails[grn.vendorId];
         final vendorName = vendorDetails?.vendorName ?? 'Unknown Vendor';
@@ -247,7 +249,8 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
                     Text('Rejected: ${grn.rejectedQuantity} ${stock.unit}'),
                     Text('Rate: ₹${grn.rate.toStringAsFixed(2)}'),
                     if (grn.acceptedQuantity > 0)
-                      Text('Value: ₹${(grn.acceptedQuantity * grn.rate).toStringAsFixed(2)}'),
+                      Text(
+                          'Value: ₹${(grn.acceptedQuantity * grn.rate).toStringAsFixed(2)}'),
                   ],
                 ),
               ),
@@ -259,7 +262,8 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
   }
 
   Future<void> _editLocation(StockMaintenance stock) async {
-    final locationController = TextEditingController(text: stock.storageLocation);
+    final locationController =
+        TextEditingController(text: stock.storageLocation);
     final rackController = TextEditingController(text: stock.rackNumber);
 
     await showDialog(
@@ -287,7 +291,9 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
           ),
           TextButton(
             onPressed: () async {
-              await ref.read(stockMaintenanceProvider.notifier).updateStockLocation(
+              await ref
+                  .read(stockMaintenanceProvider.notifier)
+                  .updateStockLocation(
                     stock.materialCode,
                     locationController.text,
                     rackController.text,
@@ -346,4 +352,4 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
       ),
     );
   }
-} 
+}

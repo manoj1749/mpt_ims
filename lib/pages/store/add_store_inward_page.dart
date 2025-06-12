@@ -359,7 +359,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             // Only check if it exceeds pending quantity
                             if (qty > pendingQty) {
                               setState(() {
-                                prQtyControllers[material.partNo]![po.poNo]!['_po']?.text = pendingQty.toString();
+                                prQtyControllers[material.partNo]![po.poNo]![
+                                        '_po']
+                                    ?.text = pendingQty.toString();
                               });
                               return;
                             }
@@ -367,13 +369,17 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             // Show PR mapping if quantity is entered
                             setState(() {
                               if (qty > 0) {
-                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = true;
+                                selectedPRs[material.partNo]![po.poNo]![
+                                    '_showPRMapping'] = true;
                               } else {
-                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = false;
+                                selectedPRs[material.partNo]![po.poNo]![
+                                    '_showPRMapping'] = false;
                                 // Clear PR quantities
                                 for (var prNo in filteredPRDetails.keys) {
                                   if (prNo != '_po') {
-                                    prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '0';
+                                    prQtyControllers[material.partNo]![
+                                            po.poNo]![prNo]
+                                        ?.text = '0';
                                   }
                                 }
                               }

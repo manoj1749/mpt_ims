@@ -38,7 +38,8 @@ class StockMaintenance extends HiveObject {
   late Map<String, StockJobDetails> jobDetails; // Job-wise stock details
 
   @HiveField(11)
-  late Map<String, StockVendorDetails> vendorDetails; // Vendor-wise stock details
+  late Map<String, StockVendorDetails>
+      vendorDetails; // Vendor-wise stock details
 
   @HiveField(12)
   double totalStockValue; // Total value of current stock
@@ -113,14 +114,14 @@ class StockMaintenance extends HiveObject {
     // Calculate based on current stock and latest rates
     double total = 0.0;
     double remainingQty = currentStock;
-    
+
     // Sort GRN details by date (newest first) to use latest rates
     final sortedGRNs = grnDetails.entries.toList()
       ..sort((a, b) => b.value.grnDate.compareTo(a.value.grnDate));
 
     for (var grn in sortedGRNs) {
       if (remainingQty <= 0) break;
-      
+
       final qtyFromThisGRN = grn.value.acceptedQuantity.clamp(0, remainingQty);
       total += qtyFromThisGRN * grn.value.rate;
       remainingQty -= qtyFromThisGRN;
@@ -277,4 +278,4 @@ class StockVendorDetails {
   });
 
   double get totalValue => quantity * rate;
-} 
+}

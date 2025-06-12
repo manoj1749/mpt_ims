@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -37,8 +39,9 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       // Search in items
       for (var item in order.items) {
         // Check material description
-        if (item.materialDescription.toLowerCase().contains(searchLower))
+        if (item.materialDescription.toLowerCase().contains(searchLower)) {
           return true;
+        }
         // Check material code
         if (item.materialCode.toLowerCase().contains(searchLower)) return true;
 
@@ -148,20 +151,6 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  icon: Icon(Icons.edit, color: Colors.grey[300]),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddPurchaseOrderPage(
-                          existingPO: order,
-                          index: index,
-                        ),
-                      ),
-                    );
-                  },
-                ),
                 IconButton(
                   icon: Icon(Icons.delete, color: Colors.grey[300]),
                   onPressed: () =>
@@ -352,24 +341,46 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Purchase Order'),
+        backgroundColor: Colors.grey[850],
+        title: Text('Delete Purchase Order',
+            style: TextStyle(color: Colors.grey[200])),
         content: Text(
           'Are you sure you want to delete purchase order ${order.poNo}?',
+          style: TextStyle(color: Colors.grey[200]),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[200])),
           ),
           FilledButton(
-            onPressed: () {
-              ref.read(purchaseOrderListProvider.notifier).deleteOrder(index);
+            onPressed: () async {
+              final success = await ref
+                  .read(purchaseOrderListProvider.notifier)
+                  .deleteOrder(order);
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Purchase order deleted successfully'),
-                ),
-              );
+
+              if (success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Purchase order ${order.poNo} deleted successfully',
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                    backgroundColor: Colors.white,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Cannot delete PO ${order.poNo} - It has received items',
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                    backgroundColor: Colors.white,
+                  ),
+                );
+              }
             },
             style: FilledButton.styleFrom(
               backgroundColor: Colors.red,

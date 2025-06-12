@@ -14,6 +14,7 @@ import 'package:mpt_ims/pages/purchase/purchase_order_list_page.dart';
 import 'package:mpt_ims/pages/store/stock_details_page.dart';
 import 'package:mpt_ims/pages/store/store_inward_list_page.dart';
 import 'package:mpt_ims/pages/quality/quality_inspection_list_page.dart';
+import 'package:mpt_ims/pages/quality/capa_status_page.dart';
 import 'package:mpt_ims/pages/sales/sale_order_list_page.dart';
 
 class AppScaffold extends StatefulWidget {
@@ -91,6 +92,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     10: [
       'Incoming Inspection',
       'Final Inspection',
+      'CAPA Status',
     ],
   };
 
@@ -129,6 +131,9 @@ class _AppScaffoldState extends State<AppScaffold> {
         break;
       case 'Incoming Inspection':
         page = const QualityInspectionListPage();
+        break;
+      case 'CAPA Status':
+        page = const CapaStatusPage();
         break;
       case 'Sale order Details':
         page = const SaleOrderListPage();

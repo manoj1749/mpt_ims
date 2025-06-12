@@ -604,7 +604,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                     _buildTextField(
                       'Actual Weight',
                       'actualWeight',
-                      type: TextInputType.numberWithOptions(decimal: true),
+                      type: const TextInputType.numberWithOptions(decimal: true),
                       hint: 'Enter actual/finished goods weight',
                       validator: (value) {
                         if (value != null && value.isNotEmpty) {

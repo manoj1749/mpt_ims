@@ -46,8 +46,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
           // Check PR number
           if (prDetail.prNo.toLowerCase().contains(searchLower)) return true;
           // Check job number if it exists
-          if (prDetail.jobNo != null && 
-              prDetail.jobNo!.toLowerCase().contains(searchLower)) return true;
+          if (prDetail.jobNo.toLowerCase().contains(searchLower)) return true;
         }
       }
 

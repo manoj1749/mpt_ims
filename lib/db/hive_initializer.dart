@@ -68,24 +68,24 @@ Future<void> initializeHive() async {
 Future<void> clearIncompatibleData() async {
   try {
     // Delete all boxes
-    await Future.wait([
-      Hive.deleteBoxFromDisk('customers'),
-      Hive.deleteBoxFromDisk('employees'),
-      Hive.deleteBoxFromDisk('materials'),
-      Hive.deleteBoxFromDisk('purchaseOrders'),
-      Hive.deleteBoxFromDisk('purchaseRequests'),
-      Hive.deleteBoxFromDisk('storeInwards'),
-      Hive.deleteBoxFromDisk('suppliers'),
-      Hive.deleteBoxFromDisk('vendorMaterialRates'),
-      Hive.deleteBoxFromDisk('qualityInspections'),
-      Hive.deleteBoxFromDisk('categoryParameterMappings'),
-      Hive.deleteBoxFromDisk('saleOrders'),
-      Hive.deleteBoxFromDisk('categories'),
-      Hive.deleteBoxFromDisk('subCategories'),
-      Hive.deleteBoxFromDisk('qualities'),
-      Hive.deleteBoxFromDisk('universal_parameters'),
+      await Future.wait([
+        Hive.deleteBoxFromDisk('customers'),
+        Hive.deleteBoxFromDisk('employees'),
+        Hive.deleteBoxFromDisk('materials'),
+        Hive.deleteBoxFromDisk('purchaseOrders'),
+        Hive.deleteBoxFromDisk('purchaseRequests'),
+        Hive.deleteBoxFromDisk('storeInwards'),
+        Hive.deleteBoxFromDisk('suppliers'),
+        Hive.deleteBoxFromDisk('vendorMaterialRates'),
+        Hive.deleteBoxFromDisk('qualityInspections'),
+        Hive.deleteBoxFromDisk('categoryParameterMappings'),
+        Hive.deleteBoxFromDisk('saleOrders'),
+        Hive.deleteBoxFromDisk('categories'),
+        Hive.deleteBoxFromDisk('subCategories'),
+        Hive.deleteBoxFromDisk('qualities'),
+        Hive.deleteBoxFromDisk('universal_parameters'),
       Hive.deleteBoxFromDisk('schemaVersion'),
-    ]);
+      ]);
 
     // Create and initialize schema version box
     final box = await Hive.openBox('schemaVersion');

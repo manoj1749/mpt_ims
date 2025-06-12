@@ -83,17 +83,17 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         border: Border.all(color: color.withOpacity(0.5)),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         status,
         style: TextStyle(
           color: color,
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -112,39 +112,50 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
         .toList();
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       color: Colors.grey[850],
       child: Column(
         children: [
           ListTile(
-            contentPadding: const EdgeInsets.all(16),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            dense: true,
             title: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
                   order.poNo,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 14,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 _buildStatusBadge(order.status),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Supplier: ${order.supplierName}',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[300]),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(
+                  NumberFormat.currency(
+                    symbol: '₹',
+                    locale: 'en_IN',
+                    decimalDigits: 2,
+                  ).format(order.grandTotal),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[300]),
+                ),
               ],
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Supplier: ${order.supplierName} | Date: ${order.poDate} | Total: ${NumberFormat.currency(symbol: '₹', locale: 'en_IN', decimalDigits: 2).format(order.grandTotal)}',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[300]),
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Date: ${order.poDate}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                 ),
               ],
             ),
@@ -153,6 +164,12 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
               children: [
                 IconButton(
                   icon: Icon(Icons.delete, color: Colors.grey[300]),
+                  iconSize: 20,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                   onPressed: () =>
                       _showDeleteConfirmation(context, ref, index, order),
                 ),
@@ -164,6 +181,12 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                             ? Icons.expand_less
                             : Icons.more_horiz),
                     color: Colors.grey[300],
+                  ),
+                  iconSize: 20,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
                   ),
                   onPressed: () {
                     setState(() {
@@ -183,9 +206,9 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
             ),
           ),
           if (isExpanded) ...[
-            Divider(height: 1, color: Colors.grey[700]),
+            Divider(height: 0, thickness: 1, color: Colors.grey[700]),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -193,14 +216,14 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                     'Items',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontSize: 13,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   if (!isFullyExpanded) ...[
                     ...order.items.map((item) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.symmetric(vertical: 2),
                           child: Row(
                             children: [
                               Expanded(
@@ -208,33 +231,34 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                                 child: Text(
                                   item.materialDescription,
                                   style: TextStyle(
-                                      fontSize: 13, color: Colors.grey[300]),
+                                      fontSize: 12, color: Colors.grey[300]),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 '${item.quantity} ${item.unit}',
                                 style: TextStyle(
-                                    fontSize: 13, color: Colors.grey[300]),
+                                    fontSize: 12, color: Colors.grey[300]),
                               ),
                             ],
                           ),
                         )),
                   ] else ...[
                     ...order.items.map((item) => Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          margin: const EdgeInsets.symmetric(vertical: 4),
                           color: Colors.grey[900],
                           child: Padding(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(8),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   item.materialDescription,
                                   style: const TextStyle(
-                                      fontSize: 13, color: Colors.white),
+                                      fontSize: 12, color: Colors.white),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 4),
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
@@ -406,7 +430,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
               children: [
                 Expanded(
@@ -422,8 +446,9 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                       filled: true,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 0,
+                        vertical: 8,
                       ),
+                      isDense: true,
                     ),
                     style: const TextStyle(color: Colors.white),
                     onChanged: (value) {
@@ -433,7 +458,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                     },
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 8),
                 Theme(
                   data: Theme.of(context).copyWith(
                     canvasColor: Colors.grey[850],
@@ -442,6 +467,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                     value: _selectedStatus,
                     dropdownColor: Colors.grey[850],
                     style: const TextStyle(color: Colors.white),
+                    isDense: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     items: [
                       'Active',
                       'Placed',
@@ -500,6 +527,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                   )
                 : ListView.builder(
                     itemCount: filteredOrders.length,
+                    padding: const EdgeInsets.only(bottom: 72),
                     itemBuilder: (context, index) {
                       final order = filteredOrders[index];
                       return _buildPOCard(

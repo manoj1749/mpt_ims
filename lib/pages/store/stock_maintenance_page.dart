@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
@@ -14,9 +16,6 @@ class StockMaintenancePage extends ConsumerStatefulWidget {
 
 class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
   PlutoGridStateManager? stateManager;
-  bool _isLoading = false;
-  final Map<String, bool> _expandedGRNs = {};
-  final Map<String, bool> _expandedPOs = {};
 
   List<PlutoRow> _buildRows(List<StockMaintenance> stocks) {
     return stocks.map((stock) {

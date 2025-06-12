@@ -5,7 +5,6 @@ import '../models/material_item.dart';
 import '../models/purchase_order.dart';
 import '../models/stock_maintenance.dart';
 import '../provider/stock_maintenance_provider.dart';
-import 'package:intl/intl.dart';
 
 final storeInwardBoxProvider = Provider<Box<StoreInward>>((ref) {
   throw UnimplementedError();
@@ -22,13 +21,11 @@ final storeInwardMaterialBoxProvider = Provider<Box<MaterialItem>>((ref) {
 
 class StoreInwardNotifier extends Notifier<List<StoreInward>> {
   late Box<StoreInward> _inwardBox;
-  late Box<MaterialItem> _materialBox;
   int _lastGRNNumber = 0;
 
   @override
   List<StoreInward> build() {
     _inwardBox = ref.watch(storeInwardBoxProvider);
-    _materialBox = ref.watch(storeInwardMaterialBoxProvider);
     _initializeLastGRNNumber();
     return _inwardBox.values.toList();
   }
@@ -192,7 +189,6 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
   // Get all inwards between two dates
   List<StoreInward> getInwardsBetweenDates(DateTime start, DateTime end) {
-    final dateFormat = DateFormat('yyyy-MM-dd');
     return _inwardBox.values.where((inward) {
       final grnDate = DateTime.tryParse(inward.grnDate);
       return grnDate != null &&
@@ -258,7 +254,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
       await poBox.close();
 
       // Also update stock maintenance
-      final stockProvider = ref.read(stockMaintenanceProvider.notifier);
+      ref.read(stockMaintenanceProvider.notifier);
       final stockBox = await Hive.openBox<StockMaintenance>('stock_maintenance');
       final stocks = stockBox.values.toList();
       for (var stock in stocks) {

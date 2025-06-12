@@ -1,15 +1,14 @@
 // ignore_for_file: avoid_print
 
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:mpt_ims/models/customer.dart';
-import 'package:mpt_ims/models/employee.dart';
-import 'package:mpt_ims/models/material_item.dart';
-import 'package:mpt_ims/models/po_item.dart';
-import 'package:mpt_ims/models/purchase_order.dart';
-import 'package:mpt_ims/models/purchase_request.dart';
-import 'package:mpt_ims/models/pr_item.dart';
-import 'package:mpt_ims/models/store_inward.dart';
+import 'package:hive/hive.dart';
 import '../models/supplier.dart';
+import '../models/material_item.dart';
+import '../models/customer.dart';
+import '../models/purchase_order.dart';
+import '../models/po_item.dart';
+import '../models/store_inward.dart';
+import '../models/purchase_request.dart';
+import '../models/pr_item.dart';
 import '../models/vendor_material_rate.dart';
 import '../models/quality_inspection.dart';
 import '../models/category_parameter_mapping.dart';
@@ -18,6 +17,8 @@ import '../models/category.dart';
 import '../models/sub_category.dart';
 import '../models/quality.dart';
 import '../models/universal_parameter.dart';
+import '../models/employee.dart';
+import '../models/stock_maintenance.dart';
 
 Future<void> initializeHive() async {
   // Register adapters first
@@ -44,6 +45,14 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(EmployeeAdapter());
   Hive.registerAdapter(InspectionQuantityStatusAdapter());
   Hive.registerAdapter(ItemPRDetailsAdapter());
+  
+  // Register stock maintenance adapters
+  Hive.registerAdapter(StockMaintenanceAdapter());
+  Hive.registerAdapter(StockGRNDetailsAdapter());
+  Hive.registerAdapter(StockPODetailsAdapter());
+  Hive.registerAdapter(StockPRDetailsAdapter());
+  Hive.registerAdapter(StockJobDetailsAdapter());
+  Hive.registerAdapter(StockVendorDetailsAdapter());
 
   // Then open boxes
   await Future.wait([
@@ -51,7 +60,7 @@ Future<void> initializeHive() async {
     Hive.openBox<MaterialItem>('materials'),
     Hive.openBox<Customer>('customers'),
     Hive.openBox<PurchaseOrder>('purchaseOrders'),
-    Hive.openBox<StoreInward>('storeInwards'),
+    Hive.openBox<StoreInward>('store_inward'),
     Hive.openBox<PurchaseRequest>('purchaseRequests'),
     Hive.openBox<VendorMaterialRate>('vendorMaterialRates'),
     Hive.openBox<QualityInspection>('qualityInspections'),
@@ -62,6 +71,7 @@ Future<void> initializeHive() async {
     Hive.openBox<Quality>('qualities'),
     Hive.openBox<UniversalParameter>('universalParameters'),
     Hive.openBox<Employee>('employees'),
+    Hive.openBox<StockMaintenance>('stock_maintenance'),
   ]);
 }
 
@@ -74,7 +84,7 @@ Future<void> clearIncompatibleData() async {
         Hive.deleteBoxFromDisk('materials'),
         Hive.deleteBoxFromDisk('purchaseOrders'),
         Hive.deleteBoxFromDisk('purchaseRequests'),
-        Hive.deleteBoxFromDisk('storeInwards'),
+        Hive.deleteBoxFromDisk('store_inward'),
         Hive.deleteBoxFromDisk('suppliers'),
         Hive.deleteBoxFromDisk('vendorMaterialRates'),
         Hive.deleteBoxFromDisk('qualityInspections'),
@@ -99,7 +109,7 @@ Future<void> clearIncompatibleData() async {
         Hive.deleteBoxFromDisk('materials'),
         Hive.deleteBoxFromDisk('purchaseOrders'),
         Hive.deleteBoxFromDisk('purchaseRequests'),
-        Hive.deleteBoxFromDisk('storeInwards'),
+        Hive.deleteBoxFromDisk('store_inward'),
         Hive.deleteBoxFromDisk('suppliers'),
         Hive.deleteBoxFromDisk('vendorMaterialRates'),
         Hive.deleteBoxFromDisk('qualityInspections'),

@@ -1,43 +1,45 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
-import 'package:mpt_ims/db/hive_initializer.dart';
-import 'package:mpt_ims/layout/app_scaffold.dart';
-import 'package:mpt_ims/models/customer.dart';
-import 'package:mpt_ims/models/material_item.dart';
-import 'package:mpt_ims/models/purchase_order.dart';
-import 'package:mpt_ims/models/purchase_request.dart';
-import 'package:mpt_ims/models/store_inward.dart';
-import 'package:mpt_ims/models/supplier.dart';
-import 'package:mpt_ims/models/employee.dart';
-import 'package:mpt_ims/models/quality_inspection.dart';
-import 'package:mpt_ims/models/category_parameter_mapping.dart';
-import 'package:mpt_ims/provider/customer_provider.dart';
-import 'package:mpt_ims/provider/employee_provider.dart';
-import 'package:mpt_ims/provider/material_provider.dart';
-import 'package:mpt_ims/provider/purchase_order.dart';
-import 'package:mpt_ims/provider/purchase_request_provider.dart';
-import 'package:mpt_ims/provider/store_inward_provider.dart';
-import 'package:mpt_ims/provider/supplier_provider.dart';
-import 'package:mpt_ims/provider/quality_inspection_provider.dart';
-import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
-import 'package:mpt_ims/provider/category_parameter_provider.dart';
-import 'package:mpt_ims/models/vendor_material_rate.dart';
-import 'package:mpt_ims/models/category.dart';
-import 'package:mpt_ims/models/sub_category.dart';
-import 'package:mpt_ims/models/quality.dart';
-import 'package:mpt_ims/provider/category_provider.dart';
-import 'package:mpt_ims/provider/sub_category_provider.dart';
-import 'package:mpt_ims/provider/quality_provider.dart';
-import 'package:mpt_ims/provider/universal_parameter_provider.dart';
-import 'firebase_options.dart'; // From Firebase setup
-import 'pages/login_page.dart'; // We'll create this
-import 'package:mpt_ims/models/sale_order.dart';
-import 'package:mpt_ims/provider/sale_order_provider.dart';
-import 'package:mpt_ims/models/universal_parameter.dart';
+import 'db/hive_initializer.dart';
+import 'layout/app_scaffold.dart';
+import 'models/supplier.dart';
+import 'models/material_item.dart';
+import 'models/customer.dart';
+import 'models/purchase_order.dart';
+import 'models/store_inward.dart';
+import 'models/purchase_request.dart';
+import 'models/vendor_material_rate.dart';
+import 'models/quality_inspection.dart';
+import 'models/category_parameter_mapping.dart';
+import 'models/category.dart';
+import 'models/sub_category.dart';
+import 'models/quality.dart';
+import 'models/employee.dart';
+import 'models/sale_order.dart';
+import 'models/universal_parameter.dart';
+import 'models/stock_maintenance.dart';
+import 'provider/supplier_provider.dart';
+import 'provider/material_provider.dart';
+import 'provider/customer_provider.dart';
+import 'provider/purchase_order.dart';
+import 'provider/store_inward_provider.dart';
+import 'provider/purchase_request_provider.dart';
+import 'provider/vendor_material_rate_provider.dart';
+import 'provider/quality_inspection_provider.dart';
+import 'provider/category_parameter_provider.dart';
+import 'provider/category_provider.dart';
+import 'provider/sub_category_provider.dart';
+import 'provider/quality_provider.dart';
+import 'provider/employee_provider.dart';
+import 'provider/sale_order_provider.dart';
+import 'provider/stock_maintenance_provider.dart';
+import 'provider/universal_parameter_provider.dart';
+import 'firebase_options.dart';
+import 'pages/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,19 +63,16 @@ void main() async {
   final purchaseOrderBox = Hive.box<PurchaseOrder>('purchaseOrders');
   final employeeBox = Hive.box<Employee>('employees');
   final customerBox = Hive.box<Customer>('customers');
-  final storeInwardBox = Hive.box<StoreInward>('storeInwards');
-  final vendorMaterialRateBox =
-      Hive.box<VendorMaterialRate>('vendorMaterialRates');
-  final qualityInspectionBox =
-      Hive.box<QualityInspection>('qualityInspections');
+  final storeInwardBox = Hive.box<StoreInward>('store_inward');
+  final vendorMaterialRateBox = Hive.box<VendorMaterialRate>('vendorMaterialRates');
+  final qualityInspectionBox = Hive.box<QualityInspection>('qualityInspections');
   final saleOrderBox = Hive.box<SaleOrder>('saleOrders');
-  final categoryParameterBox =
-      Hive.box<CategoryParameterMapping>('categoryParameterMappings');
+  final categoryParameterBox = Hive.box<CategoryParameterMapping>('categoryParameterMappings');
   final categoryBox = Hive.box<Category>('categories');
   final subCategoryBox = Hive.box<SubCategory>('subCategories');
   final qualityBox = Hive.box<Quality>('qualities');
-  final universalParameterBox =
-      Hive.box<UniversalParameter>('universalParameters');
+  final universalParameterBox = Hive.box<UniversalParameter>('universalParameters');
+  final stockMaintenanceBox = Hive.box<StockMaintenance>('stock_maintenance');
 
   final user = FirebaseAuth.instance.currentUser;
 
@@ -82,11 +81,10 @@ void main() async {
       overrides: [
         supplierBoxProvider.overrideWithValue(supplierBox),
         materialBoxProvider.overrideWithValue(materialBox),
-        purchaseRequestBoxProvider.overrideWithValue(purchaseRequestBox),
-        purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
-        prPurchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
-        employeeBoxProvider.overrideWithValue(employeeBox),
         customerBoxProvider.overrideWithValue(customerBox),
+        purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
+        purchaseRequestBoxProvider.overrideWithValue(purchaseRequestBox),
+        prPurchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
         storeInwardBoxProvider.overrideWithValue(storeInwardBox),
         vendorMaterialRateBoxProvider.overrideWithValue(vendorMaterialRateBox),
         qualityInspectionBoxProvider.overrideWithValue(qualityInspectionBox),
@@ -96,6 +94,8 @@ void main() async {
         subCategoryBoxProvider.overrideWithValue(subCategoryBox),
         qualityBoxProvider.overrideWithValue(qualityBox),
         universalParameterBoxProvider.overrideWithValue(universalParameterBox),
+        employeeBoxProvider.overrideWithValue(employeeBox),
+        stockMaintenanceBoxProvider.overrideWithValue(stockMaintenanceBox),
       ],
       child: IMSApp(isLoggedIn: user != null),
     ),

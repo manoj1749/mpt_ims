@@ -122,13 +122,15 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
           MapEntry(k as String, (v as Map).cast<String, String>())),
       grnQuantities:
           (fields[27] as Map?)?.cast<String, InspectionGRNQuantity>(),
+      inspectionRemark: fields[28] as String?,
+      capaRequired: fields[29] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, InspectionItem obj) {
     writer
-      ..writeByte(27)
+      ..writeByte(29)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -182,7 +184,11 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       ..writeByte(26)
       ..write(obj.grnDetails)
       ..writeByte(27)
-      ..write(obj.grnQuantities);
+      ..write(obj.grnQuantities)
+      ..writeByte(28)
+      ..write(obj.inspectionRemark)
+      ..writeByte(29)
+      ..write(obj.capaRequired);
   }
 
   @override

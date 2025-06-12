@@ -724,9 +724,18 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                             onChanged: (value) {
                               if (!isSelected) return;
                               final qty = double.tryParse(value);
-                              if (qty != null && qty > remainingQty) {
-                                prQtyControllers[material.partNo]?[prItem.prNo]
-                                    ?.text = remainingQty.toString();
+                              if (qty != null) {
+                                if (qty > remainingQty) {
+                                  prQtyControllers[material.partNo]?[prItem.prNo]
+                                      ?.text = remainingQty.toString();
+                                  value = remainingQty.toString();
+                                }
+                                // Update the PO item quantity and invoice amount
+                                final poItem = poItems.firstWhere(
+                                  (item) => item.materialCode == material.partNo,
+                                  orElse: () => throw Exception('PO Item not found'),
+                                );
+                                poItem.updateQuantity(value);
                               }
                               setState(() {});
                             },

@@ -241,6 +241,15 @@ class InwardItem {
     return prQuantities[poNo]!.values.fold(0.0, (sum, qty) => sum + qty);
   }
 
+  // Get all job numbers associated with this item
+  Set<String> getJobNumbers() {
+    final jobs = <String>{};
+    for (var poEntry in prJobNumbers.entries) {
+      jobs.addAll(poEntry.value.values);
+    }
+    return jobs;
+  }
+
   InwardItem({
     required this.materialCode,
     required this.materialDescription,

@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/store_inward.dart';
 import '../models/material_item.dart';
+import '../models/purchase_order.dart';
+import '../models/stock_maintenance.dart';
 import '../provider/stock_maintenance_provider.dart';
 import 'package:intl/intl.dart';
 
@@ -14,6 +16,10 @@ final storeInwardProvider =
   () => StoreInwardNotifier(),
 );
 
+final storeInwardMaterialBoxProvider = Provider<Box<MaterialItem>>((ref) {
+  return Hive.box<MaterialItem>('materials');
+});
+
 class StoreInwardNotifier extends Notifier<List<StoreInward>> {
   late Box<StoreInward> _inwardBox;
   late Box<MaterialItem> _materialBox;
@@ -21,8 +27,8 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
   @override
   List<StoreInward> build() {
-    _inwardBox = Hive.box<StoreInward>('store_inward');
-    _materialBox = Hive.box<MaterialItem>('materials');
+    _inwardBox = ref.watch(storeInwardBoxProvider);
+    _materialBox = ref.watch(storeInwardMaterialBoxProvider);
     _initializeLastGRNNumber();
     return _inwardBox.values.toList();
   }
@@ -104,6 +110,49 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
         // Remove GRN details
         stock.grnDetails.remove(inward.grnNo);
 
+        // Remove PO details if this was the only GR for that PO
+        for (var poNo in item.prQuantities.keys) {
+          bool hasOtherGRsForPO = _inwardBox.values
+              .where((gr) => gr.grnNo != inward.grnNo)
+              .any((gr) => gr.items
+                  .any((i) => i.materialCode == item.materialCode && 
+                      i.prQuantities.containsKey(poNo)));
+          
+          if (!hasOtherGRsForPO) {
+            stock.poDetails.remove(poNo);
+          }
+        }
+
+        // Remove PR details if this was the only GR for those PRs
+        for (var poEntry in item.prQuantities.entries) {
+          final poNo = poEntry.key;
+          for (var prNo in poEntry.value.keys) {
+            bool hasOtherGRsForPR = _inwardBox.values
+                .where((gr) => gr.grnNo != inward.grnNo)
+                .any((gr) => gr.items
+                    .any((i) => i.materialCode == item.materialCode && 
+                        i.prQuantities[poNo]?.containsKey(prNo) == true));
+            
+            if (!hasOtherGRsForPR) {
+              stock.prDetails.remove(prNo);
+            }
+          }
+        }
+
+        // Remove job details if this was the only GR for those jobs
+        final jobsToCheck = item.getJobNumbers();
+        for (var jobNo in jobsToCheck) {
+          bool hasOtherGRsForJob = _inwardBox.values
+              .where((gr) => gr.grnNo != inward.grnNo)
+              .any((gr) => gr.items
+                  .any((i) => i.materialCode == item.materialCode && 
+                      i.getJobNumbers().contains(jobNo)));
+          
+          if (!hasOtherGRsForJob) {
+            stock.jobDetails.remove(jobNo);
+          }
+        }
+
         // Update vendor details
         if (stock.vendorDetails.containsKey(inward.supplierName)) {
           final vendorDetails = stock.vendorDetails[inward.supplierName]!;
@@ -112,6 +161,9 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
             stock.vendorDetails.remove(inward.supplierName);
           }
         }
+
+        // Save the updated stock
+        await stock.save();
       }
     }
   }
@@ -178,5 +230,71 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
       }
     }
     return total;
+  }
+
+  // Check and delete PO if no GRs exist for it
+  Future<void> deletePOIfNoGRs(String poNo) async {
+    // Check if any GR exists for this PO
+    bool hasGRs = false;
+    for (var inward in _inwardBox.values) {
+      for (var item in inward.items) {
+        if (item.prQuantities.containsKey(poNo)) {
+          hasGRs = true;
+          break;
+        }
+      }
+      if (hasGRs) break;
+    }
+
+    // If no GRs exist, delete the PO
+    if (!hasGRs) {
+      final poBox = await Hive.openBox<PurchaseOrder>('purchase_orders');
+      try {
+        final po = poBox.values.firstWhere((po) => po.poNo == poNo);
+        await po.delete();
+      } catch (e) {
+        // PO not found, which is fine in this case
+      }
+      await poBox.close();
+
+      // Also update stock maintenance
+      final stockProvider = ref.read(stockMaintenanceProvider.notifier);
+      final stockBox = await Hive.openBox<StockMaintenance>('stock_maintenance');
+      final stocks = stockBox.values.toList();
+      for (var stock in stocks) {
+        stock.poDetails.remove(poNo);
+        stock.save();
+      }
+      await stockBox.close();
+    }
+  }
+
+  // Delete GR and update related data
+  Future<void> deleteGR(String grnNo) async {
+    try {
+      final inward = _inwardBox.values.firstWhere((gr) => gr.grnNo == grnNo);
+      
+      // Get all PO numbers from this GR
+      final poNumbers = <String>{};
+      for (var item in inward.items) {
+        poNumbers.addAll(item.prQuantities.keys);
+      }
+
+      // First reverse the stock updates
+      await _reverseStockUpdate(inward);
+
+      // Delete the GR
+      await inward.delete();
+
+      // Check and delete POs that might have no more GRs
+      for (var poNo in poNumbers) {
+        await deletePOIfNoGRs(poNo);
+      }
+
+      state = _inwardBox.values.toList();
+    } catch (e) {
+      // GR not found
+      return;
+    }
   }
 }

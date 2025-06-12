@@ -267,39 +267,6 @@ class _PurchaseRequestListPageState
                 height: 40,
                 child: IconButton(
                   padding: EdgeInsets.zero,
-                  icon: Icon(Icons.edit, color: Colors.grey[200], size: 20),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddPurchaseRequestPage(
-                          existingRequest: request,
-                          index: ref
-                              .read(purchaseRequestListProvider)
-                              .indexOf(request),
-                        ),
-                      ),
-                    ).then((_) {
-                      // Refresh the grid after returning from edit page
-                      if (stateManager != null) {
-                        final requests = ref.read(purchaseRequestListProvider);
-                        final purchaseOrders =
-                            ref.read(purchaseOrderListProvider);
-                        final storeInwards = ref.read(storeInwardProvider);
-                        stateManager!.removeAllRows();
-                        stateManager!.appendRows(
-                            _getRows(requests, purchaseOrders, storeInwards));
-                      }
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 40,
-                height: 40,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
                   icon: Icon(Icons.delete, color: Colors.grey[200], size: 20),
                   onPressed: () {
                     _showDeleteConfirmation(context, ref, request);
@@ -419,27 +386,42 @@ class _PurchaseRequestListPageState
           ),
           TextButton(
             onPressed: () async {
-              await ref
+              final success = await ref
                   .read(purchaseRequestListProvider.notifier)
                   .deleteRequest(request);
               Navigator.pop(context);
 
-              // Refresh grid rows
-              if (stateManager != null) {
-                final requests = ref.read(purchaseRequestListProvider);
-                final purchaseOrders = ref.read(purchaseOrderListProvider);
-                final storeInwards = ref.read(storeInwardProvider);
-                stateManager!.removeAllRows();
-                stateManager!.appendRows(
-                    _getRows(requests, purchaseOrders, storeInwards));
-              }
+              if (success) {
+                // Refresh grid rows if deletion was successful
+                if (stateManager != null) {
+                  final requests = ref.read(purchaseRequestListProvider);
+                  final purchaseOrders = ref.read(purchaseOrderListProvider);
+                  final storeInwards = ref.read(storeInwardProvider);
+                  stateManager!.removeAllRows();
+                  stateManager!.appendRows(
+                      _getRows(requests, purchaseOrders, storeInwards));
+                }
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Purchase request deleted successfully'),
-                  backgroundColor: Colors.grey[850],
-                ),
-              );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Purchase request ${request.prNo} deleted successfully',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    backgroundColor: Colors.black,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Cannot delete PR ${request.prNo} - It has active Purchase Orders',
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                    backgroundColor: Colors.white,
+                  ),
+                );
+              }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Delete'),

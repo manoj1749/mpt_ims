@@ -200,7 +200,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         );
 
         // Initialize General PR if needed
-        if (poItem.prDetails.isEmpty || poItem.prDetails.containsKey('General')) {
+        if (poItem.prDetails.isEmpty ||
+            poItem.prDetails.containsKey('General')) {
           selectedPRs[material.partNo]![po.poNo]!['General'] = false;
           prQtyControllers[material.partNo]![po.poNo]!['General'] =
               TextEditingController(text: '0');
@@ -208,7 +209,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
         for (var prDetail in poItem.prDetails.entries) {
           final prNo = prDetail.key;
-          if (prNo != 'General') {  // Skip General PR here as it's handled above
+          if (prNo != 'General') {
+            // Skip General PR here as it's handled above
             // Show PR if its job matches any selected job or if 'All' is selected
             if (selectedJobs.contains('All') ||
                 selectedJobs.contains(prDetail.value.jobNo)) {
@@ -366,11 +368,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             // Allow empty value during editing
                             if (value.isEmpty) {
                               setState(() {
-                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = false;
+                                selectedPRs[material.partNo]![po.poNo]![
+                                    '_showPRMapping'] = false;
                                 // Clear PR quantities
                                 for (var prNo in filteredPRDetails.keys) {
                                   if (prNo != '_po') {
-                                    prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '';
+                                    prQtyControllers[material.partNo]![
+                                            po.poNo]![prNo]
+                                        ?.text = '';
                                   }
                                 }
                               });
@@ -379,13 +384,16 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             }
 
                             final qty = double.tryParse(value) ?? 0;
-                            
+
                             // Auto-adjust if exceeds pending quantity
                             if (qty > pendingQty) {
                               // Update outside setState to avoid flicker
-                              prQtyControllers[material.partNo]![po.poNo]!['_po']!.text = pendingQty.toString();
+                              prQtyControllers[material.partNo]![po.poNo]![
+                                      '_po']!
+                                  .text = pendingQty.toString();
                               setState(() {
-                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = false;
+                                selectedPRs[material.partNo]![po.poNo]![
+                                    '_showPRMapping'] = false;
                               });
                               _updateInvoiceAmount();
                               return;
@@ -394,35 +402,49 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             setState(() {
                               // If quantity equals pending quantity, don't show PR mapping
                               if (qty == pendingQty) {
-                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = false;
-                                
+                                selectedPRs[material.partNo]![po.poNo]![
+                                    '_showPRMapping'] = false;
+
                                 // If there's only General PR, put all quantity there
-                                if (poItem.prDetails.isEmpty || (poItem.prDetails.length == 1 && poItem.prDetails.containsKey('General'))) {
-                                  prQtyControllers[material.partNo]![po.poNo]!['General']?.text = qty.toString();
+                                if (poItem.prDetails.isEmpty ||
+                                    (poItem.prDetails.length == 1 &&
+                                        poItem.prDetails
+                                            .containsKey('General'))) {
+                                  prQtyControllers[material.partNo]![po.poNo]![
+                                          'General']
+                                      ?.text = qty.toString();
                                   // Clear other PR quantities if any
                                   for (var prNo in filteredPRDetails.keys) {
                                     if (prNo != '_po' && prNo != 'General') {
-                                      prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '';
+                                      prQtyControllers[material.partNo]![
+                                              po.poNo]![prNo]
+                                          ?.text = '';
                                     }
                                   }
                                 }
                               } else if (qty > 0) {
                                 // Show PR mapping for partial quantities
-                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = true;
-                                
+                                selectedPRs[material.partNo]![po.poNo]![
+                                    '_showPRMapping'] = true;
+
                                 // Clear existing PR quantities when showing mapping
                                 for (var prNo in filteredPRDetails.keys) {
                                   if (prNo != '_po') {
-                                    prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '';
+                                    prQtyControllers[material.partNo]![
+                                            po.poNo]![prNo]
+                                        ?.text = '';
                                   }
                                 }
                               } else {
                                 // Hide PR mapping for zero quantity
-                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = false;
+                                selectedPRs[material.partNo]![po.poNo]![
+                                    '_showPRMapping'] = false;
                                 // Clear PR quantities
                                 for (var prNo in filteredPRDetails.keys) {
                                   if (prNo != '_po') {
-                                    prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '';
+                                    prQtyControllers[material.partNo]![
+                                            po.poNo]![prNo]
+                                        ?.text = '';
                                   }
                                 }
                               }
@@ -432,8 +454,13 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                           },
                           onEditingComplete: () {
                             // Set to '0' if empty when focus is lost
-                            if (prQtyControllers[material.partNo]![po.poNo]!['_po']!.text.isEmpty) {
-                              prQtyControllers[material.partNo]![po.poNo]!['_po']!.text = '0';
+                            if (prQtyControllers[material.partNo]![po.poNo]![
+                                    '_po']!
+                                .text
+                                .isEmpty) {
+                              prQtyControllers[material.partNo]![po.poNo]![
+                                      '_po']!
+                                  .text = '0';
                               _updateInvoiceAmount();
                             }
                           },
@@ -556,44 +583,68 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                       }
 
                                       final qty = double.tryParse(value) ?? 0;
-                                      
+
                                       // Auto-adjust if exceeds pending qty
                                       if (qty > prPendingQty) {
                                         // Update outside setState
-                                        prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = prPendingQty.toString();
+                                        prQtyControllers[material.partNo]![
+                                                po.poNo]![prNo]
+                                            ?.text = prPendingQty.toString();
                                       }
 
                                       // Calculate total from PR quantities
                                       double total = 0;
                                       // First calculate non-General PR quantities
-                                      for (var prEntry in filteredPRDetails.entries) {
+                                      for (var prEntry
+                                          in filteredPRDetails.entries) {
                                         final currentPrNo = prEntry.key;
                                         if (currentPrNo != 'General') {
                                           final prQty = double.tryParse(
-                                              prQtyControllers[material.partNo]![po.poNo]![currentPrNo]?.text ?? '') ?? 0;
+                                                  prQtyControllers[material
+                                                                      .partNo]![
+                                                                  po.poNo]![
+                                                              currentPrNo]
+                                                          ?.text ??
+                                                      '') ??
+                                              0;
                                           total += prQty;
                                         }
                                       }
-                                      
+
                                       // Then add General PR quantity if it exists
-                                      if (prQtyControllers[material.partNo]![po.poNo]!.containsKey('General')) {
+                                      if (prQtyControllers[material.partNo]![
+                                              po.poNo]!
+                                          .containsKey('General')) {
                                         final generalQty = double.tryParse(
-                                            prQtyControllers[material.partNo]![po.poNo]!['General']?.text ?? '') ?? 0;
+                                                prQtyControllers[material
+                                                                .partNo]![
+                                                            po.poNo]!['General']
+                                                        ?.text ??
+                                                    '') ??
+                                            0;
                                         total += generalQty;
                                       }
-                                      
-                                      print('Updating _po for ${material.partNo} - ${po.poNo}: $total (PR: $prNo, Qty: $qty)');
-                                      
+
+                                      print(
+                                          'Updating _po for ${material.partNo} - ${po.poNo}: $total (PR: $prNo, Qty: $qty)');
+
                                       // Update PO level quantity outside setState
-                                      prQtyControllers[material.partNo]![po.poNo]!['_po']?.text = total.toString();
-                                      
+                                      prQtyControllers[material.partNo]![
+                                              po.poNo]!['_po']
+                                          ?.text = total.toString();
+
                                       setState(() {});
                                       _updateInvoiceAmount();
                                     },
                                     onEditingComplete: () {
                                       // Set to '0' if empty when focus is lost
-                                      if (prQtyControllers[material.partNo]![po.poNo]![prNo]!.text.isEmpty) {
-                                        prQtyControllers[material.partNo]![po.poNo]![prNo]!.text = '0';
+                                      if (prQtyControllers[material.partNo]![
+                                              po.poNo]![prNo]!
+                                          .text
+                                          .isEmpty) {
+                                        prQtyControllers[material.partNo]![
+                                                po.poNo]![prNo]!
+                                            .text = '0';
                                         _updateInvoiceAmount();
                                       }
                                     },
@@ -633,7 +684,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
     if (!hasValidQuantities) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter at least one valid quantity')),
+        const SnackBar(
+            content: Text('Please enter at least one valid quantity')),
       );
       return;
     }
@@ -697,7 +749,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
           if (!showPRMapping) {
             // If PR mapping is not shown, handle the total PO quantity
-            
+
             // First check if there are any non-General PRs
             final nonGeneralPRs = poItem.prDetails.entries
                 .where((e) => e.key != 'General')
@@ -710,7 +762,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             // Calculate existing PR quantities
             for (var prEntry in prControllers.entries) {
               if (prEntry.key == '_po') continue;
-              
+
               final qty = double.tryParse(prEntry.value.text) ?? 0;
               if (prEntry.key == 'General') {
                 generalQty = qty;
@@ -721,7 +773,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
             print('Existing PR total: $prTotal, General: $generalQty');
 
-            if (nonGeneralPRs.isEmpty && poItem.prDetails.containsKey('General')) {
+            if (nonGeneralPRs.isEmpty &&
+                poItem.prDetails.containsKey('General')) {
               // Only General PR exists, assign all quantity to it
               print('Assigning all quantity to General PR: $poQty');
               const prNo = 'General';
@@ -738,11 +791,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             } else {
               // Use existing PR quantities if they exist
               print('Using existing PR quantities');
-              
+
               // Add non-General PRs first
               for (var prEntry in prControllers.entries) {
                 if (prEntry.key == '_po' || prEntry.key == 'General') continue;
-                
+
                 final prNo = prEntry.key;
                 final qty = double.tryParse(prEntry.value.text) ?? 0;
                 if (qty <= 0) continue;
@@ -750,7 +803,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 print('Adding PR quantity: $prNo = $qty');
                 inwardItem.addPRQuantity(poNo, prNo, qty);
                 totalReceivedQty += qty;
-                
+
                 final jobNo = poItem.prDetails[prNo]?.jobNo ?? 'General';
                 inwardItem.addJobNumberForPR(poNo, prNo, jobNo);
 
@@ -805,7 +858,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           }
 
           poNos.add(poNo); // Track PO number
-          
+
           // Set ordered quantity from PO
           inwardItem.orderedQty = double.tryParse(poItem.quantity) ?? 0;
         }
@@ -813,7 +866,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         if (totalReceivedQty > 0) {
           inwardItem.receivedQty = totalReceivedQty;
           inwardItems.add(inwardItem);
-          print('Added inward item for $materialCode with total qty: $totalReceivedQty');
+          print(
+              'Added inward item for $materialCode with total qty: $totalReceivedQty');
         }
       }
 

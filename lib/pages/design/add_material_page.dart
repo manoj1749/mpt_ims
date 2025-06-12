@@ -70,7 +70,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _controllers['storageLocation'] =
         TextEditingController(text: item.storageLocation);
     _controllers['rackNumber'] = TextEditingController(text: item.rackNumber);
-    _controllers['actualWeight'] = TextEditingController(text: item.actualWeight);
+    _controllers['actualWeight'] =
+        TextEditingController(text: item.actualWeight);
     _inspectionStockController = TextEditingController(text: '0');
 
     // Set initial category and subcategory if editing
@@ -604,7 +605,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                     _buildTextField(
                       'Actual Weight',
                       'actualWeight',
-                      type: const TextInputType.numberWithOptions(decimal: true),
+                      type:
+                          const TextInputType.numberWithOptions(decimal: true),
                       hint: 'Enter actual/finished goods weight',
                       validator: (value) {
                         if (value != null && value.isNotEmpty) {

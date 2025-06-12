@@ -981,33 +981,39 @@ class _AddQualityInspectionPageState
                           children: [
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
-                              value: poQty.usageDecision.isEmpty ? 'Lot Accepted' : poQty.usageDecision,
+                              value: poQty.usageDecision.isEmpty
+                                  ? 'Lot Accepted'
+                                  : poQty.usageDecision,
                               decoration: const InputDecoration(
                                 labelText: 'Usage Decision',
                                 border: OutlineInputBorder(),
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 8),
                               ),
                               isExpanded: true,
                               items: const [
                                 DropdownMenuItem(
                                   value: 'Lot Accepted',
-                                  child: Text('Lot Accepted', style: TextStyle(fontSize: 12)),
+                                  child: Text('Lot Accepted',
+                                      style: TextStyle(fontSize: 12)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'Lot Rejected',
-                                  child: Text('Lot Rejected', style: TextStyle(fontSize: 12)),
+                                  child: Text('Lot Rejected',
+                                      style: TextStyle(fontSize: 12)),
                                 ),
                                 DropdownMenuItem(
                                   value: '100% Recheck',
-                                  child: Text('100% Recheck', style: TextStyle(fontSize: 12)),
+                                  child: Text('100% Recheck',
+                                      style: TextStyle(fontSize: 12)),
                                 ),
                               ],
                               onChanged: (String? newValue) {
                                 if (newValue != null) {
                                   setState(() {
                                     poQty.usageDecision = newValue;
-                                    
+
                                     // Update quantities based on decision
                                     if (newValue == 'Lot Accepted') {
                                       poQty.acceptedQty = poQty.receivedQty;
@@ -1028,12 +1034,16 @@ class _AddQualityInspectionPageState
                                 }
                               },
                             ),
-                            if (poQty.usageDecision == 'Lot Rejected' || 
-                                (poQty.usageDecision == '100% Recheck' && item.isPartialRecheck == true)) ...[
+                            if (poQty.usageDecision == 'Lot Rejected' ||
+                                (poQty.usageDecision == '100% Recheck' &&
+                                    item.isPartialRecheck == true)) ...[
                               const SizedBox(height: 8),
                               CheckboxListTile(
-                                title: const Text('CAPA Required', style: TextStyle(fontSize: 12)),
-                                subtitle: const Text('Corrective Action / Preventive Action needed', style: TextStyle(fontSize: 11)),
+                                title: const Text('CAPA Required',
+                                    style: TextStyle(fontSize: 12)),
+                                subtitle: const Text(
+                                    'Corrective Action / Preventive Action needed',
+                                    style: TextStyle(fontSize: 11)),
                                 dense: true,
                                 value: item.capaRequired,
                                 onChanged: (bool? value) {
@@ -1047,7 +1057,8 @@ class _AddQualityInspectionPageState
                               const SizedBox(height: 8),
                               Container(
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade600),
+                                  border:
+                                      Border.all(color: Colors.grey.shade600),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 padding: const EdgeInsets.all(8),
@@ -1069,7 +1080,8 @@ class _AddQualityInspectionPageState
                                                   item.capaRequired = true;
                                                 } else {
                                                   // When disabling partial recheck, reset everything
-                                                  item.conditionalAcceptanceReason = null;
+                                                  item.conditionalAcceptanceReason =
+                                                      null;
                                                   item.capaRequired = false;
                                                   poQty.acceptedQty = 0;
                                                   poQty.rejectedQty = 0;
@@ -1079,7 +1091,8 @@ class _AddQualityInspectionPageState
                                           ),
                                         ),
                                         const SizedBox(width: 8),
-                                        const Text('Partial Acceptance', style: TextStyle(fontSize: 12)),
+                                        const Text('Partial Acceptance',
+                                            style: TextStyle(fontSize: 12)),
                                       ],
                                     ),
                                     if (item.isPartialRecheck == true) ...[
@@ -1091,18 +1104,27 @@ class _AddQualityInspectionPageState
                                               decoration: const InputDecoration(
                                                 labelText: 'Accepted Qty',
                                                 isDense: true,
-                                                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                                contentPadding:
+                                                    EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 8),
                                                 border: OutlineInputBorder(),
                                               ),
-                                              style: const TextStyle(fontSize: 12),
-                                              keyboardType: TextInputType.number,
-                                              initialValue: poQty.acceptedQty.toString(),
+                                              style:
+                                                  const TextStyle(fontSize: 12),
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              initialValue:
+                                                  poQty.acceptedQty.toString(),
                                               onChanged: (value) {
-                                                final qty = double.tryParse(value) ?? 0;
-                                                if (qty >= 0 && qty <= poQty.receivedQty) {
+                                                final qty =
+                                                    double.tryParse(value) ?? 0;
+                                                if (qty >= 0 &&
+                                                    qty <= poQty.receivedQty) {
                                                   setState(() {
                                                     poQty.acceptedQty = qty;
-                                                    poQty.rejectedQty = poQty.receivedQty - qty;
+                                                    poQty.rejectedQty =
+                                                        poQty.receivedQty - qty;
                                                   });
                                                 }
                                               },
@@ -1112,7 +1134,8 @@ class _AddQualityInspectionPageState
                                           Expanded(
                                             child: Text(
                                               'Rejected: ${poQty.rejectedQty.toStringAsFixed(2)}',
-                                              style: const TextStyle(fontSize: 12),
+                                              style:
+                                                  const TextStyle(fontSize: 12),
                                             ),
                                           ),
                                         ],
@@ -1124,38 +1147,50 @@ class _AddQualityInspectionPageState
                                             height: 24,
                                             width: 24,
                                             child: Checkbox(
-                                              value: item.conditionalAcceptanceReason != null,
+                                              value:
+                                                  item.conditionalAcceptanceReason !=
+                                                      null,
                                               onChanged: (value) {
                                                 setState(() {
                                                   if (value == true) {
-                                                    item.conditionalAcceptanceReason = '';
+                                                    item.conditionalAcceptanceReason =
+                                                        '';
                                                   } else {
-                                                    item.conditionalAcceptanceReason = null;
+                                                    item.conditionalAcceptanceReason =
+                                                        null;
                                                   }
                                                 });
                                               },
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          const Text('Conditional Acceptance', style: TextStyle(fontSize: 12)),
+                                          const Text('Conditional Acceptance',
+                                              style: TextStyle(fontSize: 12)),
                                         ],
                                       ),
-                                      if (item.conditionalAcceptanceReason != null) ...[
+                                      if (item.conditionalAcceptanceReason !=
+                                          null) ...[
                                         const SizedBox(height: 8),
                                         TextFormField(
                                           decoration: const InputDecoration(
-                                            labelText: 'Conditions for Acceptance',
+                                            labelText:
+                                                'Conditions for Acceptance',
                                             isDense: true,
-                                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 8),
                                             border: OutlineInputBorder(),
-                                            hintText: 'Enter conditions for acceptance',
+                                            hintText:
+                                                'Enter conditions for acceptance',
                                           ),
                                           style: const TextStyle(fontSize: 12),
                                           maxLines: 2,
-                                          initialValue: item.conditionalAcceptanceReason,
+                                          initialValue:
+                                              item.conditionalAcceptanceReason,
                                           onChanged: (value) {
                                             setState(() {
-                                              item.conditionalAcceptanceReason = value;
+                                              item.conditionalAcceptanceReason =
+                                                  value;
                                             });
                                           },
                                         ),

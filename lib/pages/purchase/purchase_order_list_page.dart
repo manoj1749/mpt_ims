@@ -37,7 +37,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       // Search in items
       for (var item in order.items) {
         // Check material description
-        if (item.materialDescription.toLowerCase().contains(searchLower)) return true;
+        if (item.materialDescription.toLowerCase().contains(searchLower))
+          return true;
         // Check material code
         if (item.materialCode.toLowerCase().contains(searchLower)) return true;
 

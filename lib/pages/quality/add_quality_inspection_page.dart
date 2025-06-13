@@ -1021,10 +1021,44 @@ class _AddQualityInspectionPageState
                                   if (value != 'Rejected' && 
                                       !(value == '100% Recheck' && poQty.recheckType == 'Partial Acceptance')) {
                                     item.capaRequired = false;
+                                  } else if (value == 'Rejected') {
+                                    item.capaRequired = true;
                                   }
                                 });
                               },
                             ),
+                            // Show CAPA checkbox for rejected lots
+                            if (poQty.usageDecision == 'Rejected') ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: Checkbox(
+                                      value: item.capaRequired,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          item.capaRequired = value ?? false;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('CAPA Required',
+                                            style: TextStyle(fontSize: 12)),
+                                        Text('Corrective Action / Preventive Action',
+                                            style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                             if (poQty.usageDecision == '100% Recheck') ...[
                               const SizedBox(height: 8),
                               DropdownButtonFormField<String>(
@@ -1061,42 +1095,6 @@ class _AddQualityInspectionPageState
                                   });
                                 },
                               ),
-                            ],
-                            // Show CAPA checkbox for rejected or partially accepted lots
-                            if (poQty.usageDecision == 'Rejected' || 
-                                (poQty.usageDecision == '100% Recheck' && 
-                                 poQty.recheckType == 'Partial Acceptance')) ...[
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: Checkbox(
-                                      value: item.capaRequired,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          item.capaRequired = value ?? false;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('CAPA Required',
-                                            style: TextStyle(fontSize: 12)),
-                                        Text('Corrective Action / Preventive Action',
-                                            style: TextStyle(fontSize: 10, color: Colors.grey)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                            if (poQty.usageDecision == '100% Recheck') ...[
                               const SizedBox(height: 8),
                               Row(
                                 children: [
@@ -1119,6 +1117,55 @@ class _AddQualityInspectionPageState
                                   ),
                                 ],
                               ),
+                              if (poQty.conditionalAcceptance == true) ...[
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Reason',
+                                    border: OutlineInputBorder(),
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 8),
+                                  ),
+                                  style: const TextStyle(fontSize: 12),
+                                  initialValue: item.conditionalAcceptanceReason,
+                                  onChanged: (value) {
+                                    item.conditionalAcceptanceReason = value;
+                                  },
+                                ),
+                              ],
+                              // Show CAPA checkbox for partial acceptance
+                              if (poQty.recheckType == 'Partial Acceptance') ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: Checkbox(
+                                        value: item.capaRequired,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            item.capaRequired = value ?? false;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('CAPA Required',
+                                              style: TextStyle(fontSize: 12)),
+                                          Text('Corrective Action / Preventive Action',
+                                              style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ],
                         ),

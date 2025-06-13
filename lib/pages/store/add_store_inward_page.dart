@@ -789,46 +789,100 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               }
               poItem.addReceivedQuantity('${grnNo}_$prNo', poQty);
             } else {
-              // Use existing PR quantities if they exist
-              print('Using existing PR quantities');
+              // Handle both General and non-General PRs
+              print('Handling mixed PR distribution');
+              
+              // First distribute to non-General PRs if they exist
+              if (nonGeneralPRs.isNotEmpty) {
+                double remainingQty = poQty;
+                
+                // First try to use existing PR quantities
+                for (var prEntry in prControllers.entries) {
+                  if (prEntry.key == '_po' || prEntry.key == 'General') continue;
 
-              // Add non-General PRs first
-              for (var prEntry in prControllers.entries) {
-                if (prEntry.key == '_po' || prEntry.key == 'General') continue;
+                  final prNo = prEntry.key;
+                  final qty = double.tryParse(prEntry.value.text) ?? 0;
+                  if (qty <= 0) continue;
 
-                final prNo = prEntry.key;
-                final qty = double.tryParse(prEntry.value.text) ?? 0;
-                if (qty <= 0) continue;
+                  // Check if this quantity can be accommodated
+                  final prPendingQty = poItem.getPendingQuantityForPR(prNo);
+                  final actualQty = qty > prPendingQty ? prPendingQty : qty;
+                  
+                  if (actualQty > 0 && actualQty <= remainingQty) {
+                    print('Adding PR quantity: $prNo = $actualQty');
+                    inwardItem.addPRQuantity(poNo, prNo, actualQty);
+                    totalReceivedQty += actualQty;
+                    remainingQty -= actualQty;
 
-                print('Adding PR quantity: $prNo = $qty');
-                inwardItem.addPRQuantity(poNo, prNo, qty);
-                totalReceivedQty += qty;
+                    final jobNo = poItem.prDetails[prNo]?.jobNo ?? 'General';
+                    inwardItem.addJobNumberForPR(poNo, prNo, jobNo);
 
-                final jobNo = poItem.prDetails[prNo]?.jobNo ?? 'General';
-                inwardItem.addJobNumberForPR(poNo, prNo, jobNo);
-
-                // Update PO received quantities
-                if (widget.existingGR != null) {
-                  poItem.receivedQuantities
-                      .remove('${widget.existingGR!.grnNo}_$prNo');
+                    // Update PO received quantities
+                    if (widget.existingGR != null) {
+                      poItem.receivedQuantities
+                          .remove('${widget.existingGR!.grnNo}_$prNo');
+                    }
+                    poItem.addReceivedQuantity('${grnNo}_$prNo', actualQty);
+                  }
                 }
-                poItem.addReceivedQuantity('${grnNo}_$prNo', qty);
-              }
 
-              // Add General PR if it exists
-              if (poItem.prDetails.containsKey('General') && generalQty > 0) {
-                print('Adding General PR quantity: $generalQty');
-                const prNo = 'General';
-                inwardItem.addPRQuantity(poNo, prNo, generalQty);
-                totalReceivedQty += generalQty;
-                inwardItem.addJobNumberForPR(poNo, prNo, 'General');
+                // If there's remaining quantity and General PR exists, assign it there
+                if (remainingQty > 0 && poItem.prDetails.containsKey('General')) {
+                  print('Adding remaining quantity to General PR: $remainingQty');
+                  const prNo = 'General';
+                  inwardItem.addPRQuantity(poNo, prNo, remainingQty);
+                  totalReceivedQty += remainingQty;
+                  inwardItem.addJobNumberForPR(poNo, prNo, 'General');
 
-                // Update PO received quantities
-                if (widget.existingGR != null) {
-                  poItem.receivedQuantities
-                      .remove('${widget.existingGR!.grnNo}_$prNo');
+                  // Update PO received quantities
+                  if (widget.existingGR != null) {
+                    poItem.receivedQuantities
+                        .remove('${widget.existingGR!.grnNo}_$prNo');
+                  }
+                  poItem.addReceivedQuantity('${grnNo}_$prNo', remainingQty);
                 }
-                poItem.addReceivedQuantity('${grnNo}_$prNo', generalQty);
+              } else {
+                // Use existing PR quantities if they exist
+                print('Using existing PR quantities');
+
+                // Add non-General PRs first
+                for (var prEntry in prControllers.entries) {
+                  if (prEntry.key == '_po' || prEntry.key == 'General') continue;
+
+                  final prNo = prEntry.key;
+                  final qty = double.tryParse(prEntry.value.text) ?? 0;
+                  if (qty <= 0) continue;
+
+                  print('Adding PR quantity: $prNo = $qty');
+                  inwardItem.addPRQuantity(poNo, prNo, qty);
+                  totalReceivedQty += qty;
+
+                  final jobNo = poItem.prDetails[prNo]?.jobNo ?? 'General';
+                  inwardItem.addJobNumberForPR(poNo, prNo, jobNo);
+
+                  // Update PO received quantities
+                  if (widget.existingGR != null) {
+                    poItem.receivedQuantities
+                        .remove('${widget.existingGR!.grnNo}_$prNo');
+                  }
+                  poItem.addReceivedQuantity('${grnNo}_$prNo', qty);
+                }
+
+                // Add General PR if it exists
+                if (poItem.prDetails.containsKey('General') && generalQty > 0) {
+                  print('Adding General PR quantity: $generalQty');
+                  const prNo = 'General';
+                  inwardItem.addPRQuantity(poNo, prNo, generalQty);
+                  totalReceivedQty += generalQty;
+                  inwardItem.addJobNumberForPR(poNo, prNo, 'General');
+
+                  // Update PO received quantities
+                  if (widget.existingGR != null) {
+                    poItem.receivedQuantities
+                        .remove('${widget.existingGR!.grnNo}_$prNo');
+                  }
+                  poItem.addReceivedQuantity('${grnNo}_$prNo', generalQty);
+                }
               }
             }
           } else {

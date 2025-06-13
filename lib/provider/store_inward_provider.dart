@@ -53,6 +53,25 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
   }
 
   Future<void> addInward(StoreInward inward) async {
+    print('\nAdding new inward: ${inward.grnNo}');
+    
+    // Process each item
+    for (var item in inward.items) {
+      print('\nProcessing item: ${item.materialCode}');
+      
+      // For each PO in the item
+      for (var poNo in item.prQuantities.keys.toList()) {
+        print('\nChecking PO: $poNo');
+        final prQuantities = item.prQuantities[poNo];
+        
+        // If there are no PR quantities but we have a PO quantity
+        if ((prQuantities?.isEmpty ?? true) && item.receivedQty > 0) {
+          print('No PR quantities found for PO, distributing automatically');
+          item.distributePOQuantityToPRs(poNo, item.receivedQty);
+        }
+      }
+    }
+
     // Add to Hive
     await _inwardBox.add(inward);
 
@@ -66,6 +85,25 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
   }
 
   Future<void> updateInward(int index, StoreInward inward) async {
+    print('\nUpdating inward: ${inward.grnNo}');
+    
+    // Process each item
+    for (var item in inward.items) {
+      print('\nProcessing item: ${item.materialCode}');
+      
+      // For each PO in the item
+      for (var poNo in item.prQuantities.keys.toList()) {
+        print('\nChecking PO: $poNo');
+        final prQuantities = item.prQuantities[poNo];
+        
+        // If there are no PR quantities but we have a PO quantity
+        if ((prQuantities?.isEmpty ?? true) && item.receivedQty > 0) {
+          print('No PR quantities found for PO, distributing automatically');
+          item.distributePOQuantityToPRs(poNo, item.receivedQty);
+        }
+      }
+    }
+
     // Get old inward for comparison
     final oldInward = _inwardBox.getAt(index);
 

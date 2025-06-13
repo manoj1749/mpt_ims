@@ -3,6 +3,7 @@ import 'package:hive/hive.dart';
 import '../models/stock_maintenance.dart';
 import '../models/store_inward.dart';
 import '../models/material_item.dart';
+import '../models/category.dart';
 
 final stockMaintenanceBoxProvider = Provider<Box<StockMaintenance>>((ref) {
   throw UnimplementedError();
@@ -43,7 +44,14 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
   // Update stock from GRN
   Future<void> updateStockFromGRN(StoreInward grn) async {
+    print('\n=== Debug: Updating Stock from GRN ${grn.grnNo} ===');
+    
     for (var item in grn.items) {
+      print('\nProcessing item: ${item.materialCode}');
+      print('Received Qty: ${item.receivedQty}');
+      print('Accepted Qty: ${item.acceptedQty}');
+      print('Rejected Qty: ${item.rejectedQty}');
+      
       var stock = _stockBox.values.firstWhere(
         (s) => s.materialCode == item.materialCode,
         orElse: () => StockMaintenance(
@@ -54,6 +62,9 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
           rackNumber: '',
         ),
       );
+
+      print('Current Stock before update: ${stock.currentStock}');
+      print('Under Inspection before update: ${stock.stockUnderInspection}');
 
       // Create GRN details
       final grnDetails = StockGRNDetails(
@@ -100,13 +111,15 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
           final quantity = prEntry.value;
           final jobNo = item.getJobNumberForPR(poNo, prNo);
 
+          print('Processing PR: $prNo, Job: $jobNo, Qty: $quantity');
+
           // Update PR details
           final prDetails = StockPRDetails(
             prNo: prNo,
             prDate: '', // You might want to fetch this from PR data
             requestedQuantity: quantity,
             orderedQuantity: quantity,
-            receivedQuantity: item.receivedQty,
+            receivedQuantity: quantity, // Use the actual PR quantity
           );
           stock.addPRDetails(prNo, prDetails);
 
@@ -123,10 +136,50 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
         }
       }
 
-      // Update current stock and inspection stock
-      stock.updateCurrentStock(item.acceptedQty);
-      stock.updateStockUnderInspection(
-          item.receivedQty - (item.acceptedQty + item.rejectedQty));
+      // Calculate total current stock and under inspection stock
+      double totalCurrentStock = stock.currentStock;
+      double totalUnderInspection = stock.stockUnderInspection; // Initialize with existing under inspection quantity
+
+      // Get the material's category to check if inspection is required
+      final materialsBox = Hive.box<MaterialItem>('materials');
+      final material = materialsBox.values.firstWhere(
+        (m) => m.partNo == item.materialCode,
+        orElse: () => MaterialItem(
+          slNo: item.materialCode,
+          description: item.materialDescription,
+          partNo: item.materialCode,
+          unit: item.unit,
+          category: 'General',
+          subCategory: '',
+        ),
+      );
+
+      // Get the category settings
+      final categoriesBox = Hive.box<Category>('categories');
+      final category = categoriesBox.values.firstWhere(
+        (c) => c.name == material.category,
+        orElse: () => Category(name: material.category),
+      );
+
+      // If quality check is not required, add to current stock
+      if (!category.requiresQualityCheck) {
+        print('Quality check not required, adding to current stock');
+        totalCurrentStock += item.receivedQty;
+      } else {
+        print('Quality check required, calculating stocks');
+        // Add accepted quantity to current stock
+        totalCurrentStock += item.acceptedQty;
+        // Add pending inspection quantity to under inspection
+        totalUnderInspection += item.receivedQty - (item.acceptedQty + item.rejectedQty);
+      }
+
+      print('Updating stock quantities:');
+      print('New Current Stock: $totalCurrentStock');
+      print('New Under Inspection: $totalUnderInspection');
+
+      // Update the stock quantities
+      stock.updateCurrentStock(totalCurrentStock);
+      stock.updateStockUnderInspection(totalUnderInspection);
 
       // Save to Hive if it's a new stock entry
       if (!_stockBox.values.contains(stock)) {

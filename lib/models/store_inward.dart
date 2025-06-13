@@ -210,7 +210,9 @@ class InwardItem {
   double get underInspectionQty =>
       receivedQty - (totalAcceptedQty + totalRejectedQty);
 
-  bool get isFullyInspected => inspectedQuantity >= receivedQty;
+  bool get isFullyInspected =>
+      inspectedQuantity >= receivedQty ||
+      acceptedQty + rejectedQty >= receivedQty;
 
   // Helper method to update inspection status
   void updateInspectionStatus(
@@ -218,9 +220,55 @@ class InwardItem {
     inspectionStatus[inspectionNo] = status;
   }
 
-  // Helper method to get job number for a specific PR
+  // Helper method to distribute PO quantity to PRs
+  void distributePOQuantityToPRs(String poNo, double poQuantity) {
+    print('\nDistributing PO quantity to PRs:');
+    print('PO: $poNo, Quantity: $poQuantity');
+
+    // Get existing PR quantities for this PO
+    final existingPRs = prQuantities[poNo] ?? {};
+    
+    if (existingPRs.isEmpty) {
+      print('No existing PRs found, assigning to General PR');
+      // If no PRs exist, assign everything to General PR
+      prQuantities[poNo] = {'General': poQuantity};
+      prJobNumbers[poNo] = {'General': 'General'};
+    } else {
+      print('Found existing PRs: ${existingPRs.keys.join(', ')}');
+      // Calculate total ordered quantity for existing PRs
+      double totalOrderedQty = existingPRs.values.fold(0.0, (sum, qty) => sum + qty);
+      
+      // Distribute quantity proportionally
+      Map<String, double> newPRQuantities = {};
+      for (var entry in existingPRs.entries) {
+        double proportion = entry.value / totalOrderedQty;
+        double allocatedQty = (poQuantity * proportion).roundToDouble();
+        newPRQuantities[entry.key] = allocatedQty;
+        print('PR: ${entry.key}, Proportion: $proportion, Allocated: $allocatedQty');
+      }
+      
+      // Handle any rounding differences
+      double totalAllocated = newPRQuantities.values.fold(0.0, (sum, qty) => sum + qty);
+      double difference = poQuantity - totalAllocated;
+      if (difference != 0) {
+        print('Handling rounding difference: $difference');
+        // Add/subtract the difference from the largest PR quantity
+        var largestPR = newPRQuantities.entries
+            .reduce((a, b) => a.value > b.value ? a : b)
+            .key;
+        newPRQuantities[largestPR] = (newPRQuantities[largestPR]! + difference).roundToDouble();
+      }
+      
+      prQuantities[poNo] = newPRQuantities;
+    }
+    
+    print('Final PR distribution:');
+    prQuantities[poNo]?.forEach((pr, qty) => print('PR: $pr, Quantity: $qty'));
+  }
+
+  // Helper method to get job number for a PR
   String getJobNumberForPR(String poNo, String prNo) {
-    return prJobNumbers[poNo]?[prNo] ?? '';
+    return prJobNumbers[poNo]?[prNo] ?? 'General';
   }
 
   // Helper method to add PR quantity

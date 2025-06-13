@@ -169,6 +169,12 @@ class InspectionItem extends HiveObject {
   @HiveField(29)
   bool capaRequired = false; // CAPA status for rejected/partially accepted lots
 
+  @HiveField(30)
+  String? recheckType; // '100% Acceptance' or 'Partial Acceptance'
+
+  @HiveField(31)
+  bool? conditionalAcceptance; // Whether conditional acceptance is applied
+
   InspectionItem({
     required this.materialCode,
     required this.materialDescription,
@@ -198,7 +204,8 @@ class InspectionItem extends HiveObject {
     Map<String, Map<String, String>>? grnDetails,
     Map<String, InspectionGRNQuantity>? grnQuantities,
     this.inspectionRemark,
-    this.capaRequired = false,
+    this.recheckType,
+    this.conditionalAcceptance = false,
   }) {
     this.poQuantities = poQuantities ?? {};
     this.grnDetails = grnDetails ?? {};
@@ -295,7 +302,7 @@ class InspectionItem extends HiveObject {
 }
 
 @HiveType(typeId: 20)
-class InspectionPOQuantity {
+class InspectionPOQuantity extends HiveObject {
   @HiveField(0)
   double receivedQty;
 
@@ -308,11 +315,19 @@ class InspectionPOQuantity {
   @HiveField(3)
   String usageDecision;
 
+  @HiveField(4)
+  String? recheckType; // '100% Acceptance' or 'Partial Acceptance'
+
+  @HiveField(5)
+  bool? conditionalAcceptance; // Whether conditional acceptance is applied
+
   InspectionPOQuantity({
     required this.receivedQty,
     required this.acceptedQty,
     required this.rejectedQty,
     required this.usageDecision,
+    this.recheckType,
+    this.conditionalAcceptance = false,
   });
 
   InspectionPOQuantity copyWith({

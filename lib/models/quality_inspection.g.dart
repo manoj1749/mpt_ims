@@ -123,14 +123,15 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       grnQuantities:
           (fields[27] as Map?)?.cast<String, InspectionGRNQuantity>(),
       inspectionRemark: fields[28] as String?,
-      capaRequired: fields[29] as bool,
-    );
+      recheckType: fields[30] as String?,
+      conditionalAcceptance: fields[31] as bool?,
+    )..capaRequired = fields[29] as bool;
   }
 
   @override
   void write(BinaryWriter writer, InspectionItem obj) {
     writer
-      ..writeByte(29)
+      ..writeByte(31)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -188,7 +189,11 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       ..writeByte(28)
       ..write(obj.inspectionRemark)
       ..writeByte(29)
-      ..write(obj.capaRequired);
+      ..write(obj.capaRequired)
+      ..writeByte(30)
+      ..write(obj.recheckType)
+      ..writeByte(31)
+      ..write(obj.conditionalAcceptance);
   }
 
   @override
@@ -217,13 +222,15 @@ class InspectionPOQuantityAdapter extends TypeAdapter<InspectionPOQuantity> {
       acceptedQty: fields[1] as double,
       rejectedQty: fields[2] as double,
       usageDecision: fields[3] as String,
+      recheckType: fields[4] as String?,
+      conditionalAcceptance: fields[5] as bool?,
     );
   }
 
   @override
   void write(BinaryWriter writer, InspectionPOQuantity obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.receivedQty)
       ..writeByte(1)
@@ -231,7 +238,11 @@ class InspectionPOQuantityAdapter extends TypeAdapter<InspectionPOQuantity> {
       ..writeByte(2)
       ..write(obj.rejectedQty)
       ..writeByte(3)
-      ..write(obj.usageDecision);
+      ..write(obj.usageDecision)
+      ..writeByte(4)
+      ..write(obj.recheckType)
+      ..writeByte(5)
+      ..write(obj.conditionalAcceptance);
   }
 
   @override

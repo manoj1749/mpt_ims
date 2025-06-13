@@ -423,6 +423,32 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.text(),
         width: 150,
         enableEditingMode: false,
+        renderer: (rendererContext) {
+          final item = rendererContext.row.cells['inspection']!.value as QualityInspection;
+          final poQty = item.items.first.poQuantities.values.first;
+          
+          String displayText = poQty.usageDecision;
+          if (poQty.usageDecision == '100% Recheck' && poQty.recheckType != null) {
+            displayText += '\n${poQty.recheckType}';
+            if (poQty.conditionalAcceptance == true) {
+              displayText += '\nConditional';
+            }
+          }
+          if (item.items.first.capaRequired) {
+            displayText += '\nCAPA Required';
+          }
+          
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              displayText,
+              style: TextStyle(
+                fontSize: 12,
+                color: item.items.first.capaRequired ? Colors.red : null,
+              ),
+            ),
+          );
+        },
       ),
       PlutoColumn(
         title: 'Unit',

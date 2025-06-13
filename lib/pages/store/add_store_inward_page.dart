@@ -998,15 +998,42 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
     // Get materials that have pending POs from the selected supplier
     final materials = ref.watch(materialListProvider).where((material) {
-      return purchaseOrders.any((po) => po.items.any((item) {
-            if (item.materialCode != material.partNo) return false;
+      return purchaseOrders.any((po) {
+        // Find items for this material in the PO
+        final poItems = po.items.where((item) => item.materialCode == material.partNo);
+        if (poItems.isEmpty) return false;
 
-            // Show material if it has PRs matching any selected job or if 'All' is selected
-            if (selectedJobs.contains('All')) return true;
+        for (var item in poItems) {
+          // Calculate total ordered and received quantities
+          double totalOrderedQty = 0.0;
+          double totalReceivedQty = 0.0;
 
-            return item.prDetails.values
-                .any((detail) => selectedJobs.contains(detail.jobNo));
-          }));
+          // If no PRs or only General PR, use PO quantity
+          if (item.prDetails.isEmpty || (item.prDetails.length == 1 && item.prDetails.containsKey('General'))) {
+            totalOrderedQty = double.tryParse(item.quantity) ?? 0.0;
+            totalReceivedQty = item.receivedQuantities.values
+                .fold<double>(0.0, (sum, qty) => sum + (qty as double));
+          } else {
+            // Calculate PR-wise quantities
+            for (var prDetail in item.prDetails.entries) {
+              // Skip if job filter is active and this PR's job doesn't match
+              if (!selectedJobs.contains('All') && !selectedJobs.contains(prDetail.value.jobNo)) {
+                continue;
+              }
+              totalOrderedQty += prDetail.value.quantity;
+              totalReceivedQty += item.receivedQuantities.entries
+                  .where((entry) => entry.key.contains('_${prDetail.key}'))
+                  .fold<double>(0.0, (sum, entry) => sum + (entry.value as double));
+            }
+          }
+
+          // If there's pending quantity, show this material
+          if (totalOrderedQty > totalReceivedQty) {
+            return true;
+          }
+        }
+        return false;
+      });
     }).toList();
 
     return Scaffold(

@@ -999,8 +999,8 @@ class _AddQualityInspectionPageState
                                       style: TextStyle(fontSize: 12)),
                                 ),
                                 DropdownMenuItem(
-                                  value: 'Lot Rejected',
-                                  child: Text('Lot Rejected',
+                                  value: 'Rejected',
+                                  child: Text('Rejected',
                                       style: TextStyle(fontSize: 12)),
                                 ),
                                 DropdownMenuItem(
@@ -1009,195 +1009,115 @@ class _AddQualityInspectionPageState
                                       style: TextStyle(fontSize: 12)),
                                 ),
                               ],
-                              onChanged: (String? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    poQty.usageDecision = newValue;
-
-                                    // Update quantities based on decision
-                                    if (newValue == 'Lot Accepted') {
-                                      poQty.acceptedQty = poQty.receivedQty;
-                                      poQty.rejectedQty = 0;
-                                      item.capaRequired = false;
-                                    } else if (newValue == 'Lot Rejected') {
-                                      poQty.acceptedQty = 0;
-                                      poQty.rejectedQty = poQty.receivedQty;
-                                      item.capaRequired = true;
-                                    } else if (newValue == '100% Recheck') {
-                                      // Reset quantities for recheck
-                                      poQty.acceptedQty = 0;
-                                      poQty.rejectedQty = 0;
-                                      item.isPartialRecheck = false;
-                                      item.conditionalAcceptanceReason = null;
-                                    }
-                                  });
-                                }
+                              onChanged: (value) {
+                                setState(() {
+                                  poQty.usageDecision = value!;
+                                  // Reset recheck type and conditional acceptance when changing decision
+                                  if (value != '100% Recheck') {
+                                    poQty.recheckType = null;
+                                    poQty.conditionalAcceptance = false;
+                                  }
+                                  // Reset CAPA status when changing decision
+                                  if (value != 'Rejected' && 
+                                      !(value == '100% Recheck' && poQty.recheckType == 'Partial Acceptance')) {
+                                    item.capaRequired = false;
+                                  }
+                                });
                               },
                             ),
-                            if (poQty.usageDecision == 'Lot Rejected' ||
-                                (poQty.usageDecision == '100% Recheck' &&
-                                    item.isPartialRecheck == true)) ...[
+                            if (poQty.usageDecision == '100% Recheck') ...[
                               const SizedBox(height: 8),
-                              CheckboxListTile(
-                                title: const Text('CAPA Required',
-                                    style: TextStyle(fontSize: 12)),
-                                subtitle: const Text(
-                                    'Corrective Action / Preventive Action needed',
-                                    style: TextStyle(fontSize: 11)),
-                                dense: true,
-                                value: item.capaRequired,
-                                onChanged: (bool? value) {
+                              DropdownButtonFormField<String>(
+                                value: poQty.recheckType ?? '100% Acceptance',
+                                decoration: const InputDecoration(
+                                  labelText: 'Recheck Type',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 8),
+                                ),
+                                isExpanded: true,
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: '100% Acceptance',
+                                    child: Text('100% Acceptance',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Partial Acceptance',
+                                    child: Text('Partial Acceptance',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                ],
+                                onChanged: (value) {
                                   setState(() {
-                                    item.capaRequired = value ?? false;
+                                    poQty.recheckType = value;
+                                    // Set CAPA required for partial acceptance
+                                    if (value == 'Partial Acceptance') {
+                                      item.capaRequired = true;
+                                    } else {
+                                      item.capaRequired = false;
+                                    }
                                   });
                                 },
                               ),
                             ],
-                            if (poQty.usageDecision == '100% Recheck') ...[
+                            // Show CAPA checkbox for rejected or partially accepted lots
+                            if (poQty.usageDecision == 'Rejected' || 
+                                (poQty.usageDecision == '100% Recheck' && 
+                                 poQty.recheckType == 'Partial Acceptance')) ...[
                               const SizedBox(height: 8),
-                              Container(
-                                decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.grey.shade600),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                padding: const EdgeInsets.all(8),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: Checkbox(
+                                      value: item.capaRequired,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          item.capaRequired = value ?? false;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        SizedBox(
-                                          height: 24,
-                                          width: 24,
-                                          child: Checkbox(
-                                            value: item.isPartialRecheck,
-                                            onChanged: (value) {
-                                              setState(() {
-                                                item.isPartialRecheck = value;
-                                                if (value == true) {
-                                                  // When enabling partial recheck, show CAPA
-                                                  item.capaRequired = true;
-                                                } else {
-                                                  // When disabling partial recheck, reset everything
-                                                  item.conditionalAcceptanceReason =
-                                                      null;
-                                                  item.capaRequired = false;
-                                                  poQty.acceptedQty = 0;
-                                                  poQty.rejectedQty = 0;
-                                                }
-                                              });
-                                            },
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        const Text('Partial Acceptance',
+                                        Text('CAPA Required',
                                             style: TextStyle(fontSize: 12)),
+                                        Text('Corrective Action / Preventive Action',
+                                            style: TextStyle(fontSize: 10, color: Colors.grey)),
                                       ],
                                     ),
-                                    if (item.isPartialRecheck == true) ...[
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: TextFormField(
-                                              decoration: const InputDecoration(
-                                                labelText: 'Accepted Qty',
-                                                isDense: true,
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 8),
-                                                border: OutlineInputBorder(),
-                                              ),
-                                              style:
-                                                  const TextStyle(fontSize: 12),
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              initialValue:
-                                                  poQty.acceptedQty.toString(),
-                                              onChanged: (value) {
-                                                final qty =
-                                                    double.tryParse(value) ?? 0;
-                                                if (qty >= 0 &&
-                                                    qty <= poQty.receivedQty) {
-                                                  setState(() {
-                                                    poQty.acceptedQty = qty;
-                                                    poQty.rejectedQty =
-                                                        poQty.receivedQty - qty;
-                                                  });
-                                                }
-                                              },
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              'Rejected: ${poQty.rejectedQty.toStringAsFixed(2)}',
-                                              style:
-                                                  const TextStyle(fontSize: 12),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          SizedBox(
-                                            height: 24,
-                                            width: 24,
-                                            child: Checkbox(
-                                              value:
-                                                  item.conditionalAcceptanceReason !=
-                                                      null,
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  if (value == true) {
-                                                    item.conditionalAcceptanceReason =
-                                                        '';
-                                                  } else {
-                                                    item.conditionalAcceptanceReason =
-                                                        null;
-                                                  }
-                                                });
-                                              },
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          const Text('Conditional Acceptance',
-                                              style: TextStyle(fontSize: 12)),
-                                        ],
-                                      ),
-                                      if (item.conditionalAcceptanceReason !=
-                                          null) ...[
-                                        const SizedBox(height: 8),
-                                        TextFormField(
-                                          decoration: const InputDecoration(
-                                            labelText:
-                                                'Conditions for Acceptance',
-                                            isDense: true,
-                                            contentPadding:
-                                                EdgeInsets.symmetric(
-                                                    horizontal: 8, vertical: 8),
-                                            border: OutlineInputBorder(),
-                                            hintText:
-                                                'Enter conditions for acceptance',
-                                          ),
-                                          style: const TextStyle(fontSize: 12),
-                                          maxLines: 2,
-                                          initialValue:
-                                              item.conditionalAcceptanceReason,
-                                          onChanged: (value) {
-                                            setState(() {
-                                              item.conditionalAcceptanceReason =
-                                                  value;
-                                            });
-                                          },
-                                        ),
-                                      ],
-                                    ],
-                                  ],
-                                ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            if (poQty.usageDecision == '100% Recheck') ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: Checkbox(
+                                      value: poQty.conditionalAcceptance ?? false,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          poQty.conditionalAcceptance = value;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Expanded(
+                                    child: Text('Conditional Acceptance',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                ],
                               ),
                             ],
                           ],

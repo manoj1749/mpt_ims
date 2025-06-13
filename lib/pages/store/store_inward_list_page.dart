@@ -43,8 +43,6 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
             'invoiceAmount': PlutoCell(value: inward.invoiceAmount),
             'receivedBy': PlutoCell(value: inward.receivedBy),
             'checkedBy': PlutoCell(value: inward.checkedBy),
-            'actions': PlutoCell(value: ''),
-            'inward': PlutoCell(value: inward),
           },
         );
       });
@@ -226,83 +224,7 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
-      PlutoColumn(
-        title: 'Actions',
-        field: 'actions',
-        type: PlutoColumnType.text(),
-        width: 100,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () {
-                  final inward =
-                      rendererContext.row.cells['inward']!.value as StoreInward;
-                  _confirmDelete(context, inward);
-                },
-                color: Colors.red[400],
-                tooltip: 'Delete',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
     ];
-  }
-
-  Future<void> _confirmDelete(BuildContext context, StoreInward inward) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirm Delete'),
-          content: Text(
-              'Are you sure you want to delete store inward for PO ${inward.poNo}?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('CANCEL'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red[400],
-              ),
-              child: const Text('DELETE'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed == true && mounted) {
-      setState(() => _isLoading = true);
-      try {
-        await ref.read(storeInwardProvider.notifier).deleteInward(inward);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Store inward deleted successfully')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting store inward: $e')),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
-      }
-    }
   }
 
   @override

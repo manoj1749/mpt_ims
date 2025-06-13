@@ -12,6 +12,45 @@ import '../../provider/quality_inspection_provider.dart';
 import '../../models/category.dart';
 import '../../provider/category_provider.dart';
 
+// Model classes for hierarchical data
+class GRDetails {
+  final String grNo;
+  final String date;
+  final double quantity;
+  final List<PODetails> poDetails;
+
+  GRDetails({
+    required this.grNo,
+    required this.date,
+    required this.quantity,
+    required this.poDetails,
+  });
+}
+
+class PODetails {
+  final String poNo;
+  final double quantity;
+  final List<PRDetails> prDetails;
+
+  PODetails({
+    required this.poNo,
+    required this.quantity,
+    required this.prDetails,
+  });
+}
+
+class PRDetails {
+  final String prNo;
+  final String jobNo;
+  final double quantity;
+
+  PRDetails({
+    required this.prNo,
+    required this.jobNo,
+    required this.quantity,
+  });
+}
+
 class InspectionStatus {
   final String inspectionNo;
   final double inspectedQty;
@@ -147,7 +186,7 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
           return IconButton(
             icon: const Icon(Icons.visibility_outlined),
             onPressed: () {
-              _navigateToDetails(rendererContext.row);
+              _showMaterialDetails(rendererContext.row.cells['materialCode']!.value as String);
             },
             tooltip: 'View Details',
           );
@@ -295,16 +334,84 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
     return rows;
   }
 
-  void _navigateToDetails(PlutoRow row) {
-    final materialCode = row.cells['materialCode']!.value as String;
-    final material = ref
-        .read(materialListProvider)
-        .firstWhere((m) => m.partNo == materialCode);
+  void _showMaterialDetails(String materialCode) {
+    final storeInwards = ref.read(storeInwardProvider);
+    final List<GRDetails> grDetails = [];
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MaterialStockDetailPage(material: material),
+    // Process store inwards to build hierarchical data
+    for (var inward in storeInwards) {
+      final relevantItems = inward.items.where((item) => item.materialCode == materialCode);
+      
+      for (var item in relevantItems) {
+        final List<PODetails> poDetails = [];
+        
+        // Group by PO and process PR quantities
+        for (var poEntry in item.prQuantities.entries) {
+          final String poNo = poEntry.key;
+          final Map<String, double> prQtys = poEntry.value;
+          final List<PRDetails> prDetails = [];
+          double poTotal = 0;
+          
+          // Process PR details for this PO
+          for (var prEntry in prQtys.entries) {
+            final String prNo = prEntry.key;
+            final double qty = prEntry.value;
+            final String jobNo = item.prJobNumbers[poNo]?[prNo] ?? 'N/A';
+            
+            prDetails.add(PRDetails(
+              prNo: prNo,
+              jobNo: jobNo,
+              quantity: qty,
+            ));
+            
+            poTotal += qty;
+          }
+          
+          poDetails.add(PODetails(
+            poNo: poNo,
+            quantity: poTotal,
+            prDetails: prDetails,
+          ));
+        }
+        
+        grDetails.add(GRDetails(
+          grNo: inward.grnNo,
+          date: inward.grnDate,
+          quantity: item.receivedQty,
+          poDetails: poDetails,
+        ));
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Material Details - $materialCode',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: MaterialDetailsView(grDetails: grDetails),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -361,360 +468,105 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
   }
 }
 
-class MaterialStockDetailPage extends ConsumerWidget {
-  final MaterialItem material;
+class MaterialDetailsView extends StatelessWidget {
+  final List<GRDetails> grDetails;
 
-  const MaterialStockDetailPage({
+  const MaterialDetailsView({
     super.key,
-    required this.material,
+    required this.grDetails,
   });
 
-  List<PlutoColumn> _getStockColumns() {
-    return [
-      PlutoColumn(
-        title: 'GRN No',
-        field: 'grnNo',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Job No',
-        field: 'jobNo',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'PO No',
-        field: 'poNo',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Supplier',
-        field: 'supplier',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Received Qty',
-        field: 'receivedQty',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Accepted Qty',
-        field: 'acceptedQty',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Rate',
-        field: 'rate',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Value',
-        field: 'value',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Date',
-        field: 'date',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-    ];
-  }
-
-  List<PlutoColumn> _getInspectionColumns() {
-    return [
-      PlutoColumn(
-        title: 'Inspection No',
-        field: 'inspectionNo',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'GRN No',
-        field: 'grnNo',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Job No',
-        field: 'jobNo',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'PO No',
-        field: 'poNo',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Supplier',
-        field: 'supplier',
-        type: PlutoColumnType.text(),
-        width: 150,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Received Qty',
-        field: 'receivedQty',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Inspected Qty',
-        field: 'inspectedQty',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Pending Qty',
-        field: 'pendingQty',
-        type: PlutoColumnType.number(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Status',
-        field: 'status',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Date',
-        field: 'date',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-    ];
-  }
-
-  List<PlutoRow> _getStockRows(WidgetRef ref) {
-    final storeInwards = ref.watch(storeInwardProvider);
-    final purchaseOrders = ref.watch(purchaseOrderListProvider);
-    ref.watch(qualityInspectionProvider);
-    final categories = ref.watch(categoryListProvider);
-    final rows = <PlutoRow>[];
-
-    // Get the material's category
-    final category = categories.firstWhere(
-      (c) => c.name == material.category,
-      orElse: () => Category(name: material.category),
-    );
-
-    // Process store inwards for stock distribution
-    for (var inward in storeInwards) {
-      for (var item in inward.items) {
-        if (item.materialCode == material.partNo) {
-          // Find PO if it exists
-          final po = purchaseOrders.firstWhere(
-            (po) => po.poNo == inward.poNo,
-            orElse: () => PurchaseOrder(
-              poNo: inward.poNo,
-              poDate: 'Unknown',
-              supplierName: inward.supplierName,
-              transport: 'Unknown',
-              deliveryRequirements: 'Unknown',
-              items: [],
-              total: 0,
-              igst: 0,
-              cgst: 0,
-              sgst: 0,
-              grandTotal: 0,
-            ),
-          );
-
-          // If quality check is not required, show full quantity in stock
-          if (!category.requiresQualityCheck) {
-            rows.add(PlutoRow(
-              cells: {
-                'grnNo': PlutoCell(value: inward.grnNo),
-                'jobNo': PlutoCell(value: inward.grnNo),
-                'poNo': PlutoCell(value: inward.poNo),
-                'poDate': PlutoCell(value: po.poDate),
-                'supplier': PlutoCell(value: inward.supplierName),
-                'receivedQty': PlutoCell(value: item.receivedQty),
-                'acceptedQty': PlutoCell(
-                    value: item.receivedQty), // Full quantity is accepted
-                'rate': PlutoCell(value: '₹${item.costPerUnit}'),
-                'value': PlutoCell(
-                    value:
-                        '₹${(item.receivedQty * double.parse(item.costPerUnit)).toStringAsFixed(2)}'),
-                'date': PlutoCell(value: inward.grnDate),
-              },
-            ));
-            continue;
-          }
-
-          // For items requiring inspection, show accepted quantities
-          final acceptedQty = item.totalAcceptedQty;
-          if (acceptedQty > 0) {
-            rows.add(PlutoRow(
-              cells: {
-                'grnNo': PlutoCell(value: inward.grnNo),
-                'jobNo': PlutoCell(value: inward.grnNo),
-                'poNo': PlutoCell(value: inward.poNo),
-                'poDate': PlutoCell(value: po.poDate),
-                'supplier': PlutoCell(value: inward.supplierName),
-                'receivedQty': PlutoCell(value: item.receivedQty),
-                'acceptedQty': PlutoCell(value: acceptedQty),
-                'rate': PlutoCell(value: '₹${item.costPerUnit}'),
-                'value': PlutoCell(
-                    value:
-                        '₹${(acceptedQty * double.parse(item.costPerUnit)).toStringAsFixed(2)}'),
-                'date': PlutoCell(value: inward.grnDate),
-              },
-            ));
-          }
-        }
-      }
-    }
-
-    return rows;
-  }
-
-  List<PlutoRow> _getInspectionRows(WidgetRef ref) {
-    final storeInwards = ref.watch(storeInwardProvider);
-    ref.watch(qualityInspectionProvider);
-    final categories = ref.watch(categoryListProvider);
-    final rows = <PlutoRow>[];
-
-    // Get the material's category
-    final category = categories.firstWhere(
-      (c) => c.name == material.category,
-      orElse: () => Category(name: material.category),
-    );
-
-    // Skip inspection rows if quality check is not required
-    if (!category.requiresQualityCheck) {
-      return rows;
-    }
-
-    // Process store inwards for items under inspection
-    for (var inward in storeInwards) {
-      for (var item in inward.items) {
-        if (item.materialCode == material.partNo) {
-          final underInspectionQty = item.underInspectionQty;
-
-          if (underInspectionQty > 0) {
-            // Get latest inspection status
-            final inspectionEntries = item.inspectionStatus.entries.toList();
-            inspectionEntries.sort((a, b) => b.key.compareTo(a.key));
-            final latestInspection =
-                inspectionEntries.isEmpty ? null : inspectionEntries.first;
-
-            final status =
-                latestInspection?.value.status ?? 'Pending Inspection';
-            final inspectedQty = item.inspectedQuantity;
-
-            rows.add(PlutoRow(
-              cells: {
-                'inspectionNo': PlutoCell(value: latestInspection?.key ?? '-'),
-                'grnNo': PlutoCell(value: inward.grnNo),
-                'jobNo': PlutoCell(value: '-'),
-                'poNo': PlutoCell(value: inward.poNo),
-                'supplier': PlutoCell(value: inward.supplierName),
-                'receivedQty': PlutoCell(value: item.receivedQty),
-                'inspectedQty': PlutoCell(value: inspectedQty),
-                'pendingQty': PlutoCell(value: underInspectionQty),
-                'status': PlutoCell(value: status),
-                'date': PlutoCell(value: inward.grnDate),
-              },
-            ));
-          }
-        }
-      }
-    }
-
-    return rows;
-  }
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Stock Details - ${material.description}'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: grDetails.length,
+      itemBuilder: (context, index) {
+        final gr = grDetails[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          child: ExpansionTile(
+            title: Row(
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Material Information',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Code: ${material.partNo}'),
-                    Text('Description: ${material.description}'),
-                    Text('Unit: ${material.unit}'),
-                    Text('Category: ${material.category}'),
-                    Text('Sub Category: ${material.subCategory}'),
-                    Text('Storage Location: ${material.storageLocation}'),
-                    Text('Rack Number: ${material.rackNumber}'),
-                  ],
+                Expanded(
+                  flex: 2,
+                  child: Text('GR No: ${gr.grNo}'),
                 ),
-              ),
+                Expanded(
+                  flex: 2,
+                  child: Text('Date: ${gr.date}'),
+                ),
+                Expanded(
+                  child: Text(
+                    'Qty: ${gr.quantity.toStringAsFixed(2)}',
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Stock Distribution',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.3,
-              child: PlutoGrid(
-                columns: _getStockColumns(),
-                rows: _getStockRows(ref),
-                configuration: PlutoGridConfigurations.darkMode(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Under Inspection',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
+            children: gr.poDetails.map((po) {
+              return Padding(
+                padding: const EdgeInsets.only(left: 16.0),
+                child: Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: ExpansionTile(
+                    title: Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Text('PO No: ${po.poNo}'),
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Qty: ${po.quantity.toStringAsFixed(2)}',
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      ],
+                    ),
+                    children: po.prDetails.map((pr) {
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 16.0),
+                        child: ListTile(
+                          title: Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Text('PR No: ${pr.prNo}'),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text('Job No: ${pr.jobNo}'),
+                              ),
             Expanded(
-              child: PlutoGrid(
-                columns: _getInspectionColumns(),
-                rows: _getInspectionRows(ref),
-                configuration: PlutoGridConfigurations.darkMode(),
+                                child: Text(
+                                  'Qty: ${pr.quantity.toStringAsFixed(2)}',
+                                  textAlign: TextAlign.right,
               ),
             ),
           ],
         ),
       ),
     );
+                    }).toList(),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// Extension method to help with grouping
+extension IterableExtension<T> on Iterable<T> {
+  Map<K, List<T>> groupBy<K>(K Function(T) keyFunction) {
+    final map = <K, List<T>>{};
+    for (var element in this) {
+      final key = keyFunction(element);
+      map.putIfAbsent(key, () => []).add(element);
+    }
+    return map;
   }
 }

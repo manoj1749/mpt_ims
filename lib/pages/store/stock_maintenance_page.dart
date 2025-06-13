@@ -226,31 +226,171 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
       itemBuilder: (context, index) {
         final grnEntry = sortedGRNs[index];
         final grn = grnEntry.value;
+        final grnNo = grnEntry.key;
 
         // Get vendor details
         final vendorDetails = stock.vendorDetails[grn.vendorId];
         final vendorName = vendorDetails?.vendorName ?? 'Unknown Vendor';
 
+        // Find all POs associated with this GRN
+        final relatedPOs = stock.poDetails.entries
+            .where((po) => po.value.vendorId == grn.vendorId)
+            .toList();
+
         return Card(
-          margin: const EdgeInsets.symmetric(vertical: 8.0),
+          margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ExpansionTile(
-            title: Text('GRN: ${grnEntry.key}'),
-            subtitle: Text('Date: ${grn.grnDate}'),
+            title: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('GRN: $grnNo'),
+                      Text(
+                        'Date: ${grn.grnDate}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('Qty: ${grn.receivedQuantity} ${stock.unit}'),
+                      if (grn.acceptedQuantity > 0)
+                        Text(
+                          'Accepted: ${grn.acceptedQuantity} ${stock.unit}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            subtitle: Text('Vendor: $vendorName'),
             children: [
+              // PO Level
+              ...relatedPOs.map((poEntry) {
+                final po = poEntry.value;
+                final poNo = poEntry.key;
+
+                // Find PRs associated with this PO by looking up job details
+                final relatedPRs = stock.prDetails.entries.where((pr) {
+                  // Find job details that reference this PR
+                  final hasMatchingJob = stock.jobDetails.values
+                      .any((job) => job.prNo == pr.key);
+                  return hasMatchingJob;
+                }).toList();
+
+                return Padding(
+                  padding: const EdgeInsets.only(left: 16.0),
+                  child: Card(
+                    margin: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: ExpansionTile(
+                      title: Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('PO: $poNo'),
+                                Text(
+                                  'Date: ${po.poDate}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                    'Ordered: ${po.orderedQuantity} ${stock.unit}'),
+                                Text(
+                                  'Received: ${po.receivedQuantity} ${stock.unit}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      children: [
+                        // PR Level
+                        ...relatedPRs.map((prEntry) {
+                          final pr = prEntry.value;
+                          final prNo = prEntry.key;
+
+                          // Find job details for this PR
+                          final jobDetail = stock.jobDetails.values
+                              .firstWhere((job) => job.prNo == prNo);
+
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 16.0),
+                            child: ListTile(
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text('PR: $prNo'),
+                                        Text(
+                                          'Job: ${jobDetail.jobNo}',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                            'Requested: ${pr.requestedQuantity} ${stock.unit}'),
+                                        Text(
+                                            'Received: ${pr.receivedQuantity} ${stock.unit}',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+
+              // Additional GRN details
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Vendor: $vendorName'),
-                    const SizedBox(height: 8),
-                    Text('Received: ${grn.receivedQuantity} ${stock.unit}'),
-                    Text('Accepted: ${grn.acceptedQuantity} ${stock.unit}'),
-                    Text('Rejected: ${grn.rejectedQuantity} ${stock.unit}'),
+                    const Divider(),
                     Text('Rate: ₹${grn.rate.toStringAsFixed(2)}'),
                     if (grn.acceptedQuantity > 0)
                       Text(
                           'Value: ₹${(grn.acceptedQuantity * grn.rate).toStringAsFixed(2)}'),
+                    if (grn.rejectedQuantity > 0)
+                      Text(
+                          'Rejected: ${grn.rejectedQuantity} ${stock.unit}',
+                          style: const TextStyle(color: Colors.red)),
                   ],
                 ),
               ),

@@ -370,12 +370,12 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
                               ),
                             ),
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   ),
                 );
-              }).toList(),
+              }),
 
               // Additional GRN details
               Padding(

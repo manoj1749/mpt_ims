@@ -798,8 +798,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
                 // First try to use existing PR quantities
                 for (var prEntry in prControllers.entries) {
-                  if (prEntry.key == '_po' || prEntry.key == 'General')
+                  if (prEntry.key == '_po' || prEntry.key == 'General') {
                     continue;
+                  }
 
                   final prNo = prEntry.key;
                   final qty = double.tryParse(prEntry.value.text) ?? 0;
@@ -850,8 +851,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
                 // Add non-General PRs first
                 for (var prEntry in prControllers.entries) {
-                  if (prEntry.key == '_po' || prEntry.key == 'General')
+                  if (prEntry.key == '_po' || prEntry.key == 'General') {
                     continue;
+                  }
 
                   final prNo = prEntry.key;
                   final qty = double.tryParse(prEntry.value.text) ?? 0;

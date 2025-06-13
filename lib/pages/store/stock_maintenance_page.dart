@@ -280,8 +280,8 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
                 // Find PRs associated with this PO by looking up job details
                 final relatedPRs = stock.prDetails.entries.where((pr) {
                   // Find job details that reference this PR
-                  final hasMatchingJob = stock.jobDetails.values
-                      .any((job) => job.prNo == pr.key);
+                  final hasMatchingJob =
+                      stock.jobDetails.values.any((job) => job.prNo == pr.key);
                   return hasMatchingJob;
                 }).toList();
 
@@ -353,7 +353,8 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
                                   ),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
                                       children: [
                                         Text(
                                             'Requested: ${pr.requestedQuantity} ${stock.unit}'),
@@ -388,8 +389,7 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
                       Text(
                           'Value: ₹${(grn.acceptedQuantity * grn.rate).toStringAsFixed(2)}'),
                     if (grn.rejectedQuantity > 0)
-                      Text(
-                          'Rejected: ${grn.rejectedQuantity} ${stock.unit}',
+                      Text('Rejected: ${grn.rejectedQuantity} ${stock.unit}',
                           style: const TextStyle(color: Colors.red)),
                   ],
                 ),

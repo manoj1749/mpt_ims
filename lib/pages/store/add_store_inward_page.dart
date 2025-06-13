@@ -791,14 +791,15 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             } else {
               // Handle both General and non-General PRs
               print('Handling mixed PR distribution');
-              
+
               // First distribute to non-General PRs if they exist
               if (nonGeneralPRs.isNotEmpty) {
                 double remainingQty = poQty;
-                
+
                 // First try to use existing PR quantities
                 for (var prEntry in prControllers.entries) {
-                  if (prEntry.key == '_po' || prEntry.key == 'General') continue;
+                  if (prEntry.key == '_po' || prEntry.key == 'General')
+                    continue;
 
                   final prNo = prEntry.key;
                   final qty = double.tryParse(prEntry.value.text) ?? 0;
@@ -807,7 +808,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                   // Check if this quantity can be accommodated
                   final prPendingQty = poItem.getPendingQuantityForPR(prNo);
                   final actualQty = qty > prPendingQty ? prPendingQty : qty;
-                  
+
                   if (actualQty > 0 && actualQty <= remainingQty) {
                     print('Adding PR quantity: $prNo = $actualQty');
                     inwardItem.addPRQuantity(poNo, prNo, actualQty);
@@ -827,8 +828,10 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 }
 
                 // If there's remaining quantity and General PR exists, assign it there
-                if (remainingQty > 0 && poItem.prDetails.containsKey('General')) {
-                  print('Adding remaining quantity to General PR: $remainingQty');
+                if (remainingQty > 0 &&
+                    poItem.prDetails.containsKey('General')) {
+                  print(
+                      'Adding remaining quantity to General PR: $remainingQty');
                   const prNo = 'General';
                   inwardItem.addPRQuantity(poNo, prNo, remainingQty);
                   totalReceivedQty += remainingQty;
@@ -847,7 +850,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
                 // Add non-General PRs first
                 for (var prEntry in prControllers.entries) {
-                  if (prEntry.key == '_po' || prEntry.key == 'General') continue;
+                  if (prEntry.key == '_po' || prEntry.key == 'General')
+                    continue;
 
                   final prNo = prEntry.key;
                   final qty = double.tryParse(prEntry.value.text) ?? 0;

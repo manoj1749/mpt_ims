@@ -186,7 +186,8 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
           return IconButton(
             icon: const Icon(Icons.visibility_outlined),
             onPressed: () {
-              _showMaterialDetails(rendererContext.row.cells['materialCode']!.value as String);
+              _showMaterialDetails(
+                  rendererContext.row.cells['materialCode']!.value as String);
             },
             tooltip: 'View Details',
           );
@@ -340,40 +341,41 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
 
     // Process store inwards to build hierarchical data
     for (var inward in storeInwards) {
-      final relevantItems = inward.items.where((item) => item.materialCode == materialCode);
-      
+      final relevantItems =
+          inward.items.where((item) => item.materialCode == materialCode);
+
       for (var item in relevantItems) {
         final List<PODetails> poDetails = [];
-        
+
         // Group by PO and process PR quantities
         for (var poEntry in item.prQuantities.entries) {
           final String poNo = poEntry.key;
           final Map<String, double> prQtys = poEntry.value;
           final List<PRDetails> prDetails = [];
           double poTotal = 0;
-          
+
           // Process PR details for this PO
           for (var prEntry in prQtys.entries) {
             final String prNo = prEntry.key;
             final double qty = prEntry.value;
             final String jobNo = item.prJobNumbers[poNo]?[prNo] ?? 'N/A';
-            
+
             prDetails.add(PRDetails(
               prNo: prNo,
               jobNo: jobNo,
               quantity: qty,
             ));
-            
+
             poTotal += qty;
           }
-          
+
           poDetails.add(PODetails(
             poNo: poNo,
             quantity: poTotal,
             prDetails: prDetails,
           ));
         }
-        
+
         grDetails.add(GRDetails(
           grNo: inward.grnNo,
           date: inward.grnDate,
@@ -486,7 +488,7 @@ class MaterialDetailsView extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 4),
           child: ExpansionTile(
             title: Row(
-          children: [
+              children: [
                 Expanded(
                   flex: 2,
                   child: Text('GR No: ${gr.grNo}'),
@@ -537,16 +539,16 @@ class MaterialDetailsView extends StatelessWidget {
                                 flex: 2,
                                 child: Text('Job No: ${pr.jobNo}'),
                               ),
-            Expanded(
+                              Expanded(
                                 child: Text(
                                   'Qty: ${pr.quantity.toStringAsFixed(2)}',
                                   textAlign: TextAlign.right,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
                     }).toList(),
                   ),
                 ),

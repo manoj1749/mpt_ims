@@ -92,6 +92,28 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
       // Update PO details
       if (grn.poNo.isNotEmpty) {
+        // Create a map to store PR quantities for this GRN
+        final grnPrQuantities = <String, double>{};
+        
+        // Collect PR quantities for this GRN
+        for (var poEntry in item.prQuantities.entries) {
+          final poNo = poEntry.key;
+          if (poNo == grn.poNo) {  // Only process PRs for this PO
+            for (var prEntry in poEntry.value.entries) {
+              final prNo = prEntry.key;
+              final quantity = prEntry.value;
+              grnPrQuantities[prNo] = quantity;
+            }
+          }
+        }
+
+        // Create or update PO details
+        final existingPO = stock.poDetails[grn.poNo];
+        final receivedQuantities = existingPO?.receivedQuantities ?? {};
+        
+        // Add quantities for this GRN
+        receivedQuantities[grn.grnNo] = grnPrQuantities;
+
         final poDetails = StockPODetails(
           poNo: grn.poNo,
           poDate: grn.poDate,
@@ -99,6 +121,7 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
           receivedQuantity: item.receivedQty,
           vendorId: grn.supplierName,
           rate: double.tryParse(item.costPerUnit) ?? 0.0,
+          receivedQuantities: receivedQuantities,
         );
         stock.addPODetails(grn.poNo, poDetails);
       }

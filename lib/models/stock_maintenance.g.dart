@@ -145,13 +145,14 @@ class StockPODetailsAdapter extends TypeAdapter<StockPODetails> {
       receivedQuantity: fields[3] as double,
       vendorId: fields[4] as String,
       rate: fields[5] as double,
+      receivedQuantities: (fields[6] as Map?)?.cast<String, Map<String, double>>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, StockPODetails obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.poNo)
       ..writeByte(1)
@@ -163,7 +164,9 @@ class StockPODetailsAdapter extends TypeAdapter<StockPODetails> {
       ..writeByte(4)
       ..write(obj.vendorId)
       ..writeByte(5)
-      ..write(obj.rate);
+      ..write(obj.rate)
+      ..writeByte(6)
+      ..write(obj.receivedQuantities);
   }
 
   @override

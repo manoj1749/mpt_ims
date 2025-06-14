@@ -194,6 +194,9 @@ class StockPODetails {
   @HiveField(5)
   double rate;
 
+  @HiveField(6)
+  Map<String, Map<String, double>> receivedQuantities; // GRN -> PR -> Quantity mapping
+
   StockPODetails({
     required this.poNo,
     required this.poDate,
@@ -201,7 +204,8 @@ class StockPODetails {
     required this.receivedQuantity,
     required this.vendorId,
     required this.rate,
-  });
+    Map<String, Map<String, double>>? receivedQuantities,
+  }) : this.receivedQuantities = receivedQuantities ?? {};
 }
 
 @HiveType(typeId: 27)

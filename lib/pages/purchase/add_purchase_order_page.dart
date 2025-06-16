@@ -737,7 +737,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                       item.materialCode == material.partNo,
                                   orElse: () {
                                     // Create a new PO item if it doesn't exist
-                                    final newItem = _createPOItem(material, [prItem]);
+                                    final newItem =
+                                        _createPOItem(material, [prItem]);
                                     poItems.add(newItem);
                                     return newItem;
                                   },

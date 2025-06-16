@@ -396,11 +396,11 @@ class QualityParameter {
     required this.parameter,
     this.specification = '',
     dynamic isAcceptable = true,
-  }) : isAcceptable = isAcceptable == null 
-          ? true 
-          : isAcceptable is bool 
-            ? isAcceptable 
-            : isAcceptable == 'true';
+  }) : isAcceptable = isAcceptable == null
+            ? true
+            : isAcceptable is bool
+                ? isAcceptable
+                : isAcceptable == 'true';
 
   // Standard Quality Parameters - Exact names as per sheet
   static const String visualCheck = 'Visual Check';

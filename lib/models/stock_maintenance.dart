@@ -212,7 +212,8 @@ class StockPODetails {
   double rate;
 
   @HiveField(6)
-  Map<String, Map<String, double>> receivedQuantities = {}; // GRN -> PR -> Quantity mapping
+  Map<String, Map<String, double>> receivedQuantities =
+      {}; // GRN -> PR -> Quantity mapping
 
   StockPODetails({
     required this.poNo,
@@ -223,7 +224,8 @@ class StockPODetails {
     required this.rate,
     Map<String, Map<String, double>>? receivedQuantities,
   }) {
-    this.receivedQuantities = Map<String, Map<String, double>>.from(receivedQuantities ?? {});
+    this.receivedQuantities =
+        Map<String, Map<String, double>>.from(receivedQuantities ?? {});
   }
 
   // Helper method to safely add received quantities

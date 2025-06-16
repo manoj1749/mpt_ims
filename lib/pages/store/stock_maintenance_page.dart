@@ -215,7 +215,6 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
     );
   }
 
-
   Future<void> _editLocation(StockMaintenance stock) async {
     final locationController =
         TextEditingController(text: stock.storageLocation);
@@ -406,19 +405,19 @@ class _StockDetailsViewState extends State<StockDetailsView> {
 
       // ignore: unused_local_variable
       for (var poEntry in relatedPOs) {
-        
         // Find PRs related to this PO
         for (var prEntry in widget.stock.prDetails.entries) {
           final prNo = prEntry.key;
-          
+
           // Check if this PR is linked to a job and has pending quantity
           if (prQuantities.containsKey(prNo)) {
             final prData = prQuantities[prNo]!;
             final pendingQty = prData['requested'] - prData['received'];
-            
+
             if (pendingQty > 0 && remainingQty > 0) {
               // Allocate quantity to this PR
-              final allocatedQty = remainingQty > pendingQty ? pendingQty : remainingQty;
+              final allocatedQty =
+                  remainingQty > pendingQty ? pendingQty : remainingQty;
               prData['received'] += allocatedQty;
               remainingQty -= allocatedQty;
               allocated = true;
@@ -475,7 +474,8 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text('${data['received'].toStringAsFixed(2)} ${widget.stock.unit}'),
+                                Text(
+                                    '${data['received'].toStringAsFixed(2)} ${widget.stock.unit}'),
                                 Text(
                                   'Requested: ${data['requested'].toStringAsFixed(2)} ${widget.stock.unit}',
                                   style: Theme.of(context).textTheme.bodySmall,
@@ -497,7 +497,8 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('General Stock'),
-                        Text('${generalStock.toStringAsFixed(2)} ${widget.stock.unit}'),
+                        Text(
+                            '${generalStock.toStringAsFixed(2)} ${widget.stock.unit}'),
                       ],
                     ),
                   ),
@@ -555,14 +556,16 @@ class _StockDetailsViewState extends State<StockDetailsView> {
             // Process each PR that received stock from this GRN
             for (var prEntry in receivedQtys.entries) {
               final prNo = prEntry.key;
-              final receivedQty = prEntry.value is double ? prEntry.value : (prEntry.value as num).toDouble();
+              final receivedQty = prEntry.value is double
+                  ? prEntry.value
+                  : (prEntry.value as num).toDouble();
 
               // Skip if no quantity was received
               if (receivedQty <= 0) continue;
 
               // Get PR details
               final pr = widget.stock.prDetails[prNo];
-              
+
               // Handle General PR differently
               if (prNo == 'General') {
                 prJobDetails[prNo] = {
@@ -631,7 +634,8 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('Qty: ${grn.receivedQuantity} ${widget.stock.unit}'),
+                            Text(
+                                'Qty: ${grn.receivedQuantity} ${widget.stock.unit}'),
                             if (grn.acceptedQuantity > 0)
                               Text(
                                 'Accepted: ${grn.acceptedQuantity} ${widget.stock.unit}',
@@ -691,7 +695,8 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                             ],
                           ),
                           Padding(
-                            padding: const EdgeInsets.only(left: 16.0, top: 4.0),
+                            padding:
+                                const EdgeInsets.only(left: 16.0, top: 4.0),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -725,7 +730,8 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                         Text(
                             'Value: ₹${(grn.acceptedQuantity * grn.rate).toStringAsFixed(2)}'),
                       if (grn.rejectedQuantity > 0)
-                        Text('Rejected: ${grn.rejectedQuantity} ${widget.stock.unit}',
+                        Text(
+                            'Rejected: ${grn.rejectedQuantity} ${widget.stock.unit}',
                             style: const TextStyle(color: Colors.red)),
                     ],
                   ),

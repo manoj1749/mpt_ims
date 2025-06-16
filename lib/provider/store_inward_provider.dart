@@ -60,23 +60,23 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
   Future<void> addInward(StoreInward inward) async {
     print('\nAdding new inward: ${inward.grnNo}');
-    
+
     // Get all POs
     final poList = ref.read(purchaseOrderListProvider);
-    
+
     // Process each item
     for (var item in inward.items) {
       print('\nProcessing item: ${item.materialCode}');
-      
+
       // For each PO in the item
       for (var poNo in item.prQuantities.keys.toList()) {
         print('\nChecking PO: $poNo');
         final prQuantities = item.prQuantities[poNo];
-        
+
         // Only auto-distribute if no PR quantities are manually set
         if (prQuantities == null || prQuantities.isEmpty) {
           print('No PR quantities found for PO, checking PR details');
-          
+
           // Find the PO
           final po = poList.firstWhere(
             (p) => p.poNo == poNo,
@@ -94,7 +94,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
               grandTotal: 0.0,
             ),
           );
-          
+
           // Find the corresponding PO item
           final poItem = po.items.firstWhere(
             (i) => i.materialCode == item.materialCode,
@@ -111,7 +111,8 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
             ),
           );
 
-          print('DEBUG: poItem.prDetails for ${item.materialCode}/${po.poNo}: ${poItem.prDetails}');
+          print(
+              'DEBUG: poItem.prDetails for ${item.materialCode}/${po.poNo}: ${poItem.prDetails}');
 
           if (poItem.prDetails.isNotEmpty) {
             print('Found PR details in PO:');
@@ -124,34 +125,34 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
               final prNo = prDetail.key;
               final jobNo = prDetail.value.jobNo;
               final prQty = prDetail.value.quantity;
-              
+
               // Calculate proportional quantity
               double proportion = prQty / totalPRQty;
               double allocatedQty = item.receivedQty * proportion;
-              
+
               print('\nAdding PR quantity:');
               print('PO: $poNo, PR: $prNo, Quantity: $allocatedQty');
-              
+
               if (!item.prQuantities.containsKey(poNo)) {
                 item.prQuantities[poNo] = {};
               }
               item.prQuantities[poNo]![prNo] = allocatedQty;
-              
+
               print('Updated PR quantities for $poNo:');
-              item.prQuantities[poNo]!.forEach((pr, qty) => 
-                print('PR: $pr, Quantity: $qty'));
-              
+              item.prQuantities[poNo]!
+                  .forEach((pr, qty) => print('PR: $pr, Quantity: $qty'));
+
               print('\nAdding job number:');
               print('PO: $poNo, PR: $prNo, Job: $jobNo');
-              
+
               if (!item.prJobNumbers.containsKey(poNo)) {
                 item.prJobNumbers[poNo] = {};
               }
               item.prJobNumbers[poNo]![prNo] = jobNo;
-              
+
               print('Updated job numbers for $poNo:');
-              item.prJobNumbers[poNo]!.forEach((pr, job) => 
-                print('PR: $pr, Job: $job'));
+              item.prJobNumbers[poNo]!
+                  .forEach((pr, job) => print('PR: $pr, Job: $job'));
             }
           } else {
             // If no PR details found, assign to General PR
@@ -160,7 +161,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
               item.prQuantities[poNo] = {};
             }
             item.prQuantities[poNo]!['General'] = item.receivedQty;
-            
+
             if (!item.prJobNumbers.containsKey(poNo)) {
               item.prJobNumbers[poNo] = {};
             }
@@ -186,16 +187,16 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
   Future<void> updateInward(int index, StoreInward inward) async {
     print('\nUpdating inward: ${inward.grnNo}');
-    
+
     // Process each item
     for (var item in inward.items) {
       print('\nProcessing item: ${item.materialCode}');
-      
+
       // For each PO in the item
       for (var poNo in item.prQuantities.keys.toList()) {
         print('\nChecking PO: $poNo');
         final prQuantities = item.prQuantities[poNo];
-        
+
         // If there are no PR quantities but we have a PO quantity
         if ((prQuantities?.isEmpty ?? true) && item.receivedQty > 0) {
           print('No PR quantities found for PO, distributing automatically');
@@ -353,7 +354,8 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
   }
 
   // Get total received quantity for a specific PR
-  double? getReceivedQuantityForPR(String materialCode, String poNo, String prNo) {
+  double? getReceivedQuantityForPR(
+      String materialCode, String poNo, String prNo) {
     double total = 0;
     for (var inward in state) {
       for (var item in inward.items) {
@@ -464,7 +466,8 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
     // Get all inspections for this GRN
     final inspectionBox = Hive.box<QualityInspection>('quality_inspections');
-    final inspections = inspectionBox.values.where((insp) => insp.grnNo == grnNo).toList();
+    final inspections =
+        inspectionBox.values.where((insp) => insp.grnNo == grnNo).toList();
 
     bool allItemsProcessed = true;
     bool hasProcessedItems = false;
@@ -536,13 +539,15 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
       if (totalInspectedQty < item.receivedQty) {
         allItemsProcessed = false;
-        print('Item not fully inspected: $totalInspectedQty < ${item.receivedQty}');
+        print(
+            'Item not fully inspected: $totalInspectedQty < ${item.receivedQty}');
       }
     }
 
     String newStatus;
     if (!hasItemsNeedingInspection) {
-      newStatus = 'Completed'; // All items are general stock or don't need inspection
+      newStatus =
+          'Completed'; // All items are general stock or don't need inspection
     } else if (!hasProcessedItems) {
       newStatus = 'Under Inspection';
     } else if (allItemsProcessed) {
@@ -559,7 +564,9 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
     await _inwardBox.putAt(index, inward);
 
     // Update stock maintenance
-    await ref.read(stockMaintenanceProvider.notifier).updateStockFromGRN(inward);
+    await ref
+        .read(stockMaintenanceProvider.notifier)
+        .updateStockFromGRN(inward);
 
     // Update state
     state = [..._inwardBox.values];

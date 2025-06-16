@@ -795,15 +795,15 @@ class _AddQualityInspectionPageState
             // Quality Parameters Section
             Container(
               padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
+              decoration: BoxDecoration(
                 color: Colors.grey[850],
                 borderRadius: BorderRadius.circular(8),
-                    ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                children: [
                   const Text('Quality Parameters',
-                          style: TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       )),
@@ -817,7 +817,7 @@ class _AddQualityInspectionPageState
                             flex: 2,
                             child: Text(param.parameter,
                                 style: const TextStyle(fontSize: 12)),
-                    ),
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             flex: 2,
@@ -854,8 +854,7 @@ class _AddQualityInspectionPageState
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const Text('Accept',
-                              style: TextStyle(fontSize: 12)),
+                          const Text('Accept', style: TextStyle(fontSize: 12)),
                         ],
                       ),
                     );
@@ -871,12 +870,12 @@ class _AddQualityInspectionPageState
               decoration: BoxDecoration(
                 color: Colors.grey[850],
                 borderRadius: BorderRadius.circular(8),
-                    ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('PO-wise Inspection',
-                          style: TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       )),
@@ -888,33 +887,35 @@ class _AddQualityInspectionPageState
                           final currentPoNo = entry.key;
                           final currentPoQty = entry.value;
 
-                  // Find PO and PO item
-                          final po = ref.watch(purchaseOrderListProvider).firstWhere(
-                            (po) => po.poNo == currentPoNo,
-                    orElse: () => throw Exception('PO not found'),
-                  );
+                          // Find PO and PO item
+                          final po = ref
+                              .watch(purchaseOrderListProvider)
+                              .firstWhere(
+                                (po) => po.poNo == currentPoNo,
+                                orElse: () => throw Exception('PO not found'),
+                              );
 
-                  final poItem = po.items.firstWhere(
-                    (i) => i.materialCode == item.materialCode,
-                    orElse: () => throw Exception('PO item not found'),
-                  );
+                          final poItem = po.items.firstWhere(
+                            (i) => i.materialCode == item.materialCode,
+                            orElse: () => throw Exception('PO item not found'),
+                          );
 
-                  // Get PR numbers for this PO item
-                  final prNos = poItem.prDetails.values
-                      .map((detail) => detail.prNo)
-                      .where((prNo) => prNo != 'General')
-                      .toList();
+                          // Get PR numbers for this PO item
+                          final prNos = poItem.prDetails.values
+                              .map((detail) => detail.prNo)
+                              .where((prNo) => prNo != 'General')
+                              .toList();
 
-                  // Get job numbers for these PRs
-                  final jobNos = prNos
-                      .map((prNo) {
-                        final pr = ref
-                            .read(purchaseRequestListProvider)
-                            .firstWhere((pr) => pr.prNo == prNo);
-                        return pr.jobNo ?? '';
-                      })
-                      .where((jobNo) => jobNo.isNotEmpty)
-                      .join(', ');
+                          // Get job numbers for these PRs
+                          final jobNos = prNos
+                              .map((prNo) {
+                                final pr = ref
+                                    .read(purchaseRequestListProvider)
+                                    .firstWhere((pr) => pr.prNo == prNo);
+                                return pr.jobNo ?? '';
+                              })
+                              .where((jobNo) => jobNo.isNotEmpty)
+                              .join(', ');
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1000,65 +1001,76 @@ class _AddQualityInspectionPageState
                                   TableRow(
                                     decoration: BoxDecoration(
                                       color: Colors.grey[900],
-                    ),
-                    children: [
+                                    ),
+                                    children: [
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
-                          child: Row(
-                            children: [
-                              Expanded(
+                                          child: Row(
+                                            children: [
+                                              Expanded(
                                                 child: Text(currentPoNo,
-                                    style: const TextStyle(fontSize: 12)),
-                              ),
-                              const Icon(Icons.info_outline, size: 16),
-                            ],
-                          ),
-                        ),
-                      ),
+                                                    style: const TextStyle(
+                                                        fontSize: 12)),
+                                              ),
+                                              const Icon(Icons.info_outline,
+                                                  size: 16),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
                                           child: Text(prNos.join(', '),
-                            style: const TextStyle(fontSize: 12)),
-                      ),
+                                              style: const TextStyle(
+                                                  fontSize: 12)),
+                                        ),
                                       ),
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
-                                          child: Text(jobNos.isEmpty ? 'General Stock' : jobNos,
-                            style: const TextStyle(fontSize: 12)),
-                      ),
+                                          child: Text(
+                                              jobNos.isEmpty
+                                                  ? 'General Stock'
+                                                  : jobNos,
+                                              style: const TextStyle(
+                                                  fontSize: 12)),
+                                        ),
                                       ),
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
-                                          child: Text('${currentPoQty.receivedQty}',
-                          style: const TextStyle(fontSize: 12),
+                                          child: Text(
+                                              '${currentPoQty.receivedQty}',
+                                              style:
+                                                  const TextStyle(fontSize: 12),
                                               textAlign: TextAlign.end),
-                      ),
+                                        ),
                                       ),
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
-                                          child: Text('${currentPoQty.acceptedQty}',
+                                          child: Text(
+                                              '${currentPoQty.acceptedQty}',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.green[400],
                                               ),
                                               textAlign: TextAlign.end),
-                      ),
+                                        ),
                                       ),
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
-                                          child: Text('${currentPoQty.rejectedQty}',
+                                          child: Text(
+                                              '${currentPoQty.rejectedQty}',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.red[400],
                                               ),
                                               textAlign: TextAlign.end),
-                      ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1072,99 +1084,111 @@ class _AddQualityInspectionPageState
                                   color: Colors.grey[900],
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                     // Usage Decision Dropdown
-                            DropdownButtonFormField<String>(
+                                    DropdownButtonFormField<String>(
                                       value: currentPoQty.usageDecision,
-                              decoration: const InputDecoration(
-                                labelText: 'Usage Decision',
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'Lot Accepted',
+                                      decoration: const InputDecoration(
+                                        labelText: 'Usage Decision',
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                      items: const [
+                                        DropdownMenuItem(
+                                          value: 'Lot Accepted',
                                           child: Text('Lot Accepted'),
-                                ),
-                                DropdownMenuItem(
+                                        ),
+                                        DropdownMenuItem(
                                           value: 'Rejected',
                                           child: Text('Rejected'),
-                                ),
-                                DropdownMenuItem(
-                                  value: '100% Recheck',
+                                        ),
+                                        DropdownMenuItem(
+                                          value: '100% Recheck',
                                           child: Text('100% Recheck'),
-                                ),
-                              ],
+                                        ),
+                                      ],
                                       onChanged: (value) {
-                                  setState(() {
+                                        setState(() {
                                           currentPoQty.usageDecision = value!;
                                           if (value != '100% Recheck') {
                                             currentPoQty.recheckType = null;
                                           }
-                                          if (value == 'Rejected' || value == '100% Recheck') {
-                                      item.capaRequired = true;
+                                          if (value == 'Rejected' ||
+                                              value == '100% Recheck') {
+                                            item.capaRequired = true;
                                           }
                                         });
                                       },
                                     ),
                                     // CAPA Checkbox
-                                    if (currentPoQty.usageDecision == 'Rejected' ||
-                                        currentPoQty.usageDecision == '100% Recheck') ...[
+                                    if (currentPoQty.usageDecision ==
+                                            'Rejected' ||
+                                        currentPoQty.usageDecision ==
+                                            '100% Recheck') ...[
                                       const SizedBox(height: 16),
-                              Container(
+                                      Container(
                                         padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
+                                        decoration: BoxDecoration(
                                           color: Colors.grey[850],
-                                          borderRadius: BorderRadius.circular(8),
-                                ),
-                                        child: Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 24,
-                                              height: 24,
-                                          child: Checkbox(
-                                                value: item.capaRequired,
-                                            onChanged: (value) {
-                                              setState(() {
-                                                    item.capaRequired = value ?? false;
-                                              });
-                                            },
-                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
+                                        child: Row(
+                                          children: [
+                                            SizedBox(
+                                              width: 24,
+                                              height: 24,
+                                              child: Checkbox(
+                                                value: item.capaRequired,
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    item.capaRequired =
+                                                        value ?? false;
+                                                  });
+                                                },
+                                              ),
+                                            ),
                                             const SizedBox(width: 12),
                                             const Expanded(
                                               child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Text('CAPA Required',
                                                       style: TextStyle(
                                                         fontSize: 13,
-                                                        fontWeight: FontWeight.w500,
+                                                        fontWeight:
+                                                            FontWeight.w500,
                                                       )),
-                                                  Text('Corrective Action / Preventive Action',
+                                                  Text(
+                                                      'Corrective Action / Preventive Action',
                                                       style: TextStyle(
-                                                          fontSize: 11, color: Colors.grey)),
-                                      ],
-                                    ),
+                                                          fontSize: 11,
+                                                          color: Colors.grey)),
+                                                ],
+                                              ),
                                             ),
                                           ],
                                         ),
                                       ),
                                     ],
                                     // Recheck Type Dropdown
-                                    if (currentPoQty.usageDecision == '100% Recheck') ...[
+                                    if (currentPoQty.usageDecision ==
+                                        '100% Recheck') ...[
                                       const SizedBox(height: 16),
                                       Container(
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
                                           color: Colors.grey[850],
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
                                             const Text('Recheck Details',
                                                 style: TextStyle(
                                                   fontSize: 13,
@@ -1172,30 +1196,37 @@ class _AddQualityInspectionPageState
                                                 )),
                                             const SizedBox(height: 12),
                                             DropdownButtonFormField<String>(
-                                              value: currentPoQty.recheckType ?? '100% Acceptance',
+                                              value: currentPoQty.recheckType ??
+                                                  '100% Acceptance',
                                               decoration: const InputDecoration(
                                                 labelText: 'Recheck Type',
                                                 border: OutlineInputBorder(),
                                                 isDense: true,
-                                                contentPadding: EdgeInsets.symmetric(
-                                                    horizontal: 12, vertical: 12),
+                                                contentPadding:
+                                                    EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 12),
                                               ),
                                               isExpanded: true,
                                               items: const [
                                                 DropdownMenuItem(
                                                   value: '100% Acceptance',
                                                   child: Text('100% Acceptance',
-                                                      style: TextStyle(fontSize: 13)),
+                                                      style: TextStyle(
+                                                          fontSize: 13)),
                                                 ),
                                                 DropdownMenuItem(
                                                   value: 'Partial Acceptance',
-                                                  child: Text('Partial Acceptance',
-                                                      style: TextStyle(fontSize: 13)),
+                                                  child: Text(
+                                                      'Partial Acceptance',
+                                                      style: TextStyle(
+                                                          fontSize: 13)),
                                                 ),
                                               ],
                                               onChanged: (value) {
-                                                  setState(() {
-                                                  currentPoQty.recheckType = value;
+                                                setState(() {
+                                                  currentPoQty.recheckType =
+                                                      value;
                                                   item.capaRequired = true;
                                                 });
                                               },
@@ -1205,149 +1236,208 @@ class _AddQualityInspectionPageState
                                       ),
                                     ],
                                     // PR-wise quantity allocation
-                                    if (currentPoQty.usageDecision == '100% Recheck' &&
-                                        currentPoQty.recheckType == 'Partial Acceptance') ...[
+                                    if (currentPoQty.usageDecision ==
+                                            '100% Recheck' &&
+                                        currentPoQty.recheckType ==
+                                            'Partial Acceptance') ...[
                                       const SizedBox(height: 16),
                                       Container(
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
                                           color: Colors.grey[850],
-                                          borderRadius: BorderRadius.circular(8),
-                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             const Row(
                                               children: [
-                                                Icon(Icons.assignment, size: 16),
+                                                Icon(Icons.assignment,
+                                                    size: 16),
                                                 SizedBox(width: 8),
                                                 Text('PR-wise Allocation',
                                                     style: TextStyle(
                                                       fontSize: 13,
-                                                      fontWeight: FontWeight.w500,
+                                                      fontWeight:
+                                                          FontWeight.w500,
                                                     )),
                                               ],
                                             ),
                                             const SizedBox(height: 12),
                                             // PR allocation content
-                                            ...poItem.prDetails.entries.map((prEntry) {
+                                            ...poItem.prDetails.entries
+                                                .map((prEntry) {
                                               final prNo = prEntry.key;
                                               final prDetail = prEntry.value;
 
                                               // Initialize map for current PO if it doesn't exist
-                                              _prQtyControllers.putIfAbsent(currentPoNo, () => {});
-                                              
+                                              _prQtyControllers.putIfAbsent(
+                                                  currentPoNo, () => {});
+
                                               // Initialize controller for this PR
-                                              _prQtyControllers[currentPoNo]!.putIfAbsent(
+                                              _prQtyControllers[currentPoNo]!
+                                                  .putIfAbsent(
                                                 prNo,
-                                                () => TextEditingController(text: '0.0'),
+                                                () => TextEditingController(
+                                                    text: '0.0'),
                                               );
 
                                               return Container(
-                                                margin: const EdgeInsets.only(bottom: 8),
-                                                padding: const EdgeInsets.all(8),
+                                                margin: const EdgeInsets.only(
+                                                    bottom: 8),
+                                                padding:
+                                                    const EdgeInsets.all(8),
                                                 decoration: BoxDecoration(
                                                   color: Colors.grey[900],
-                                                  borderRadius: BorderRadius.circular(4),
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
                                                 ),
                                                 child: Row(
-                                        children: [
+                                                  children: [
                                                     // PR Info
                                                     Expanded(
                                                       child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
                                                         children: [
                                                           Text(prNo,
-                                                              style: const TextStyle(
+                                                              style:
+                                                                  const TextStyle(
                                                                 fontSize: 12,
-                                                                fontWeight: FontWeight.w500,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500,
                                                               )),
-                                                          if (prDetail.jobNo != 'General')
+                                                          if (prDetail.jobNo !=
+                                                              'General')
                                                             Text(prDetail.jobNo,
-                                                                style: TextStyle(
+                                                                style:
+                                                                    TextStyle(
                                                                   fontSize: 11,
-                                                                  color: Colors.grey[400],
+                                                                  color: Colors
+                                                                          .grey[
+                                                                      400],
                                                                 )),
                                                           Text(
                                                             'Ordered: ${prDetail.quantity} ${item.unit}',
-                                                            style: const TextStyle(fontSize: 11),
+                                                            style:
+                                                                const TextStyle(
+                                                                    fontSize:
+                                                                        11),
                                                           ),
                                                           Text(
                                                             'Received: ${poItem.getReceivedQuantityForPR(prNo)} ${item.unit}',
                                                             style: TextStyle(
                                                               fontSize: 11,
-                                                              color: Colors.grey[400],
+                                                              color: Colors
+                                                                  .grey[400],
                                                             ),
                                                           ),
-                                        ],
-                                      ),
+                                                        ],
+                                                      ),
                                                     ),
                                                     const SizedBox(width: 8),
                                                     // Accept Qty Input
                                                     SizedBox(
                                                       width: 100,
                                                       child: TextFormField(
-                                                        controller: _prQtyControllers[currentPoNo]![prNo],
-                                                        decoration: InputDecoration(
+                                                        controller:
+                                                            _prQtyControllers[
+                                                                    currentPoNo]![
+                                                                prNo],
+                                                        decoration:
+                                                            InputDecoration(
                                                           labelText: 'Accept',
-                                                          border: const OutlineInputBorder(),
-                                            isDense: true,
-                                                          contentPadding: const EdgeInsets.symmetric(
+                                                          border:
+                                                              const OutlineInputBorder(),
+                                                          isDense: true,
+                                                          contentPadding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
                                                             horizontal: 8,
                                                             vertical: 8,
                                                           ),
                                                           suffixText: item.unit,
                                                         ),
-                                                        keyboardType: const TextInputType.numberWithOptions(
+                                                        keyboardType:
+                                                            const TextInputType
+                                                                .numberWithOptions(
                                                           decimal: true,
-                                          ),
-                                          style: const TextStyle(fontSize: 12),
+                                                        ),
+                                                        style: const TextStyle(
+                                                            fontSize: 12),
                                                         validator: (value) {
-                                                          if (value == null || value.isEmpty) {
+                                                          if (value == null ||
+                                                              value.isEmpty) {
                                                             return 'Required';
                                                           }
-                                                          final qty = double.tryParse(value);
+                                                          final qty =
+                                                              double.tryParse(
+                                                                  value);
                                                           if (qty == null) {
                                                             return 'Invalid';
                                                           }
                                                           if (qty < 0) {
                                                             return 'Invalid';
                                                           }
-                                                          final totalReceived = poItem.getReceivedQuantityForPR(prNo);
-                                                          if (qty > totalReceived) {
+                                                          final totalReceived =
+                                                              poItem
+                                                                  .getReceivedQuantityForPR(
+                                                                      prNo);
+                                                          if (qty >
+                                                              totalReceived) {
                                                             return 'Max $totalReceived';
                                                           }
                                                           return null;
                                                         },
-                                          onChanged: (value) {
+                                                        onChanged: (value) {
                                                           // Update accepted quantity
-                                            setState(() {
-                                                            currentPoQty.acceptedQty = _prQtyControllers[currentPoNo]!.values
-                                                                .map((controller) => double.tryParse(controller.text) ?? 0.0)
-                                                                .fold(0.0, (sum, qty) => sum + qty);
-                                                            currentPoQty.rejectedQty = currentPoQty.receivedQty - currentPoQty.acceptedQty;
-                                            });
-                                          },
-                                ),
-                              ),
-                          ],
-                        ),
-                  );
-                }),
-              ],
-            ),
+                                                          setState(() {
+                                                            currentPoQty
+                                                                .acceptedQty = _prQtyControllers[
+                                                                    currentPoNo]!
+                                                                .values
+                                                                .map((controller) =>
+                                                                    double.tryParse(
+                                                                        controller
+                                                                            .text) ??
+                                                                    0.0)
+                                                                .fold(
+                                                                    0.0,
+                                                                    (sum, qty) =>
+                                                                        sum +
+                                                                        qty);
+                                                            currentPoQty
+                                                                    .rejectedQty =
+                                                                currentPoQty
+                                                                        .receivedQty -
+                                                                    currentPoQty
+                                                                        .acceptedQty;
+                                                          });
+                                                        },
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            }),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ],
-              ),
-            ),
+                                ),
+                              ),
                             ],
                           );
                         }).toList(),
                       );
-                          },
-                      ),
-                    ],
+                    },
+                  ),
+                ],
               ),
             ),
           ],
@@ -1355,5 +1445,4 @@ class _AddQualityInspectionPageState
       ),
     );
   }
-
 }

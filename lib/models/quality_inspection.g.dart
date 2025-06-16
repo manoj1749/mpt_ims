@@ -309,7 +309,7 @@ class QualityParameterAdapter extends TypeAdapter<QualityParameter> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    
+
     // Handle both string and bool values for isAcceptable
     dynamic isAcceptable = fields[2];
     if (isAcceptable == null) {
@@ -317,7 +317,7 @@ class QualityParameterAdapter extends TypeAdapter<QualityParameter> {
     } else if (isAcceptable is String) {
       isAcceptable = isAcceptable == 'true';
     }
-    
+
     return QualityParameter(
       parameter: fields[0] as String,
       specification: fields[1] as String,

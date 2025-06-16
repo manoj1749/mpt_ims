@@ -51,19 +51,20 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
   // Update stock from GRN
   Future<void> updateStockFromGRN(StoreInward grn) async {
     print('\n=== Debug: Updating Stock from GRN ${grn.grnNo} ===');
-    
+
     // Ensure all required boxes are open
     final materialsBox = await Hive.openBox<MaterialItem>('materials');
     final categoriesBox = await Hive.openBox<Category>('categories');
-    final inspectionsBox = await Hive.openBox<QualityInspection>('quality_inspections');
-    
+    final inspectionsBox =
+        await Hive.openBox<QualityInspection>('quality_inspections');
+
     try {
       for (var item in grn.items) {
         print('\nProcessing item: ${item.materialCode}');
         print('Received Qty: ${item.receivedQty}');
         print('Accepted Qty: ${item.acceptedQty}');
         print('Rejected Qty: ${item.rejectedQty}');
-        
+
         // First check if stock exists and add it if it doesn't
         var stock = _stockBox.values.firstWhere(
           (s) => s.materialCode == item.materialCode,
@@ -81,7 +82,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
           print('Adding new stock for ${item.materialCode}');
           await _stockBox.add(stock);
           // Get the newly added stock from the box
-          stock = _stockBox.values.firstWhere((s) => s.materialCode == item.materialCode);
+          stock = _stockBox.values
+              .firstWhere((s) => s.materialCode == item.materialCode);
         }
 
         print('Current Stock before update: ${stock.currentStock}');
@@ -116,41 +118,42 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
           receivedQuantity: item.receivedQty,
           acceptedQuantity: item.acceptedQty,
           rejectedQuantity: item.rejectedQty,
-          vendorId: grn.supplierName.isNotEmpty ? grn.supplierName : 'Unknown Vendor',
-          rate: double.tryParse(item.costPerUnit) ?? 
-                item.prQuantities.entries.fold<double>(0.0, (rate, entry) {
-                  final po = poList.firstWhere(
-                    (p) => p.poNo == entry.key,
-                    orElse: () => PurchaseOrder(
-                      poNo: entry.key,
-                      poDate: '',
-                      supplierName: '',
-                      transport: '',
-                      deliveryRequirements: '',
-                      items: [],
-                      total: 0.0,
-                      igst: 0.0,
-                      cgst: 0.0,
-                      sgst: 0.0,
-                      grandTotal: 0.0,
-                    ),
-                  );
-                  final poItem = po.items.firstWhere(
-                    (i) => i.materialCode == item.materialCode,
-                    orElse: () => POItem(
-                      materialCode: item.materialCode,
-                      materialDescription: item.materialDescription,
-                      unit: item.unit,
-                      quantity: '0',
-                      costPerUnit: '0',
-                      totalCost: '0',
-                      saleRate: '0',
-                      marginPerUnit: '0',
-                      totalMargin: '0',
-                    ),
-                  );
-                  return double.tryParse(poItem.costPerUnit) ?? rate;
-                }),
+          vendorId:
+              grn.supplierName.isNotEmpty ? grn.supplierName : 'Unknown Vendor',
+          rate: double.tryParse(item.costPerUnit) ??
+              item.prQuantities.entries.fold<double>(0.0, (rate, entry) {
+                final po = poList.firstWhere(
+                  (p) => p.poNo == entry.key,
+                  orElse: () => PurchaseOrder(
+                    poNo: entry.key,
+                    poDate: '',
+                    supplierName: '',
+                    transport: '',
+                    deliveryRequirements: '',
+                    items: [],
+                    total: 0.0,
+                    igst: 0.0,
+                    cgst: 0.0,
+                    sgst: 0.0,
+                    grandTotal: 0.0,
+                  ),
+                );
+                final poItem = po.items.firstWhere(
+                  (i) => i.materialCode == item.materialCode,
+                  orElse: () => POItem(
+                    materialCode: item.materialCode,
+                    materialDescription: item.materialDescription,
+                    unit: item.unit,
+                    quantity: '0',
+                    costPerUnit: '0',
+                    totalCost: '0',
+                    saleRate: '0',
+                    marginPerUnit: '0',
+                    totalMargin: '0',
+                  ),
+                );
+                return double.tryParse(poItem.costPerUnit) ?? rate;
+              }),
         );
 
         // --- NEW: Update PO and PR mapping for this GRN ---
@@ -177,7 +180,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
             ),
           );
           final poDate = po.poDate;
-          final vendorId = grn.supplierName.isNotEmpty ? grn.supplierName : 'Unknown Vendor';
+          final vendorId =
+              grn.supplierName.isNotEmpty ? grn.supplierName : 'Unknown Vendor';
           final rate = double.tryParse(item.costPerUnit) ?? 0.0;
 
           // Ensure PO details exist
@@ -205,7 +209,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
               orderedQuantity: 0.0,
               receivedQuantity: 0.0,
             );
-            stock.prDetails[prNo]!.receivedQuantity = (stock.prDetails[prNo]!.receivedQuantity) + qty;
+            stock.prDetails[prNo]!.receivedQuantity =
+                (stock.prDetails[prNo]!.receivedQuantity) + qty;
           }
         }
         // --- END NEW ---
@@ -220,10 +225,11 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
             totalCurrentStock += grnDetail.receivedQuantity;
           } else {
             // Check if there's a completed inspection for this GRN
-            final inspections = inspectionsBox.values.where((insp) => 
-              insp.grnNo == grnEntry.key && 
-              insp.status.startsWith('Completed')
-            ).toList();
+            final inspections = inspectionsBox.values
+                .where((insp) =>
+                    insp.grnNo == grnEntry.key &&
+                    insp.status.startsWith('Completed'))
+                .toList();
 
             if (inspections.isNotEmpty) {
               // Sum up accepted quantities from all inspections
@@ -236,11 +242,11 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
                 }
               }
               totalCurrentStock += totalAcceptedQty;
-              totalUnderInspection += grnDetail.receivedQuantity - 
+              totalUnderInspection += grnDetail.receivedQuantity -
                   (totalAcceptedQty + grnDetail.rejectedQuantity);
             } else {
               // No completed inspection, keep quantity under inspection
-              totalUnderInspection += grnDetail.receivedQuantity - 
+              totalUnderInspection += grnDetail.receivedQuantity -
                   (grnDetail.acceptedQuantity + grnDetail.rejectedQuantity);
             }
           }
@@ -270,8 +276,9 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
   // Update stock based on inspection status change
   Future<void> updateStockFromInspection(QualityInspection inspection) async {
-    print('\n=== Debug: Updating Stock from Inspection ${inspection.inspectionNo} ===');
-    
+    print(
+        '\n=== Debug: Updating Stock from Inspection ${inspection.inspectionNo} ===');
+
     // Only process completed inspections
     if (!inspection.status.startsWith('Completed')) {
       print('Inspection not completed, skipping stock update');
@@ -280,8 +287,9 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
     // Ensure all required boxes are open
     final inwardBox = await Hive.openBox<StoreInward>('store_inwards');
-    final inspectionsBox = await Hive.openBox<QualityInspection>('quality_inspections');
-    
+    final inspectionsBox =
+        await Hive.openBox<QualityInspection>('quality_inspections');
+
     try {
       // Get the GRN
       final grn = inwardBox.values.firstWhere(
@@ -329,7 +337,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
         );
 
         if (grnItem.materialCode.isEmpty) {
-          print('GRN item not found for material: ${inspectionItem.materialCode}');
+          print(
+              'GRN item not found for material: ${inspectionItem.materialCode}');
           continue;
         }
 
@@ -376,11 +385,11 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
         for (var grnEntry in stock.grnDetails.entries) {
           final grnDetail = grnEntry.value;
-          final inspections = inspectionsBox.values.where(
-            (insp) => 
-              insp.grnNo == grnEntry.key && 
-              insp.status.startsWith('Completed')
-          ).toList();
+          final inspections = inspectionsBox.values
+              .where((insp) =>
+                  insp.grnNo == grnEntry.key &&
+                  insp.status.startsWith('Completed'))
+              .toList();
 
           if (inspections.isNotEmpty) {
             // Sum up accepted quantities from completed inspections
@@ -393,11 +402,11 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
               }
             }
             totalCurrentStock += totalAcceptedQty;
-            totalUnderInspection += grnDetail.receivedQuantity - 
+            totalUnderInspection += grnDetail.receivedQuantity -
                 (totalAcceptedQty + grnDetail.rejectedQuantity);
           } else {
             // No completed inspection, keep quantity under inspection
-            totalUnderInspection += grnDetail.receivedQuantity - 
+            totalUnderInspection += grnDetail.receivedQuantity -
                 (grnDetail.acceptedQuantity + grnDetail.rejectedQuantity);
           }
         }

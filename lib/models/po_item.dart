@@ -142,7 +142,8 @@ class POItem extends HiveObject {
 
     // Do NOT remove any existing quantity for this GRN and PR
     receivedQuantities.putIfAbsent(grnNo, () => {});
-    receivedQuantities[grnNo]![prNo] = (receivedQuantities[grnNo]![prNo] ?? 0.0) + quantity;
+    receivedQuantities[grnNo]![prNo] =
+        (receivedQuantities[grnNo]![prNo] ?? 0.0) + quantity;
   }
 
   // Get pending quantity for a specific PR

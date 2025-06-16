@@ -23,7 +23,8 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
   final Box<QualityInspection> box;
   final StockMaintenanceNotifier stockMaintenance;
 
-  QualityInspectionNotifier(this.box, this.stockMaintenance) : super(box.values.toList());
+  QualityInspectionNotifier(this.box, this.stockMaintenance)
+      : super(box.values.toList());
 
   String generateInspectionNumber() {
     final today = DateTime.now();
@@ -47,7 +48,7 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
 
   void updateInspection(QualityInspection inspection) async {
     print('\n=== Debug: Updating Inspection ${inspection.inspectionNo} ===');
-    
+
     // Find the index of the inspection to update
     final index = box.values.toList().indexWhere(
           (insp) => insp.inspectionNo == inspection.inspectionNo,
@@ -55,19 +56,16 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
 
     if (index != -1) {
       // Update inspection status based on all items
-      bool allItemsAccepted = inspection.items.every((item) => 
-        item.usageDecision == 'Lot Accepted' && 
-        item.acceptedQty == item.receivedQty
-      );
-      
-      bool allItemsRejected = inspection.items.every((item) =>
-        item.usageDecision == 'Lot Rejected' && 
-        item.rejectedQty == item.receivedQty
-      );
+      bool allItemsAccepted = inspection.items.every((item) =>
+          item.usageDecision == 'Lot Accepted' &&
+          item.acceptedQty == item.receivedQty);
 
-      bool allItemsProcessed = inspection.items.every((item) =>
-        item.acceptedQty + item.rejectedQty >= item.receivedQty
-      );
+      bool allItemsRejected = inspection.items.every((item) =>
+          item.usageDecision == 'Lot Rejected' &&
+          item.rejectedQty == item.receivedQty);
+
+      bool allItemsProcessed = inspection.items.every(
+          (item) => item.acceptedQty + item.rejectedQty >= item.receivedQty);
 
       print('All Items Accepted: $allItemsAccepted');
       print('All Items Rejected: $allItemsRejected');

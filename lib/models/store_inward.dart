@@ -289,7 +289,7 @@ class InwardItem {
           final prNo = prDetail.key;
           final jobNo = prDetail.value.jobNo;
           final prQty = prDetail.value.quantity;
-          
+
           print('PR: $prNo, Job: $jobNo, Qty: $prQty');
           prQuantities[poNo]![prNo] = prQty;
           prJobNumbers[poNo]![prNo] = jobNo;
@@ -306,7 +306,7 @@ class InwardItem {
       prQuantities[poNo]!['General'] = poQuantity;
       prJobNumbers[poNo]!['General'] = 'General';
     }
-    
+
     print('Final PR distribution:');
     prQuantities[poNo]?.forEach((pr, qty) => print('PR: $pr, Quantity: $qty'));
   }
@@ -320,12 +320,12 @@ class InwardItem {
   void addPRQuantity(String poNo, String prNo, double quantity) {
     print('\nAdding PR quantity:');
     print('PO: $poNo, PR: $prNo, Quantity: $quantity');
-    
+
     if (!prQuantities.containsKey(poNo)) {
       prQuantities[poNo] = {};
     }
     prQuantities[poNo]![prNo] = quantity;
-    
+
     print('Updated PR quantities for $poNo:');
     prQuantities[poNo]?.forEach((pr, qty) => print('PR: $pr, Quantity: $qty'));
   }
@@ -334,12 +334,12 @@ class InwardItem {
   void addJobNumberForPR(String poNo, String prNo, String jobNo) {
     print('\nAdding job number:');
     print('PO: $poNo, PR: $prNo, Job: $jobNo');
-    
+
     if (!prJobNumbers.containsKey(poNo)) {
       prJobNumbers[poNo] = {};
     }
     prJobNumbers[poNo]![prNo] = jobNo;
-    
+
     print('Updated job numbers for $poNo:');
     prJobNumbers[poNo]?.forEach((pr, job) => print('PR: $pr, Job: $job'));
   }
@@ -476,7 +476,7 @@ class InwardItem {
   @override
   String toString() {
     return 'InwardItem(materialCode: '
-      '[33m$materialCode[0m, materialDescription: $materialDescription, unit: $unit, receivedQty: $receivedQty, acceptedQty: $acceptedQty, rejectedQty: $rejectedQty, prQuantities: $prQuantities, prJobNumbers: $prJobNumbers)';
+        '[33m$materialCode[0m, materialDescription: $materialDescription, unit: $unit, receivedQty: $receivedQty, acceptedQty: $acceptedQty, rejectedQty: $rejectedQty, prQuantities: $prQuantities, prJobNumbers: $prJobNumbers)';
   }
 }
 

@@ -424,11 +424,13 @@ class _QualityInspectionListPageState
         width: 150,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final item = rendererContext.row.cells['inspection']!.value as QualityInspection;
+          final item = rendererContext.row.cells['inspection']!.value
+              as QualityInspection;
           final poQty = item.items.first.poQuantities.values.first;
-          
+
           String displayText = poQty.usageDecision;
-          if (poQty.usageDecision == '100% Recheck' && poQty.recheckType != null) {
+          if (poQty.usageDecision == '100% Recheck' &&
+              poQty.recheckType != null) {
             displayText += '\n${poQty.recheckType}';
             if (poQty.conditionalAcceptance == true) {
               displayText += '\nConditional';
@@ -437,7 +439,7 @@ class _QualityInspectionListPageState
           if (item.items.first.capaRequired) {
             displayText += '\nCAPA Required';
           }
-          
+
           return Padding(
             padding: const EdgeInsets.all(8.0),
             child: Text(

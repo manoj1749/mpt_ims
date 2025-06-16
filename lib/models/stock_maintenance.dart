@@ -145,6 +145,11 @@ class StockMaintenance extends HiveObject {
 
   // Get total stock (current + under inspection)
   double get totalStock => currentStock + stockUnderInspection;
+
+  @override
+  String toString() {
+    return '\nStockMaintenance(materialCode: $materialCode, materialDescription: $materialDescription, unit: $unit, storageLocation: $storageLocation, rackNumber: $rackNumber, currentStock: $currentStock, stockUnderInspection: $stockUnderInspection, totalStockValue: $totalStockValue,\n  grnDetails: ${grnDetails.map((k, v) => MapEntry(k, v.toString()))},\n  poDetails: ${poDetails.map((k, v) => MapEntry(k, v.toString()))},\n  prDetails: ${prDetails.map((k, v) => MapEntry(k, v.toString()))},\n  jobDetails: ${jobDetails.map((k, v) => MapEntry(k, v.toString()))},\n  vendorDetails: ${vendorDetails.map((k, v) => MapEntry(k, v.toString()))}\n)';
+  }
 }
 
 @HiveType(typeId: 25)
@@ -179,6 +184,10 @@ class StockGRNDetails {
     required this.vendorId,
     required this.rate,
   });
+
+  String toString() {
+    return 'StockGRNDetails(grnNo: $grnNo, grnDate: $grnDate, receivedQuantity: $receivedQuantity, acceptedQuantity: $acceptedQuantity, rejectedQuantity: $rejectedQuantity, vendorId: $vendorId, rate: $rate)';
+  }
 }
 
 @HiveType(typeId: 26)
@@ -230,6 +239,10 @@ class StockPODetails {
     }
     return total;
   }
+
+  String toString() {
+    return 'StockPODetails(poNo: $poNo, poDate: $poDate, orderedQuantity: $orderedQuantity, receivedQuantity: $receivedQuantity, vendorId: $vendorId, rate: $rate, receivedQuantities: $receivedQuantities)';
+  }
 }
 
 @HiveType(typeId: 27)
@@ -256,6 +269,10 @@ class StockPRDetails {
     required this.orderedQuantity,
     required this.receivedQuantity,
   });
+
+  String toString() {
+    return 'StockPRDetails(prNo: $prNo, prDate: $prDate, requestedQuantity: $requestedQuantity, orderedQuantity: $orderedQuantity, receivedQuantity: $receivedQuantity)';
+  }
 }
 
 @HiveType(typeId: 28)
@@ -278,6 +295,10 @@ class StockJobDetails {
     required this.consumedQuantity,
     required this.prNo,
   });
+
+  String toString() {
+    return 'StockJobDetails(jobNo: $jobNo, allocatedQuantity: $allocatedQuantity, consumedQuantity: $consumedQuantity, prNo: $prNo)';
+  }
 }
 
 @HiveType(typeId: 29)
@@ -306,4 +327,8 @@ class StockVendorDetails {
   });
 
   double get totalValue => quantity * rate;
+
+  String toString() {
+    return 'StockVendorDetails(vendorId: $vendorId, vendorName: $vendorName, quantity: $quantity, rate: $rate, lastPurchaseDate: $lastPurchaseDate)';
+  }
 }

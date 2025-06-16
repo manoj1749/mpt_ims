@@ -7,6 +7,9 @@ import '../models/store_inward.dart';
 import '../models/material_item.dart';
 import '../models/category.dart';
 import '../models/quality_inspection.dart';
+import '../provider/purchase_order.dart';
+import '../models/purchase_order.dart';
+import '../models/po_item.dart';
 
 final stockMaintenanceBoxProvider = Provider<Box<StockMaintenance>>((ref) {
   throw UnimplementedError();
@@ -103,6 +106,9 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
           orElse: () => Category(name: material.category),
         );
 
+        // Get PO list to find rates
+        final poList = ref.read(purchaseOrderListProvider);
+
         // Add or update GRN details
         stock.grnDetails[grn.grnNo] = StockGRNDetails(
           grnNo: grn.grnNo,
@@ -110,9 +116,99 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
           receivedQuantity: item.receivedQty,
           acceptedQuantity: item.acceptedQty,
           rejectedQuantity: item.rejectedQty,
-          vendorId: grn.supplierName,
-          rate: double.tryParse(item.costPerUnit) ?? 0.0,
+          vendorId: grn.supplierName.isNotEmpty ? grn.supplierName : 'Unknown Vendor',
+          rate: double.tryParse(item.costPerUnit) ?? 
+                item.prQuantities.entries.fold<double>(0.0, (rate, entry) {
+                  final po = poList.firstWhere(
+                    (p) => p.poNo == entry.key,
+                    orElse: () => PurchaseOrder(
+                      poNo: entry.key,
+                      poDate: '',
+                      supplierName: '',
+                      transport: '',
+                      deliveryRequirements: '',
+                      items: [],
+                      total: 0.0,
+                      igst: 0.0,
+                      cgst: 0.0,
+                      sgst: 0.0,
+                      grandTotal: 0.0,
+                    ),
+                  );
+                  final poItem = po.items.firstWhere(
+                    (i) => i.materialCode == item.materialCode,
+                    orElse: () => POItem(
+                      materialCode: item.materialCode,
+                      materialDescription: item.materialDescription,
+                      unit: item.unit,
+                      quantity: '0',
+                      costPerUnit: '0',
+                      totalCost: '0',
+                      saleRate: '0',
+                      marginPerUnit: '0',
+                      totalMargin: '0',
+                    ),
+                  );
+                  return double.tryParse(poItem.costPerUnit) ?? rate;
+                }),
         );
+
+        // --- NEW: Update PO and PR mapping for this GRN ---
+        for (var poEntry in item.prQuantities.entries) {
+          final poNo = poEntry.key;
+          final prMap = poEntry.value;
+          if (prMap == null) continue;
+
+          // Update PO details
+          final po = poList.firstWhere(
+            (p) => p.poNo == poNo,
+            orElse: () => PurchaseOrder(
+              poNo: poNo,
+              poDate: '',
+              supplierName: '',
+              transport: '',
+              deliveryRequirements: '',
+              items: [],
+              total: 0.0,
+              igst: 0.0,
+              cgst: 0.0,
+              sgst: 0.0,
+              grandTotal: 0.0,
+            ),
+          );
+          final poDate = po?.poDate ?? '';
+          final vendorId = grn.supplierName.isNotEmpty ? grn.supplierName : 'Unknown Vendor';
+          final rate = double.tryParse(item.costPerUnit) ?? 0.0;
+
+          // Ensure PO details exist
+          stock.poDetails[poNo] ??= StockPODetails(
+            poNo: poNo,
+            poDate: poDate,
+            orderedQuantity: 0.0,
+            receivedQuantity: 0.0,
+            vendorId: vendorId,
+            rate: rate,
+          );
+
+          for (var prEntry in prMap.entries) {
+            final prNo = prEntry.key;
+            final qty = prEntry.value;
+
+            // Add received quantity mapping
+            stock.poDetails[poNo]!.addReceivedQuantity(grn.grnNo, prNo, qty);
+
+            // Ensure PR details exist
+            stock.prDetails[prNo] ??= StockPRDetails(
+              prNo: prNo,
+              prDate: '',
+              requestedQuantity: 0.0,
+              orderedQuantity: 0.0,
+              receivedQuantity: 0.0,
+            );
+            stock.prDetails[prNo]!.receivedQuantity = (stock.prDetails[prNo]!.receivedQuantity) + qty;
+          }
+        }
+        // --- END NEW ---
 
         // Calculate total stock from all GRNs
         double totalCurrentStock = 0.0;

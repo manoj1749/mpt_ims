@@ -6,6 +6,7 @@ import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/stock_maintenance.dart';
 import '../../provider/stock_maintenance_provider.dart';
 import '../../widgets/pluto_grid_configuration.dart';
+import 'package:hive/hive.dart';
 
 class StockMaintenancePage extends ConsumerStatefulWidget {
   const StockMaintenancePage({super.key});
@@ -16,6 +17,23 @@ class StockMaintenancePage extends ConsumerStatefulWidget {
 
 class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
   PlutoGridStateManager? stateManager;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (Hive.isBoxOpen('stock_maintenance')) {
+        final box = Hive.box<StockMaintenance>('stock_maintenance');
+        print('==== ALL StockMaintenance in stock_maintenance box ====');
+        for (var stock in box.values) {
+          print(stock.toString());
+        }
+        print('==== END StockMaintenance ====');
+      } else {
+        print('stock_maintenance box not open yet');
+      }
+    });
+  }
 
   List<PlutoRow> _buildRows(List<StockMaintenance> stocks) {
     return stocks.map((stock) {

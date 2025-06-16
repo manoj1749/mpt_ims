@@ -70,38 +70,45 @@ class StockMaintenance extends HiveObject {
   void addGRNDetails(String grnNo, StockGRNDetails details) {
     grnDetails[grnNo] = details;
     _updateTotalStockValue();
+    save();
   }
 
   // Helper method to add PO details
   void addPODetails(String poNo, StockPODetails details) {
     poDetails[poNo] = details;
+    save();
   }
 
   // Helper method to add PR details
   void addPRDetails(String prNo, StockPRDetails details) {
     prDetails[prNo] = details;
+    save();
   }
 
   // Helper method to add Job details
   void addJobDetails(String jobNo, StockJobDetails details) {
     jobDetails[jobNo] = details;
+    save();
   }
 
   // Helper method to add Vendor details
   void addVendorDetails(String vendorId, StockVendorDetails details) {
     vendorDetails[vendorId] = details;
     _updateTotalStockValue();
+    save();
   }
 
   // Helper method to update stock under inspection
   void updateStockUnderInspection(double quantity) {
     stockUnderInspection = quantity;
+    save();
   }
 
   // Helper method to update current stock
   void updateCurrentStock(double quantity) {
     currentStock = quantity;
     _updateTotalStockValue();
+    save();
   }
 
   // Private method to update total stock value
@@ -195,7 +202,7 @@ class StockPODetails {
   double rate;
 
   @HiveField(6)
-  Map<String, Map<String, double>> receivedQuantities; // GRN -> PR -> Quantity mapping
+  Map<String, Map<String, double>> receivedQuantities = {}; // GRN -> PR -> Quantity mapping
 
   StockPODetails({
     required this.poNo,
@@ -205,7 +212,24 @@ class StockPODetails {
     required this.vendorId,
     required this.rate,
     Map<String, Map<String, double>>? receivedQuantities,
-  }) : this.receivedQuantities = receivedQuantities ?? {};
+  }) {
+    this.receivedQuantities = Map<String, Map<String, double>>.from(receivedQuantities ?? {});
+  }
+
+  // Helper method to safely add received quantities
+  void addReceivedQuantity(String grnNo, String prNo, double quantity) {
+    receivedQuantities.putIfAbsent(grnNo, () => <String, double>{});
+    receivedQuantities[grnNo]![prNo] = quantity;
+  }
+
+  // Helper method to get total received quantity for a PR
+  double getReceivedQuantityForPR(String prNo) {
+    double total = 0.0;
+    for (var grnQtys in receivedQuantities.values) {
+      total += grnQtys[prNo] ?? 0.0;
+    }
+    return total;
+  }
 }
 
 @HiveType(typeId: 27)

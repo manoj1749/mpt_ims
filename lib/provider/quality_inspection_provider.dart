@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import '../models/quality_inspection.dart';
+import '../provider/store_inward_provider.dart';
+import '../provider/stock_maintenance_provider.dart';
 
 final qualityInspectionBoxProvider = Provider<Box<QualityInspection>>((ref) {
   throw UnimplementedError();
@@ -9,13 +11,18 @@ final qualityInspectionBoxProvider = Provider<Box<QualityInspection>>((ref) {
 
 final qualityInspectionProvider =
     StateNotifierProvider<QualityInspectionNotifier, List<QualityInspection>>(
-  (ref) => QualityInspectionNotifier(ref.watch(qualityInspectionBoxProvider)),
+  (ref) {
+    final box = ref.watch(qualityInspectionBoxProvider);
+    final stockMaintenance = ref.watch(stockMaintenanceProvider.notifier);
+    return QualityInspectionNotifier(box, stockMaintenance);
+  },
 );
 
 class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
   final Box<QualityInspection> box;
+  final StockMaintenanceNotifier stockMaintenance;
 
-  QualityInspectionNotifier(this.box) : super(box.values.toList());
+  QualityInspectionNotifier(this.box, this.stockMaintenance) : super(box.values.toList());
 
   String generateInspectionNumber() {
     final today = DateTime.now();
@@ -37,15 +44,55 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
     state = box.values.toList();
   }
 
-  void updateInspection(QualityInspection inspection) {
+  void updateInspection(QualityInspection inspection) async {
+    print('\n=== Debug: Updating Inspection ${inspection.inspectionNo} ===');
+    
     // Find the index of the inspection to update
     final index = box.values.toList().indexWhere(
           (insp) => insp.inspectionNo == inspection.inspectionNo,
         );
 
     if (index != -1) {
-      box.putAt(index, inspection);
+      // Update inspection status based on all items
+      bool allItemsAccepted = inspection.items.every((item) => 
+        item.usageDecision == 'Lot Accepted' && 
+        item.acceptedQty == item.receivedQty
+      );
+      
+      bool allItemsRejected = inspection.items.every((item) =>
+        item.usageDecision == 'Lot Rejected' && 
+        item.rejectedQty == item.receivedQty
+      );
+
+      bool allItemsProcessed = inspection.items.every((item) =>
+        item.acceptedQty + item.rejectedQty >= item.receivedQty
+      );
+
+      print('All Items Accepted: $allItemsAccepted');
+      print('All Items Rejected: $allItemsRejected');
+      print('All Items Processed: $allItemsProcessed');
+
+      if (allItemsAccepted) {
+        inspection.status = 'Completed - Accepted';
+      } else if (allItemsRejected) {
+        inspection.status = 'Completed - Rejected';
+      } else if (allItemsProcessed) {
+        inspection.status = 'Completed - Partial';
+      } else {
+        inspection.status = 'Pending';
+      }
+
+      print('Setting inspection status to: ${inspection.status}');
+
+      // Update the inspection in Hive
+      await box.putAt(index, inspection);
       state = box.values.toList();
+
+      // Update stock if inspection is completed
+      if (inspection.status.startsWith('Completed')) {
+        print('Updating stock maintenance...');
+        await stockMaintenance.updateStockFromInspection(inspection);
+      }
     }
   }
 

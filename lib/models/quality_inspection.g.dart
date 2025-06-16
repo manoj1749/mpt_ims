@@ -109,7 +109,7 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       receivedDate: fields[14] as String,
       expirationDate: fields[15] as String,
       parameters: (fields[16] as List).cast<QualityParameter>(),
-      isPartialRecheck: fields[17] as bool?,
+      isPartialRecheck: fields[17] == null ? null : fields[17] as bool,
       conditionalAcceptanceReason: fields[18] as String?,
       conditionalAcceptanceAction: fields[19] as String?,
       conditionalAcceptanceDeadline: fields[20] as String?,
@@ -124,8 +124,8 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
           (fields[27] as Map?)?.cast<String, InspectionGRNQuantity>(),
       inspectionRemark: fields[28] as String?,
       recheckType: fields[30] as String?,
-      conditionalAcceptance: fields[31] as bool?,
-    )..capaRequired = fields[29] as bool;
+      conditionalAcceptance: fields[31] == null ? null : fields[31] as bool,
+    )..capaRequired = fields[29] == null ? false : fields[29] as bool;
   }
 
   @override
@@ -309,10 +309,19 @@ class QualityParameterAdapter extends TypeAdapter<QualityParameter> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
+    
+    // Handle both string and bool values for isAcceptable
+    dynamic isAcceptable = fields[2];
+    if (isAcceptable == null) {
+      isAcceptable = true;
+    } else if (isAcceptable is String) {
+      isAcceptable = isAcceptable == 'true';
+    }
+    
     return QualityParameter(
       parameter: fields[0] as String,
       specification: fields[1] as String,
-      isAcceptable: fields[2] as bool,
+      isAcceptable: isAcceptable,
     );
   }
 

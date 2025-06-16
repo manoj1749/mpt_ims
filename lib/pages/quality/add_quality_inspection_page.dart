@@ -38,7 +38,7 @@ class _AddQualityInspectionPageState
 
   Supplier? selectedSupplier;
   List<InspectionItem> _items = [];
-  Map<String, Map<String, TextEditingController>> _prQtyControllers = {};
+  final Map<String, Map<String, TextEditingController>> _prQtyControllers = {};
 
   @override
   void initState() {
@@ -725,7 +725,7 @@ class _AddQualityInspectionPageState
     // Get standard parameters from provider
     final universalParams = ref.watch(universalParameterProvider);
     final categoryParams = ref.watch(categoryParameterProvider);
-    final purchaseOrders = ref.read(purchaseOrderListProvider);
+    ref.read(purchaseOrderListProvider);
     ref.read(purchaseRequestListProvider);
 
     // Get category-specific parameters
@@ -792,6 +792,79 @@ class _AddQualityInspectionPageState
             ),
             const Divider(height: 16),
 
+            // Quality Parameters Section
+            Container(
+              padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                color: Colors.grey[850],
+                borderRadius: BorderRadius.circular(8),
+                    ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                  const Text('Quality Parameters',
+                          style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      )),
+                  const SizedBox(height: 12),
+                  ...item.parameters.map((param) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Text(param.parameter,
+                                style: const TextStyle(fontSize: 12)),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: TextFormField(
+                              initialValue: param.specification,
+                              decoration: const InputDecoration(
+                                labelText: 'Specification',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 8,
+                                ),
+                              ),
+                              style: const TextStyle(fontSize: 12),
+                              onChanged: (value) {
+                                setState(() {
+                                  param.specification = value;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Checkbox(
+                              value: param.isAcceptable,
+                              onChanged: (value) {
+                                setState(() {
+                                  param.isAcceptable = value ?? true;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Text('Accept',
+                              style: TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // PO-wise Inspection Table
             Container(
               padding: const EdgeInsets.all(12),
@@ -815,33 +888,33 @@ class _AddQualityInspectionPageState
                           final currentPoNo = entry.key;
                           final currentPoQty = entry.value;
 
-                          // Find PO and PO item
+                  // Find PO and PO item
                           final po = ref.watch(purchaseOrderListProvider).firstWhere(
                             (po) => po.poNo == currentPoNo,
-                            orElse: () => throw Exception('PO not found'),
-                          );
+                    orElse: () => throw Exception('PO not found'),
+                  );
 
-                          final poItem = po.items.firstWhere(
-                            (i) => i.materialCode == item.materialCode,
-                            orElse: () => throw Exception('PO item not found'),
-                          );
+                  final poItem = po.items.firstWhere(
+                    (i) => i.materialCode == item.materialCode,
+                    orElse: () => throw Exception('PO item not found'),
+                  );
 
-                          // Get PR numbers for this PO item
-                          final prNos = poItem.prDetails.values
-                              .map((detail) => detail.prNo)
-                              .where((prNo) => prNo != 'General')
-                              .toList();
+                  // Get PR numbers for this PO item
+                  final prNos = poItem.prDetails.values
+                      .map((detail) => detail.prNo)
+                      .where((prNo) => prNo != 'General')
+                      .toList();
 
-                          // Get job numbers for these PRs
-                          final jobNos = prNos
-                              .map((prNo) {
-                                final pr = ref
-                                    .read(purchaseRequestListProvider)
-                                    .firstWhere((pr) => pr.prNo == prNo);
-                                return pr.jobNo ?? '';
-                              })
-                              .where((jobNo) => jobNo.isNotEmpty)
-                              .join(', ');
+                  // Get job numbers for these PRs
+                  final jobNos = prNos
+                      .map((prNo) {
+                        final pr = ref
+                            .read(purchaseRequestListProvider)
+                            .firstWhere((pr) => pr.prNo == prNo);
+                        return pr.jobNo ?? '';
+                      })
+                      .where((jobNo) => jobNo.isNotEmpty)
+                      .join(', ');
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -857,9 +930,9 @@ class _AddQualityInspectionPageState
                                   5: FlexColumnWidth(0.8),
                                 },
                                 children: [
-                                  TableRow(
+                                  const TableRow(
                                     children: [
-                                      const TableCell(
+                                      TableCell(
                                         child: Padding(
                                           padding: EdgeInsets.all(8.0),
                                           child: Text('PO No',
@@ -869,7 +942,7 @@ class _AddQualityInspectionPageState
                                               )),
                                         ),
                                       ),
-                                      const TableCell(
+                                      TableCell(
                                         child: Padding(
                                           padding: EdgeInsets.all(8.0),
                                           child: Text('PR No',
@@ -879,7 +952,7 @@ class _AddQualityInspectionPageState
                                               )),
                                         ),
                                       ),
-                                      const TableCell(
+                                      TableCell(
                                         child: Padding(
                                           padding: EdgeInsets.all(8.0),
                                           child: Text('Job No',
@@ -891,9 +964,9 @@ class _AddQualityInspectionPageState
                                       ),
                                       TableCell(
                                         child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
+                                          padding: EdgeInsets.all(8.0),
                                           child: Text('Received',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w500,
                                               ),
@@ -902,9 +975,9 @@ class _AddQualityInspectionPageState
                                       ),
                                       TableCell(
                                         child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
+                                          padding: EdgeInsets.all(8.0),
                                           child: Text('Accepted',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w500,
                                               ),
@@ -913,9 +986,9 @@ class _AddQualityInspectionPageState
                                       ),
                                       TableCell(
                                         child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
+                                          padding: EdgeInsets.all(8.0),
                                           child: Text('Rejected',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w500,
                                               ),
@@ -927,41 +1000,41 @@ class _AddQualityInspectionPageState
                                   TableRow(
                                     decoration: BoxDecoration(
                                       color: Colors.grey[900],
-                                    ),
-                                    children: [
+                    ),
+                    children: [
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
-                                          child: Row(
-                                            children: [
-                                              Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(
                                                 child: Text(currentPoNo,
-                                                    style: const TextStyle(fontSize: 12)),
-                                              ),
-                                              const Icon(Icons.info_outline, size: 16),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
+                                    style: const TextStyle(fontSize: 12)),
+                              ),
+                              const Icon(Icons.info_outline, size: 16),
+                            ],
+                          ),
+                        ),
+                      ),
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
                                           child: Text(prNos.join(', '),
-                                              style: const TextStyle(fontSize: 12)),
-                                        ),
+                            style: const TextStyle(fontSize: 12)),
+                      ),
                                       ),
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
                                           child: Text(jobNos.isEmpty ? 'General Stock' : jobNos,
-                                              style: const TextStyle(fontSize: 12)),
-                                        ),
+                            style: const TextStyle(fontSize: 12)),
+                      ),
                                       ),
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
                                           child: Text('${currentPoQty.receivedQty}',
-                                              style: const TextStyle(fontSize: 12),
+                          style: const TextStyle(fontSize: 12),
                                               textAlign: TextAlign.end),
                                         ),
                                       ),
@@ -999,39 +1072,39 @@ class _AddQualityInspectionPageState
                                   color: Colors.grey[900],
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                                     // Usage Decision Dropdown
-                                    DropdownButtonFormField<String>(
+                            DropdownButtonFormField<String>(
                                       value: currentPoQty.usageDecision,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Usage Decision',
-                                        border: OutlineInputBorder(),
-                                        isDense: true,
-                                      ),
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'Accepted',
-                                          child: Text('Accepted'),
-                                        ),
-                                        DropdownMenuItem(
+                              decoration: const InputDecoration(
+                                labelText: 'Usage Decision',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'Lot Accepted',
+                                          child: Text('Lot Accepted'),
+                                ),
+                                DropdownMenuItem(
                                           value: 'Rejected',
                                           child: Text('Rejected'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: '100% Recheck',
+                                ),
+                                DropdownMenuItem(
+                                  value: '100% Recheck',
                                           child: Text('100% Recheck'),
-                                        ),
-                                      ],
+                                ),
+                              ],
                                       onChanged: (value) {
-                                        setState(() {
+                                  setState(() {
                                           currentPoQty.usageDecision = value!;
                                           if (value != '100% Recheck') {
                                             currentPoQty.recheckType = null;
                                           }
                                           if (value == 'Rejected' || value == '100% Recheck') {
-                                            item.capaRequired = true;
+                                      item.capaRequired = true;
                                           }
                                         });
                                       },
@@ -1040,26 +1113,26 @@ class _AddQualityInspectionPageState
                                     if (currentPoQty.usageDecision == 'Rejected' ||
                                         currentPoQty.usageDecision == '100% Recheck') ...[
                                       const SizedBox(height: 16),
-                                      Container(
+                              Container(
                                         padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
+                                decoration: BoxDecoration(
                                           color: Colors.grey[850],
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Row(
-                                          children: [
-                                            SizedBox(
-                                              width: 24,
+                                      children: [
+                                        SizedBox(
+                                          width: 24,
                                               height: 24,
-                                              child: Checkbox(
+                                          child: Checkbox(
                                                 value: item.capaRequired,
-                                                onChanged: (value) {
-                                                  setState(() {
+                                            onChanged: (value) {
+                                              setState(() {
                                                     item.capaRequired = value ?? false;
-                                                  });
-                                                },
-                                              ),
-                                            ),
+                                              });
+                                            },
+                                          ),
+                                        ),
                                             const SizedBox(width: 12),
                                             const Expanded(
                                               child: Column(
@@ -1091,7 +1164,7 @@ class _AddQualityInspectionPageState
                                         ),
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
+                                        children: [
                                             const Text('Recheck Details',
                                                 style: TextStyle(
                                                   fontSize: 13,
@@ -1121,7 +1194,7 @@ class _AddQualityInspectionPageState
                                                 ),
                                               ],
                                               onChanged: (value) {
-                                                setState(() {
+                                                  setState(() {
                                                   currentPoQty.recheckType = value;
                                                   item.capaRequired = true;
                                                 });
@@ -1144,11 +1217,11 @@ class _AddQualityInspectionPageState
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Row(
+                                            const Row(
                                               children: [
-                                                const Icon(Icons.assignment, size: 16),
-                                                const SizedBox(width: 8),
-                                                const Text('PR-wise Allocation',
+                                                Icon(Icons.assignment, size: 16),
+                                                SizedBox(width: 8),
+                                                Text('PR-wise Allocation',
                                                     style: TextStyle(
                                                       fontSize: 13,
                                                       fontWeight: FontWeight.w500,
@@ -1161,9 +1234,13 @@ class _AddQualityInspectionPageState
                                               final prNo = prEntry.key;
                                               final prDetail = prEntry.value;
 
+                                              // Initialize map for current PO if it doesn't exist
+                                              _prQtyControllers.putIfAbsent(currentPoNo, () => {});
+                                              
                                               // Initialize controller for this PR
-                                              _prQtyControllers[currentPoNo]![prNo] ??= TextEditingController(
-                                                text: '0.0',
+                                              _prQtyControllers[currentPoNo]!.putIfAbsent(
+                                                prNo,
+                                                () => TextEditingController(text: '0.0'),
                                               );
 
                                               return Container(
@@ -1174,7 +1251,7 @@ class _AddQualityInspectionPageState
                                                   borderRadius: BorderRadius.circular(4),
                                                 ),
                                                 child: Row(
-                                                  children: [
+                                        children: [
                                                     // PR Info
                                                     Expanded(
                                                       child: Column(
@@ -1214,7 +1291,7 @@ class _AddQualityInspectionPageState
                                                         decoration: InputDecoration(
                                                           labelText: 'Accept',
                                                           border: const OutlineInputBorder(),
-                                                          isDense: true,
+                                            isDense: true,
                                                           contentPadding: const EdgeInsets.symmetric(
                                                             horizontal: 8,
                                                             vertical: 8,
@@ -1223,8 +1300,8 @@ class _AddQualityInspectionPageState
                                                         ),
                                                         keyboardType: const TextInputType.numberWithOptions(
                                                           decimal: true,
-                                                        ),
-                                                        style: const TextStyle(fontSize: 12),
+                                          ),
+                                          style: const TextStyle(fontSize: 12),
                                                         validator: (value) {
                                                           if (value == null || value.isEmpty) {
                                                             return 'Required';
@@ -1238,28 +1315,27 @@ class _AddQualityInspectionPageState
                                                           }
                                                           final totalReceived = poItem.getReceivedQuantityForPR(prNo);
                                                           if (qty > totalReceived) {
-                                                            return 'Max ${totalReceived}';
+                                                            return 'Max $totalReceived';
                                                           }
                                                           return null;
                                                         },
-                                                        onChanged: (value) {
+                                          onChanged: (value) {
                                                           // Update accepted quantity
-                                                          final qty = double.tryParse(value) ?? 0.0;
-                                                          setState(() {
+                                            setState(() {
                                                             currentPoQty.acceptedQty = _prQtyControllers[currentPoNo]!.values
                                                                 .map((controller) => double.tryParse(controller.text) ?? 0.0)
                                                                 .fold(0.0, (sum, qty) => sum + qty);
                                                             currentPoQty.rejectedQty = currentPoQty.receivedQty - currentPoQty.acceptedQty;
-                                                          });
-                                                        },
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            }).toList(),
-                                          ],
-                                        ),
+                                            });
+                                          },
+                                ),
+                              ),
+                          ],
+                        ),
+                  );
+                }),
+              ],
+            ),
                                       ),
                                     ],
                                   ],
@@ -1280,18 +1356,4 @@ class _AddQualityInspectionPageState
     );
   }
 
-  String _buildGRNTooltip(Map<String, String> grnInfoMap) {
-    final buffer = StringBuffer();
-    buffer.writeln('GRN Details:');
-
-    grnInfoMap.forEach((grnNo, infoJson) {
-      final info = json.decode(infoJson) as Map<String, dynamic>;
-      buffer.writeln('\nGRN: $grnNo');
-      buffer.writeln('Date: ${info['grnDate']}');
-      buffer.writeln('Invoice: ${info['invoiceNo']} (${info['invoiceDate']})');
-      buffer.writeln('Quantity: ${info['quantity']}');
-    });
-
-    return buffer.toString();
-  }
 }

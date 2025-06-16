@@ -61,7 +61,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       _grnDateController.text = widget.existingGR!.grnDate;
       _invoiceNoController.text = widget.existingGR!.invoiceNo;
       _invoiceDateController.text = widget.existingGR!.invoiceDate;
-      _invoiceAmountController.text = widget.existingGR!.invoiceAmount;
+      _invoiceAmountController.text = widget.existingGR!.invoiceAmount.toStringAsFixed(2);
       _receivedByController.text = widget.existingGR!.receivedBy;
       _checkedByController.text = widget.existingGR!.checkedBy;
 
@@ -127,12 +127,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     for (var entry in prQtyControllers.entries) {
       final materialCode = entry.key;
       final poControllers = entry.value;
-
       for (var poEntry in poControllers.entries) {
         final poNo = poEntry.key;
         final prControllers = poEntry.value;
-
-        // Get material cost from PO
         final po = ref.read(purchaseOrderListProvider).firstWhere(
               (po) => po.poNo == poNo,
               orElse: () => PurchaseOrder(
@@ -149,34 +146,39 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 grandTotal: 0,
               ),
             );
-
         POItem? poItem;
         try {
-          poItem =
-              po.items.firstWhere((item) => item.materialCode == materialCode);
+          poItem = po.items.firstWhere((item) => item.materialCode == materialCode);
         } catch (_) {
           poItem = null;
         }
+        
+        // Get cost per unit from PO item
         final cost = double.tryParse(poItem?.costPerUnit ?? '0') ?? 0.0;
-
-        // If PO-level quantity is entered and PR mapping is not shown
-        final showPRMapping =
-            selectedPRs[materialCode]?[poNo]?['_showPRMapping'] ?? false;
-        if (!showPRMapping) {
-          final poQty = double.tryParse(prControllers['_po']?.text ?? '') ?? 0;
-          total += poQty * cost;
-          continue;
-        }
-
-        // Calculate PR-wise quantities
+        
+        // Sum all PR quantities for this PO
+        double poTotal = 0.0;
         for (var prEntry in prControllers.entries) {
           if (prEntry.key == '_po') continue;
           final qty = double.tryParse(prEntry.value.text) ?? 0;
-          total += qty * cost;
+          if (qty > 0) {
+            poTotal += qty * cost;
+          }
         }
+        
+        total += poTotal;
       }
     }
-
+    
+    // Calculate GST
+    final supplier = selectedSupplier;
+    if (supplier != null) {
+      final igst = total * (double.tryParse(supplier.igst.replaceAll('%', '')) ?? 0) / 100;
+      final cgst = total * (double.tryParse(supplier.cgst.replaceAll('%', '')) ?? 0) / 100;
+      final sgst = total * (double.tryParse(supplier.sgst.replaceAll('%', '')) ?? 0) / 100;
+      total += igst + cgst + sgst;
+    }
+    
     setState(() {
       _invoiceAmountController.text = total.toStringAsFixed(2);
     });
@@ -211,12 +213,12 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           final prNo = prDetail.key;
           if (prNo != 'General') {
             // Skip General PR here as it's handled above
-            // Show PR if its job matches any selected job or if 'All' is selected
-            if (selectedJobs.contains('All') ||
-                selectedJobs.contains(prDetail.value.jobNo)) {
-              selectedPRs[material.partNo]![po.poNo]![prNo] = false;
-              prQtyControllers[material.partNo]![po.poNo]![prNo] =
-                  TextEditingController(text: '0');
+          // Show PR if its job matches any selected job or if 'All' is selected
+          if (selectedJobs.contains('All') ||
+              selectedJobs.contains(prDetail.value.jobNo)) {
+            selectedPRs[material.partNo]![po.poNo]![prNo] = false;
+            prQtyControllers[material.partNo]![po.poNo]![prNo] =
+                TextEditingController(text: '0');
             }
           }
         }
@@ -269,9 +271,17 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
             final totalOrderedQty = filteredPRDetails.values
                 .fold(0.0, (sum, detail) => sum + detail.quantity);
-            final totalReceivedQty = ref
-                .read(storeInwardProvider.notifier)
-                .getTotalReceivedQuantityForPO(material.partNo, po.poNo);
+            
+            // Calculate total received by summing up all PRs including General
+            double totalReceivedQty = 0.0;
+            for (var prEntry in filteredPRDetails.entries) {
+              final prNo = prEntry.key;
+              final receivedForPR = ref
+                  .read(storeInwardProvider.notifier)
+                  .getReceivedQuantityForPR(material.partNo, po.poNo, prNo) ?? 0.0;
+              totalReceivedQty += receivedForPR;
+            }
+            
             final pendingQty = totalOrderedQty - totalReceivedQty;
 
             if (pendingQty <= 0) return const SizedBox.shrink();
@@ -368,14 +378,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             // Allow empty value during editing
                             if (value.isEmpty) {
                               setState(() {
-                                selectedPRs[material.partNo]![po.poNo]![
-                                    '_showPRMapping'] = false;
+                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = false;
                                 // Clear PR quantities
                                 for (var prNo in filteredPRDetails.keys) {
                                   if (prNo != '_po') {
-                                    prQtyControllers[material.partNo]![
-                                            po.poNo]![prNo]
-                                        ?.text = '';
+                                    prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '';
                                   }
                                 }
                               });
@@ -388,63 +395,72 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             // Auto-adjust if exceeds pending quantity
                             if (qty > pendingQty) {
                               // Update outside setState to avoid flicker
-                              prQtyControllers[material.partNo]![po.poNo]![
-                                      '_po']!
-                                  .text = pendingQty.toString();
+                              prQtyControllers[material.partNo]![po.poNo]!['_po']!.text = pendingQty.toString();
                               setState(() {
-                                selectedPRs[material.partNo]![po.poNo]![
-                                    '_showPRMapping'] = false;
+                                // If quantity equals pending quantity, auto-distribute to PRs
+                                if (filteredPRDetails.isNotEmpty) {
+                                  double remainingQty = pendingQty;
+                                  
+                                  // First handle non-General PRs
+                                  for (var prEntry in filteredPRDetails.entries.where((e) => e.key != 'General')) {
+                                    final prNo = prEntry.key;
+                                    final prDetail = prEntry.value;
+                                    final prPendingQty = prDetail.quantity - (ref.read(storeInwardProvider.notifier).getReceivedQuantityForPR(material.partNo, po.poNo, prNo) ?? 0);
+                                    
+                                    if (prPendingQty > 0 && remainingQty > 0) {
+                                      final allocatedQty = remainingQty >= prPendingQty ? prPendingQty : remainingQty;
+                                      prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = allocatedQty.toString();
+                                      remainingQty -= allocatedQty;
+                                    } else {
+                                      prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '0';
+                                    }
+                                  }
+                                  
+                                  // Then handle General PR if it exists and there's remaining quantity
+                                  if (remainingQty > 0 && filteredPRDetails.containsKey('General')) {
+                                    prQtyControllers[material.partNo]![po.poNo]!['General']?.text = remainingQty.toString();
+                                  }
+                                  
+                                  selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = false;
+                                }
                               });
                               _updateInvoiceAmount();
                               return;
                             }
 
                             setState(() {
-                              // If quantity equals pending quantity, don't show PR mapping
-                              if (qty == pendingQty) {
-                                selectedPRs[material.partNo]![po.poNo]![
-                                    '_showPRMapping'] = false;
-
-                                // If there's only General PR, put all quantity there
-                                if (poItem.prDetails.isEmpty ||
-                                    (poItem.prDetails.length == 1 &&
-                                        poItem.prDetails
-                                            .containsKey('General'))) {
-                                  prQtyControllers[material.partNo]![po.poNo]![
-                                          'General']
-                                      ?.text = qty.toString();
-                                  // Clear other PR quantities if any
-                                  for (var prNo in filteredPRDetails.keys) {
-                                    if (prNo != '_po' && prNo != 'General') {
-                                      prQtyControllers[material.partNo]![
-                                              po.poNo]![prNo]
-                                          ?.text = '';
-                                    }
+                              // If quantity equals pending quantity, auto-distribute to PRs
+                              if (qty == pendingQty && filteredPRDetails.isNotEmpty) {
+                                double remainingQty = qty;
+                                
+                                // First handle non-General PRs
+                                for (var prEntry in filteredPRDetails.entries.where((e) => e.key != 'General')) {
+                                  final prNo = prEntry.key;
+                                  final prDetail = prEntry.value;
+                                  final prPendingQty = prDetail.quantity - (ref.read(storeInwardProvider.notifier).getReceivedQuantityForPR(material.partNo, po.poNo, prNo) ?? 0);
+                                  
+                                  if (prPendingQty > 0 && remainingQty > 0) {
+                                    final allocatedQty = remainingQty >= prPendingQty ? prPendingQty : remainingQty;
+                                    prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = allocatedQty.toString();
+                                    remainingQty -= allocatedQty;
+                                  } else {
+                                    prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '0';
                                   }
                                 }
-                              } else if (qty > 0) {
-                                // Show PR mapping for partial quantities
-                                selectedPRs[material.partNo]![po.poNo]![
-                                    '_showPRMapping'] = true;
-
-                                // Clear existing PR quantities when showing mapping
-                                for (var prNo in filteredPRDetails.keys) {
-                                  if (prNo != '_po') {
-                                    prQtyControllers[material.partNo]![
-                                            po.poNo]![prNo]
-                                        ?.text = '';
-                                  }
+                                
+                                // Then handle General PR if it exists and there's remaining quantity
+                                if (remainingQty > 0 && filteredPRDetails.containsKey('General')) {
+                                  prQtyControllers[material.partNo]![po.poNo]!['General']?.text = remainingQty.toString();
                                 }
+                                
+                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = false;
                               } else {
-                                // Hide PR mapping for zero quantity
-                                selectedPRs[material.partNo]![po.poNo]![
-                                    '_showPRMapping'] = false;
-                                // Clear PR quantities
+                                // Show PR mapping for partial quantities
+                                selectedPRs[material.partNo]![po.poNo]!['_showPRMapping'] = true;
+                                // Clear PR quantities to allow manual mapping
                                 for (var prNo in filteredPRDetails.keys) {
                                   if (prNo != '_po') {
-                                    prQtyControllers[material.partNo]![
-                                            po.poNo]![prNo]
-                                        ?.text = '';
+                                    prQtyControllers[material.partNo]![po.poNo]![prNo]?.text = '0';
                                   }
                                 }
                               }
@@ -453,7 +469,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                             _updateInvoiceAmount();
                           },
                           onEditingComplete: () {
-                            // Set to '0' if empty when focus is lost
+                            // Allow zero value when focus is lost
                             if (prQtyControllers[material.partNo]![po.poNo]![
                                     '_po']!
                                 .text
@@ -489,16 +505,13 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         ...filteredPRDetails.entries.map((prEntry) {
                           final prNo = prEntry.key;
                           final prDetail = prEntry.value;
-                          final totalReceivedQty = ref
+                          final totalReceivedForPR = ref
                               .read(storeInwardProvider.notifier)
-                              .getTotalReceivedQuantityForPR(
-                                material.partNo,
-                                po.poNo,
-                                prNo,
-                              );
+                              .getReceivedQuantityForPR(
+                                  material.partNo, po.poNo, prNo) ?? 0.0;
 
                           final prPendingQty =
-                              prDetail.quantity - totalReceivedQty;
+                              prDetail.quantity - totalReceivedForPR;
                           if (prPendingQty <= 0) return const SizedBox.shrink();
 
                           return Padding(
@@ -533,7 +546,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        'Received: $totalReceivedQty',
+                                        'Received: $totalReceivedForPR',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey[600],
@@ -600,21 +613,22 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                         final currentPrNo = prEntry.key;
                                         if (currentPrNo != 'General') {
                                           final prQty = double.tryParse(
-                                                  prQtyControllers[material
-                                                                      .partNo]![
+                                                prQtyControllers[material
+                                                                .partNo]![
                                                                   po.poNo]![
                                                               currentPrNo]
-                                                          ?.text ??
+                                                        ?.text ??
                                                       '') ??
                                               0;
                                           total += prQty;
                                         }
                                       }
 
-                                      // Then add General PR quantity if it exists
+                                      // Then add General PR quantity if it exists and we're not currently editing it
                                       if (prQtyControllers[material.partNo]![
                                               po.poNo]!
-                                          .containsKey('General')) {
+                                          .containsKey('General') &&
+                                          prNo != 'General') {
                                         final generalQty = double.tryParse(
                                                 prQtyControllers[material
                                                                 .partNo]![
@@ -629,15 +643,15 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                           'Updating _po for ${material.partNo} - ${po.poNo}: $total (PR: $prNo, Qty: $qty)');
 
                                       // Update PO level quantity outside setState
-                                      prQtyControllers[material.partNo]![
-                                              po.poNo]!['_po']
-                                          ?.text = total.toString();
+                                        prQtyControllers[material.partNo]![
+                                                po.poNo]!['_po']
+                                            ?.text = total.toString();
 
                                       setState(() {});
                                       _updateInvoiceAmount();
                                     },
                                     onEditingComplete: () {
-                                      // Set to '0' if empty when focus is lost
+                                      // Allow zero value when focus is lost
                                       if (prQtyControllers[material.partNo]![
                                               po.poNo]![prNo]!
                                           .text
@@ -673,8 +687,19 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     bool hasValidQuantities = false;
     for (var materialControllers in prQtyControllers.values) {
       for (var poControllers in materialControllers.values) {
+        // Check PO-level quantity
         final poQty = double.tryParse(poControllers['_po']?.text ?? '0') ?? 0;
-        if (poQty > 0) {
+        
+        // Check PR-level quantities
+        double totalPRQty = 0;
+        for (var prController in poControllers.entries) {
+          if (prController.key != '_po') {
+            final prQty = double.tryParse(prController.value.text ?? '0') ?? 0;
+            totalPRQty += prQty;
+          }
+        }
+        
+        if (poQty > 0 || totalPRQty > 0) {
           hasValidQuantities = true;
           break;
         }
@@ -684,8 +709,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
     if (!hasValidQuantities) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please enter at least one valid quantity')),
+        const SnackBar(content: Text('Please enter at least one valid quantity')),
       );
       return;
     }
@@ -696,6 +720,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       final grnNo = widget.existingGR?.grnNo ?? _generateGRNNo();
       final purchaseOrders = ref.read(purchaseOrderListProvider);
       final poNotifier = ref.read(purchaseOrderListProvider.notifier);
+      final grNotifier = ref.read(storeInwardProvider.notifier);
 
       // Create inward items
       final inwardItems = <InwardItem>[];
@@ -704,14 +729,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       for (var entry in prQtyControllers.entries) {
         final materialCode = entry.key;
         final poControllers = entry.value;
-
         print('Processing material: $materialCode');
-
         double totalReceivedQty = 0;
         final material = ref
             .read(materialListProvider)
             .firstWhere((m) => m.partNo == materialCode);
-
         final inwardItem = InwardItem(
           materialCode: materialCode,
           materialDescription: material.description,
@@ -722,212 +744,40 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           rejectedQty: 0,
           costPerUnit: '0',
         );
-
-        // Process PR quantities
+        // Process PR quantities (including General)
         for (var poEntry in poControllers.entries) {
           final poNo = poEntry.key;
           final prControllers = poEntry.value;
           final po = purchaseOrders.firstWhere((po) => po.poNo == poNo);
-          final poItem = po.items.firstWhere(
-            (item) => item.materialCode == materialCode,
-          );
-
-          print('Processing PO: $poNo');
-
-          // Get cost from PO
-          inwardItem.costPerUnit = poItem.costPerUnit;
-
-          // Get PO-level quantity
-          final poQty = double.tryParse(prControllers['_po']?.text ?? '0') ?? 0;
-          if (poQty <= 0) continue;
-
-          // Check if PR mapping is shown
-          final showPRMapping =
-              selectedPRs[materialCode]?[poNo]?['_showPRMapping'] ?? false;
-
-          print('PO Qty: $poQty, Show PR Mapping: $showPRMapping');
-
-          if (!showPRMapping) {
-            // If PR mapping is not shown, handle the total PO quantity
-
-            // First check if there are any non-General PRs
-            final nonGeneralPRs = poItem.prDetails.entries
-                .where((e) => e.key != 'General')
-                .toList();
-
-            // Get existing PR quantities
-            double prTotal = 0;
-            double generalQty = 0;
-
-            // Calculate existing PR quantities
-            for (var prEntry in prControllers.entries) {
-              if (prEntry.key == '_po') continue;
-
-              final qty = double.tryParse(prEntry.value.text) ?? 0;
-              if (prEntry.key == 'General') {
-                generalQty = qty;
-              } else {
-                prTotal += qty;
-              }
-            }
-
-            print('Existing PR total: $prTotal, General: $generalQty');
-
-            if (nonGeneralPRs.isEmpty &&
-                poItem.prDetails.containsKey('General')) {
-              // Only General PR exists, assign all quantity to it
-              print('Assigning all quantity to General PR: $poQty');
-              const prNo = 'General';
-              inwardItem.addPRQuantity(poNo, prNo, poQty);
-              totalReceivedQty += poQty;
-              inwardItem.addJobNumberForPR(poNo, prNo, 'General');
-
-              // Update PO received quantities
-              if (widget.existingGR != null) {
-                poItem.receivedQuantities
-                    .remove('${widget.existingGR!.grnNo}_$prNo');
-              }
-              poItem.addReceivedQuantity('${grnNo}_$prNo', poQty);
-            } else {
-              // Handle both General and non-General PRs
-              print('Handling mixed PR distribution');
-
-              // First distribute to non-General PRs if they exist
-              if (nonGeneralPRs.isNotEmpty) {
-                double remainingQty = poQty;
-
-                // First try to use existing PR quantities
-                for (var prEntry in prControllers.entries) {
-                  if (prEntry.key == '_po' || prEntry.key == 'General') {
-                    continue;
-                  }
-
-                  final prNo = prEntry.key;
-                  final qty = double.tryParse(prEntry.value.text) ?? 0;
-                  if (qty <= 0) continue;
-
-                  // Check if this quantity can be accommodated
-                  final prPendingQty = poItem.getPendingQuantityForPR(prNo);
-                  final actualQty = qty > prPendingQty ? prPendingQty : qty;
-
-                  if (actualQty > 0 && actualQty <= remainingQty) {
-                    print('Adding PR quantity: $prNo = $actualQty');
-                    inwardItem.addPRQuantity(poNo, prNo, actualQty);
-                    totalReceivedQty += actualQty;
-                    remainingQty -= actualQty;
-
-                    final jobNo = poItem.prDetails[prNo]?.jobNo ?? 'General';
-                    inwardItem.addJobNumberForPR(poNo, prNo, jobNo);
-
-                    // Update PO received quantities
-                    if (widget.existingGR != null) {
-                      poItem.receivedQuantities
-                          .remove('${widget.existingGR!.grnNo}_$prNo');
-                    }
-                    poItem.addReceivedQuantity('${grnNo}_$prNo', actualQty);
-                  }
-                }
-
-                // If there's remaining quantity and General PR exists, assign it there
-                if (remainingQty > 0 &&
-                    poItem.prDetails.containsKey('General')) {
-                  print(
-                      'Adding remaining quantity to General PR: $remainingQty');
-                  const prNo = 'General';
-                  inwardItem.addPRQuantity(poNo, prNo, remainingQty);
-                  totalReceivedQty += remainingQty;
-                  inwardItem.addJobNumberForPR(poNo, prNo, 'General');
-
-                  // Update PO received quantities
-                  if (widget.existingGR != null) {
-                    poItem.receivedQuantities
-                        .remove('${widget.existingGR!.grnNo}_$prNo');
-                  }
-                  poItem.addReceivedQuantity('${grnNo}_$prNo', remainingQty);
-                }
-              } else {
-                // Use existing PR quantities if they exist
-                print('Using existing PR quantities');
-
-                // Add non-General PRs first
-                for (var prEntry in prControllers.entries) {
-                  if (prEntry.key == '_po' || prEntry.key == 'General') {
-                    continue;
-                  }
-
-                  final prNo = prEntry.key;
-                  final qty = double.tryParse(prEntry.value.text) ?? 0;
-                  if (qty <= 0) continue;
-
-                  print('Adding PR quantity: $prNo = $qty');
-                  inwardItem.addPRQuantity(poNo, prNo, qty);
-                  totalReceivedQty += qty;
-
-                  final jobNo = poItem.prDetails[prNo]?.jobNo ?? 'General';
-                  inwardItem.addJobNumberForPR(poNo, prNo, jobNo);
-
-                  // Update PO received quantities
-                  if (widget.existingGR != null) {
-                    poItem.receivedQuantities
-                        .remove('${widget.existingGR!.grnNo}_$prNo');
-                  }
-                  poItem.addReceivedQuantity('${grnNo}_$prNo', qty);
-                }
-
-                // Add General PR if it exists
-                if (poItem.prDetails.containsKey('General') && generalQty > 0) {
-                  print('Adding General PR quantity: $generalQty');
-                  const prNo = 'General';
-                  inwardItem.addPRQuantity(poNo, prNo, generalQty);
-                  totalReceivedQty += generalQty;
-                  inwardItem.addJobNumberForPR(poNo, prNo, 'General');
-
-                  // Update PO received quantities
-                  if (widget.existingGR != null) {
-                    poItem.receivedQuantities
-                        .remove('${widget.existingGR!.grnNo}_$prNo');
-                  }
-                  poItem.addReceivedQuantity('${grnNo}_$prNo', generalQty);
-                }
-              }
-            }
-          } else {
-            // PR mapping is shown, use manually entered PR quantities
-            print('Using manually entered PR quantities');
-            for (var prEntry in prControllers.entries) {
-              if (prEntry.key == '_po') continue;
-
-              final prNo = prEntry.key;
-              final qty = double.tryParse(prEntry.value.text) ?? 0;
-              if (qty <= 0) continue;
-
-              final jobNo = poItem.prDetails[prNo]?.jobNo ?? 'General';
-              print('PR: $prNo, Qty: $qty, Job: $jobNo');
-
-              inwardItem.addPRQuantity(poNo, prNo, qty);
-              totalReceivedQty += qty;
-              inwardItem.addJobNumberForPR(poNo, prNo, jobNo);
-
-              // Update PO received quantities
-              if (widget.existingGR != null) {
-                poItem.receivedQuantities
-                    .remove('${widget.existingGR!.grnNo}_$prNo');
-              }
-              poItem.addReceivedQuantity('${grnNo}_$prNo', qty);
-            }
+          POItem? poItem;
+          try {
+            poItem = po.items.firstWhere((item) => item.materialCode == materialCode);
+          } catch (_) {
+            poItem = null;
           }
-
+          print('DEBUG: poItem.prDetails for $materialCode/$poNo: \\${poItem?.prDetails}');
+          for (var prEntry in prControllers.entries) {
+            if (prEntry.key == '_po') continue;
+            final prNo = prEntry.key;
+            final qty = double.tryParse(prEntry.value.text ?? '0') ?? 0.0;
+            if (qty <= 0) continue;
+            print('Adding PR quantity: $prNo = $qty');
+            inwardItem.addPRQuantity(poNo, prNo, qty);
+            totalReceivedQty += qty;
+            final jobNo = poItem?.prDetails[prNo]?.jobNo ?? 'General';
+            inwardItem.addJobNumberForPR(poNo, prNo, jobNo);
+            if (widget.existingGR != null) {
+              poItem?.receivedQuantities.remove('${widget.existingGR!.grnNo}_$prNo');
+            }
+            poItem?.addReceivedQuantity('${grnNo}_$prNo', qty);
+          }
           poNos.add(poNo); // Track PO number
-
-          // Set ordered quantity from PO
-          inwardItem.orderedQty = double.tryParse(poItem.quantity) ?? 0;
+          inwardItem.orderedQty = double.tryParse(poItem?.quantity ?? '0') ?? 0;
         }
-
         if (totalReceivedQty > 0) {
           inwardItem.receivedQty = totalReceivedQty;
           inwardItems.add(inwardItem);
-          print(
-              'Added inward item for $materialCode with total qty: $totalReceivedQty');
+          print('Added inward item for $materialCode with total qty: $totalReceivedQty');
         }
       }
 
@@ -940,7 +790,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         poDate: '', // Multiple dates possible
         invoiceNo: _invoiceNoController.text,
         invoiceDate: _invoiceDateController.text,
-        invoiceAmount: _invoiceAmountController.text,
+        invoiceAmount: double.parse(_invoiceAmountController.text),
         receivedBy: _receivedByController.text,
         checkedBy: _checkedByController.text,
         items: inwardItems,
@@ -964,10 +814,9 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
       // Save the GR
       if (widget.existingGR != null && widget.index != null) {
-        final grNotifier = ref.read(storeInwardProvider.notifier);
         grNotifier.updateInward(widget.index!, newGR);
       } else {
-        final grNotifier = ref.read(storeInwardProvider.notifier);
+        print('\nAdding new inward: ${newGR.grnNo}');
         grNotifier.addInward(newGR);
       }
 

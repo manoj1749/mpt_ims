@@ -3,6 +3,8 @@
 import 'package:hive/hive.dart';
 import '../models/material_item.dart';
 import '../models/category.dart';
+import '../models/purchase_order.dart';
+import '../models/po_item.dart';
 
 part 'store_inward.g.dart';
 
@@ -30,7 +32,7 @@ class StoreInward extends HiveObject {
   String invoiceDate;
 
   @HiveField(7)
-  String invoiceAmount;
+  double invoiceAmount;
 
   @HiveField(8)
   String receivedBy;
@@ -225,41 +227,79 @@ class InwardItem {
     print('\nDistributing PO quantity to PRs:');
     print('PO: $poNo, Quantity: $poQuantity');
 
-    // Get existing PR quantities for this PO
-    final existingPRs = prQuantities[poNo] ?? {};
-    
-    if (existingPRs.isEmpty) {
-      print('No existing PRs found, assigning to General PR');
-      // If no PRs exist, assign everything to General PR
-      prQuantities[poNo] = {'General': poQuantity};
-      prJobNumbers[poNo] = {'General': 'General'};
+    // Check if we already have PR quantities for this PO
+    if (prQuantities.containsKey(poNo) && prQuantities[poNo]!.isNotEmpty) {
+      print('PR quantities already exist for this PO, skipping distribution');
+      return;
+    }
+
+    // Initialize maps if they don't exist
+    if (!prQuantities.containsKey(poNo)) {
+      prQuantities[poNo] = {};
+    }
+    if (!prJobNumbers.containsKey(poNo)) {
+      prJobNumbers[poNo] = {};
+    }
+
+    // Get the PO from Hive to check PR details
+    final poBox = Hive.box<PurchaseOrder>('purchase_orders');
+    final po = poBox.values.firstWhere(
+      (p) => p.poNo == poNo,
+      orElse: () => PurchaseOrder(
+        poNo: poNo,
+        poDate: '',
+        supplierName: '',
+        transport: '',
+        deliveryRequirements: '',
+        items: [],
+        total: 0.0,
+        igst: 0.0,
+        cgst: 0.0,
+        sgst: 0.0,
+        grandTotal: 0.0,
+      ),
+    );
+
+    if (po.items.isNotEmpty) {
+      // Find the corresponding PO item
+      final poItem = po.items.firstWhere(
+        (item) => item.materialCode == materialCode,
+        orElse: () => POItem(
+          materialCode: materialCode,
+          materialDescription: materialDescription,
+          unit: unit,
+          quantity: '0',
+          costPerUnit: '0',
+          totalCost: '0',
+          saleRate: '0',
+          marginPerUnit: '0',
+          totalMargin: '0',
+        ),
+      );
+
+      if (poItem.prDetails.isNotEmpty) {
+        print('Found PR details in PO:');
+        // Distribute quantity according to PR details
+        for (var prDetail in poItem.prDetails.entries) {
+          final prNo = prDetail.key;
+          final jobNo = prDetail.value.jobNo;
+          final prQty = prDetail.value.quantity;
+          
+          print('PR: $prNo, Job: $jobNo, Qty: $prQty');
+          prQuantities[poNo]![prNo] = prQty;
+          prJobNumbers[poNo]![prNo] = jobNo;
+        }
+      } else {
+        // If no PR details found, assign to General PR
+        print('No PR details found in PO, assigning to General PR');
+        prQuantities[poNo]!['General'] = poQuantity;
+        prJobNumbers[poNo]!['General'] = 'General';
+      }
     } else {
-      print('Found existing PRs: ${existingPRs.keys.join(', ')}');
-      // Calculate total ordered quantity for existing PRs
-      double totalOrderedQty = existingPRs.values.fold(0.0, (sum, qty) => sum + qty);
-      
-      // Distribute quantity proportionally
-      Map<String, double> newPRQuantities = {};
-      for (var entry in existingPRs.entries) {
-        double proportion = entry.value / totalOrderedQty;
-        double allocatedQty = (poQuantity * proportion).roundToDouble();
-        newPRQuantities[entry.key] = allocatedQty;
-        print('PR: ${entry.key}, Proportion: $proportion, Allocated: $allocatedQty');
-      }
-      
-      // Handle any rounding differences
-      double totalAllocated = newPRQuantities.values.fold(0.0, (sum, qty) => sum + qty);
-      double difference = poQuantity - totalAllocated;
-      if (difference != 0) {
-        print('Handling rounding difference: $difference');
-        // Add/subtract the difference from the largest PR quantity
-        var largestPR = newPRQuantities.entries
-            .reduce((a, b) => a.value > b.value ? a : b)
-            .key;
-        newPRQuantities[largestPR] = (newPRQuantities[largestPR]! + difference).roundToDouble();
-      }
-      
-      prQuantities[poNo] = newPRQuantities;
+      // If PO not found, assign to General PR
+      print('PO not found, assigning to General PR');
+      prQuantities[poNo]!['General'] = poQuantity;
+      prJobNumbers[poNo]!['General'] = 'General';
     }
     
     print('Final PR distribution:');
@@ -273,14 +313,30 @@ class InwardItem {
 
   // Helper method to add PR quantity
   void addPRQuantity(String poNo, String prNo, double quantity) {
-    prQuantities.putIfAbsent(poNo, () => {});
+    print('\nAdding PR quantity:');
+    print('PO: $poNo, PR: $prNo, Quantity: $quantity');
+    
+    if (!prQuantities.containsKey(poNo)) {
+      prQuantities[poNo] = {};
+    }
     prQuantities[poNo]![prNo] = quantity;
+    
+    print('Updated PR quantities for $poNo:');
+    prQuantities[poNo]?.forEach((pr, qty) => print('PR: $pr, Quantity: $qty'));
   }
 
   // Helper method to add job number for PR
   void addJobNumberForPR(String poNo, String prNo, String jobNo) {
-    prJobNumbers.putIfAbsent(poNo, () => {});
+    print('\nAdding job number:');
+    print('PO: $poNo, PR: $prNo, Job: $jobNo');
+    
+    if (!prJobNumbers.containsKey(poNo)) {
+      prJobNumbers[poNo] = {};
+    }
     prJobNumbers[poNo]![prNo] = jobNo;
+    
+    print('Updated job numbers for $poNo:');
+    prJobNumbers[poNo]?.forEach((pr, job) => print('PR: $pr, Job: $job'));
   }
 
   // Helper method to get total quantity for a PO

@@ -1,10 +1,16 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/store_inward.dart';
 import '../models/material_item.dart';
 import '../models/purchase_order.dart';
 import '../models/stock_maintenance.dart';
+import '../models/po_item.dart';
 import '../provider/stock_maintenance_provider.dart';
+import '../provider/purchase_order.dart';
+import '../models/quality_inspection.dart';
+import '../models/category.dart';
 
 final storeInwardBoxProvider = Provider<Box<StoreInward>>((ref) {
   throw UnimplementedError();
@@ -55,6 +61,9 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
   Future<void> addInward(StoreInward inward) async {
     print('\nAdding new inward: ${inward.grnNo}');
     
+    // Get all POs
+    final poList = ref.read(purchaseOrderListProvider);
+    
     // Process each item
     for (var item in inward.items) {
       print('\nProcessing item: ${item.materialCode}');
@@ -66,8 +75,85 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
         
         // If there are no PR quantities but we have a PO quantity
         if ((prQuantities?.isEmpty ?? true) && item.receivedQty > 0) {
-          print('No PR quantities found for PO, distributing automatically');
-          item.distributePOQuantityToPRs(poNo, item.receivedQty);
+          print('No PR quantities found for PO, checking PR details');
+          
+          // Find the PO
+          final po = poList.firstWhere(
+            (p) => p.poNo == poNo,
+            orElse: () => PurchaseOrder(
+              poNo: poNo,
+              poDate: '',
+              supplierName: '',
+              transport: '',
+              deliveryRequirements: '',
+              items: [],
+              total: 0.0,
+              igst: 0.0,
+              cgst: 0.0,
+              sgst: 0.0,
+              grandTotal: 0.0,
+            ),
+          );
+          
+          // Find the corresponding PO item
+          final poItem = po.items.firstWhere(
+            (i) => i.materialCode == item.materialCode,
+            orElse: () => POItem(
+              materialCode: item.materialCode,
+              materialDescription: item.materialDescription,
+              unit: item.unit,
+              quantity: '0',
+              costPerUnit: '0',
+              totalCost: '0',
+              saleRate: '0',
+              marginPerUnit: '0',
+              totalMargin: '0',
+            ),
+          );
+
+          print('DEBUG: poItem.prDetails for ${item.materialCode}/${po.poNo}: ${poItem.prDetails}');
+
+          if (poItem.prDetails.isNotEmpty) {
+            print('Found PR details in PO:');
+            // Calculate total PR quantity
+            double totalPRQty = poItem.prDetails.values
+                .fold(0.0, (sum, detail) => sum + detail.quantity);
+
+            // Distribute received quantity proportionally
+            for (var prDetail in poItem.prDetails.entries) {
+              final prNo = prDetail.key;
+              final jobNo = prDetail.value.jobNo;
+              final prQty = prDetail.value.quantity;
+              
+              // Calculate proportional quantity
+              double proportion = prQty / totalPRQty;
+              double allocatedQty = item.receivedQty * proportion;
+              
+              print('PR: $prNo, Job: $jobNo, Qty: $allocatedQty (${proportion * 100}% of ${item.receivedQty})');
+              
+              if (!item.prQuantities.containsKey(poNo)) {
+                item.prQuantities[poNo] = {};
+              }
+              item.prQuantities[poNo]![prNo] = allocatedQty;
+              
+              if (!item.prJobNumbers.containsKey(poNo)) {
+                item.prJobNumbers[poNo] = {};
+              }
+              item.prJobNumbers[poNo]![prNo] = jobNo;
+            }
+          } else {
+            // If no PR details found, assign to General PR
+            print('No PR details found in PO, assigning to General PR');
+            if (!item.prQuantities.containsKey(poNo)) {
+              item.prQuantities[poNo] = {};
+            }
+            item.prQuantities[poNo]!['General'] = item.receivedQty;
+            
+            if (!item.prJobNumbers.containsKey(poNo)) {
+              item.prJobNumbers[poNo] = {};
+            }
+            item.prJobNumbers[poNo]!['General'] = 'General';
+          }
         }
       }
     }
@@ -80,7 +166,6 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
         .read(stockMaintenanceProvider.notifier)
         .updateStockFromGRN(inward);
 
-    // Update state
     state = [..._inwardBox.values];
   }
 
@@ -253,17 +338,13 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
   }
 
   // Get total received quantity for a specific PR
-  double getTotalReceivedQuantityForPR(
-      String materialCode, String poNo, String prNo) {
-    double total = 0.0;
-    for (var inward in _inwardBox.values) {
+  double? getReceivedQuantityForPR(String materialCode, String poNo, String prNo) {
+    double total = 0;
+    for (var inward in state) {
       for (var item in inward.items) {
         if (item.materialCode == materialCode) {
-          // Check if this item has quantities for this PO and PR
-          if (item.prQuantities.containsKey(poNo) &&
-              item.prQuantities[poNo]!.containsKey(prNo)) {
-            total += item.prQuantities[poNo]![prNo]!;
-          }
+          final prQty = item.prQuantities[poNo]?[prNo] ?? 0;
+          total += prQty;
         }
       }
     }
@@ -335,5 +416,137 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
       // GR not found
       return;
     }
+  }
+
+  // Update GRN status based on inspection status
+  Future<void> updateGRNStatus(String grnNo) async {
+    print('\n=== Debug: Updating GRN Status ===');
+    print('GRN No: $grnNo');
+
+    final inward = _inwardBox.values.firstWhere(
+      (gr) => gr.grnNo == grnNo,
+      orElse: () => StoreInward(
+        grnNo: '',
+        grnDate: '',
+        supplierName: '',
+        poNo: '',
+        poDate: '',
+        invoiceNo: '',
+        invoiceDate: '',
+        invoiceAmount: 0.0,
+        receivedBy: '',
+        checkedBy: '',
+        items: [],
+      ),
+    );
+
+    if (inward.grnNo.isEmpty) {
+      print('GRN not found: $grnNo');
+      return;
+    }
+
+    print('Current Status: ${inward.status}');
+
+    // Get all inspections for this GRN
+    final inspectionBox = Hive.box<QualityInspection>('quality_inspections');
+    final inspections = inspectionBox.values.where((insp) => insp.grnNo == grnNo).toList();
+
+    bool allItemsProcessed = true;
+    bool hasProcessedItems = false;
+    bool hasItemsNeedingInspection = false;
+
+    for (var item in inward.items) {
+      print('\nChecking Item: ${item.materialCode}');
+      print('Received Qty: ${item.receivedQty}');
+
+      // Get the material's category
+      final materialsBox = Hive.box<MaterialItem>('materials');
+      final material = materialsBox.values.firstWhere(
+        (m) => m.partNo == item.materialCode,
+        orElse: () => MaterialItem(
+          slNo: item.materialCode,
+          description: item.materialDescription,
+          partNo: item.materialCode,
+          unit: item.unit,
+          category: 'General',
+          subCategory: '',
+        ),
+      );
+
+      // Get the category settings
+      final categoriesBox = Hive.box<Category>('categories');
+      final category = categoriesBox.values.firstWhere(
+        (c) => c.name == material.category,
+        orElse: () => Category(name: material.category),
+      );
+
+      // If quality check is not required, consider it as fully processed
+      if (!category.requiresQualityCheck) {
+        hasProcessedItems = true;
+        item.acceptedQty = item.receivedQty;
+        item.rejectedQty = 0;
+        continue;
+      }
+
+      hasItemsNeedingInspection = true;
+
+      // Calculate total inspected, accepted, and rejected quantities from all inspections
+      double totalInspectedQty = 0;
+      double totalAcceptedQty = 0;
+      double totalRejectedQty = 0;
+
+      for (var inspection in inspections) {
+        for (var inspItem in inspection.items) {
+          if (inspItem.materialCode == item.materialCode) {
+            if (inspection.status == 'Completed') {
+              totalInspectedQty += inspItem.inspectedQty;
+              totalAcceptedQty += inspItem.acceptedQty;
+              totalRejectedQty += inspItem.rejectedQty;
+            }
+          }
+        }
+      }
+
+      // Update item's accepted and rejected quantities
+      item.acceptedQty = totalAcceptedQty;
+      item.rejectedQty = totalRejectedQty;
+
+      print('Total Inspected Qty: $totalInspectedQty');
+      print('Total Accepted Qty: $totalAcceptedQty');
+      print('Total Rejected Qty: $totalRejectedQty');
+
+      if (totalInspectedQty > 0) {
+        hasProcessedItems = true;
+      }
+
+      if (totalInspectedQty < item.receivedQty) {
+        allItemsProcessed = false;
+        print('Item not fully inspected: $totalInspectedQty < ${item.receivedQty}');
+      }
+    }
+
+    String newStatus;
+    if (!hasItemsNeedingInspection) {
+      newStatus = 'Completed'; // All items are general stock or don't need inspection
+    } else if (!hasProcessedItems) {
+      newStatus = 'Under Inspection';
+    } else if (allItemsProcessed) {
+      newStatus = 'Inspected';
+    } else {
+      newStatus = 'Partially Inspected';
+    }
+
+    print('New Status: $newStatus');
+    inward.status = newStatus;
+
+    // Save the updated inward
+    final index = _inwardBox.values.toList().indexOf(inward);
+    await _inwardBox.putAt(index, inward);
+
+    // Update stock maintenance
+    await ref.read(stockMaintenanceProvider.notifier).updateStockFromGRN(inward);
+
+    // Update state
+    state = [..._inwardBox.values];
   }
 }

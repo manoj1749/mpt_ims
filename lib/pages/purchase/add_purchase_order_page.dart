@@ -731,12 +731,16 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                       ?.text = remainingQty.toString();
                                   value = remainingQty.toString();
                                 }
-                                // Update the PO item quantity and invoice amount
-                                final poItem = poItems.firstWhere(
+                                // Find or create the PO item
+                                var poItem = poItems.firstWhere(
                                   (item) =>
                                       item.materialCode == material.partNo,
-                                  orElse: () =>
-                                      throw Exception('PO Item not found'),
+                                  orElse: () {
+                                    // Create a new PO item if it doesn't exist
+                                    final newItem = _createPOItem(material, [prItem]);
+                                    poItems.add(newItem);
+                                    return newItem;
+                                  },
                                 );
                                 poItem.updateQuantity(value);
                               }

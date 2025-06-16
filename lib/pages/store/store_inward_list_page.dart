@@ -7,6 +7,7 @@ import '../../models/store_inward.dart';
 import '../../provider/store_inward_provider.dart';
 import '../../widgets/pluto_grid_configuration.dart';
 import 'add_store_inward_page.dart';
+import 'package:hive/hive.dart';
 
 class StoreInwardListPage extends ConsumerStatefulWidget {
   const StoreInwardListPage({super.key});
@@ -52,6 +53,24 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
   @override
   void initState() {
     super.initState();
+    void printGRsWhenBoxOpen([int retries = 10]) async {
+      if (Hive.isBoxOpen('store_inwards')) {
+        final box = Hive.box<StoreInward>('store_inwards');
+        print('==== ALL GRs in store_inwards box ====');
+        for (var gr in box.values) {
+          print(gr.toString());
+        }
+        print('==== END GRs ====');
+      } else if (retries > 0) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        printGRsWhenBoxOpen(retries - 1);
+      } else {
+        print('store_inwards box still not open after waiting');
+      }
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      printGRsWhenBoxOpen();
+    });
     // Set loading to false after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -229,12 +248,20 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final inwards = ref.watch(storeInwardProvider);
+    final storeInwards = ref.watch(storeInwardProvider);
+    // Debug: Print all GRs when data is loaded
+    if (storeInwards.isNotEmpty) {
+      print('==== ALL GRs in store_inwards box (from provider) ====');
+      for (var gr in storeInwards) {
+        print(gr.toString());
+      }
+      print('==== END GRs ====');
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && stateManager != null) {
         stateManager!.removeAllRows();
-        stateManager!.appendRows(_buildRows(inwards));
+        stateManager!.appendRows(_buildRows(storeInwards));
       }
     });
 
@@ -253,7 +280,7 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
               child: Card(
                 child: Column(
                   children: [
-                    if (inwards.isEmpty)
+                    if (storeInwards.isEmpty)
                       const Expanded(
                         child: Center(
                           child: Text(
@@ -270,7 +297,7 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
                       Expanded(
                         child: PlutoGrid(
                           columns: _getColumns(),
-                          rows: _buildRows(inwards),
+                          rows: _buildRows(storeInwards),
                           onLoaded: (PlutoGridOnLoadedEvent event) {
                             stateManager = event.stateManager;
                             event.stateManager.setShowColumnFilter(true);

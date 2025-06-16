@@ -156,6 +156,11 @@ class StoreInward extends HiveObject {
   }) {
     _status = status;
   }
+
+  @override
+  String toString() {
+    return '\nStoreInward(grnNo: $grnNo, grnDate: $grnDate, supplierName: $supplierName, poNo: $poNo, poDate: $poDate, invoiceNo: $invoiceNo, invoiceDate: $invoiceDate, invoiceAmount: $invoiceAmount, receivedBy: $receivedBy, checkedBy: $checkedBy, status: $status, items: [\n  ${items.map((e) => e.toString()).join(',\n  ')}\n])';
+  }
 }
 
 @HiveType(typeId: 7)
@@ -466,6 +471,12 @@ class InwardItem {
       print('Error casting PR job numbers: $e');
       return {};
     }
+  }
+
+  @override
+  String toString() {
+    return 'InwardItem(materialCode: '
+      '[33m$materialCode[0m, materialDescription: $materialDescription, unit: $unit, receivedQty: $receivedQty, acceptedQty: $acceptedQty, rejectedQty: $rejectedQty, prQuantities: $prQuantities, prJobNumbers: $prJobNumbers)';
   }
 }
 

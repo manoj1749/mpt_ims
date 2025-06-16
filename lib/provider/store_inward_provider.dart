@@ -73,8 +73,8 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
         print('\nChecking PO: $poNo');
         final prQuantities = item.prQuantities[poNo];
         
-        // If there are no PR quantities but we have a PO quantity
-        if ((prQuantities?.isEmpty ?? true) && item.receivedQty > 0) {
+        // Only auto-distribute if no PR quantities are manually set
+        if (prQuantities == null || prQuantities.isEmpty) {
           print('No PR quantities found for PO, checking PR details');
           
           // Find the PO
@@ -129,17 +129,29 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
               double proportion = prQty / totalPRQty;
               double allocatedQty = item.receivedQty * proportion;
               
-              print('PR: $prNo, Job: $jobNo, Qty: $allocatedQty (${proportion * 100}% of ${item.receivedQty})');
+              print('\nAdding PR quantity:');
+              print('PO: $poNo, PR: $prNo, Quantity: $allocatedQty');
               
               if (!item.prQuantities.containsKey(poNo)) {
                 item.prQuantities[poNo] = {};
               }
               item.prQuantities[poNo]![prNo] = allocatedQty;
               
+              print('Updated PR quantities for $poNo:');
+              item.prQuantities[poNo]!.forEach((pr, qty) => 
+                print('PR: $pr, Quantity: $qty'));
+              
+              print('\nAdding job number:');
+              print('PO: $poNo, PR: $prNo, Job: $jobNo');
+              
               if (!item.prJobNumbers.containsKey(poNo)) {
                 item.prJobNumbers[poNo] = {};
               }
               item.prJobNumbers[poNo]![prNo] = jobNo;
+              
+              print('Updated job numbers for $poNo:');
+              item.prJobNumbers[poNo]!.forEach((pr, job) => 
+                print('PR: $pr, Job: $job'));
             }
           } else {
             // If no PR details found, assign to General PR
@@ -154,6 +166,9 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
             }
             item.prJobNumbers[poNo]!['General'] = 'General';
           }
+        } else {
+          print('Using manually set PR quantities for PO $poNo:');
+          prQuantities.forEach((pr, qty) => print('PR: $pr, Quantity: $qty'));
         }
       }
     }

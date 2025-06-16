@@ -80,6 +80,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     ],
     8: [
       'GR',
+      'Material Request',
       'Material Issue',
       'Stock Maintenance & Display',
       'Delivery Challan',

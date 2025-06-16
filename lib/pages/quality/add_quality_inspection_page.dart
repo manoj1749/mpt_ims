@@ -817,7 +817,7 @@ class _AddQualityInspectionPageState
                             flex: 2,
                             child: Text(param.parameter,
                                 style: const TextStyle(fontSize: 12)),
-                          ),
+                    ),
                           const SizedBox(width: 8),
                           Expanded(
                             flex: 2,
@@ -871,12 +871,12 @@ class _AddQualityInspectionPageState
               decoration: BoxDecoration(
                 color: Colors.grey[850],
                 borderRadius: BorderRadius.circular(8),
-              ),
+                    ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('PO-wise Inspection',
-                      style: TextStyle(
+                          style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       )),
@@ -1036,7 +1036,7 @@ class _AddQualityInspectionPageState
                                           child: Text('${currentPoQty.receivedQty}',
                           style: const TextStyle(fontSize: 12),
                                               textAlign: TextAlign.end),
-                                        ),
+                      ),
                                       ),
                                       TableCell(
                                         child: Padding(
@@ -1047,7 +1047,7 @@ class _AddQualityInspectionPageState
                                                 color: Colors.green[400],
                                               ),
                                               textAlign: TextAlign.end),
-                                        ),
+                      ),
                                       ),
                                       TableCell(
                                         child: Padding(
@@ -1058,7 +1058,7 @@ class _AddQualityInspectionPageState
                                                 color: Colors.red[400],
                                               ),
                                               textAlign: TextAlign.end),
-                                        ),
+                      ),
                                       ),
                                     ],
                                   ),
@@ -1118,7 +1118,7 @@ class _AddQualityInspectionPageState
                                 decoration: BoxDecoration(
                                           color: Colors.grey[850],
                                           borderRadius: BorderRadius.circular(8),
-                                        ),
+                                ),
                                         child: Row(
                                       children: [
                                         SizedBox(
@@ -1146,8 +1146,8 @@ class _AddQualityInspectionPageState
                                                   Text('Corrective Action / Preventive Action',
                                                       style: TextStyle(
                                                           fontSize: 11, color: Colors.grey)),
-                                                ],
-                                              ),
+                                      ],
+                                    ),
                                             ),
                                           ],
                                         ),
@@ -1213,7 +1213,7 @@ class _AddQualityInspectionPageState
                                         decoration: BoxDecoration(
                                           color: Colors.grey[850],
                                           borderRadius: BorderRadius.circular(8),
-                                        ),
+                                          ),
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
@@ -1279,8 +1279,8 @@ class _AddQualityInspectionPageState
                                                               color: Colors.grey[400],
                                                             ),
                                                           ),
-                                                        ],
-                                                      ),
+                                        ],
+                                      ),
                                                     ),
                                                     const SizedBox(width: 8),
                                                     // Accept Qty Input
@@ -1339,15 +1339,15 @@ class _AddQualityInspectionPageState
                                       ),
                                     ],
                                   ],
-                                ),
-                              ),
+              ),
+            ),
                             ],
                           );
                         }).toList(),
                       );
-                    },
-                  ),
-                ],
+                          },
+                      ),
+                    ],
               ),
             ),
           ],

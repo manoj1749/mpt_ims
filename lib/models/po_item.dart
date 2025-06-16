@@ -140,12 +140,9 @@ class POItem extends HiveObject {
     final grnNo = parts[0];
     final prNo = parts[1];
 
-    // Remove any existing quantity for this GRN and PR
-    receivedQuantities.remove(grnNo);
-
-    // Add the new quantity
+    // Do NOT remove any existing quantity for this GRN and PR
     receivedQuantities.putIfAbsent(grnNo, () => {});
-    receivedQuantities[grnNo]![prNo] = quantity;
+    receivedQuantities[grnNo]![prNo] = (receivedQuantities[grnNo]![prNo] ?? 0.0) + quantity;
   }
 
   // Get pending quantity for a specific PR

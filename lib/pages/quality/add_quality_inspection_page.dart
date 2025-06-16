@@ -859,7 +859,7 @@ class _AddQualityInspectionPageState
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),

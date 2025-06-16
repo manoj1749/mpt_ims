@@ -694,7 +694,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         double totalPRQty = 0;
         for (var prController in poControllers.entries) {
           if (prController.key != '_po') {
-            final prQty = double.tryParse(prController.value.text ?? '0') ?? 0;
+            final prQty = double.tryParse(prController.value.text) ?? 0;
             totalPRQty += prQty;
           }
         }
@@ -759,7 +759,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           for (var prEntry in prControllers.entries) {
             if (prEntry.key == '_po') continue;
             final prNo = prEntry.key;
-            final qty = double.tryParse(prEntry.value.text ?? '0') ?? 0.0;
+            final qty = double.tryParse(prEntry.value.text) ?? 0.0;
             if (qty <= 0) continue;
             print('Adding PR quantity: $prNo = $qty');
             inwardItem.addPRQuantity(poNo, prNo, qty);

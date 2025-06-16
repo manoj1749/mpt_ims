@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, unnecessary_null_comparison
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
@@ -176,7 +176,7 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
               grandTotal: 0.0,
             ),
           );
-          final poDate = po?.poDate ?? '';
+          final poDate = po.poDate;
           final vendorId = grn.supplierName.isNotEmpty ? grn.supplierName : 'Unknown Vendor';
           final rate = double.tryParse(item.costPerUnit) ?? 0.0;
 

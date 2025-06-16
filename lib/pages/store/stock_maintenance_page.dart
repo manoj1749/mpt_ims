@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, unnecessary_type_check, avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -555,7 +555,7 @@ class _StockDetailsViewState extends State<StockDetailsView> {
             // Process each PR that received stock from this GRN
             for (var prEntry in receivedQtys.entries) {
               final prNo = prEntry.key;
-              final receivedQty = prEntry.value is double ? prEntry.value as double : (prEntry.value as num).toDouble();
+              final receivedQty = prEntry.value is double ? prEntry.value : (prEntry.value as num).toDouble();
 
               // Skip if no quantity was received
               if (receivedQty <= 0) continue;

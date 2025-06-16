@@ -185,6 +185,7 @@ class StockGRNDetails {
     required this.rate,
   });
 
+  @override
   String toString() {
     return 'StockGRNDetails(grnNo: $grnNo, grnDate: $grnDate, receivedQuantity: $receivedQuantity, acceptedQuantity: $acceptedQuantity, rejectedQuantity: $rejectedQuantity, vendorId: $vendorId, rate: $rate)';
   }
@@ -240,6 +241,7 @@ class StockPODetails {
     return total;
   }
 
+  @override
   String toString() {
     return 'StockPODetails(poNo: $poNo, poDate: $poDate, orderedQuantity: $orderedQuantity, receivedQuantity: $receivedQuantity, vendorId: $vendorId, rate: $rate, receivedQuantities: $receivedQuantities)';
   }
@@ -270,6 +272,7 @@ class StockPRDetails {
     required this.receivedQuantity,
   });
 
+  @override
   String toString() {
     return 'StockPRDetails(prNo: $prNo, prDate: $prDate, requestedQuantity: $requestedQuantity, orderedQuantity: $orderedQuantity, receivedQuantity: $receivedQuantity)';
   }
@@ -296,6 +299,7 @@ class StockJobDetails {
     required this.prNo,
   });
 
+  @override
   String toString() {
     return 'StockJobDetails(jobNo: $jobNo, allocatedQuantity: $allocatedQuantity, consumedQuantity: $consumedQuantity, prNo: $prNo)';
   }
@@ -328,6 +332,7 @@ class StockVendorDetails {
 
   double get totalValue => quantity * rate;
 
+  @override
   String toString() {
     return 'StockVendorDetails(vendorId: $vendorId, vendorName: $vendorName, quantity: $quantity, rate: $rate, lastPurchaseDate: $lastPurchaseDate)';
   }

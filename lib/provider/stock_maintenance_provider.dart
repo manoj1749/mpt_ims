@@ -379,6 +379,62 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
           );
         }
 
+        // --- FIX: Use grnQuantities for per-GRN accepted/rejected split ---
+        Map<String, double> prAcceptedTotals = {};
+        Map<String, double> prRejectedTotals = {};
+        for (var poEntry in grnItem.prQuantities.entries) {
+          final poNo = poEntry.key;
+          final prMap = poEntry.value;
+          if (prMap == null) continue;
+
+          // Ensure PO details exist
+          stock.poDetails[poNo] ??= StockPODetails(
+            poNo: poNo,
+            poDate: grn.poDate,
+            orderedQuantity: 0.0,
+            receivedQuantity: 0.0,
+            vendorId: grn.supplierName,
+            rate: double.tryParse(grnItem.costPerUnit) ?? 0.0,
+          );
+
+          for (var prEntry in prMap.entries) {
+            final prNo = prEntry.key;
+            final prQty = prEntry.value;
+
+            // Use the accepted/rejected for this GRN from grnQuantities
+            double grnAccepted = 0.0;
+            double grnRejected = 0.0;
+            if (inspectionItem.grnQuantities.containsKey(grn.grnNo)) {
+              grnAccepted = inspectionItem.grnQuantities[grn.grnNo]?.acceptedQty ?? 0.0;
+              grnRejected = inspectionItem.grnQuantities[grn.grnNo]?.rejectedQty ?? 0.0;
+            }
+            double prAcceptedQty = 0.0;
+            double prRejectedQty = 0.0;
+            if (grnItem.receivedQty > 0) {
+              prAcceptedQty = (prQty / grnItem.receivedQty) * grnAccepted;
+              prRejectedQty = (prQty / grnItem.receivedQty) * grnRejected;
+            }
+            // Update PO receivedQuantities mapping for this GRN and PR (only accepted)
+            stock.poDetails[poNo]!.addReceivedQuantity(grn.grnNo, prNo, prAcceptedQty);
+            // Ensure PR details exist
+            stock.prDetails[prNo] ??= StockPRDetails(
+              prNo: prNo,
+              prDate: '',
+              requestedQuantity: 0.0,
+              orderedQuantity: 0.0,
+              receivedQuantity: 0.0,
+            );
+            // Sum accepted/rejected for this PR across all GRNs
+            prAcceptedTotals[prNo] = (prAcceptedTotals[prNo] ?? 0.0) + prAcceptedQty;
+            prRejectedTotals[prNo] = (prRejectedTotals[prNo] ?? 0.0) + prRejectedQty;
+          }
+        }
+        // Set PR receivedQuantity as total accepted only
+        prAcceptedTotals.forEach((prNo, totalAccepted) {
+          stock.prDetails[prNo]!.receivedQuantity = totalAccepted;
+        });
+        // --- END FIX ---
+
         // Calculate total stock
         double totalCurrentStock = 0.0;
         double totalUnderInspection = 0.0;

@@ -371,67 +371,6 @@ class _StockDetailsViewState extends State<StockDetailsView> {
   }
 
   Widget _buildSummaryView() {
-    // Map to store PR-wise quantities with their details
-    final prQuantities = <String, Map<String, dynamic>>{};
-    double generalStock = 0.0;
-
-    // First, initialize PR quantities with requested amounts
-    for (var prEntry in widget.stock.prDetails.entries) {
-      final prNo = prEntry.key;
-      final pr = prEntry.value;
-      final job = widget.stock.jobDetails.values
-          .where((job) => job.prNo == prNo)
-          .firstOrNull;
-
-      if (job != null) {
-        prQuantities[prNo] = {
-          'jobNo': job.jobNo,
-          'requested': pr.requestedQuantity,
-          'received': 0.0,
-        };
-      }
-    }
-
-    // Calculate received quantities from GRNs
-    for (var grnEntry in widget.stock.grnDetails.entries) {
-      final grn = grnEntry.value;
-      double remainingQty = grn.receivedQuantity;
-      bool allocated = false;
-
-      // Find POs related to this GRN's vendor
-      final relatedPOs = widget.stock.poDetails.entries
-          .where((po) => po.value.vendorId == grn.vendorId)
-          .toList();
-
-      // ignore: unused_local_variable
-      for (var poEntry in relatedPOs) {
-        // Find PRs related to this PO
-        for (var prEntry in widget.stock.prDetails.entries) {
-          final prNo = prEntry.key;
-
-          // Check if this PR is linked to a job and has pending quantity
-          if (prQuantities.containsKey(prNo)) {
-            final prData = prQuantities[prNo]!;
-            final pendingQty = prData['requested'] - prData['received'];
-
-            if (pendingQty > 0 && remainingQty > 0) {
-              // Allocate quantity to this PR
-              final allocatedQty =
-                  remainingQty > pendingQty ? pendingQty : remainingQty;
-              prData['received'] += allocatedQty;
-              remainingQty -= allocatedQty;
-              allocated = true;
-            }
-          }
-        }
-      }
-
-      // Add remaining quantity to general stock
-      if (!allocated || remainingQty > 0) {
-        generalStock += remainingQty;
-      }
-    }
-
     return Expanded(
       child: SingleChildScrollView(
         child: Card(
@@ -449,59 +388,20 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                 ),
                 const SizedBox(height: 16),
                 const Divider(),
-                // Show PR/Job-wise quantities
-                ...prQuantities.entries.map((entry) {
+                ...widget.stock.prDetails.entries.map((entry) {
                   final prNo = entry.key;
-                  final data = entry.value;
+                  final pr = entry.value;
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('PR: $prNo'),
-                                Text(
-                                  'Job: ${data['jobNo']}',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                    '${data['received'].toStringAsFixed(2)} ${widget.stock.unit}'),
-                                Text(
-                                  'Requested: ${data['requested'].toStringAsFixed(2)} ${widget.stock.unit}',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const Divider(),
-                      ],
-                    ),
-                  );
-                }),
-                // Show general stock
-                if (generalStock > 0)
-                  Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('General Stock'),
-                        Text(
-                            '${generalStock.toStringAsFixed(2)} ${widget.stock.unit}'),
+                        Text(prNo == 'General' ? 'General Stock' : 'PR: $prNo'),
+                        Text('${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
                       ],
                     ),
-                  ),
+                  );
+                }),
               ],
             ),
           ),
@@ -532,75 +432,35 @@ class _StockDetailsViewState extends State<StockDetailsView> {
         final grn = grnEntry.value;
         final grnNo = grnEntry.key;
 
-        // Get vendor details
-        final vendorDetails = widget.stock.vendorDetails[grn.vendorId];
-        final vendorName = vendorDetails?.vendorName ?? 'Unknown Vendor';
-
-        // Get PO numbers from GRN details that match this GRN's vendor
-        final relatedPOs = widget.stock.poDetails.entries
-            .where((po) => po.value.vendorId == grn.vendorId)
-            .toList();
-
-        // Get PR and Job details for this GRN
-        final prJobDetails = <String, Map<String, dynamic>>{};
-        bool isGeneralStock = true;
-
-        // For each PO, find PRs that have received stock from this specific GRN
-        for (var poEntry in relatedPOs) {
-          final poNo = poEntry.key;
-          final po = poEntry.value;
-
-          // Check if this PO has any PRs that received stock from this GRN
+        // For each PO, show all PRs for this GRN
+        final prRows = <Widget>[];
+        widget.stock.poDetails.forEach((poNo, po) {
           final receivedQtys = po.receivedQuantities[grnNo];
           if (receivedQtys != null) {
-            // Process each PR that received stock from this GRN
-            for (var prEntry in receivedQtys.entries) {
-              final prNo = prEntry.key;
-              final receivedQty = prEntry.value is double
-                  ? prEntry.value
-                  : (prEntry.value as num).toDouble();
-
-              // Skip if no quantity was received
-              if (receivedQty <= 0) continue;
-
-              // Get PR details
-              final pr = widget.stock.prDetails[prNo];
-
-              // Handle General PR differently
-              if (prNo == 'General') {
-                prJobDetails[prNo] = {
-                  'jobNo': 'General',
-                  'poNo': poNo,
-                  'poQty': po.orderedQuantity,
-                  'poReceived': po.receivedQuantity,
-                  'requested': receivedQty,
-                  'received': receivedQty,
-                };
-                continue;
+            receivedQtys.forEach((prNo, qty) {
+              if (qty > 0) {
+                prRows.add(
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16.0, top: 4.0, bottom: 4.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          prNo == 'General' ? 'General Stock' : 'PR: $prNo',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Text(
+                          '${qty.toStringAsFixed(2)} ${widget.stock.unit}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
               }
-
-              if (pr == null) continue;
-
-              // Find job for this PR
-              final job = widget.stock.jobDetails.values
-                  .where((job) => job.prNo == prNo)
-                  .firstOrNull;
-
-              // If we found a job and PR with received quantity, add it to our details
-              if (job != null) {
-                isGeneralStock = false;
-                prJobDetails[prNo] = {
-                  'jobNo': job.jobNo,
-                  'poNo': poNo,
-                  'poQty': po.orderedQuantity,
-                  'poReceived': po.receivedQuantity,
-                  'requested': pr.requestedQuantity,
-                  'received': receivedQty,
-                };
-              }
-            }
+            });
           }
-        }
+        });
 
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4.0),
@@ -624,7 +484,7 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                             Text(
-                              'Vendor: $vendorName',
+                              'Vendor: ${grn.vendorId}',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
@@ -634,8 +494,7 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                                'Qty: ${grn.receivedQuantity} ${widget.stock.unit}'),
+                            Text('Qty: ${grn.receivedQuantity} ${widget.stock.unit}'),
                             if (grn.acceptedQuantity > 0)
                               Text(
                                 'Accepted: ${grn.acceptedQuantity} ${widget.stock.unit}',
@@ -648,77 +507,10 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                   ),
                   const SizedBox(height: 8),
                   const Divider(),
-                  if (isGeneralStock) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'General Stock',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          '${grn.receivedQuantity} ${widget.stock.unit}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    ...prJobDetails.entries.map((entry) {
-                      final prNo = entry.key;
-                      final details = entry.value;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'PO: ${details['poNo']}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              Text(
-                                'Received: ${details['poReceived']} / ${details['poQty']} ${widget.stock.unit}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Padding(
-                            padding:
-                                const EdgeInsets.only(left: 16.0, top: 4.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'PR: $prNo | Job: ${details['jobNo']}',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                                Text(
-                                  'Received: ${details['received']} / ${details['requested']} ${widget.stock.unit}',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    }),
-                  ],
+                  ...prRows,
                 ],
               ),
               children: [
-                // Additional GRN details
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -727,11 +519,9 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                       const Divider(),
                       Text('Rate: ₹${grn.rate.toStringAsFixed(2)}'),
                       if (grn.acceptedQuantity > 0)
-                        Text(
-                            'Value: ₹${(grn.acceptedQuantity * grn.rate).toStringAsFixed(2)}'),
+                        Text('Value: ₹${(grn.acceptedQuantity * grn.rate).toStringAsFixed(2)}'),
                       if (grn.rejectedQuantity > 0)
-                        Text(
-                            'Rejected: ${grn.rejectedQuantity} ${widget.stock.unit}',
+                        Text('Rejected: ${grn.rejectedQuantity} ${widget.stock.unit}',
                             style: const TextStyle(color: Colors.red)),
                     ],
                   ),

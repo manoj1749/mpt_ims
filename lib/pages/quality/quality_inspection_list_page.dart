@@ -684,6 +684,14 @@ class _QualityInspectionListPageState
   @override
   Widget build(BuildContext context) {
     final inspections = ref.watch(qualityInspectionProvider);
+    // Debug: Print all quality inspections when data is loaded
+    if (inspections.isNotEmpty) {
+      print('==== ALL Quality Inspections (from provider) ====');
+      for (var inspection in inspections) {
+        print(inspection.toString());
+      }
+      print('==== END Quality Inspections ====');
+    }
 
     return Scaffold(
       appBar: AppBar(

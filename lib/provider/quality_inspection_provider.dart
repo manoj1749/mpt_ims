@@ -55,13 +55,17 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
         );
 
     if (index != -1) {
+      // Update overall usage decision for each item
+      for (var item in inspection.items) {
+        item.updateOverallUsageDecision();
+      }
       // Update inspection status based on all items
       bool allItemsAccepted = inspection.items.every((item) =>
           item.usageDecision == 'Lot Accepted' &&
           item.acceptedQty == item.receivedQty);
 
       bool allItemsRejected = inspection.items.every((item) =>
-          item.usageDecision == 'Lot Rejected' &&
+          item.usageDecision == 'Rejected' &&
           item.rejectedQty == item.receivedQty);
 
       bool allItemsProcessed = inspection.items.every(

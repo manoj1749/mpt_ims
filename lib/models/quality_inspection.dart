@@ -72,6 +72,11 @@ class QualityInspection extends HiveObject {
     this.prNumbers = prNumbers ?? {};
     this.jobNumbers = jobNumbers ?? {};
   }
+
+  @override
+  String toString() {
+    return '\nQualityInspection(inspectionNo: $inspectionNo, inspectionDate: $inspectionDate, grnNo: $grnNo, supplierName: $supplierName, poNo: $poNo, status: $status, items: [\n  ${items.map((e) => e.toString()).join(',\n  ')}\n], prNumbers: $prNumbers, jobNumbers: $jobNumbers)';
+  }
 }
 
 @HiveType(typeId: 12)
@@ -212,6 +217,11 @@ class InspectionItem extends HiveObject {
     this.grnQuantities = grnQuantities ?? {};
   }
 
+  @override
+  String toString() {
+    return 'InspectionItem(materialCode: $materialCode, materialDescription: $materialDescription, unit: $unit, receivedQty: $receivedQty, acceptedQty: $acceptedQty, rejectedQty: $rejectedQty, usageDecision: $usageDecision, poQuantities: ${poQuantities.toString()}, grnQuantities: $grnQuantities.toString())';
+  }
+
   // Helper method to get total received quantity for a specific GRN
   double getReceivedQuantityForGRN(String grnNo) {
     return grnQuantities[grnNo]?.receivedQty ?? 0.0;
@@ -299,6 +309,22 @@ class InspectionItem extends HiveObject {
         poQuantities.values.fold(0.0, (sum, qty) => sum + qty.rejectedQty);
     pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
   }
+
+  void updateOverallUsageDecision() {
+    if (poQuantities.isEmpty) return;
+    final allAccepted = poQuantities.values.every((q) => q.usageDecision == 'Lot Accepted');
+    final allRejected = poQuantities.values.every((q) => q.usageDecision == 'Rejected');
+    final anyRecheck = poQuantities.values.any((q) => q.usageDecision == '100% Recheck');
+    if (allAccepted) {
+      usageDecision = 'Lot Accepted';
+    } else if (allRejected) {
+      usageDecision = 'Rejected';
+    } else if (anyRecheck) {
+      usageDecision = '100% Recheck';
+    } else {
+      usageDecision = 'Partial';
+    }
+  }
 }
 
 @HiveType(typeId: 20)
@@ -342,6 +368,12 @@ class InspectionPOQuantity extends HiveObject {
       rejectedQty: rejectedQty ?? this.rejectedQty,
       usageDecision: usageDecision ?? this.usageDecision,
     );
+  }
+
+  @override
+  String toString() {
+    return 'InspectionPOQuantity(receivedQty: '
+        '[1m$receivedQty\u001b[0m, acceptedQty: $acceptedQty, rejectedQty: $rejectedQty, usageDecision: $usageDecision)';
   }
 }
 

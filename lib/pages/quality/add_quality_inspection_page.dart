@@ -795,15 +795,15 @@ class _AddQualityInspectionPageState
             // Quality Parameters Section
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
+                  decoration: BoxDecoration(
                 color: Colors.grey[850],
                 borderRadius: BorderRadius.circular(8),
-              ),
+                    ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                  children: [
                   const Text('Quality Parameters',
-                      style: TextStyle(
+                          style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       )),
@@ -887,35 +887,35 @@ class _AddQualityInspectionPageState
                           final currentPoNo = entry.key;
                           final currentPoQty = entry.value;
 
-                          // Find PO and PO item
+                  // Find PO and PO item
                           final po = ref
                               .watch(purchaseOrderListProvider)
                               .firstWhere(
                                 (po) => po.poNo == currentPoNo,
-                                orElse: () => throw Exception('PO not found'),
-                              );
+                    orElse: () => throw Exception('PO not found'),
+                  );
 
-                          final poItem = po.items.firstWhere(
-                            (i) => i.materialCode == item.materialCode,
-                            orElse: () => throw Exception('PO item not found'),
-                          );
+                  final poItem = po.items.firstWhere(
+                    (i) => i.materialCode == item.materialCode,
+                    orElse: () => throw Exception('PO item not found'),
+                  );
 
-                          // Get PR numbers for this PO item
-                          final prNos = poItem.prDetails.values
-                              .map((detail) => detail.prNo)
-                              .where((prNo) => prNo != 'General')
-                              .toList();
+                  // Get PR numbers for this PO item
+                  final prNos = poItem.prDetails.values
+                      .map((detail) => detail.prNo)
+                      .where((prNo) => prNo != 'General')
+                      .toList();
 
-                          // Get job numbers for these PRs
-                          final jobNos = prNos
-                              .map((prNo) {
-                                final pr = ref
-                                    .read(purchaseRequestListProvider)
-                                    .firstWhere((pr) => pr.prNo == prNo);
-                                return pr.jobNo ?? '';
-                              })
-                              .where((jobNo) => jobNo.isNotEmpty)
-                              .join(', ');
+                  // Get job numbers for these PRs
+                  final jobNos = prNos
+                      .map((prNo) {
+                        final pr = ref
+                            .read(purchaseRequestListProvider)
+                            .firstWhere((pr) => pr.prNo == prNo);
+                        return pr.jobNo ?? '';
+                      })
+                      .where((jobNo) => jobNo.isNotEmpty)
+                      .join(', ');
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1001,24 +1001,24 @@ class _AddQualityInspectionPageState
                                   TableRow(
                                     decoration: BoxDecoration(
                                       color: Colors.grey[900],
-                                    ),
-                                    children: [
+                    ),
+                    children: [
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
-                                          child: Row(
-                                            children: [
-                                              Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(
                                                 child: Text(currentPoNo,
                                                     style: const TextStyle(
                                                         fontSize: 12)),
-                                              ),
+                              ),
                                               const Icon(Icons.info_outline,
                                                   size: 16),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
+                            ],
+                          ),
+                        ),
+                      ),
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
@@ -1030,7 +1030,7 @@ class _AddQualityInspectionPageState
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
-                                          child: Text(
+                        child: Text(
                                               jobNos.isEmpty
                                                   ? 'General Stock'
                                                   : jobNos,
@@ -1041,7 +1041,7 @@ class _AddQualityInspectionPageState
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
-                                          child: Text(
+                        child: Text(
                                               '${currentPoQty.receivedQty}',
                                               style:
                                                   const TextStyle(fontSize: 12),
@@ -1051,7 +1051,7 @@ class _AddQualityInspectionPageState
                                       TableCell(
                                         child: Padding(
                                           padding: const EdgeInsets.all(8.0),
-                                          child: Text(
+                        child: Text(
                                               '${currentPoQty.acceptedQty}',
                                               style: TextStyle(
                                                 fontSize: 12,
@@ -1084,31 +1084,31 @@ class _AddQualityInspectionPageState
                                   color: Colors.grey[900],
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                                     // Usage Decision Dropdown
-                                    DropdownButtonFormField<String>(
+                            DropdownButtonFormField<String>(
                                       value: currentPoQty.usageDecision,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Usage Decision',
-                                        border: OutlineInputBorder(),
-                                        isDense: true,
-                                      ),
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'Lot Accepted',
+                              decoration: const InputDecoration(
+                                labelText: 'Usage Decision',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'Lot Accepted',
                                           child: Text('Lot Accepted'),
-                                        ),
-                                        DropdownMenuItem(
+                                ),
+                                DropdownMenuItem(
                                           value: 'Rejected',
                                           child: Text('Rejected'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: '100% Recheck',
+                                ),
+                                DropdownMenuItem(
+                                  value: '100% Recheck',
                                           child: Text('100% Recheck'),
-                                        ),
-                                      ],
+                                ),
+                              ],
                                       onChanged: (value) {
                                         setState(() {
                                           currentPoQty.usageDecision = value!;
@@ -1119,6 +1119,23 @@ class _AddQualityInspectionPageState
                                               value == '100% Recheck') {
                                             item.capaRequired = true;
                                           }
+                                          // Auto-update accepted/rejected quantities
+                                          if (value == 'Lot Accepted') {
+                                            currentPoQty.acceptedQty = currentPoQty.receivedQty;
+                                            currentPoQty.rejectedQty = 0;
+                                          } else if (value == 'Rejected') {
+                                            currentPoQty.acceptedQty = 0;
+                                            currentPoQty.rejectedQty = currentPoQty.receivedQty;
+                                          } else if (value == '100% Recheck') {
+                                            currentPoQty.acceptedQty = 0;
+                                            currentPoQty.rejectedQty = 0;
+                                          }
+                                          // Update the overall usage decision for the item
+                                          item.updateOverallUsageDecision();
+                                          // Recalculate item totals
+                                          item.acceptedQty = item.poQuantities.values.fold(0.0, (sum, q) => sum + (q.acceptedQty ?? 0));
+                                          item.rejectedQty = item.poQuantities.values.fold(0.0, (sum, q) => sum + (q.rejectedQty ?? 0));
+                                          item.pendingQty = item.receivedQty - (item.acceptedQty + item.rejectedQty);
                                         });
                                       },
                                     ),
@@ -1128,28 +1145,28 @@ class _AddQualityInspectionPageState
                                         currentPoQty.usageDecision ==
                                             '100% Recheck') ...[
                                       const SizedBox(height: 16),
-                                      Container(
+                              Container(
                                         padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
+                                decoration: BoxDecoration(
                                           color: Colors.grey[850],
                                           borderRadius:
                                               BorderRadius.circular(8),
                                         ),
                                         child: Row(
-                                          children: [
-                                            SizedBox(
-                                              width: 24,
+                                      children: [
+                                        SizedBox(
+                                          width: 24,
                                               height: 24,
-                                              child: Checkbox(
+                                          child: Checkbox(
                                                 value: item.capaRequired,
-                                                onChanged: (value) {
-                                                  setState(() {
+                                            onChanged: (value) {
+                                              setState(() {
                                                     item.capaRequired =
                                                         value ?? false;
-                                                  });
-                                                },
-                                              ),
-                                            ),
+                                              });
+                                            },
+                                          ),
+                                        ),
                                             const SizedBox(width: 12),
                                             const Expanded(
                                               child: Column(
@@ -1188,7 +1205,7 @@ class _AddQualityInspectionPageState
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
-                                          children: [
+                                        children: [
                                             const Text('Recheck Details',
                                                 style: TextStyle(
                                                   fontSize: 13,
@@ -1224,7 +1241,7 @@ class _AddQualityInspectionPageState
                                                 ),
                                               ],
                                               onChanged: (value) {
-                                                setState(() {
+                                                  setState(() {
                                                   currentPoQty.recheckType =
                                                       value;
                                                   item.capaRequired = true;
@@ -1295,7 +1312,7 @@ class _AddQualityInspectionPageState
                                                       BorderRadius.circular(4),
                                                 ),
                                                 child: Row(
-                                                  children: [
+                                        children: [
                                                     // PR Info
                                                     Expanded(
                                                       child: Column(
@@ -1353,8 +1370,8 @@ class _AddQualityInspectionPageState
                                                           labelText: 'Accept',
                                                           border:
                                                               const OutlineInputBorder(),
-                                                          isDense: true,
-                                                          contentPadding:
+                                            isDense: true,
+                                            contentPadding:
                                                               const EdgeInsets
                                                                   .symmetric(
                                                             horizontal: 8,
@@ -1393,9 +1410,9 @@ class _AddQualityInspectionPageState
                                                           }
                                                           return null;
                                                         },
-                                                        onChanged: (value) {
+                                          onChanged: (value) {
                                                           // Update accepted quantity
-                                                          setState(() {
+                                            setState(() {
                                                             currentPoQty
                                                                 .acceptedQty = _prQtyControllers[
                                                                     currentPoNo]!
@@ -1416,16 +1433,16 @@ class _AddQualityInspectionPageState
                                                                         .receivedQty -
                                                                     currentPoQty
                                                                         .acceptedQty;
-                                                          });
-                                                        },
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            }),
-                                          ],
-                                        ),
+                                            });
+                                          },
+                                ),
+                              ),
+                          ],
+                        ),
+                  );
+                }),
+              ],
+            ),
                                       ),
                                     ],
                                   ],

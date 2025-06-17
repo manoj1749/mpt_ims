@@ -397,7 +397,8 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(prNo == 'General' ? 'General Stock' : 'PR: $prNo'),
-                        Text('${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                        Text(
+                            '${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
                       ],
                     ),
                   );
@@ -441,7 +442,8 @@ class _StockDetailsViewState extends State<StockDetailsView> {
               if (qty > 0) {
                 prRows.add(
                   Padding(
-                    padding: const EdgeInsets.only(left: 16.0, top: 4.0, bottom: 4.0),
+                    padding: const EdgeInsets.only(
+                        left: 16.0, top: 4.0, bottom: 4.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -494,7 +496,8 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('Qty: ${grn.receivedQuantity} ${widget.stock.unit}'),
+                            Text(
+                                'Qty: ${grn.receivedQuantity} ${widget.stock.unit}'),
                             if (grn.acceptedQuantity > 0)
                               Text(
                                 'Accepted: ${grn.acceptedQuantity} ${widget.stock.unit}',
@@ -519,9 +522,11 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                       const Divider(),
                       Text('Rate: ₹${grn.rate.toStringAsFixed(2)}'),
                       if (grn.acceptedQuantity > 0)
-                        Text('Value: ₹${(grn.acceptedQuantity * grn.rate).toStringAsFixed(2)}'),
+                        Text(
+                            'Value: ₹${(grn.acceptedQuantity * grn.rate).toStringAsFixed(2)}'),
                       if (grn.rejectedQuantity > 0)
-                        Text('Rejected: ${grn.rejectedQuantity} ${widget.stock.unit}',
+                        Text(
+                            'Rejected: ${grn.rejectedQuantity} ${widget.stock.unit}',
                             style: const TextStyle(color: Colors.red)),
                     ],
                   ),

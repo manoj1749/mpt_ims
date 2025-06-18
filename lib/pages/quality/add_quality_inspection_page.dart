@@ -1110,14 +1110,14 @@ class _AddQualityInspectionPageState
                                 ),
                               ],
                                       onChanged: (value) {
-                                        setState(() {
+                                  setState(() {
                                           currentPoQty.usageDecision = value!;
                                           if (value != '100% Recheck') {
                                             currentPoQty.recheckType = null;
                                           }
                                           if (value == 'Rejected' ||
                                               value == '100% Recheck') {
-                                            item.capaRequired = true;
+                                      item.capaRequired = true;
                                           }
                                           // Auto-update accepted/rejected quantities
                                           if (value == 'Lot Accepted') {
@@ -1136,9 +1136,9 @@ class _AddQualityInspectionPageState
                                           item.acceptedQty = item.poQuantities.values.fold(0.0, (sum, q) => sum + (q.acceptedQty ?? 0));
                                           item.rejectedQty = item.poQuantities.values.fold(0.0, (sum, q) => sum + (q.rejectedQty ?? 0));
                                           item.pendingQty = item.receivedQty - (item.acceptedQty + item.rejectedQty);
-                                        });
-                                      },
-                                    ),
+                                  });
+                                },
+                              ),
                                     // CAPA Checkbox
                                     if (currentPoQty.usageDecision ==
                                             'Rejected' ||

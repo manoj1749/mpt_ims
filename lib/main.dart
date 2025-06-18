@@ -38,8 +38,13 @@ import 'provider/employee_provider.dart';
 import 'provider/sale_order_provider.dart';
 import 'provider/stock_maintenance_provider.dart';
 import 'provider/universal_parameter_provider.dart';
+import 'provider/material_issue_provider.dart';
 import 'firebase_options.dart';
 import 'pages/login_page.dart';
+import 'models/material_issue.dart';
+import 'models/material_issue_item.dart';
+import 'adapters/material_issue_adapter.dart';
+import 'adapters/material_issue_item_adapter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,6 +82,7 @@ void main() async {
   final universalParameterBox =
       Hive.box<UniversalParameter>('universalParameters');
   final stockMaintenanceBox = Hive.box<StockMaintenance>('stock_maintenance');
+  final materialIssueBox = Hive.box<MaterialIssue>('material_issues');
 
   final user = FirebaseAuth.instance.currentUser;
 
@@ -101,6 +107,7 @@ void main() async {
         universalParameterBoxProvider.overrideWithValue(universalParameterBox),
         employeeBoxProvider.overrideWithValue(employeeBox),
         stockMaintenanceBoxProvider.overrideWithValue(stockMaintenanceBox),
+        materialIssueBoxProvider.overrideWithValue(materialIssueBox),
       ],
       child: IMSApp(isLoggedIn: user != null),
     ),

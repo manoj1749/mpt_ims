@@ -13,6 +13,7 @@ import 'package:mpt_ims/pages/section_page.dart';
 import 'package:mpt_ims/pages/purchase/purchase_order_list_page.dart';
 import 'package:mpt_ims/pages/store/store_inward_list_page.dart';
 import 'package:mpt_ims/pages/store/stock_maintenance_page.dart';
+import 'package:mpt_ims/pages/store/material_issue_list_page.dart';
 import 'package:mpt_ims/pages/quality/quality_inspection_list_page.dart';
 import 'package:mpt_ims/pages/quality/capa_status_page.dart';
 import 'package:mpt_ims/pages/sales/sale_order_list_page.dart';
@@ -129,6 +130,9 @@ class _AppScaffoldState extends State<AppScaffold> {
         break;
       case 'GR':
         page = const StoreInwardListPage();
+        break;
+      case 'Material Issue':
+        page = const MaterialIssueListPage();
         break;
       case 'Incoming Inspection':
         page = const QualityInspectionListPage();

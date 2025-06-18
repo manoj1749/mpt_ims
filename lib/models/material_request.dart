@@ -1,5 +1,4 @@
 import 'package:hive/hive.dart';
-import 'material_request_item.dart';
 
 part 'material_request.g.dart';
 

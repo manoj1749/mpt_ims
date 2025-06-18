@@ -1,3 +1,5 @@
+// ignore_for_file: non_constant_identifier_names
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -42,9 +44,6 @@ import 'provider/material_issue_provider.dart';
 import 'firebase_options.dart';
 import 'pages/login_page.dart';
 import 'models/material_request.dart';
-import 'models/material_request_item.dart';
-import 'adapters/material_request_adapter.dart';
-import 'adapters/material_request_item_adapter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

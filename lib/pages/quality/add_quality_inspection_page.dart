@@ -1133,8 +1133,8 @@ class _AddQualityInspectionPageState
                                           // Update the overall usage decision for the item
                                           item.updateOverallUsageDecision();
                                           // Recalculate item totals
-                                          item.acceptedQty = item.poQuantities.values.fold(0.0, (sum, q) => sum + (q.acceptedQty ?? 0));
-                                          item.rejectedQty = item.poQuantities.values.fold(0.0, (sum, q) => sum + (q.rejectedQty ?? 0));
+                                          item.acceptedQty = item.poQuantities.values.fold(0.0, (sum, q) => sum + (q.acceptedQty));
+                                          item.rejectedQty = item.poQuantities.values.fold(0.0, (sum, q) => sum + (q.rejectedQty));
                                           item.pendingQty = item.receivedQty - (item.acceptedQty + item.rejectedQty);
                                   });
                                 },

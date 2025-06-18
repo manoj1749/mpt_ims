@@ -1,3 +1,5 @@
+// ignore_for_file: non_constant_identifier_names
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/material_request.dart';
@@ -31,7 +33,7 @@ class MaterialRequestNotifier extends Notifier<List<MaterialRequest>> {
     final index = _issueBox.values.toList().indexWhere((i) => i.issueNo == issue.issueNo);
     if (index != -1) {
       await _issueBox.putAt(index, issue);
-      state = [..._issueBox.values.toList()];
+      state = [..._issueBox.values];
     }
   }
 
@@ -40,7 +42,7 @@ class MaterialRequestNotifier extends Notifier<List<MaterialRequest>> {
     final index = _issueBox.values.toList().indexWhere((i) => i.issueNo == issueNo);
     if (index != -1) {
       await _issueBox.deleteAt(index);
-      state = [..._issueBox.values.toList()];
+      state = [..._issueBox.values];
     }
   }
 

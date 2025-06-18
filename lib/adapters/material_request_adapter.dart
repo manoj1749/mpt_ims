@@ -26,4 +26,4 @@ class MaterialRequestAdapter extends TypeAdapter<MaterialRequest> {
     writer.write(obj.items);
     writer.write(obj.jobNo);
   }
-} 
+}

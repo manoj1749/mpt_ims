@@ -30,7 +30,8 @@ class MaterialRequestNotifier extends Notifier<List<MaterialRequest>> {
 
   // Update an existing Material Request
   Future<void> updateMaterialRequest(MaterialRequest issue) async {
-    final index = _issueBox.values.toList().indexWhere((i) => i.issueNo == issue.issueNo);
+    final index =
+        _issueBox.values.toList().indexWhere((i) => i.issueNo == issue.issueNo);
     if (index != -1) {
       await _issueBox.putAt(index, issue);
       state = [..._issueBox.values];
@@ -39,7 +40,8 @@ class MaterialRequestNotifier extends Notifier<List<MaterialRequest>> {
 
   // Delete a Material Request
   Future<void> deleteMaterialRequest(String issueNo) async {
-    final index = _issueBox.values.toList().indexWhere((i) => i.issueNo == issueNo);
+    final index =
+        _issueBox.values.toList().indexWhere((i) => i.issueNo == issueNo);
     if (index != -1) {
       await _issueBox.deleteAt(index);
       state = [..._issueBox.values];
@@ -60,12 +62,12 @@ class MaterialRequestNotifier extends Notifier<List<MaterialRequest>> {
     final year = now.year.toString();
     final month = now.month.toString().padLeft(2, '0');
     final day = now.day.toString().padLeft(2, '0');
-    
+
     // Get count of issues for today
     final todayIssues = _issueBox.values.where((issue) {
       return issue.issueNo.startsWith('MI$year$month$day');
     }).length;
-    
+
     final count = (todayIssues + 1).toString().padLeft(3, '0');
     return 'MI$year$month$day$count';
   }
@@ -78,4 +80,4 @@ class MaterialRequestNotifier extends Notifier<List<MaterialRequest>> {
       await updateMaterialRequest(issue);
     }
   }
-} 
+}

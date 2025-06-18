@@ -12,10 +12,12 @@ class MaterialRequestListPage extends ConsumerStatefulWidget {
   const MaterialRequestListPage({super.key});
 
   @override
-  ConsumerState<MaterialRequestListPage> createState() => _MaterialRequestListPageState();
+  ConsumerState<MaterialRequestListPage> createState() =>
+      _MaterialRequestListPageState();
 }
 
-class _MaterialRequestListPageState extends ConsumerState<MaterialRequestListPage> {
+class _MaterialRequestListPageState
+    extends ConsumerState<MaterialRequestListPage> {
   late final List<PlutoColumn> columns;
   PlutoGridStateManager? stateManager;
   String _selectedStatus = 'Active'; // Default to Active view
@@ -142,8 +144,10 @@ class _MaterialRequestListPageState extends ConsumerState<MaterialRequestListPag
                 onPressed: () {
                   final rowData = rendererContext.row.cells;
                   final issueNo = rowData['issueNo']?.value as String;
-                  final MaterialRequests = ref.read(MaterialRequestListProvider);
-                  final index = MaterialRequests.indexWhere((mi) => mi.issueNo == issueNo);
+                  final MaterialRequests =
+                      ref.read(MaterialRequestListProvider);
+                  final index = MaterialRequests.indexWhere(
+                      (mi) => mi.issueNo == issueNo);
                   if (index != -1) {
                     Navigator.push(
                       context,
@@ -168,7 +172,8 @@ class _MaterialRequestListPageState extends ConsumerState<MaterialRequestListPag
                     context: context,
                     builder: (context) => AlertDialog(
                       title: const Text('Confirm Delete'),
-                      content: Text('Are you sure you want to delete Issue No: $issueNo?'),
+                      content: Text(
+                          'Are you sure you want to delete Issue No: $issueNo?'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context, false),
@@ -188,7 +193,9 @@ class _MaterialRequestListPageState extends ConsumerState<MaterialRequestListPag
                         .deleteMaterialRequest(issueNo);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Material Request deleted successfully')),
+                        const SnackBar(
+                            content:
+                                Text('Material Request deleted successfully')),
                       );
                     }
                   }
@@ -216,10 +223,17 @@ class _MaterialRequestListPageState extends ConsumerState<MaterialRequestListPag
         'jobNo': PlutoCell(value: issue.jobNo ?? ''),
         'issueNo': PlutoCell(value: issue.issueNo),
         'issueDate': PlutoCell(value: issue.date),
-        'partNo': PlutoCell(value: issue.items.isNotEmpty ? issue.items.first.materialCode : ''),
-        'description': PlutoCell(value: issue.items.isNotEmpty ? issue.items.first.materialDescription : ''),
-        'issueQty': PlutoCell(value: issue.items.isNotEmpty ? issue.items.first.quantity : ''),
-        'unit': PlutoCell(value: issue.items.isNotEmpty ? issue.items.first.unit : ''),
+        'partNo': PlutoCell(
+            value:
+                issue.items.isNotEmpty ? issue.items.first.materialCode : ''),
+        'description': PlutoCell(
+            value: issue.items.isNotEmpty
+                ? issue.items.first.materialDescription
+                : ''),
+        'issueQty': PlutoCell(
+            value: issue.items.isNotEmpty ? issue.items.first.quantity : ''),
+        'unit': PlutoCell(
+            value: issue.items.isNotEmpty ? issue.items.first.unit : ''),
         'issuedBy': PlutoCell(value: issue.issuedBy),
         'status': PlutoCell(value: issue.status),
         'actions': PlutoCell(value: ''),
@@ -278,4 +292,4 @@ class _MaterialRequestListPageState extends ConsumerState<MaterialRequestListPag
       ),
     );
   }
-} 
+}

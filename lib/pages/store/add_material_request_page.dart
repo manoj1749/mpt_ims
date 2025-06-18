@@ -20,10 +20,12 @@ class AddMaterialRequestPage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AddMaterialRequestPage> createState() => _AddMaterialRequestPageState();
+  ConsumerState<AddMaterialRequestPage> createState() =>
+      _AddMaterialRequestPageState();
 }
 
-class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage> {
+class _AddMaterialRequestPageState
+    extends ConsumerState<AddMaterialRequestPage> {
   final _formKey = GlobalKey<FormState>();
   final List<MaterialRequestItemFormData> _items = [];
   final _issuedByController = TextEditingController();
@@ -45,7 +47,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
           quantity: item.quantity,
           partNoController: TextEditingController(text: item.materialCode),
           unitController: TextEditingController(text: item.unit),
-          materialController: TextEditingController(text: item.materialDescription),
+          materialController:
+              TextEditingController(text: item.materialDescription),
         ));
       }
     } else {
@@ -97,7 +100,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text(isQuantityStep ? 'Enter Quantities' : 'Enter Material Codes'),
+              title: Text(
+                  isQuantityStep ? 'Enter Quantities' : 'Enter Material Codes'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,7 +132,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         border: const OutlineInputBorder(),
-                        hintText: 'Enter quantities for:\n${materialCodes.join('\n')}',
+                        hintText:
+                            'Enter quantities for:\n${materialCodes.join('\n')}',
                       ),
                     ),
                   ],
@@ -151,7 +156,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
 
                       // Validate material codes
                       final invalidCodes = materialCodes
-                          .where((code) => !materials.any((m) => m.partNo == code))
+                          .where(
+                              (code) => !materials.any((m) => m.partNo == code))
                           .toList();
 
                       if (invalidCodes.isNotEmpty) {
@@ -163,7 +169,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('The following codes were not found:'),
+                                const Text(
+                                    'The following codes were not found:'),
                                 const SizedBox(height: 8),
                                 Text(invalidCodes.join('\n')),
                               ],
@@ -226,7 +233,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                             _items[0].quantity = quantity;
                             _items[0].partNoController.text = material.partNo;
                             _items[0].unitController.text = material.unit;
-                            _items[0].materialController.text = material.description;
+                            _items[0].materialController.text =
+                                material.description;
                           });
                           hasUsedFirstItem = true;
                         } else {
@@ -238,8 +246,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                                 TextEditingController(text: material.partNo),
                             unitController:
                                 TextEditingController(text: material.unit),
-                            materialController:
-                                TextEditingController(text: material.description),
+                            materialController: TextEditingController(
+                                text: material.description),
                           ));
                         }
                       }
@@ -266,12 +274,14 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
         materialDescription: item.materialController.text,
         unit: item.unitController.text,
         quantity: item.quantity!,
-        issueNo: widget.existingIssue?.issueNo ?? ref.read(MaterialRequestListProvider.notifier).generateIssueNo(),
+        issueNo: widget.existingIssue?.issueNo ??
+            ref.read(MaterialRequestListProvider.notifier).generateIssueNo(),
       );
     }).toList();
 
     final materialRequest = MaterialRequest(
-      issueNo: widget.existingIssue?.issueNo ?? ref.read(MaterialRequestListProvider.notifier).generateIssueNo(),
+      issueNo: widget.existingIssue?.issueNo ??
+          ref.read(MaterialRequestListProvider.notifier).generateIssueNo(),
       date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
       jobNo: _selectedJobNo,
       issuedBy: _issuedByController.text,
@@ -285,7 +295,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
           .updateMaterialRequest(materialRequest);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Material Request updated successfully')),
+          const SnackBar(
+              content: Text('Material Request updated successfully')),
         );
       }
     } else {
@@ -294,7 +305,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
           .addMaterialRequest(materialRequest);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Material Request created successfully')),
+          const SnackBar(
+              content: Text('Material Request created successfully')),
         );
       }
     }
@@ -413,7 +425,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _items.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 16),
                 itemBuilder: (context, index) {
                   final item = _items[index];
                   return Card(
@@ -429,7 +442,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                               fieldViewBuilder: (context, textEditingController,
                                   focusNode, onFieldSubmitted) {
                                 // Set initial value without triggering rebuild
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
                                   if (textEditingController.text.isEmpty &&
                                       item.partNoController.text.isNotEmpty) {
                                     textEditingController.text =
@@ -450,7 +464,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                                           : null,
                                 );
                               },
-                              optionsViewBuilder: (context, onSelected, options) {
+                              optionsViewBuilder:
+                                  (context, onSelected, options) {
                                 return Align(
                                   alignment: Alignment.topLeft,
                                   child: Material(
@@ -470,11 +485,13 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                                         padding: const EdgeInsets.all(8.0),
                                         itemCount: options.length,
                                         itemBuilder: (context, index) {
-                                          final option = options.elementAt(index);
+                                          final option =
+                                              options.elementAt(index);
                                           return InkWell(
                                             onTap: () => onSelected(option),
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
                                                 vertical: 12.0,
                                                 horizontal: 16.0,
                                               ),
@@ -492,7 +509,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                                   ),
                                 );
                               },
-                              displayStringForOption: (material) => material.partNo,
+                              displayStringForOption: (material) =>
+                                  material.partNo,
                               optionsBuilder: (textEditingValue) {
                                 if (textEditingValue.text.isEmpty) {
                                   return materials;
@@ -506,7 +524,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                                   item.selectedMaterial = material.description;
                                   item.partNoController.text = material.partNo;
                                   item.unitController.text = material.unit;
-                                  item.materialController.text = material.description;
+                                  item.materialController.text =
+                                      material.description;
                                 });
                               },
                             ),
@@ -519,7 +538,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                               fieldViewBuilder: (context, textEditingController,
                                   focusNode, onFieldSubmitted) {
                                 // Set initial value without triggering rebuild
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
                                   if (textEditingController.text.isEmpty &&
                                       item.selectedMaterial != null) {
                                     textEditingController.text =
@@ -535,12 +555,14 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                                   ),
                                   validator: (v) => v == null || v.isEmpty
                                       ? 'Required'
-                                      : !materials.any((m) => m.description == v)
+                                      : !materials
+                                              .any((m) => m.description == v)
                                           ? 'Invalid material'
                                           : null,
                                 );
                               },
-                              optionsViewBuilder: (context, onSelected, options) {
+                              optionsViewBuilder:
+                                  (context, onSelected, options) {
                                 return Align(
                                   alignment: Alignment.topLeft,
                                   child: Material(
@@ -560,11 +582,13 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                                         padding: const EdgeInsets.all(8.0),
                                         itemCount: options.length,
                                         itemBuilder: (context, index) {
-                                          final option = options.elementAt(index);
+                                          final option =
+                                              options.elementAt(index);
                                           return InkWell(
                                             onTap: () => onSelected(option),
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
                                                 vertical: 12.0,
                                                 horizontal: 16.0,
                                               ),
@@ -597,7 +621,8 @@ class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage>
                                   item.selectedMaterial = material.description;
                                   item.partNoController.text = material.partNo;
                                   item.unitController.text = material.unit;
-                                  item.materialController.text = material.description;
+                                  item.materialController.text =
+                                      material.description;
                                 });
                               },
                             ),
@@ -681,4 +706,4 @@ class MaterialRequestItemFormData {
     unitController.dispose();
     materialController.dispose();
   }
-} 
+}

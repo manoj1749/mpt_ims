@@ -60,23 +60,23 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
         await Hive.openBox<QualityInspection>('quality_inspections');
 
     try {
-    for (var item in grn.items) {
+      for (var item in grn.items) {
         print('\nProcessing item: ${item.materialCode}');
         print('Received Qty: ${item.receivedQty}');
         print('Accepted Qty: ${item.acceptedQty}');
         print('Rejected Qty: ${item.rejectedQty}');
 
         // First check if stock exists and add it if it doesn't
-      var stock = _stockBox.values.firstWhere(
-        (s) => s.materialCode == item.materialCode,
-        orElse: () => StockMaintenance(
-          materialCode: item.materialCode,
-          materialDescription: item.materialDescription,
-          unit: item.unit,
-          storageLocation: '',
-          rackNumber: '',
-        ),
-      );
+        var stock = _stockBox.values.firstWhere(
+          (s) => s.materialCode == item.materialCode,
+          orElse: () => StockMaintenance(
+            materialCode: item.materialCode,
+            materialDescription: item.materialDescription,
+            unit: item.unit,
+            storageLocation: '',
+            rackNumber: '',
+          ),
+        );
 
         // If stock doesn't exist in box, add it first
         if (!_stockBox.values.contains(stock)) {
@@ -114,11 +114,11 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
         // Add or update GRN details
         stock.grnDetails[grn.grnNo] = StockGRNDetails(
-        grnNo: grn.grnNo,
-        grnDate: grn.grnDate,
-        receivedQuantity: item.receivedQty,
-        acceptedQuantity: item.acceptedQty,
-        rejectedQuantity: item.rejectedQty,
+          grnNo: grn.grnNo,
+          grnDate: grn.grnDate,
+          receivedQuantity: item.receivedQty,
+          acceptedQuantity: item.acceptedQty,
+          rejectedQuantity: item.rejectedQty,
           vendorId:
               grn.supplierName.isNotEmpty ? grn.supplierName : 'Unknown Vendor',
           rate: double.tryParse(item.costPerUnit) ??
@@ -158,8 +158,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
         );
 
         // --- NEW: Update PO and PR mapping for this GRN ---
-      for (var poEntry in item.prQuantities.entries) {
-        final poNo = poEntry.key;
+        for (var poEntry in item.prQuantities.entries) {
+          final poNo = poEntry.key;
           final prMap = poEntry.value;
           if (prMap == null) continue;
 
@@ -236,50 +236,59 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
               // Sum up accepted quantities from all inspections for this GRN
               double totalAcceptedQty = 0.0;
               double totalRejectedQty = 0.0;
-              
+
               for (var inspection in inspections) {
                 // Only process completed inspections
-                if (inspection.status == 'Approved' || inspection.status == 'Completed') {
+                if (inspection.status == 'Approved' ||
+                    inspection.status == 'Completed') {
                   for (var inspItem in inspection.items) {
                     if (inspItem.materialCode == item.materialCode) {
                       // Get GRN-specific quantities
-                      totalAcceptedQty += inspItem.getAcceptedQuantityForGRN(grnEntry.key);
-                      totalRejectedQty += inspItem.getRejectedQuantityForGRN(grnEntry.key);
-                      
+                      totalAcceptedQty +=
+                          inspItem.getAcceptedQuantityForGRN(grnEntry.key);
+                      totalRejectedQty +=
+                          inspItem.getRejectedQuantityForGRN(grnEntry.key);
+
                       // Update GRN details with inspection results
                       grnDetail.acceptedQuantity = totalAcceptedQty;
                       grnDetail.rejectedQuantity = totalRejectedQty;
-                      
+
                       // Move accepted quantity from under inspection to current stock
                       if (totalAcceptedQty > 0) {
                         totalCurrentStock += totalAcceptedQty;
-                        totalUnderInspection = math.max(0, grnDetail.receivedQuantity - (totalAcceptedQty + totalRejectedQty));
+                        totalUnderInspection = math.max(
+                            0,
+                            grnDetail.receivedQuantity -
+                                (totalAcceptedQty + totalRejectedQty));
                       }
-                      
+
                       // Update PO and PR quantities based on acceptance
                       for (var poEntry in item.prQuantities.entries) {
                         final poNo = poEntry.key;
                         final prMap = poEntry.value;
                         if (prMap == null) continue;
-                        
+
                         // Calculate acceptance ratio for this GRN
-                        double acceptanceRatio = totalAcceptedQty / grnDetail.receivedQuantity;
-                        
+                        double acceptanceRatio =
+                            totalAcceptedQty / grnDetail.receivedQuantity;
+
                         for (var prEntry in prMap.entries) {
                           final prNo = prEntry.key;
                           final originalQty = prEntry.value;
-                          
+
                           // Calculate accepted quantity for this PR
                           double prAcceptedQty = originalQty * acceptanceRatio;
-                          
+
                           // Update PO details
                           if (stock.poDetails.containsKey(poNo)) {
-                            stock.poDetails[poNo]!.addReceivedQuantity(grnEntry.key, prNo, prAcceptedQty);
+                            stock.poDetails[poNo]!.addReceivedQuantity(
+                                grnEntry.key, prNo, prAcceptedQty);
                           }
-                          
+
                           // Update PR details
                           if (stock.prDetails.containsKey(prNo)) {
-                            stock.prDetails[prNo]!.receivedQuantity = prAcceptedQty;
+                            stock.prDetails[prNo]!.receivedQuantity =
+                                prAcceptedQty;
                           }
                         }
                       }
@@ -374,26 +383,29 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
             rackNumber: '',
           ),
         );
-      if (!_stockBox.values.contains(stock)) {
+        if (!_stockBox.values.contains(stock)) {
           print('Adding new stock for ${inspectionItem.materialCode}');
-        await _stockBox.add(stock);
+          await _stockBox.add(stock);
           stock = _stockBox.values.firstWhere(
             (s) => s.materialCode == inspectionItem.materialCode,
           );
         }
 
         // Find all GRNs for this PO and material
-        final allGrnsForPO = inwardBox.values.where((gr) =>
-          gr.poNo == grn.poNo &&
-          gr.items.any((item) => item.materialCode == inspectionItem.materialCode)
-        ).toList();
+        final allGrnsForPO = inwardBox.values
+            .where((gr) =>
+                gr.poNo == grn.poNo &&
+                gr.items.any(
+                    (item) => item.materialCode == inspectionItem.materialCode))
+            .toList();
 
         // Calculate total received for this PO/material
         double totalReceivedForPO = 0.0;
         for (var gr in allGrnsForPO) {
           InwardItem? item;
           try {
-            item = gr.items.firstWhere((item) => item.materialCode == inspectionItem.materialCode);
+            item = gr.items.firstWhere(
+                (item) => item.materialCode == inspectionItem.materialCode);
           } catch (e) {
             item = null;
           }
@@ -402,20 +414,25 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
         // Calculate total accepted for this PO/material (from inspection)
         double totalAcceptedForPO = inspection.items
-          .where((item) => item.materialCode == inspectionItem.materialCode)
-          .fold(0.0, (sum, item) => sum + (item.poQuantities[grn.poNo]?.acceptedQty ?? 0.0));
+            .where((item) => item.materialCode == inspectionItem.materialCode)
+            .fold(
+                0.0,
+                (sum, item) =>
+                    sum + (item.poQuantities[grn.poNo]?.acceptedQty ?? 0.0));
 
         // --- FIX: Accumulate PR/General split across all GRNs, only once per PR/General ---
         Map<String, double> prAcceptedTotals = {};
         Map<String, double> prRejectedTotals = {};
         for (var gr in allGrnsForPO) {
           final grnNo = gr.grnNo;
-          final grnItem = gr.items.firstWhere((item) => item.materialCode == inspectionItem.materialCode);
+          final grnItem = gr.items.firstWhere(
+              (item) => item.materialCode == inspectionItem.materialCode);
           double grnShare = (grnItem.receivedQty > 0 && totalReceivedForPO > 0)
-            ? (grnItem.receivedQty / totalReceivedForPO)
-            : 0.0;
+              ? (grnItem.receivedQty / totalReceivedForPO)
+              : 0.0;
           double grnAccepted = grnShare * totalAcceptedForPO;
-          double grnRejected = grnShare * (inspectionItem.poQuantities[gr.poNo]?.rejectedQty ?? 0.0);
+          double grnRejected = grnShare *
+              (inspectionItem.poQuantities[gr.poNo]?.rejectedQty ?? 0.0);
 
           // Update grnDetails for this GRN
           if (stock.grnDetails.containsKey(grnNo)) {
@@ -455,12 +472,15 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
               final prQty = prEntry.value;
 
               // Proportion of this PR in this GRN
-              double prShare = (grnItem.receivedQty > 0) ? (prQty / grnItem.receivedQty) : 0.0;
+              double prShare = (grnItem.receivedQty > 0)
+                  ? (prQty / grnItem.receivedQty)
+                  : 0.0;
               double prAcceptedQty = prShare * grnAccepted;
               double prRejectedQty = prShare * grnRejected;
 
               // Update PO receivedQuantities mapping for this GRN and PR (only accepted)
-              stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, prAcceptedQty);
+              stock.poDetails[poNo]!
+                  .addReceivedQuantity(grnNo, prNo, prAcceptedQty);
               // Ensure PR details exist
               stock.prDetails[prNo] ??= StockPRDetails(
                 prNo: prNo,
@@ -470,8 +490,10 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
                 receivedQuantity: 0.0,
               );
               // Accumulate accepted/rejected for this PR across all GRNs
-              prAcceptedTotals[prNo] = (prAcceptedTotals[prNo] ?? 0.0) + prAcceptedQty;
-              prRejectedTotals[prNo] = (prRejectedTotals[prNo] ?? 0.0) + prRejectedQty;
+              prAcceptedTotals[prNo] =
+                  (prAcceptedTotals[prNo] ?? 0.0) + prAcceptedQty;
+              prRejectedTotals[prNo] =
+                  (prRejectedTotals[prNo] ?? 0.0) + prRejectedQty;
             }
           }
         }

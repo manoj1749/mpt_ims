@@ -24,4 +24,4 @@ class MaterialRequestItemAdapter extends TypeAdapter<MaterialRequestItem> {
     writer.write(obj.quantity);
     writer.write(obj.issueNo);
   }
-} 
+}

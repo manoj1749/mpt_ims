@@ -312,9 +312,12 @@ class InspectionItem extends HiveObject {
 
   void updateOverallUsageDecision() {
     if (poQuantities.isEmpty) return;
-    final allAccepted = poQuantities.values.every((q) => q.usageDecision == 'Lot Accepted');
-    final allRejected = poQuantities.values.every((q) => q.usageDecision == 'Rejected');
-    final anyRecheck = poQuantities.values.any((q) => q.usageDecision == '100% Recheck');
+    final allAccepted =
+        poQuantities.values.every((q) => q.usageDecision == 'Lot Accepted');
+    final allRejected =
+        poQuantities.values.every((q) => q.usageDecision == 'Rejected');
+    final anyRecheck =
+        poQuantities.values.any((q) => q.usageDecision == '100% Recheck');
     if (allAccepted) {
       usageDecision = 'Lot Accepted';
     } else if (allRejected) {

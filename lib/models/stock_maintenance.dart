@@ -46,16 +46,21 @@ class StockMaintenance extends HiveObject {
 
   // New getters for accurate stock calculations
   double get calculatedCurrentStock {
-    return grnDetails.values.fold(0.0, (sum, grn) => 
-      sum + (grn.acceptedQuantity));
+    return grnDetails.values
+        .fold(0.0, (sum, grn) => sum + (grn.acceptedQuantity));
   }
 
   double get calculatedUnderInspection {
-    return grnDetails.values.fold(0.0, (sum, grn) => 
-      sum + (grn.receivedQuantity - (grn.acceptedQuantity + grn.rejectedQuantity)));
+    return grnDetails.values.fold(
+        0.0,
+        (sum, grn) =>
+            sum +
+            (grn.receivedQuantity -
+                (grn.acceptedQuantity + grn.rejectedQuantity)));
   }
 
-  double get calculatedTotalStock => calculatedCurrentStock + calculatedUnderInspection;
+  double get calculatedTotalStock =>
+      calculatedCurrentStock + calculatedUnderInspection;
 
   Map<String, double> get prWiseStock {
     final Map<String, double> summary = {};
@@ -173,7 +178,7 @@ class StockMaintenance extends HiveObject {
     }
 
     totalStockValue = total;
-    
+
     // Update PR and PO quantities based on accepted stock
     for (var poDetail in poDetails.values) {
       double poAcceptedQty = 0.0;
@@ -184,7 +189,7 @@ class StockMaintenance extends HiveObject {
       }
       poDetail.receivedQuantity = poAcceptedQty;
     }
-    
+
     // Update PR received quantities
     for (var prDetail in prDetails.values) {
       double prAcceptedQty = 0.0;

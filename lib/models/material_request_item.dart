@@ -26,4 +26,4 @@ class MaterialRequestItem extends HiveObject {
     required this.quantity,
     required this.issueNo,
   });
-} 
+}

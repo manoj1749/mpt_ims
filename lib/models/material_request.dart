@@ -1,10 +1,10 @@
 import 'package:hive/hive.dart';
-import 'material_issue_item.dart';
+import 'material_request_item.dart';
 
-part 'material_issue.g.dart';
+part 'material_request.g.dart';
 
 @HiveType(typeId: 31)
-class MaterialIssueItem extends HiveObject {
+class MaterialRequestItem extends HiveObject {
   @HiveField(0)
   String materialCode;
 
@@ -20,7 +20,7 @@ class MaterialIssueItem extends HiveObject {
   @HiveField(4)
   String issueNo;
 
-  MaterialIssueItem({
+  MaterialRequestItem({
     required this.materialCode,
     required this.materialDescription,
     required this.unit,
@@ -30,7 +30,7 @@ class MaterialIssueItem extends HiveObject {
 }
 
 @HiveType(typeId: 30)
-class MaterialIssue extends HiveObject {
+class MaterialRequest extends HiveObject {
   @HiveField(0)
   String issueNo;
 
@@ -44,7 +44,7 @@ class MaterialIssue extends HiveObject {
   String? _status;
 
   @HiveField(4)
-  List<MaterialIssueItem> items = [];
+  List<MaterialRequestItem> items = [];
 
   @HiveField(5)
   String? jobNo;
@@ -52,12 +52,12 @@ class MaterialIssue extends HiveObject {
   String get status => _status ?? 'Draft';
   set status(String value) => _status = value;
 
-  MaterialIssue({
+  MaterialRequest({
     required this.issueNo,
     required this.date,
     required this.issuedBy,
     String? status,
-    List<MaterialIssueItem>? items,
+    List<MaterialRequestItem>? items,
     this.jobNo,
   }) {
     _status = status;

@@ -1,13 +1,13 @@
 import 'package:hive/hive.dart';
-import '../models/material_issue.dart';
+import '../models/material_request.dart';
 
-class MaterialIssueAdapter extends TypeAdapter<MaterialIssue> {
+class MaterialRequestAdapter extends TypeAdapter<MaterialRequest> {
   @override
   final int typeId = 30;
 
   @override
-  MaterialIssue read(BinaryReader reader) {
-    return MaterialIssue(
+  MaterialRequest read(BinaryReader reader) {
+    return MaterialRequest(
       issueNo: reader.read(),
       date: reader.read(),
       issuedBy: reader.read(),
@@ -18,7 +18,7 @@ class MaterialIssueAdapter extends TypeAdapter<MaterialIssue> {
   }
 
   @override
-  void write(BinaryWriter writer, MaterialIssue obj) {
+  void write(BinaryWriter writer, MaterialRequest obj) {
     writer.write(obj.issueNo);
     writer.write(obj.date);
     writer.write(obj.issuedBy);

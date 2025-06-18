@@ -1,22 +1,22 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'material_issue.dart';
+part of 'material_request.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class MaterialIssueItemAdapter extends TypeAdapter<MaterialIssueItem> {
+class MaterialRequestItemAdapter extends TypeAdapter<MaterialRequestItem> {
   @override
   final int typeId = 31;
 
   @override
-  MaterialIssueItem read(BinaryReader reader) {
+  MaterialRequestItem read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return MaterialIssueItem(
+    return MaterialRequestItem(
       materialCode: fields[0] as String,
       materialDescription: fields[1] as String,
       unit: fields[2] as String,
@@ -26,7 +26,7 @@ class MaterialIssueItemAdapter extends TypeAdapter<MaterialIssueItem> {
   }
 
   @override
-  void write(BinaryWriter writer, MaterialIssueItem obj) {
+  void write(BinaryWriter writer, MaterialRequestItem obj) {
     writer
       ..writeByte(5)
       ..writeByte(0)
@@ -47,32 +47,32 @@ class MaterialIssueItemAdapter extends TypeAdapter<MaterialIssueItem> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MaterialIssueItemAdapter &&
+      other is MaterialRequestItemAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
 
-class MaterialIssueAdapter extends TypeAdapter<MaterialIssue> {
+class MaterialRequestAdapter extends TypeAdapter<MaterialRequest> {
   @override
   final int typeId = 30;
 
   @override
-  MaterialIssue read(BinaryReader reader) {
+  MaterialRequest read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return MaterialIssue(
+    return MaterialRequest(
       issueNo: fields[0] as String,
       date: fields[1] as String,
       issuedBy: fields[2] as String,
-      items: (fields[4] as List?)?.cast<MaterialIssueItem>(),
+      items: (fields[4] as List?)?.cast<MaterialRequestItem>(),
       jobNo: fields[5] as String?,
     ).._status = fields[3] as String?;
   }
 
   @override
-  void write(BinaryWriter writer, MaterialIssue obj) {
+  void write(BinaryWriter writer, MaterialRequest obj) {
     writer
       ..writeByte(6)
       ..writeByte(0)
@@ -95,7 +95,7 @@ class MaterialIssueAdapter extends TypeAdapter<MaterialIssue> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MaterialIssueAdapter &&
+      other is MaterialRequestAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

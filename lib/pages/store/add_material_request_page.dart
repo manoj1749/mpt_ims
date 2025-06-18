@@ -1,31 +1,31 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, non_constant_identifier_names
 
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../models/material_issue.dart';
+import '../../models/material_request.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/material_issue_provider.dart';
 import '../../provider/sale_order_provider.dart';
 import '../../models/material_item.dart';
 
-class AddMaterialIssuePage extends ConsumerStatefulWidget {
-  final MaterialIssue? existingIssue;
+class AddMaterialRequestPage extends ConsumerStatefulWidget {
+  final MaterialRequest? existingIssue;
   final int? index;
-  const AddMaterialIssuePage({
+  const AddMaterialRequestPage({
     super.key,
     required this.existingIssue,
     required this.index,
   });
 
   @override
-  ConsumerState<AddMaterialIssuePage> createState() => _AddMaterialIssuePageState();
+  ConsumerState<AddMaterialRequestPage> createState() => _AddMaterialRequestPageState();
 }
 
-class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
+class _AddMaterialRequestPageState extends ConsumerState<AddMaterialRequestPage> {
   final _formKey = GlobalKey<FormState>();
-  final List<MaterialIssueItemFormData> _items = [];
+  final List<MaterialRequestItemFormData> _items = [];
   final _issuedByController = TextEditingController();
   String? _selectedJobNo;
 
@@ -40,7 +40,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       _issuedByController.text = widget.existingIssue!.issuedBy;
       _selectedJobNo = widget.existingIssue!.jobNo;
       for (var item in widget.existingIssue!.items) {
-        _items.add(MaterialIssueItemFormData(
+        _items.add(MaterialRequestItemFormData(
           selectedMaterial: item.materialDescription,
           quantity: item.quantity,
           partNoController: TextEditingController(text: item.materialCode),
@@ -66,7 +66,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
   void _addNewItem() {
     setState(() {
-      _items.add(MaterialIssueItemFormData(
+      _items.add(MaterialRequestItemFormData(
         selectedMaterial: null,
         quantity: null,
         partNoController: TextEditingController(),
@@ -231,7 +231,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                           hasUsedFirstItem = true;
                         } else {
                           // Add new item
-                          _items.add(MaterialIssueItemFormData(
+                          _items.add(MaterialRequestItemFormData(
                             selectedMaterial: material.description,
                             quantity: quantity,
                             partNoController:
@@ -257,21 +257,21 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     );
   }
 
-  Future<void> _saveMaterialIssue() async {
+  Future<void> _saveMaterialRequest() async {
     if (!_formKey.currentState!.validate()) return;
 
     final items = _items.map((item) {
-      return MaterialIssueItem(
+      return MaterialRequestItem(
         materialCode: item.partNoController.text,
         materialDescription: item.materialController.text,
         unit: item.unitController.text,
         quantity: item.quantity!,
-        issueNo: widget.existingIssue?.issueNo ?? ref.read(materialIssueListProvider.notifier).generateIssueNo(),
+        issueNo: widget.existingIssue?.issueNo ?? ref.read(MaterialRequestListProvider.notifier).generateIssueNo(),
       );
     }).toList();
 
-    final materialIssue = MaterialIssue(
-      issueNo: widget.existingIssue?.issueNo ?? ref.read(materialIssueListProvider.notifier).generateIssueNo(),
+    final materialRequest = MaterialRequest(
+      issueNo: widget.existingIssue?.issueNo ?? ref.read(MaterialRequestListProvider.notifier).generateIssueNo(),
       date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
       jobNo: _selectedJobNo,
       issuedBy: _issuedByController.text,
@@ -281,20 +281,20 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
     if (widget.existingIssue != null) {
       await ref
-          .read(materialIssueListProvider.notifier)
-          .updateMaterialIssue(materialIssue);
+          .read(MaterialRequestListProvider.notifier)
+          .updateMaterialRequest(materialRequest);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Material Issue updated successfully')),
+          const SnackBar(content: Text('Material Request updated successfully')),
         );
       }
     } else {
       await ref
-          .read(materialIssueListProvider.notifier)
-          .addMaterialIssue(materialIssue);
+          .read(MaterialRequestListProvider.notifier)
+          .addMaterialRequest(materialRequest);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Material Issue created successfully')),
+          const SnackBar(content: Text('Material Request created successfully')),
         );
       }
     }
@@ -312,11 +312,11 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.existingIssue != null
-            ? 'Edit Material Issue'
-            : 'New Material Issue'),
+            ? 'Edit Material Request'
+            : 'New Material Request'),
         actions: [
           FilledButton.icon(
-            onPressed: _saveMaterialIssue,
+            onPressed: _saveMaterialRequest,
             icon: const Icon(Icons.save),
             label: const Text('Save'),
           ),
@@ -661,14 +661,14 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
   }
 }
 
-class MaterialIssueItemFormData {
+class MaterialRequestItemFormData {
   String? selectedMaterial;
   String? quantity;
   final TextEditingController partNoController;
   final TextEditingController unitController;
   final TextEditingController materialController;
 
-  MaterialIssueItemFormData({
+  MaterialRequestItemFormData({
     required this.selectedMaterial,
     required this.quantity,
     required this.partNoController,

@@ -1,13 +1,13 @@
 import 'package:hive/hive.dart';
-import '../models/material_issue.dart';
+import '../models/material_request.dart';
 
-class MaterialIssueItemAdapter extends TypeAdapter<MaterialIssueItem> {
+class MaterialRequestItemAdapter extends TypeAdapter<MaterialRequestItem> {
   @override
   final int typeId = 31;
 
   @override
-  MaterialIssueItem read(BinaryReader reader) {
-    return MaterialIssueItem(
+  MaterialRequestItem read(BinaryReader reader) {
+    return MaterialRequestItem(
       materialCode: reader.read(),
       materialDescription: reader.read(),
       unit: reader.read(),
@@ -17,7 +17,7 @@ class MaterialIssueItemAdapter extends TypeAdapter<MaterialIssueItem> {
   }
 
   @override
-  void write(BinaryWriter writer, MaterialIssueItem obj) {
+  void write(BinaryWriter writer, MaterialRequestItem obj) {
     writer.write(obj.materialCode);
     writer.write(obj.materialDescription);
     writer.write(obj.unit);

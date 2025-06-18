@@ -1,33 +1,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
-import '../models/material_issue.dart';
+import '../models/material_request.dart';
 
-final materialIssueBoxProvider = Provider<Box<MaterialIssue>>((ref) {
+final MaterialRequestBoxProvider = Provider<Box<MaterialRequest>>((ref) {
   throw UnimplementedError();
 });
 
-final materialIssueListProvider =
-    NotifierProvider<MaterialIssueNotifier, List<MaterialIssue>>(
-  () => MaterialIssueNotifier(),
+final MaterialRequestListProvider =
+    NotifierProvider<MaterialRequestNotifier, List<MaterialRequest>>(
+  () => MaterialRequestNotifier(),
 );
 
-class MaterialIssueNotifier extends Notifier<List<MaterialIssue>> {
-  late Box<MaterialIssue> _issueBox;
+class MaterialRequestNotifier extends Notifier<List<MaterialRequest>> {
+  late Box<MaterialRequest> _issueBox;
 
   @override
-  List<MaterialIssue> build() {
-    _issueBox = ref.watch(materialIssueBoxProvider);
+  List<MaterialRequest> build() {
+    _issueBox = ref.watch(MaterialRequestBoxProvider);
     return _issueBox.values.toList();
   }
 
-  // Add a new material issue
-  Future<void> addMaterialIssue(MaterialIssue issue) async {
+  // Add a new Material Request
+  Future<void> addMaterialRequest(MaterialRequest issue) async {
     await _issueBox.add(issue);
     state = [...state, issue];
   }
 
-  // Update an existing material issue
-  Future<void> updateMaterialIssue(MaterialIssue issue) async {
+  // Update an existing Material Request
+  Future<void> updateMaterialRequest(MaterialRequest issue) async {
     final index = _issueBox.values.toList().indexWhere((i) => i.issueNo == issue.issueNo);
     if (index != -1) {
       await _issueBox.putAt(index, issue);
@@ -35,8 +35,8 @@ class MaterialIssueNotifier extends Notifier<List<MaterialIssue>> {
     }
   }
 
-  // Delete a material issue
-  Future<void> deleteMaterialIssue(String issueNo) async {
+  // Delete a Material Request
+  Future<void> deleteMaterialRequest(String issueNo) async {
     final index = _issueBox.values.toList().indexWhere((i) => i.issueNo == issueNo);
     if (index != -1) {
       await _issueBox.deleteAt(index);
@@ -44,11 +44,11 @@ class MaterialIssueNotifier extends Notifier<List<MaterialIssue>> {
     }
   }
 
-  // Get a material issue by issue number
-  MaterialIssue? getMaterialIssue(String issueNo) {
+  // Get a Material Request by issue number
+  MaterialRequest? getMaterialRequest(String issueNo) {
     return _issueBox.values.firstWhere(
       (issue) => issue.issueNo == issueNo,
-      orElse: () => throw Exception('Material Issue not found'),
+      orElse: () => throw Exception('Material Request not found'),
     );
   }
 
@@ -70,10 +70,10 @@ class MaterialIssueNotifier extends Notifier<List<MaterialIssue>> {
 
   // Update issue status
   Future<void> updateStatus(String issueNo, String status) async {
-    final issue = getMaterialIssue(issueNo);
+    final issue = getMaterialRequest(issueNo);
     if (issue != null) {
       issue.status = status;
-      await updateMaterialIssue(issue);
+      await updateMaterialRequest(issue);
     }
   }
 } 

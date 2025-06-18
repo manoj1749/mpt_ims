@@ -5,18 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:collection/collection.dart';
 import '../../provider/material_issue_provider.dart';
-import '../../models/material_issue.dart';
+import '../../models/material_request.dart';
 import '../../widgets/pluto_grid_configuration.dart';
-import 'add_material_issue_page.dart';
+import 'add_material_request_page.dart';
 
-class MaterialIssueListPage extends ConsumerStatefulWidget {
-  const MaterialIssueListPage({super.key});
+class MaterialRequestListPage extends ConsumerStatefulWidget {
+  const MaterialRequestListPage({super.key});
 
   @override
-  ConsumerState<MaterialIssueListPage> createState() => _MaterialIssueListPageState();
+  ConsumerState<MaterialRequestListPage> createState() => _MaterialRequestListPageState();
 }
 
-class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
+class _MaterialRequestListPageState extends ConsumerState<MaterialRequestListPage> {
   late final List<PlutoColumn> columns;
   PlutoGridStateManager? stateManager;
   String _selectedStatus = 'Active'; // Default to Active view
@@ -143,14 +143,14 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
                 onPressed: () {
                   final rowData = rendererContext.row.cells;
                   final issueNo = rowData['issueNo']?.value as String;
-                  final materialIssues = ref.read(materialIssueListProvider);
-                  final index = materialIssues.indexWhere((mi) => mi.issueNo == issueNo);
+                  final MaterialRequests = ref.read(MaterialRequestListProvider);
+                  final index = MaterialRequests.indexWhere((mi) => mi.issueNo == issueNo);
                   if (index != -1) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => AddMaterialIssuePage(
-                          existingIssue: materialIssues[index],
+                        builder: (context) => AddMaterialRequestPage(
+                          existingIssue: MaterialRequests[index],
                           index: index,
                         ),
                       ),
@@ -185,11 +185,11 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
 
                   if (confirmed == true) {
                     await ref
-                        .read(materialIssueListProvider.notifier)
-                        .deleteMaterialIssue(issueNo);
+                        .read(MaterialRequestListProvider.notifier)
+                        .deleteMaterialRequest(issueNo);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Material Issue deleted successfully')),
+                        const SnackBar(content: Text('Material Request deleted successfully')),
                       );
                     }
                   }
@@ -205,8 +205,8 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
   }
 
   List<PlutoRow> _getRows() {
-    final materialIssues = ref.watch(materialIssueListProvider);
-    final filteredIssues = materialIssues.where((issue) {
+    final MaterialRequests = ref.watch(MaterialRequestListProvider);
+    final filteredIssues = MaterialRequests.where((issue) {
       if (_selectedStatus == 'All') return true;
       return issue.status == _selectedStatus;
     }).toList();
@@ -232,7 +232,7 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Material Issues'),
+        title: const Text('Material Requests'),
         actions: [
           DropdownButton<String>(
             value: _selectedStatus,
@@ -255,7 +255,7 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AddMaterialIssuePage(
+                  builder: (context) => const AddMaterialRequestPage(
                     existingIssue: null,
                     index: null,
                   ),
@@ -263,7 +263,7 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
               );
             },
             icon: const Icon(Icons.add),
-            label: const Text('New Material Issue'),
+            label: const Text('New Material Request'),
           ),
           const SizedBox(width: 16),
         ],

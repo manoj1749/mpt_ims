@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_print
 
 import 'package:hive/hive.dart';
-import 'package:mpt_ims/models/material_issue.dart';
+import 'package:mpt_ims/models/material_request.dart';
 import '../models/supplier.dart';
 import '../models/material_item.dart';
 import '../models/customer.dart';
@@ -54,8 +54,8 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(StockPRDetailsAdapter());
   Hive.registerAdapter(StockJobDetailsAdapter());
   Hive.registerAdapter(StockVendorDetailsAdapter());
-  Hive.registerAdapter(MaterialIssueAdapter());
-  Hive.registerAdapter(MaterialIssueItemAdapter());
+  Hive.registerAdapter(MaterialRequestAdapter());
+  Hive.registerAdapter(MaterialRequestItemAdapter());
 
   // Then open boxes
   await Future.wait([
@@ -75,7 +75,7 @@ Future<void> initializeHive() async {
     Hive.openBox<UniversalParameter>('universalParameters'),
     Hive.openBox<Employee>('employees'),
     Hive.openBox<StockMaintenance>('stock_maintenance'),
-    Hive.openBox<MaterialIssue>('material_issues')
+    Hive.openBox<MaterialRequest>('material_issues')
   ]);
 }
 

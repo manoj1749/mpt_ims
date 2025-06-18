@@ -1,9 +1,9 @@
 import 'package:hive/hive.dart';
 
-part 'material_issue_item.g.dart';
+part 'material_request_item.g.dart';
 
 @HiveType(typeId: 31)
-class MaterialIssueItem extends HiveObject {
+class MaterialRequestItem extends HiveObject {
   @HiveField(0)
   String materialCode;
 
@@ -19,7 +19,7 @@ class MaterialIssueItem extends HiveObject {
   @HiveField(4)
   String issueNo;
 
-  MaterialIssueItem({
+  MaterialRequestItem({
     required this.materialCode,
     required this.materialDescription,
     required this.unit,

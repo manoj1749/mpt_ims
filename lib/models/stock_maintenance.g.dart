@@ -145,12 +145,8 @@ class StockPODetailsAdapter extends TypeAdapter<StockPODetails> {
       receivedQuantity: fields[3] as double,
       vendorId: fields[4] as String,
       rate: fields[5] as double,
-      receivedQuantities: (fields[6] as Map?)?.map(
-        (k, v) => MapEntry(
-          k.toString(),
-          (v as Map).map((k2, v2) => MapEntry(k2.toString(), v2 as double)),
-        ),
-      ),
+      receivedQuantities: (fields[6] as Map?)?.map((dynamic k, dynamic v) =>
+          MapEntry(k as String, (v as Map).cast<String, double>())),
     );
   }
 

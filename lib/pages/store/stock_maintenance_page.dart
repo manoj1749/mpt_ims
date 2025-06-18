@@ -41,14 +41,14 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
         cells: {
           'materialCode': PlutoCell(value: stock.materialCode),
           'description': PlutoCell(value: stock.materialDescription),
-          'currentStock': PlutoCell(value: stock.currentStock),
-          'underInspection': PlutoCell(value: stock.stockUnderInspection),
-          'totalStock': PlutoCell(value: stock.totalStock),
+          'currentStock': PlutoCell(value: stock.calculatedCurrentStock),
+          'underInspection': PlutoCell(value: stock.calculatedUnderInspection),
+          'totalStock': PlutoCell(value: stock.calculatedTotalStock),
           'unit': PlutoCell(value: stock.unit),
           'location': PlutoCell(value: stock.storageLocation),
           'rack': PlutoCell(value: stock.rackNumber),
           'stockValue': PlutoCell(
-              value: stock.currentStock > 0 ? stock.totalStockValue : 0),
+              value: stock.calculatedCurrentStock > 0 ? stock.totalStockValue : 0),
           'avgRate': PlutoCell(value: stock.averageRate),
           'actions': PlutoCell(value: stock),
         },

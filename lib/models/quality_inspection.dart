@@ -306,27 +306,29 @@ class InspectionItem extends HiveObject {
     if (grnDetails.containsKey(poNo)) {
       final grnDetailsForPO = grnDetails[poNo]!;
       double totalGRNQty = 0.0;
-      
+
       // Calculate total quantity across all GRNs for this PO
       for (var grnInfo in grnDetailsForPO.values) {
         final grnData = Map<String, dynamic>.from(json.decode(grnInfo));
         totalGRNQty += (grnData['quantity'] as num).toDouble();
       }
-      
+
       // Distribute accepted and rejected quantities proportionally
       if (totalGRNQty > 0) {
         for (var entry in grnDetailsForPO.entries) {
           final grnNo = entry.key;
           final grnInfo = Map<String, dynamic>.from(json.decode(entry.value));
           final grnQty = (grnInfo['quantity'] as num).toDouble();
-          
+
           // Calculate proportion for this GRN
           final proportion = grnQty / totalGRNQty;
-          
+
           // Calculate quantities for this GRN
-          final grnAcceptedQty = (poQty.acceptedQty * proportion).roundToDouble();
-          final grnRejectedQty = (poQty.rejectedQty * proportion).roundToDouble();
-          
+          final grnAcceptedQty =
+              (poQty.acceptedQty * proportion).roundToDouble();
+          final grnRejectedQty =
+              (poQty.rejectedQty * proportion).roundToDouble();
+
           // Update GRN quantities
           updateGRNQuantities(
             grnNo,

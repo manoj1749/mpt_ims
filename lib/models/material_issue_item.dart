@@ -106,4 +106,4 @@ class MaterialIssueItem extends HiveObject {
       issuedQuantities: issuedQuantities ?? Map.from(this.issuedQuantities),
     );
   }
-} 
+}

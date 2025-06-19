@@ -240,8 +240,9 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
 
       for (var grn in stockItem.grnDetails.values) {
         totalAccepted += grn.acceptedQuantity;
-        totalUnderInspection += (grn.receivedQuantity - (grn.acceptedQuantity + grn.rejectedQuantity));
-        
+        totalUnderInspection += (grn.receivedQuantity -
+            (grn.acceptedQuantity + grn.rejectedQuantity));
+
         // Calculate value based on remaining quantity in this GRN
         final remainingQty = grn.acceptedQuantity - grn.issuedQuantity;
         if (remainingQty > 0) {
@@ -320,16 +321,19 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
                             ListView.builder(
                               itemCount: stockItem.grnDetails.length,
                               itemBuilder: (context, index) {
-                                final grnEntry = stockItem.grnDetails.entries.elementAt(index);
+                                final grnEntry = stockItem.grnDetails.entries
+                                    .elementAt(index);
                                 final grn = grnEntry.value;
                                 return Card(
-                                  margin: const EdgeInsets.symmetric(vertical: 4),
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 4),
                                   child: ExpansionTile(
                                     title: Row(
                                       children: [
                                         Expanded(
                                           flex: 2,
-                                          child: Text('GRN No: ${grnEntry.key}'),
+                                          child:
+                                              Text('GRN No: ${grnEntry.key}'),
                                         ),
                                         Expanded(
                                           flex: 2,
@@ -346,19 +350,27 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
                                       Padding(
                                         padding: const EdgeInsets.all(16.0),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            Text('Received Quantity: ${grn.receivedQuantity}'),
-                                            Text('Accepted Quantity: ${grn.acceptedQuantity}'),
-                                            Text('Rejected Quantity: ${grn.rejectedQuantity}'),
-                                            Text('Issued Quantity: ${grn.issuedQuantity}'),
+                                            Text(
+                                                'Received Quantity: ${grn.receivedQuantity}'),
+                                            Text(
+                                                'Accepted Quantity: ${grn.acceptedQuantity}'),
+                                            Text(
+                                                'Rejected Quantity: ${grn.rejectedQuantity}'),
+                                            Text(
+                                                'Issued Quantity: ${grn.issuedQuantity}'),
                                             Text('Rate: ₹${grn.rate}'),
                                             const Divider(),
                                             const Text('PR-wise Quantities:'),
-                                            ...grn.issuedQuantities.entries.map((prEntry) {
+                                            ...grn.issuedQuantities.entries
+                                                .map((prEntry) {
                                               return Padding(
-                                                padding: const EdgeInsets.only(left: 16.0),
-                                                child: Text('PR ${prEntry.key}: Issued ${prEntry.value}'),
+                                                padding: const EdgeInsets.only(
+                                                    left: 16.0),
+                                                child: Text(
+                                                    'PR ${prEntry.key}: Issued ${prEntry.value}'),
                                               );
                                             }),
                                           ],
@@ -373,18 +385,24 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
                             ListView.builder(
                               itemCount: stockItem.jobDetails.length,
                               itemBuilder: (context, index) {
-                                final jobEntry = stockItem.jobDetails.entries.elementAt(index);
+                                final jobEntry = stockItem.jobDetails.entries
+                                    .elementAt(index);
                                 final job = jobEntry.value;
                                 return Card(
-                                  margin: const EdgeInsets.symmetric(vertical: 4),
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 4),
                                   child: ListTile(
                                     title: Text('Job No: ${jobEntry.key}'),
                                     subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text('Allocated Quantity: ${job.allocatedQuantity}'),
-                                        Text('Consumed Quantity: ${job.consumedQuantity}'),
-                                        Text('Available Quantity: ${job.allocatedQuantity - job.consumedQuantity}'),
+                                        Text(
+                                            'Allocated Quantity: ${job.allocatedQuantity}'),
+                                        Text(
+                                            'Consumed Quantity: ${job.consumedQuantity}'),
+                                        Text(
+                                            'Available Quantity: ${job.allocatedQuantity - job.consumedQuantity}'),
                                       ],
                                     ),
                                   ),

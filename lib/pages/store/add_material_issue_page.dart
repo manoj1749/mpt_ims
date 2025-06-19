@@ -45,7 +45,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
   Set<String> jobNumbers = {};
 
   // Store materials with their MR items and parent MR
-  Map<String, List<(MaterialRequestItem, MaterialRequest)>> materialMRItems = {};
+  Map<String, List<(MaterialRequestItem, MaterialRequest)>> materialMRItems =
+      {};
 
   // Get unique job numbers from MRs
   Set<String> _getUniqueJobNumbers() {
@@ -67,14 +68,14 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
   List<String> _getUniqueVendors() {
     final Set<String> vendors = {'All'};
     final materials = ref.read(materialListProvider);
-    
+
     for (var material in materials) {
       final vendorName = material.getPreferredVendorName(ref);
       if (vendorName.isNotEmpty) {
         vendors.add(vendorName);
       }
     }
-    
+
     return vendors.toList()..sort();
   }
 
@@ -132,9 +133,11 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
     print('Found ${materialRequests.length} material requests');
     for (var mr in materialRequests) {
-      print('MR ${mr.issueNo}: status=${mr.status}, jobNo=${mr.jobNo}, items=${mr.items.length}');
+      print(
+          'MR ${mr.issueNo}: status=${mr.status}, jobNo=${mr.jobNo}, items=${mr.items.length}');
       for (var item in mr.items) {
-        print('  Item: code=${item.materialCode}, issueNo=${item.issueNo}, quantity=${item.quantity}');
+        print(
+            '  Item: code=${item.materialCode}, issueNo=${item.issueNo}, quantity=${item.quantity}');
       }
     }
 
@@ -144,12 +147,14 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       print('\nProcessing MR ${mr.issueNo}:');
       // Skip if MR's job doesn't match selected jobs
       if (!selectedJobs.contains('All') && !selectedJobs.contains(mr.jobNo)) {
-        print('Skipping MR ${mr.issueNo} - job ${mr.jobNo} not in selected jobs $selectedJobs');
+        print(
+            'Skipping MR ${mr.issueNo} - job ${mr.jobNo} not in selected jobs $selectedJobs');
         continue;
       }
 
       print('Checking items in MR ${mr.issueNo}:');
-      final itemsWithEmptyIssueNo = mr.items.where((item) => item.issueNo.isEmpty).toList();
+      final itemsWithEmptyIssueNo =
+          mr.items.where((item) => item.issueNo.isEmpty).toList();
       print('Found ${itemsWithEmptyIssueNo.length} items with empty issueNo');
 
       for (var item in itemsWithEmptyIssueNo) {
@@ -167,7 +172,9 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
           // Add the item to materialMRItems without stock check
           print('Adding item ${item.materialCode} to material MR items');
-          materialMRItems.putIfAbsent(item.materialCode, () => []).add((item, mr));
+          materialMRItems
+              .putIfAbsent(item.materialCode, () => [])
+              .add((item, mr));
         } catch (e) {
           print('Error processing item ${item.materialCode}: $e');
         }
@@ -179,7 +186,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     });
   }
 
-  MaterialIssueItem _createIssueItem(MaterialItem material, List<(MaterialRequestItem, MaterialRequest)> mrItems) {
+  MaterialIssueItem _createIssueItem(MaterialItem material,
+      List<(MaterialRequestItem, MaterialRequest)> mrItems) {
     // Calculate total quantity from MR-wise quantities
     final mrDetails = <String, ItemMRDetails>{};
     double totalQty = 0;
@@ -232,7 +240,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
     if (items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one item to issue')),
+        const SnackBar(
+            content: Text('Please select at least one item to issue')),
       );
       return;
     }
@@ -265,7 +274,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     }
   }
 
-  Widget _buildItemCard(MaterialItem material, List<(MaterialRequestItem, MaterialRequest)> mrItems) {
+  Widget _buildItemCard(MaterialItem material,
+      List<(MaterialRequestItem, MaterialRequest)> mrItems) {
     // Initialize selectedMRs for this material if not already done
     if (!selectedMRs.containsKey(material.partNo)) {
       selectedMRs[material.partNo] = {};
@@ -273,20 +283,22 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       for (var mrTuple in mrItems) {
         final mrItem = mrTuple.$1;
         selectedMRs[material.partNo]![mrItem.issueNo] = false;
-        qtyControllers[material.partNo]![mrItem.issueNo] = TextEditingController();
+        qtyControllers[material.partNo]![mrItem.issueNo] =
+            TextEditingController();
       }
     }
 
     // Get current stock level
-    final stockItem = ref.read(stockMaintenanceProvider)
+    final stockItem = ref
+        .read(stockMaintenanceProvider)
         .firstWhere((stock) => stock.materialCode == material.partNo,
             orElse: () => StockMaintenance(
-              materialCode: material.partNo,
-              materialDescription: material.description,
-              unit: material.unit,
-              storageLocation: material.storageLocation ?? '',
-              rackNumber: material.rackNumber ?? '',
-            ));
+                  materialCode: material.partNo,
+                  materialDescription: material.description,
+                  unit: material.unit,
+                  storageLocation: material.storageLocation ?? '',
+                  rackNumber: material.rackNumber ?? '',
+                ));
     final stockLevel = stockItem.currentStock;
 
     return Card(
@@ -348,10 +360,13 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                       child: Checkbox(
                         value: mrItems.every((mrTuple) {
                           final mrItem = mrTuple.$1;
-                          return selectedMRs[material.partNo]?[mrItem.issueNo] == true;
+                          return selectedMRs[material.partNo]
+                                  ?[mrItem.issueNo] ==
+                              true;
                         }),
                         side: const BorderSide(color: Colors.white, width: 1.5),
-                        fillColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
+                        fillColor: WidgetStateProperty.resolveWith<Color>(
+                            (Set<WidgetState> states) {
                           if (states.contains(WidgetState.selected)) {
                             return Colors.blue;
                           }
@@ -362,14 +377,18 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                           setState(() {
                             for (var mrTuple in mrItems) {
                               final mrItem = mrTuple.$1;
-                              selectedMRs[material.partNo]![mrItem.issueNo] = value ?? false;
+                              selectedMRs[material.partNo]![mrItem.issueNo] =
+                                  value ?? false;
                               if (value == true) {
-                                final remainingQty = double.parse(mrItem.quantity) - 
-                                    mrItem.issuedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
-                                qtyControllers[material.partNo]![mrItem.issueNo]?.text = 
-                                    remainingQty.toString();
+                                final remainingQty =
+                                    double.parse(mrItem.quantity) -
+                                        mrItem.issuedQuantities.values
+                                            .fold(0.0, (sum, qty) => sum + qty);
+                                qtyControllers[material.partNo]![mrItem.issueNo]
+                                    ?.text = remainingQty.toString();
                               } else {
-                                qtyControllers[material.partNo]![mrItem.issueNo]?.text = '0';
+                                qtyControllers[material.partNo]![mrItem.issueNo]
+                                    ?.text = '0';
                               }
                             }
                           });
@@ -378,40 +397,41 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                     ),
                     const Text('MR No',
                         style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12)),
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     const Text('Job No',
                         style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12)),
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     const Text('Requested',
                         style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12)),
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     const Text('Issued',
                         style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12)),
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                     const Text('Issue Qty',
                         style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12)),
+                            fontWeight: FontWeight.w500, fontSize: 12)),
                   ],
                 ),
                 ...mrItems.map((mrTuple) {
                   final mrItem = mrTuple.$1;
                   final mr = mrTuple.$2;
-                  final issuedQty = mrItem.issuedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
-                  final remainingQty = double.parse(mrItem.quantity) - issuedQty;
+                  final issuedQty = mrItem.issuedQuantities.values
+                      .fold(0.0, (sum, qty) => sum + qty);
+                  final remainingQty =
+                      double.parse(mrItem.quantity) - issuedQty;
 
                   return TableRow(
                     children: [
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Checkbox(
-                          value: selectedMRs[material.partNo]?[mrItem.issueNo] ?? false,
-                          side: const BorderSide(color: Colors.white, width: 1.5),
-                          fillColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
+                          value: selectedMRs[material.partNo]
+                                  ?[mrItem.issueNo] ??
+                              false,
+                          side:
+                              const BorderSide(color: Colors.white, width: 1.5),
+                          fillColor: WidgetStateProperty.resolveWith<Color>(
+                              (Set<WidgetState> states) {
                             if (states.contains(WidgetState.selected)) {
                               return Colors.blue;
                             }
@@ -420,12 +440,14 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                           checkColor: Colors.white,
                           onChanged: (bool? value) {
                             setState(() {
-                              selectedMRs[material.partNo]![mrItem.issueNo] = value ?? false;
+                              selectedMRs[material.partNo]![mrItem.issueNo] =
+                                  value ?? false;
                               if (value == true) {
-                                qtyControllers[material.partNo]![mrItem.issueNo]?.text = 
-                                    remainingQty.toString();
+                                qtyControllers[material.partNo]![mrItem.issueNo]
+                                    ?.text = remainingQty.toString();
                               } else {
-                                qtyControllers[material.partNo]![mrItem.issueNo]?.text = '0';
+                                qtyControllers[material.partNo]![mrItem.issueNo]
+                                    ?.text = '0';
                               }
                             });
                           },
@@ -444,17 +466,24 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                         child: SizedBox(
                           height: 32,
                           child: TextFormField(
-                            controller: qtyControllers[material.partNo]![mrItem.issueNo],
-                            enabled: selectedMRs[material.partNo]?[mrItem.issueNo] ?? false,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            controller: qtyControllers[material.partNo]![
+                                mrItem.issueNo],
+                            enabled: selectedMRs[material.partNo]
+                                    ?[mrItem.issueNo] ??
+                                false,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
                             style: const TextStyle(fontSize: 12),
                             decoration: const InputDecoration(
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 8),
                               border: OutlineInputBorder(),
                             ),
                             validator: (value) {
-                              if (selectedMRs[material.partNo]?[mrItem.issueNo] == true) {
+                              if (selectedMRs[material.partNo]
+                                      ?[mrItem.issueNo] ==
+                                  true) {
                                 if (value == null || value.isEmpty) {
                                   return 'Required';
                                 }
@@ -498,8 +527,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
         actions: [
           TextButton(
             onPressed: _saveMaterialIssue,
-            child: const Text('Save',
-                style: TextStyle(color: Colors.white)),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -570,7 +598,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                 final material = ref
                     .read(materialListProvider)
                     .firstWhere((m) => m.partNo == entry.key);
-                    
+
                 // Filter by vendor if selected
                 if (selectedVendor != null && selectedVendor != 'All') {
                   final vendorName = material.getPreferredVendorName(ref);
@@ -578,7 +606,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                     return const SizedBox.shrink();
                   }
                 }
-                
+
                 return _buildItemCard(material, entry.value);
               }),
             ],
@@ -587,4 +615,4 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       ),
     );
   }
-} 
+}

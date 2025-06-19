@@ -448,7 +448,8 @@ class _QualityInspectionListPageState
               displayText,
               style: TextStyle(
                 fontSize: 12,
-                color: item.items.first.capaRequired == true ? Colors.red : null,
+                color:
+                    item.items.first.capaRequired == true ? Colors.red : null,
               ),
             ),
           );

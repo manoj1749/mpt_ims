@@ -161,7 +161,7 @@ class StockMaintenance extends HiveObject {
     for (var grn in grnDetails.values) {
       totalAccepted += grn.acceptedQuantity;
       totalIssued += grn.issuedQuantity;
-      
+
       // Calculate value based on remaining quantity in this GRN
       final remainingQty = grn.acceptedQuantity - grn.issuedQuantity;
       if (remainingQty > 0) {
@@ -171,7 +171,7 @@ class StockMaintenance extends HiveObject {
 
     currentStock = totalAccepted - totalIssued;
     totalStockValue = totalValue;
-    
+
     // Update PR and PO quantities based on accepted stock
     for (var poDetail in poDetails.values) {
       double poAcceptedQty = 0.0;
@@ -210,12 +210,15 @@ class StockMaintenance extends HiveObject {
   }
 
   // Find the oldest PR for a job that has available stock
-  (String, double)? findAvailablePRForJob(String jobNo, double requiredQuantity) {
+  (String, double)? findAvailablePRForJob(
+      String jobNo, double requiredQuantity) {
     // Get all PRs for this job
     final jobPRs = prDetails.entries
-        .where((pr) => pr.value.jobNo == jobNo && pr.value.availableQuantity > 0)
+        .where(
+            (pr) => pr.value.jobNo == jobNo && pr.value.availableQuantity > 0)
         .toList()
-      ..sort((a, b) => a.value.prDate.compareTo(b.value.prDate)); // Sort by date ascending
+      ..sort((a, b) =>
+          a.value.prDate.compareTo(b.value.prDate)); // Sort by date ascending
 
     for (var pr in jobPRs) {
       if (pr.value.availableQuantity >= requiredQuantity) {
@@ -238,7 +241,8 @@ class StockMaintenance extends HiveObject {
     final prPOs = poDetails.entries
         .where((po) => po.value.getAvailableQuantityForPR(prNo) > 0)
         .toList()
-      ..sort((a, b) => a.value.poDate.compareTo(b.value.poDate)); // Sort by date ascending
+      ..sort((a, b) =>
+          a.value.poDate.compareTo(b.value.poDate)); // Sort by date ascending
 
     for (var po in prPOs) {
       final availableQty = po.value.getAvailableQuantityForPR(prNo);
@@ -257,20 +261,19 @@ class StockMaintenance extends HiveObject {
   }
 
   // Find the oldest GRN for a PO that has available stock
-  (String, double)? findAvailableGRNForPO(String poNo, String prNo, double requiredQuantity) {
+  (String, double)? findAvailableGRNForPO(
+      String poNo, String prNo, double requiredQuantity) {
     final po = poDetails[poNo];
     if (po == null) return null;
 
     // Get all GRNs that have received stock for this PO and PR
-    final poGRNs = po.receivedQuantities.entries
-        .where((grn) {
-          final grnDetail = grnDetails[grn.key];
-          return grnDetail != null && 
-                 grn.value[prNo] != null && 
-                 grnDetail.availableQuantity > 0;
-        })
-        .toList()
-      ..sort((a, b) => 
+    final poGRNs = po.receivedQuantities.entries.where((grn) {
+      final grnDetail = grnDetails[grn.key];
+      return grnDetail != null &&
+          grn.value[prNo] != null &&
+          grnDetail.availableQuantity > 0;
+    }).toList()
+      ..sort((a, b) =>
           grnDetails[a.key]!.grnDate.compareTo(grnDetails[b.key]!.grnDate));
 
     for (var grn in poGRNs) {
@@ -312,7 +315,8 @@ class StockMaintenance extends HiveObject {
       final currentPoQty = poInfo.$2;
 
       // Find available GRN for current PO
-      final grnInfo = findAvailableGRNForPO(currentPoNo, currentPrNo, currentPoQty);
+      final grnInfo =
+          findAvailableGRNForPO(currentPoNo, currentPrNo, currentPoQty);
       if (grnInfo == null) {
         throw Exception('No available GRN found for PO $currentPoNo');
       }
@@ -435,7 +439,8 @@ class StockPODetails {
   double rate;
 
   @HiveField(6)
-  Map<String, Map<String, double>> receivedQuantities = {}; // GRN -> PR -> Quantity mapping
+  Map<String, Map<String, double>> receivedQuantities =
+      {}; // GRN -> PR -> Quantity mapping
 
   @HiveField(7)
   double issuedQuantity = 0.0;
@@ -456,7 +461,8 @@ class StockPODetails {
     this.issuedQuantity = 0.0,
     Map<String, double>? issuedQuantities,
   }) {
-    this.receivedQuantities = Map<String, Map<String, double>>.from(receivedQuantities ?? {});
+    this.receivedQuantities =
+        Map<String, Map<String, double>>.from(receivedQuantities ?? {});
     this.issuedQuantities = Map<String, double>.from(issuedQuantities ?? {});
   }
 

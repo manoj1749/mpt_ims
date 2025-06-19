@@ -212,7 +212,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
               jobNo: item.prJobNumbers[poNo]?[prNo] ?? 'General',
             );
             // Always update the job number, even for existing PR details
-            stock.prDetails[prNo]!.jobNo = item.prJobNumbers[poNo]?[prNo] ?? 'General';
+            stock.prDetails[prNo]!.jobNo =
+                item.prJobNumbers[poNo]?[prNo] ?? 'General';
             stock.prDetails[prNo]!.receivedQuantity =
                 (stock.prDetails[prNo]!.receivedQuantity) + qty;
           }
@@ -426,24 +427,26 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
         // Get GRN-specific quantities directly from the inspection item
         final inspItem = inspection.items.firstWhere(
             (item) => item.materialCode == inspectionItem.materialCode);
-        
+
         // Update GRN details with actual GRN-specific quantities
         final grnNo = grn.grnNo;
         if (stock.grnDetails.containsKey(grnNo)) {
           final grnDetails = stock.grnDetails[grnNo]!;
           final grnItem = grn.items.firstWhere(
               (item) => item.materialCode == inspectionItem.materialCode);
-          
+
           // Use the GRN-specific quantities from the inspection
-          grnDetails.acceptedQuantity = inspItem.getAcceptedQuantityForGRN(grnNo);
-          grnDetails.rejectedQuantity = inspItem.getRejectedQuantityForGRN(grnNo);
+          grnDetails.acceptedQuantity =
+              inspItem.getAcceptedQuantityForGRN(grnNo);
+          grnDetails.rejectedQuantity =
+              inspItem.getRejectedQuantityForGRN(grnNo);
           grnDetails.receivedQuantity = grnItem.receivedQty;
           grnDetails.vendorId = grn.supplierName;
           grnDetails.rate = double.tryParse(grnItem.costPerUnit) ?? 0.0;
         } else {
           final grnItem = grn.items.firstWhere(
               (item) => item.materialCode == inspectionItem.materialCode);
-          
+
           stock.grnDetails[grnNo] = StockGRNDetails(
             grnNo: grnNo,
             grnDate: grn.grnDate,
@@ -526,7 +529,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
                 jobNo: grnItem.prJobNumbers[poNo]?[prNo] ?? 'General',
               );
               // Always update the job number, even for existing PR details
-              stock.prDetails[prNo]!.jobNo = grnItem.prJobNumbers[poNo]?[prNo] ?? 'General';
+              stock.prDetails[prNo]!.jobNo =
+                  grnItem.prJobNumbers[poNo]?[prNo] ?? 'General';
               // Accumulate accepted/rejected for this PR across all GRNs
               prAcceptedTotals[prNo] =
                   (prAcceptedTotals[prNo] ?? 0.0) + prAcceptedQty;

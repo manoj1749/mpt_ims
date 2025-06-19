@@ -12,7 +12,8 @@ class MaterialIssueListPage extends ConsumerStatefulWidget {
   const MaterialIssueListPage({super.key});
 
   @override
-  ConsumerState<MaterialIssueListPage> createState() => _MaterialIssueListPageState();
+  ConsumerState<MaterialIssueListPage> createState() =>
+      _MaterialIssueListPageState();
 }
 
 class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
@@ -103,8 +104,8 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
                   final rowData = rendererContext.row.cells;
                   final issueNo = rowData['issueNo']?.value as String;
                   final materialIssues = ref.read(materialIssueProvider);
-                  final issue = materialIssues.firstWhereOrNull(
-                      (mi) => mi.issueNo == issueNo);
+                  final issue = materialIssues
+                      .firstWhereOrNull((mi) => mi.issueNo == issueNo);
                   if (issue != null) {
                     Navigator.push(
                       context,
@@ -235,4 +236,4 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
       ),
     );
   }
-} 
+}

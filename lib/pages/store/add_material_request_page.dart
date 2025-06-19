@@ -275,7 +275,7 @@ class _AddMaterialRequestPageState
         materialDescription: item.materialController.text,
         unit: item.unitController.text,
         quantity: item.quantity!,
-        issueNo: '',  // Initialize with empty string
+        issueNo: '', // Initialize with empty string
       );
     }).toList();
 

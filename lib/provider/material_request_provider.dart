@@ -24,7 +24,8 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
   }
 
   Future<void> updateMaterialRequest(MaterialRequest request) async {
-    final index = _box.values.toList().indexWhere((r) => r.issueNo == request.issueNo);
+    final index =
+        _box.values.toList().indexWhere((r) => r.issueNo == request.issueNo);
     if (index != -1) {
       await _box.putAt(index, request);
       state = _box.values.toList();
@@ -49,7 +50,8 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
 }
 
 final materialRequestProvider =
-    StateNotifierProvider<MaterialRequestProvider, List<MaterialRequest>>((ref) {
+    StateNotifierProvider<MaterialRequestProvider, List<MaterialRequest>>(
+        (ref) {
   final box = ref.watch(materialRequestBoxProvider);
   return MaterialRequestProvider(box);
-}); 
+});

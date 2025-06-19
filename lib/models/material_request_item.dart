@@ -20,9 +20,11 @@ class MaterialRequestItem extends HiveObject {
   String issueNo;
 
   @HiveField(5)
-  Map<String, double> issuedQuantities = {}; // Map of Material Issue No -> Issued Quantity
+  Map<String, double> issuedQuantities =
+      {}; // Map of Material Issue No -> Issued Quantity
 
-  double get totalIssuedQuantity => issuedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
+  double get totalIssuedQuantity =>
+      issuedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
 
   double get pendingQuantity => double.parse(quantity) - totalIssuedQuantity;
 

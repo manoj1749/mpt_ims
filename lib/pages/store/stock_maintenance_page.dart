@@ -406,24 +406,30 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text('Received:'),
-                                  Text('${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                  Text(
+                                      '${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
                                 ],
                               ),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text('Issued:'),
-                                  Text('${pr.issuedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                  Text(
+                                      '${pr.issuedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
                                 ],
                               ),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text('Available:'),
-                                  Text('${(pr.receivedQuantity - pr.issuedQuantity).toStringAsFixed(2)} ${widget.stock.unit}'),
+                                  Text(
+                                      '${(pr.receivedQuantity - pr.issuedQuantity).toStringAsFixed(2)} ${widget.stock.unit}'),
                                 ],
                               ),
                             ],
@@ -528,7 +534,8 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('Received: ${grn.receivedQuantity} ${widget.stock.unit}'),
+                            Text(
+                                'Received: ${grn.receivedQuantity} ${widget.stock.unit}'),
                             if (grn.acceptedQuantity > 0)
                               Text(
                                 'Accepted: ${grn.acceptedQuantity} ${widget.stock.unit}',
@@ -541,9 +548,12 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                               ),
                             Text(
                               'Available: ${grn.availableQuantity} ${widget.stock.unit}',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
                           ],
                         ),

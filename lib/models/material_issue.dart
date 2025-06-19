@@ -73,4 +73,4 @@ class MaterialIssue extends HiveObject {
       status: status ?? _status,
     );
   }
-} 
+}

@@ -296,7 +296,7 @@ class _MaterialRequestListPageState
                 ref.read(materialIssueProvider);
                 stateManager!.removeAllRows();
                 stateManager!.appendRows(_getRows());
-                
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Material Requests refreshed'),
@@ -337,5 +337,4 @@ class _MaterialRequestListPageState
       ),
     );
   }
-
 }

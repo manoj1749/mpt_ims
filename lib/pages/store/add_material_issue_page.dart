@@ -36,6 +36,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
   List<MaterialIssueItem> issueItems = [];
   final Map<String, Map<String, TextEditingController>> qtyControllers = {};
   final TextEditingController _issuedToController = TextEditingController();
+  String? selectedVendor;
 
   // Track selected MRs with a map of materialCode -> Map of mrNo -> bool
   Map<String, Map<String, bool>> selectedMRs = {};
@@ -60,6 +61,21 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       }
     }
     return jobNos;
+  }
+
+  // Get unique vendors from materials
+  List<String> _getUniqueVendors() {
+    final Set<String> vendors = {'All'};
+    final materials = ref.read(materialListProvider);
+    
+    for (var material in materials) {
+      final vendorName = material.getPreferredVendorName(ref);
+      if (vendorName.isNotEmpty) {
+        vendors.add(vendorName);
+      }
+    }
+    
+    return vendors.toList()..sort();
   }
 
   @override
@@ -273,20 +289,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
             ));
     final stockLevel = stockItem.currentStock;
 
-    // Determine color based on stock level
-    Color cardColor;
-    Color textColor = Colors.black;
-
-    if (stockLevel <= 0) {
-      cardColor = Colors.red.shade200;
-      textColor = Colors.white;
-    } else {
-      cardColor = Colors.green.shade200;
-    }
-
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
-      color: cardColor,
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(
@@ -301,25 +305,22 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                     children: [
                       Text(
                         material.description,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: textColor,
                         ),
                       ),
                       Text(
                         'Code: ${material.partNo} | Unit: ${material.unit}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Current Stock: $stockLevel',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: textColor,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -349,7 +350,14 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                           final mrItem = mrTuple.$1;
                           return selectedMRs[material.partNo]?[mrItem.issueNo] == true;
                         }),
-                        side: const BorderSide(color: Colors.black, width: 1.5),
+                        side: const BorderSide(color: Colors.white, width: 1.5),
+                        fillColor: MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
+                          if (states.contains(MaterialState.selected)) {
+                            return Colors.blue;
+                          }
+                          return Colors.transparent;
+                        }),
+                        checkColor: Colors.white,
                         onChanged: (bool? value) {
                           setState(() {
                             for (var mrTuple in mrItems) {
@@ -368,31 +376,26 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                         },
                       ),
                     ),
-                    Text('MR No',
+                    const Text('MR No',
                         style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                            color: textColor)),
-                    Text('Job No',
+                            fontSize: 12)),
+                    const Text('Job No',
                         style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                            color: textColor)),
-                    Text('Requested',
+                            fontSize: 12)),
+                    const Text('Requested',
                         style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                            color: textColor)),
-                    Text('Issued',
+                            fontSize: 12)),
+                    const Text('Issued',
                         style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                            color: textColor)),
-                    Text('Issue Qty',
+                            fontSize: 12)),
+                    const Text('Issue Qty',
                         style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                            color: textColor)),
+                            fontSize: 12)),
                   ],
                 ),
                 ...mrItems.map((mrTuple) {
@@ -407,7 +410,14 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Checkbox(
                           value: selectedMRs[material.partNo]?[mrItem.issueNo] ?? false,
-                          side: const BorderSide(color: Colors.black, width: 1.5),
+                          side: const BorderSide(color: Colors.white, width: 1.5),
+                          fillColor: MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
+                            if (states.contains(MaterialState.selected)) {
+                              return Colors.blue;
+                            }
+                            return Colors.transparent;
+                          }),
+                          checkColor: Colors.white,
                           onChanged: (bool? value) {
                             setState(() {
                               selectedMRs[material.partNo]![mrItem.issueNo] = value ?? false;
@@ -422,13 +432,13 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                         ),
                       ),
                       Text(mrItem.issueNo,
-                          style: TextStyle(fontSize: 12, color: textColor)),
+                          style: const TextStyle(fontSize: 12)),
                       Text(mr.jobNo ?? '',
-                          style: TextStyle(fontSize: 12, color: textColor)),
+                          style: const TextStyle(fontSize: 12)),
                       Text(mrItem.quantity,
-                          style: TextStyle(fontSize: 12, color: textColor)),
+                          style: const TextStyle(fontSize: 12)),
                       Text(issuedQty.toString(),
-                          style: TextStyle(fontSize: 12, color: textColor)),
+                          style: const TextStyle(fontSize: 12)),
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 2),
                         child: SizedBox(
@@ -437,7 +447,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                             controller: qtyControllers[material.partNo]![mrItem.issueNo],
                             enabled: selectedMRs[material.partNo]?[mrItem.issueNo] ?? false,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            style: TextStyle(fontSize: 12, color: textColor),
+                            style: const TextStyle(fontSize: 12),
                             decoration: const InputDecoration(
                               isDense: true,
                               contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -518,6 +528,22 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                     ),
                   ),
                   const SizedBox(width: 16),
+                  DropdownButton<String>(
+                    value: selectedVendor ?? 'All',
+                    items: _getUniqueVendors()
+                        .map((vendor) => DropdownMenuItem(
+                              value: vendor,
+                              child: Text(vendor),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedVendor = value == 'All' ? null : value;
+                        _updateMaterialMRItems();
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 16),
                   ElevatedButton.icon(
                     onPressed: () async {
                       final selectedJobsList = await showDialog<List<String>>(
@@ -544,6 +570,15 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                 final material = ref
                     .read(materialListProvider)
                     .firstWhere((m) => m.partNo == entry.key);
+                    
+                // Filter by vendor if selected
+                if (selectedVendor != null && selectedVendor != 'All') {
+                  final vendorName = material.getPreferredVendorName(ref);
+                  if (vendorName != selectedVendor) {
+                    return const SizedBox.shrink();
+                  }
+                }
+                
                 return _buildItemCard(material, entry.value);
               }).toList(),
             ],

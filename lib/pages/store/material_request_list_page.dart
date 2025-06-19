@@ -2,11 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mpt_ims/provider/material_request_provider.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:collection/collection.dart';
 import '../../provider/material_issue_provider.dart';
 import '../../widgets/pluto_grid_configuration.dart';
 import 'add_material_request_page.dart';
+import '../../models/material_request.dart';
 
 class MaterialRequestListPage extends ConsumerStatefulWidget {
   const MaterialRequestListPage({super.key});
@@ -243,52 +245,157 @@ class _MaterialRequestListPageState
 
   @override
   Widget build(BuildContext context) {
+    final materialRequests = ref.watch(materialRequestProvider);
+    final materialIssues = ref.watch(materialIssueProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Material Requests'),
         actions: [
-          DropdownButton<String>(
-            value: _selectedStatus,
-            items: const [
-              DropdownMenuItem(value: 'Active', child: Text('Active')),
-              DropdownMenuItem(value: 'Completed', child: Text('Completed')),
-              DropdownMenuItem(value: 'All', child: Text('All')),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedStatus = value;
-                });
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: DropdownButton<String>(
+              value: _selectedStatus,
+              dropdownColor: Colors.grey[850],
+              style: TextStyle(color: Colors.grey[200]),
+              icon: Icon(Icons.filter_list, color: Colors.grey[200]),
+              underline: Container(),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Active',
+                  child: Text('Active'),
+                ),
+                DropdownMenuItem(
+                  value: 'Completed',
+                  child: Text('Completed'),
+                ),
+                DropdownMenuItem(
+                  value: 'All',
+                  child: Text('All'),
+                ),
+              ],
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _selectedStatus = newValue;
+                  });
+                  if (stateManager != null) {
+                    final materialRequests = ref.read(materialRequestProvider);
+                    final materialIssues = ref.read(materialIssueProvider);
+                    stateManager!.removeAllRows();
+                    stateManager!.appendRows(_getRows());
+                  }
+                }
+              },
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              if (stateManager != null) {
+                final materialRequests = ref.read(materialRequestProvider);
+                final materialIssues = ref.read(materialIssueProvider);
+                stateManager!.removeAllRows();
+                stateManager!.appendRows(_getRows());
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Material Requests refreshed'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
               }
             },
           ),
           const SizedBox(width: 16),
-          FilledButton.icon(
+          FilledButton(
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AddMaterialRequestPage(
+                  builder: (context) => AddMaterialRequestPage(
                     existingIssue: null,
                     index: null,
                   ),
                 ),
               );
             },
-            icon: const Icon(Icons.add),
-            label: const Text('New Material Request'),
+            child: const Text('New Material Request'),
           ),
           const SizedBox(width: 16),
         ],
       ),
       body: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(8),
         child: PlutoGrid(
           columns: columns,
           rows: _getRows(),
-          onLoaded: (event) => stateManager = event.stateManager,
+          onLoaded: (PlutoGridOnLoadedEvent event) {
+            stateManager = event.stateManager;
+          },
           configuration: PlutoGridConfigurations.darkMode(),
         ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(
+      BuildContext context, WidgetRef ref, MaterialRequest request) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[850],
+        title: Text('Delete Material Request',
+            style: TextStyle(color: Colors.grey[200])),
+        content: Text(
+          'Are you sure you want to delete material request ${request.issueNo}?',
+          style: TextStyle(color: Colors.grey[200]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[200])),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await ref
+                    .read(materialRequestProvider.notifier)
+                    .deleteMaterialRequest(request.issueNo);
+                Navigator.pop(context);
+
+                // Refresh grid rows if deletion was successful
+                if (stateManager != null) {
+                  stateManager!.removeAllRows();
+                  stateManager!.appendRows(_getRows());
+                }
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Material request ${request.issueNo} deleted successfully',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    backgroundColor: Colors.black,
+                  ),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Cannot delete MR ${request.issueNo} - It has active Material Issues',
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                    backgroundColor: Colors.white,
+                  ),
+                );
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
   }

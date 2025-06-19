@@ -290,7 +290,7 @@ class _AddPurchaseRequestPageState
                     child: TextFormField(
                       controller: _requiredByController,
                       decoration: const InputDecoration(
-                        labelText: 'Required By',
+                        labelText: 'Requested By',
                         border: OutlineInputBorder(),
                       ),
                       validator: (v) =>

@@ -1,4 +1,4 @@
-// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member, unused_local_variable, use_build_context_synchronously
+// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member, unused_local_variable, use_build_context_synchronously, avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -351,8 +351,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                           return selectedMRs[material.partNo]?[mrItem.issueNo] == true;
                         }),
                         side: const BorderSide(color: Colors.white, width: 1.5),
-                        fillColor: MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
-                          if (states.contains(MaterialState.selected)) {
+                        fillColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
+                          if (states.contains(WidgetState.selected)) {
                             return Colors.blue;
                           }
                           return Colors.transparent;
@@ -411,8 +411,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                         child: Checkbox(
                           value: selectedMRs[material.partNo]?[mrItem.issueNo] ?? false,
                           side: const BorderSide(color: Colors.white, width: 1.5),
-                          fillColor: MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
-                            if (states.contains(MaterialState.selected)) {
+                          fillColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
+                            if (states.contains(WidgetState.selected)) {
                               return Colors.blue;
                             }
                             return Colors.transparent;
@@ -479,7 +479,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                       ),
                     ],
                   );
-                }).toList(),
+                }),
               ],
             ),
           ],
@@ -580,7 +580,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                 }
                 
                 return _buildItemCard(material, entry.value);
-              }).toList(),
+              }),
             ],
           ),
         ),

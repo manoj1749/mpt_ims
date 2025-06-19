@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mpt_ims/widgets/pluto_grid_configuration.dart';
 import 'package:pluto_grid/pluto_grid.dart';
-import '../../models/material_item.dart';
 import '../../provider/material_provider.dart';
-import '../../provider/store_inward_provider.dart';
-import '../../provider/vendor_material_rate_provider.dart';
-import '../../provider/quality_inspection_provider.dart';
 import '../../models/category.dart';
 import '../../provider/category_provider.dart';
 import '../../provider/stock_maintenance_provider.dart';
@@ -212,7 +208,7 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
     final rows = <PlutoRow>[];
     for (var material in materials) {
       // Get the material's category
-      final category = categories.firstWhere(
+      categories.firstWhere(
         (c) => c.name == material.category,
         orElse: () => Category(name: material.category),
       );

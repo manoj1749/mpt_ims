@@ -284,12 +284,10 @@ final materialIssueListProvider = Provider<List<MaterialIssue>>((ref) {
 
 class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
   late Box<MaterialIssue> _issueBox;
-  late Box<MaterialRequest> _requestBox;
   final Ref ref;
 
   MaterialIssueNotifier(Box<MaterialIssue> box, this.ref) : super([]) {
     _issueBox = box;
-    _requestBox = ref.watch(materialRequestBoxProvider);
     state = _issueBox.values.toList();
   }
 

@@ -8,7 +8,6 @@ import 'package:collection/collection.dart';
 import '../../provider/material_issue_provider.dart';
 import '../../widgets/pluto_grid_configuration.dart';
 import 'add_material_request_page.dart';
-import '../../models/material_request.dart';
 
 class MaterialRequestListPage extends ConsumerStatefulWidget {
   const MaterialRequestListPage({super.key});
@@ -245,8 +244,8 @@ class _MaterialRequestListPageState
 
   @override
   Widget build(BuildContext context) {
-    final materialRequests = ref.watch(materialRequestProvider);
-    final materialIssues = ref.watch(materialIssueProvider);
+    ref.watch(materialRequestProvider);
+    ref.watch(materialIssueProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -280,8 +279,8 @@ class _MaterialRequestListPageState
                     _selectedStatus = newValue;
                   });
                   if (stateManager != null) {
-                    final materialRequests = ref.read(materialRequestProvider);
-                    final materialIssues = ref.read(materialIssueProvider);
+                    ref.read(materialRequestProvider);
+                    ref.read(materialIssueProvider);
                     stateManager!.removeAllRows();
                     stateManager!.appendRows(_getRows());
                   }
@@ -293,8 +292,8 @@ class _MaterialRequestListPageState
             icon: const Icon(Icons.refresh),
             onPressed: () {
               if (stateManager != null) {
-                final materialRequests = ref.read(materialRequestProvider);
-                final materialIssues = ref.read(materialIssueProvider);
+                ref.read(materialRequestProvider);
+                ref.read(materialIssueProvider);
                 stateManager!.removeAllRows();
                 stateManager!.appendRows(_getRows());
                 
@@ -313,7 +312,7 @@ class _MaterialRequestListPageState
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => AddMaterialRequestPage(
+                  builder: (context) => const AddMaterialRequestPage(
                     existingIssue: null,
                     index: null,
                   ),
@@ -339,64 +338,4 @@ class _MaterialRequestListPageState
     );
   }
 
-  void _showDeleteConfirmation(
-      BuildContext context, WidgetRef ref, MaterialRequest request) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[850],
-        title: Text('Delete Material Request',
-            style: TextStyle(color: Colors.grey[200])),
-        content: Text(
-          'Are you sure you want to delete material request ${request.issueNo}?',
-          style: TextStyle(color: Colors.grey[200]),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey[200])),
-          ),
-          TextButton(
-            onPressed: () async {
-              try {
-                await ref
-                    .read(materialRequestProvider.notifier)
-                    .deleteMaterialRequest(request.issueNo);
-                Navigator.pop(context);
-
-                // Refresh grid rows if deletion was successful
-                if (stateManager != null) {
-                  stateManager!.removeAllRows();
-                  stateManager!.appendRows(_getRows());
-                }
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Material request ${request.issueNo} deleted successfully',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    backgroundColor: Colors.black,
-                  ),
-                );
-              } catch (e) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Cannot delete MR ${request.issueNo} - It has active Material Issues',
-                      style: const TextStyle(color: Colors.black),
-                    ),
-                    backgroundColor: Colors.white,
-                  ),
-                );
-              }
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
 }

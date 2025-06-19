@@ -9,6 +9,8 @@ import '../../provider/vendor_material_rate_provider.dart';
 import '../../provider/quality_inspection_provider.dart';
 import '../../models/category.dart';
 import '../../provider/category_provider.dart';
+import '../../provider/stock_maintenance_provider.dart';
+import '../../models/stock_maintenance.dart';
 
 // Model classes for hierarchical data
 class GRDetails {
@@ -140,7 +142,7 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
         enableEditingMode: false,
       ),
       PlutoColumn(
-        title: 'Inspection Stock',
+        title: 'Under Inspection',
         field: 'inspectionStock',
         type: PlutoColumnType.number(),
         width: 120,
@@ -161,16 +163,23 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
         enableEditingMode: false,
       ),
       PlutoColumn(
-        title: 'Preferred Vendor',
-        field: 'preferredVendor',
-        type: PlutoColumnType.text(),
-        width: 150,
+        title: 'Allocated Stock',
+        field: 'allocatedStock',
+        type: PlutoColumnType.number(),
+        width: 120,
         enableEditingMode: false,
       ),
       PlutoColumn(
-        title: 'Best Rate',
-        field: 'bestRate',
-        type: PlutoColumnType.text(),
+        title: 'Consumed Stock',
+        field: 'consumedStock',
+        type: PlutoColumnType.number(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Available Stock',
+        field: 'availableStock',
+        type: PlutoColumnType.number(),
         width: 120,
         enableEditingMode: false,
       ),
@@ -196,73 +205,8 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
 
   List<PlutoRow> _getRows() {
     final materials = ref.watch(materialListProvider);
-    final storeInwards = ref.watch(storeInwardProvider);
-    ref.watch(vendorMaterialRateProvider);
-    ref.watch(qualityInspectionProvider);
+    final stockItems = ref.watch(stockMaintenanceProvider);
     final categories = ref.watch(categoryListProvider);
-
-    // Calculate stock for each material
-    final materialStock = <String,
-        Map<String, double>>{}; // materialCode -> {grnNo -> acceptedQty}
-    final materialInspectionStock = <String,
-        Map<String, double>>{}; // materialCode -> {grnNo -> pendingQty}
-    final materialRejectedStock = <String,
-        Map<String, double>>{}; // materialCode -> {grnNo -> rejectedQty}
-
-    // Process store inwards to calculate stock
-    for (var inward in storeInwards) {
-      for (var item in inward.items) {
-        // Get the material's category
-        final material = materials.firstWhere(
-          (m) => m.partNo == item.materialCode,
-          orElse: () => MaterialItem(
-            slNo: item.materialCode,
-            description: '',
-            partNo: item.materialCode,
-            unit: item.unit,
-            category: 'General',
-            subCategory: '',
-          ),
-        );
-
-        final category = categories.firstWhere(
-          (c) => c.name == material.category,
-          orElse: () => Category(name: material.category),
-        );
-
-        // Initialize maps if needed
-        materialStock.putIfAbsent(item.materialCode, () => {});
-        materialInspectionStock.putIfAbsent(item.materialCode, () => {});
-        materialRejectedStock.putIfAbsent(item.materialCode, () => {});
-
-        // For items that don't require inspection, add directly to stock
-        if (!category.requiresQualityCheck) {
-          materialStock[item.materialCode]![inward.grnNo] = item.receivedQty;
-          continue;
-        }
-
-        // For items requiring inspection, calculate based on inspection status
-        final acceptedQty = item.totalAcceptedQty;
-        final rejectedQty = item.totalRejectedQty;
-        final underInspectionQty = item.underInspectionQty;
-
-        // Add accepted quantity to stock
-        if (acceptedQty > 0) {
-          materialStock[item.materialCode]![inward.grnNo] = acceptedQty;
-        }
-
-        // Add quantity under inspection
-        if (underInspectionQty > 0) {
-          materialInspectionStock[item.materialCode]![inward.grnNo] =
-              underInspectionQty;
-        }
-
-        // Add rejected quantity
-        if (rejectedQty > 0) {
-          materialRejectedStock[item.materialCode]![inward.grnNo] = rejectedQty;
-        }
-      }
-    }
 
     // Create rows for each material
     final rows = <PlutoRow>[];
@@ -273,42 +217,44 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
         orElse: () => Category(name: material.category),
       );
 
-      double currentStock = 0;
-      double inspectionStock = 0;
-      double rejectedStock = 0;
+      // Get stock details
+      final stockItem = stockItems.firstWhere(
+        (s) => s.materialCode == material.partNo,
+        orElse: () => StockMaintenance(
+          materialCode: material.partNo,
+          materialDescription: material.description,
+          unit: material.unit,
+          storageLocation: material.storageLocation ?? '',
+          rackNumber: material.rackNumber ?? '',
+        ),
+      );
 
-      // Calculate stock based on category
-      if (!category.requiresQualityCheck) {
-        // For non-inspection items, all received stock is current stock
-        currentStock = materialStock[material.partNo]
-                ?.values
-                .fold<double>(0.0, (sum, qty) => sum + qty) ??
-            0;
-        inspectionStock = 0;
-        rejectedStock = 0;
-      } else {
-        // For inspection items, calculate based on inspection status
-        currentStock = materialStock[material.partNo]
-                ?.values
-                .fold<double>(0.0, (sum, qty) => sum + qty) ??
-            0;
-        inspectionStock = materialInspectionStock[material.partNo]
-                ?.values
-                .fold<double>(0.0, (sum, qty) => sum + qty) ??
-            0;
-        rejectedStock = materialRejectedStock[material.partNo]
-                ?.values
-                .fold<double>(0.0, (sum, qty) => sum + qty) ??
-            0;
+      // Calculate job-wise allocated and consumed quantities
+      double totalAllocated = 0.0;
+      double totalConsumed = 0.0;
+      for (var jobDetail in stockItem.jobDetails.values) {
+        totalAllocated += jobDetail.allocatedQuantity;
+        totalConsumed += jobDetail.consumedQuantity;
       }
 
-      // Total stock should only include accepted and in-inspection items
-      final totalStock = currentStock + inspectionStock;
+      // Calculate GRN-wise quantities
+      double totalAccepted = 0.0;
+      double totalUnderInspection = 0.0;
+      double totalValue = 0.0;
 
-      final bestRate = material.getLowestRate(ref);
-      final stockValue = currentStock *
-          (double.tryParse(bestRate) ??
-              0); // Only count accepted stock in value
+      for (var grn in stockItem.grnDetails.values) {
+        totalAccepted += grn.acceptedQuantity;
+        totalUnderInspection += (grn.receivedQuantity - (grn.acceptedQuantity + grn.rejectedQuantity));
+        
+        // Calculate value based on remaining quantity in this GRN
+        final remainingQty = grn.acceptedQuantity - grn.issuedQuantity;
+        if (remainingQty > 0) {
+          totalValue += remainingQty * grn.rate;
+        }
+      }
+
+      final currentStock = totalAccepted - totalConsumed;
+      final totalStock = currentStock + totalUnderInspection;
 
       rows.add(PlutoRow(
         cells: {
@@ -318,13 +264,12 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
           'storageLocation': PlutoCell(value: material.storageLocation),
           'rackNumber': PlutoCell(value: material.rackNumber),
           'currentStock': PlutoCell(value: currentStock),
-          'inspectionStock': PlutoCell(value: inspectionStock),
-          'rejectedStock': PlutoCell(value: rejectedStock),
+          'inspectionStock': PlutoCell(value: totalUnderInspection),
           'totalStock': PlutoCell(value: totalStock),
-          'stockValue': PlutoCell(value: '₹${stockValue.toStringAsFixed(2)}'),
-          'preferredVendor':
-              PlutoCell(value: material.getPreferredVendorName(ref)),
-          'bestRate': PlutoCell(value: bestRate.isEmpty ? '-' : '₹$bestRate'),
+          'stockValue': PlutoCell(value: '₹${totalValue.toStringAsFixed(2)}'),
+          'allocatedStock': PlutoCell(value: totalAllocated),
+          'consumedStock': PlutoCell(value: totalConsumed),
+          'availableStock': PlutoCell(value: totalAllocated - totalConsumed),
           'actions': PlutoCell(value: ''),
         },
       ));
@@ -334,54 +279,17 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
   }
 
   void _showMaterialDetails(String materialCode) {
-    final storeInwards = ref.read(storeInwardProvider);
-    final List<GRDetails> grDetails = [];
-
-    // Process store inwards to build hierarchical data
-    for (var inward in storeInwards) {
-      final relevantItems =
-          inward.items.where((item) => item.materialCode == materialCode);
-
-      for (var item in relevantItems) {
-        final List<PODetails> poDetails = [];
-
-        // Group by PO and process PR quantities
-        for (var poEntry in item.prQuantities.entries) {
-          final String poNo = poEntry.key;
-          final Map<String, double> prQtys = poEntry.value;
-          final List<PRDetails> prDetails = [];
-          double poTotal = 0;
-
-          // Process PR details for this PO
-          for (var prEntry in prQtys.entries) {
-            final String prNo = prEntry.key;
-            final double qty = prEntry.value;
-            final String jobNo = item.prJobNumbers[poNo]?[prNo] ?? 'N/A';
-
-            prDetails.add(PRDetails(
-              prNo: prNo,
-              jobNo: jobNo,
-              quantity: qty,
-            ));
-
-            poTotal += qty;
-          }
-
-          poDetails.add(PODetails(
-            poNo: poNo,
-            quantity: poTotal,
-            prDetails: prDetails,
-          ));
-        }
-
-        grDetails.add(GRDetails(
-          grNo: inward.grnNo,
-          date: inward.grnDate,
-          quantity: item.receivedQty,
-          poDetails: poDetails,
-        ));
-      }
-    }
+    final stockItems = ref.read(stockMaintenanceProvider);
+    final stockItem = stockItems.firstWhere(
+      (s) => s.materialCode == materialCode,
+      orElse: () => StockMaintenance(
+        materialCode: materialCode,
+        materialDescription: '',
+        unit: '',
+        storageLocation: '',
+        rackNumber: '',
+      ),
+    );
 
     showDialog(
       context: context,
@@ -399,7 +307,100 @@ class _StockDetailsPageState extends ConsumerState<StockDetailsPage> {
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: MaterialDetailsView(grDetails: grDetails),
+                child: DefaultTabController(
+                  length: 2,
+                  child: Column(
+                    children: [
+                      const TabBar(
+                        tabs: [
+                          Tab(text: 'GRN Details'),
+                          Tab(text: 'Job Details'),
+                        ],
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            // GRN Details Tab
+                            ListView.builder(
+                              itemCount: stockItem.grnDetails.length,
+                              itemBuilder: (context, index) {
+                                final grnEntry = stockItem.grnDetails.entries.elementAt(index);
+                                final grn = grnEntry.value;
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(vertical: 4),
+                                  child: ExpansionTile(
+                                    title: Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text('GRN No: ${grnEntry.key}'),
+                                        ),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text('Date: ${grn.grnDate}'),
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            'Qty: ${grn.receivedQuantity}',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text('Received Quantity: ${grn.receivedQuantity}'),
+                                            Text('Accepted Quantity: ${grn.acceptedQuantity}'),
+                                            Text('Rejected Quantity: ${grn.rejectedQuantity}'),
+                                            Text('Issued Quantity: ${grn.issuedQuantity}'),
+                                            Text('Rate: ₹${grn.rate}'),
+                                            const Divider(),
+                                            const Text('PR-wise Quantities:'),
+                                            ...grn.issuedQuantities.entries.map((prEntry) {
+                                              return Padding(
+                                                padding: const EdgeInsets.only(left: 16.0),
+                                                child: Text('PR ${prEntry.key}: Issued ${prEntry.value}'),
+                                              );
+                                            }),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                            // Job Details Tab
+                            ListView.builder(
+                              itemCount: stockItem.jobDetails.length,
+                              itemBuilder: (context, index) {
+                                final jobEntry = stockItem.jobDetails.entries.elementAt(index);
+                                final job = jobEntry.value;
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(vertical: 4),
+                                  child: ListTile(
+                                    title: Text('Job No: ${jobEntry.key}'),
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Allocated Quantity: ${job.allocatedQuantity}'),
+                                        Text('Consumed Quantity: ${job.consumedQuantity}'),
+                                        Text('Available Quantity: ${job.allocatedQuantity - job.consumedQuantity}'),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               Align(

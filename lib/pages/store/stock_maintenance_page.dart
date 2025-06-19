@@ -394,12 +394,42 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                   final pr = entry.value;
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(prNo == 'General' ? 'General Stock' : 'PR: $prNo'),
                         Text(
-                            '${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                          'PR: $prNo | Job: ${pr.jobNo.isEmpty ? 'General' : pr.jobNo}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16.0),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Received:'),
+                                  Text('${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Issued:'),
+                                  Text('${pr.issuedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Available:'),
+                                  Text('${(pr.receivedQuantity - pr.issuedQuantity).toStringAsFixed(2)} ${widget.stock.unit}'),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(),
                       ],
                     ),
                   );
@@ -441,6 +471,7 @@ class _StockDetailsViewState extends State<StockDetailsView> {
           if (receivedQtys != null) {
             receivedQtys.forEach((prNo, qty) {
               if (qty > 0) {
+                final issuedQty = grn.issuedQuantities[prNo] ?? 0.0;
                 prRows.add(
                   Padding(
                     padding: const EdgeInsets.only(
@@ -453,7 +484,7 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         Text(
-                          '${qty.toStringAsFixed(2)} ${widget.stock.unit}',
+                          'Received: ${qty.toStringAsFixed(2)} | Issued: ${issuedQty.toStringAsFixed(2)} | Available: ${(qty - issuedQty).toStringAsFixed(2)} ${widget.stock.unit}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
@@ -497,13 +528,23 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                                'Qty: ${grn.receivedQuantity} ${widget.stock.unit}'),
+                            Text('Received: ${grn.receivedQuantity} ${widget.stock.unit}'),
                             if (grn.acceptedQuantity > 0)
                               Text(
                                 'Accepted: ${grn.acceptedQuantity} ${widget.stock.unit}',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
+                            if (grn.issuedQuantity > 0)
+                              Text(
+                                'Issued: ${grn.issuedQuantity} ${widget.stock.unit}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            Text(
+                              'Available: ${grn.availableQuantity} ${widget.stock.unit}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
                       ),

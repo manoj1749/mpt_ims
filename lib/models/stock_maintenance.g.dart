@@ -94,13 +94,15 @@ class StockGRNDetailsAdapter extends TypeAdapter<StockGRNDetails> {
       rejectedQuantity: fields[4] as double,
       vendorId: fields[5] as String,
       rate: fields[6] as double,
+      issuedQuantity: fields[7] as double,
+      issuedQuantities: (fields[8] as Map?)?.cast<String, double>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, StockGRNDetails obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.grnNo)
       ..writeByte(1)
@@ -114,7 +116,11 @@ class StockGRNDetailsAdapter extends TypeAdapter<StockGRNDetails> {
       ..writeByte(5)
       ..write(obj.vendorId)
       ..writeByte(6)
-      ..write(obj.rate);
+      ..write(obj.rate)
+      ..writeByte(7)
+      ..write(obj.issuedQuantity)
+      ..writeByte(8)
+      ..write(obj.issuedQuantities);
   }
 
   @override
@@ -147,13 +153,15 @@ class StockPODetailsAdapter extends TypeAdapter<StockPODetails> {
       rate: fields[5] as double,
       receivedQuantities: (fields[6] as Map?)?.map((dynamic k, dynamic v) =>
           MapEntry(k as String, (v as Map).cast<String, double>())),
+      issuedQuantity: fields[7] as double,
+      issuedQuantities: (fields[8] as Map?)?.cast<String, double>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, StockPODetails obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.poNo)
       ..writeByte(1)
@@ -167,7 +175,11 @@ class StockPODetailsAdapter extends TypeAdapter<StockPODetails> {
       ..writeByte(5)
       ..write(obj.rate)
       ..writeByte(6)
-      ..write(obj.receivedQuantities);
+      ..write(obj.receivedQuantities)
+      ..writeByte(7)
+      ..write(obj.issuedQuantity)
+      ..writeByte(8)
+      ..write(obj.issuedQuantities);
   }
 
   @override
@@ -197,13 +209,15 @@ class StockPRDetailsAdapter extends TypeAdapter<StockPRDetails> {
       requestedQuantity: fields[2] as double,
       orderedQuantity: fields[3] as double,
       receivedQuantity: fields[4] as double,
+      issuedQuantity: fields[5] as double,
+      jobNo: fields[6] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, StockPRDetails obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.prNo)
       ..writeByte(1)
@@ -213,7 +227,11 @@ class StockPRDetailsAdapter extends TypeAdapter<StockPRDetails> {
       ..writeByte(3)
       ..write(obj.orderedQuantity)
       ..writeByte(4)
-      ..write(obj.receivedQuantity);
+      ..write(obj.receivedQuantity)
+      ..writeByte(5)
+      ..write(obj.issuedQuantity)
+      ..writeByte(6)
+      ..write(obj.jobNo);
   }
 
   @override

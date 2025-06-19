@@ -438,7 +438,7 @@ class _QualityInspectionListPageState
               displayText += '\nConditional';
             }
           }
-          if (item.items.first.capaRequired) {
+          if (item.items.first.capaRequired == true) {
             displayText += '\nCAPA Required';
           }
 
@@ -448,7 +448,7 @@ class _QualityInspectionListPageState
               displayText,
               style: TextStyle(
                 fontSize: 12,
-                color: item.items.first.capaRequired ? Colors.red : null,
+                color: item.items.first.capaRequired == true ? Colors.red : null,
               ),
             ),
           );

@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'dart:convert';
 
 part 'quality_inspection.g.dart';
 
@@ -172,7 +173,7 @@ class InspectionItem extends HiveObject {
   String? inspectionRemark; // Remark for inspection
 
   @HiveField(29)
-  bool capaRequired = false; // CAPA status for rejected/partially accepted lots
+  bool? capaRequired; // CAPA status for rejected/partially accepted lots
 
   @HiveField(30)
   String? recheckType; // '100% Acceptance' or 'Partial Acceptance'
@@ -197,20 +198,21 @@ class InspectionItem extends HiveObject {
     required this.receivedDate,
     required this.expirationDate,
     required this.parameters,
-    this.isPartialRecheck = false,
+    this.isPartialRecheck,
     this.conditionalAcceptanceReason,
     this.conditionalAcceptanceAction,
     this.conditionalAcceptanceDeadline,
     Map<String, InspectionPOQuantity>? poQuantities,
-    this.grnNo = '',
-    this.grnDate = '',
-    this.invoiceNo = '',
-    this.invoiceDate = '',
+    this.grnNo,
+    this.grnDate,
+    this.invoiceNo,
+    this.invoiceDate,
     Map<String, Map<String, String>>? grnDetails,
     Map<String, InspectionGRNQuantity>? grnQuantities,
     this.inspectionRemark,
     this.recheckType,
-    this.conditionalAcceptance = false,
+    this.conditionalAcceptance,
+    this.capaRequired = false,
   }) {
     this.poQuantities = poQuantities ?? {};
     this.grnDetails = grnDetails ?? {};
@@ -299,6 +301,43 @@ class InspectionItem extends HiveObject {
       rejectedQty: rejectedQty ?? poQty.rejectedQty,
       usageDecision: usageDecision ?? poQty.usageDecision,
     );
+
+    // Automatically distribute quantities across GRNs for this PO
+    if (grnDetails.containsKey(poNo)) {
+      final grnDetailsForPO = grnDetails[poNo]!;
+      double totalGRNQty = 0.0;
+      
+      // Calculate total quantity across all GRNs for this PO
+      for (var grnInfo in grnDetailsForPO.values) {
+        final grnData = Map<String, dynamic>.from(json.decode(grnInfo));
+        totalGRNQty += (grnData['quantity'] as num).toDouble();
+      }
+      
+      // Distribute accepted and rejected quantities proportionally
+      if (totalGRNQty > 0) {
+        for (var entry in grnDetailsForPO.entries) {
+          final grnNo = entry.key;
+          final grnInfo = Map<String, dynamic>.from(json.decode(entry.value));
+          final grnQty = (grnInfo['quantity'] as num).toDouble();
+          
+          // Calculate proportion for this GRN
+          final proportion = grnQty / totalGRNQty;
+          
+          // Calculate quantities for this GRN
+          final grnAcceptedQty = (poQty.acceptedQty * proportion).roundToDouble();
+          final grnRejectedQty = (poQty.rejectedQty * proportion).roundToDouble();
+          
+          // Update GRN quantities
+          updateGRNQuantities(
+            grnNo,
+            receivedQty: grnQty,
+            acceptedQty: grnAcceptedQty,
+            rejectedQty: grnRejectedQty,
+            usageDecision: poQty.usageDecision,
+          );
+        }
+      }
+    }
 
     // Update total quantities
     this.receivedQty =

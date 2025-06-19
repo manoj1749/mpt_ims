@@ -153,32 +153,25 @@ class StockMaintenance extends HiveObject {
 
   // Private method to update total stock value
   void _updateTotalStockValue() {
-    if (currentStock <= 0) {
-      totalStockValue = 0.0;
-      return;
-    }
+    // Calculate current stock based on GRN details
+    double totalAccepted = 0.0;
+    double totalIssued = 0.0;
+    double totalValue = 0.0;
 
-    // Calculate based on current stock and latest rates
-    double total = 0.0;
-    double remainingQty = currentStock;
-
-    // Sort GRN details by date (newest first) to use latest rates
-    final sortedGRNs = grnDetails.entries.toList()
-      ..sort((a, b) => b.value.grnDate.compareTo(a.value.grnDate));
-
-    for (var grn in sortedGRNs) {
-      if (remainingQty <= 0) break;
-
-      // Only consider accepted quantities for value calculation
-      final qtyFromThisGRN = grn.value.acceptedQuantity.clamp(0, remainingQty);
-      if (qtyFromThisGRN > 0) {
-        total += qtyFromThisGRN * grn.value.rate;
-        remainingQty -= qtyFromThisGRN;
+    for (var grn in grnDetails.values) {
+      totalAccepted += grn.acceptedQuantity;
+      totalIssued += grn.issuedQuantity;
+      
+      // Calculate value based on remaining quantity in this GRN
+      final remainingQty = grn.acceptedQuantity - grn.issuedQuantity;
+      if (remainingQty > 0) {
+        totalValue += remainingQty * grn.rate;
       }
     }
 
-    totalStockValue = total;
-
+    currentStock = totalAccepted - totalIssued;
+    totalStockValue = totalValue;
+    
     // Update PR and PO quantities based on accepted stock
     for (var poDetail in poDetails.values) {
       double poAcceptedQty = 0.0;
@@ -215,6 +208,154 @@ class StockMaintenance extends HiveObject {
   String toString() {
     return '\nStockMaintenance(materialCode: $materialCode, materialDescription: $materialDescription, unit: $unit, storageLocation: $storageLocation, rackNumber: $rackNumber, currentStock: $currentStock, stockUnderInspection: $stockUnderInspection, totalStockValue: $totalStockValue,\n  grnDetails: ${grnDetails.map((k, v) => MapEntry(k, v.toString()))},\n  poDetails: ${poDetails.map((k, v) => MapEntry(k, v.toString()))},\n  prDetails: ${prDetails.map((k, v) => MapEntry(k, v.toString()))},\n  jobDetails: ${jobDetails.map((k, v) => MapEntry(k, v.toString()))},\n  vendorDetails: ${vendorDetails.map((k, v) => MapEntry(k, v.toString()))}\n)';
   }
+
+  // Find the oldest PR for a job that has available stock
+  (String, double)? findAvailablePRForJob(String jobNo, double requiredQuantity) {
+    // Get all PRs for this job
+    final jobPRs = prDetails.entries
+        .where((pr) => pr.value.jobNo == jobNo && pr.value.availableQuantity > 0)
+        .toList()
+      ..sort((a, b) => a.value.prDate.compareTo(b.value.prDate)); // Sort by date ascending
+
+    for (var pr in jobPRs) {
+      if (pr.value.availableQuantity >= requiredQuantity) {
+        return (pr.key, requiredQuantity);
+      }
+    }
+
+    // If no single PR has enough quantity, return the oldest PR with its available quantity
+    if (jobPRs.isNotEmpty) {
+      final oldestPR = jobPRs.first;
+      return (oldestPR.key, oldestPR.value.availableQuantity);
+    }
+
+    return null;
+  }
+
+  // Find the oldest PO for a PR that has available stock
+  (String, double)? findAvailablePOForPR(String prNo, double requiredQuantity) {
+    // Get all POs that have received stock for this PR
+    final prPOs = poDetails.entries
+        .where((po) => po.value.getAvailableQuantityForPR(prNo) > 0)
+        .toList()
+      ..sort((a, b) => a.value.poDate.compareTo(b.value.poDate)); // Sort by date ascending
+
+    for (var po in prPOs) {
+      final availableQty = po.value.getAvailableQuantityForPR(prNo);
+      if (availableQty >= requiredQuantity) {
+        return (po.key, requiredQuantity);
+      }
+    }
+
+    // If no single PO has enough quantity, return the oldest PO with its available quantity
+    if (prPOs.isNotEmpty) {
+      final oldestPO = prPOs.first;
+      return (oldestPO.key, oldestPO.value.getAvailableQuantityForPR(prNo));
+    }
+
+    return null;
+  }
+
+  // Find the oldest GRN for a PO that has available stock
+  (String, double)? findAvailableGRNForPO(String poNo, String prNo, double requiredQuantity) {
+    final po = poDetails[poNo];
+    if (po == null) return null;
+
+    // Get all GRNs that have received stock for this PO and PR
+    final poGRNs = po.receivedQuantities.entries
+        .where((grn) {
+          final grnDetail = grnDetails[grn.key];
+          return grnDetail != null && 
+                 grn.value[prNo] != null && 
+                 grnDetail.availableQuantity > 0;
+        })
+        .toList()
+      ..sort((a, b) => 
+          grnDetails[a.key]!.grnDate.compareTo(grnDetails[b.key]!.grnDate));
+
+    for (var grn in poGRNs) {
+      final grnDetail = grnDetails[grn.key]!;
+      if (grnDetail.availableQuantity >= requiredQuantity) {
+        return (grn.key, requiredQuantity);
+      }
+    }
+
+    // If no single GRN has enough quantity, return the oldest GRN with its available quantity
+    if (poGRNs.isNotEmpty) {
+      final oldestGRN = poGRNs.first;
+      return (oldestGRN.key, grnDetails[oldestGRN.key]!.availableQuantity);
+    }
+
+    return null;
+  }
+
+  // Issue stock from a specific job number
+  void issueStockForJob(String jobNo, String materialIssueNo, double quantity) {
+    // Find available PR
+    final prInfo = findAvailablePRForJob(jobNo, quantity);
+    if (prInfo == null) {
+      throw Exception('No available PR found for job $jobNo');
+    }
+
+    var remainingQty = quantity;
+    var currentPrNo = prInfo.$1;
+    var currentPrQty = prInfo.$2;
+
+    while (remainingQty > 0) {
+      // Find available PO for current PR
+      final poInfo = findAvailablePOForPR(currentPrNo, currentPrQty);
+      if (poInfo == null) {
+        throw Exception('No available PO found for PR $currentPrNo');
+      }
+
+      final currentPoNo = poInfo.$1;
+      final currentPoQty = poInfo.$2;
+
+      // Find available GRN for current PO
+      final grnInfo = findAvailableGRNForPO(currentPoNo, currentPrNo, currentPoQty);
+      if (grnInfo == null) {
+        throw Exception('No available GRN found for PO $currentPoNo');
+      }
+
+      final currentGrnNo = grnInfo.$1;
+      final currentGrnQty = grnInfo.$2;
+
+      // Update quantities at all levels
+      final issueQty = currentGrnQty.clamp(0.0, remainingQty).toDouble();
+
+      // Update GRN
+      final grnDetail = grnDetails[currentGrnNo]!;
+      grnDetail.addIssuedQuantity(currentPrNo, issueQty);
+
+      // Update PO
+      final poDetail = poDetails[currentPoNo]!;
+      poDetail.addIssuedQuantity(currentPrNo, issueQty);
+
+      // Update PR
+      final prDetail = prDetails[currentPrNo]!;
+      prDetail.issuedQuantity += issueQty;
+
+      // Update job details
+      final jobDetail = jobDetails[jobNo]!;
+      jobDetail.consumedQuantity += issueQty;
+
+      remainingQty -= issueQty;
+
+      // If we still need more quantity, find the next available PR
+      if (remainingQty > 0) {
+        final nextPrInfo = findAvailablePRForJob(jobNo, remainingQty);
+        if (nextPrInfo == null) {
+          throw Exception('Insufficient stock available for job $jobNo');
+        }
+        currentPrNo = nextPrInfo.$1;
+        currentPrQty = nextPrInfo.$2;
+      }
+    }
+
+    // Update current stock and total stock value
+    _updateTotalStockValue();
+    save();
+  }
 }
 
 @HiveType(typeId: 25)
@@ -240,6 +381,14 @@ class StockGRNDetails {
   @HiveField(6)
   double rate;
 
+  @HiveField(7)
+  double issuedQuantity = 0.0;
+
+  @HiveField(8)
+  Map<String, double> issuedQuantities = {}; // PR -> Issued Quantity mapping
+
+  double get availableQuantity => acceptedQuantity - issuedQuantity;
+
   StockGRNDetails({
     required this.grnNo,
     required this.grnDate,
@@ -248,11 +397,20 @@ class StockGRNDetails {
     required this.rejectedQuantity,
     required this.vendorId,
     required this.rate,
-  });
+    this.issuedQuantity = 0.0,
+    Map<String, double>? issuedQuantities,
+  }) {
+    this.issuedQuantities = Map<String, double>.from(issuedQuantities ?? {});
+  }
+
+  void addIssuedQuantity(String prNo, double quantity) {
+    issuedQuantities[prNo] = (issuedQuantities[prNo] ?? 0.0) + quantity;
+    issuedQuantity += quantity;
+  }
 
   @override
   String toString() {
-    return 'StockGRNDetails(grnNo: $grnNo, grnDate: $grnDate, receivedQuantity: $receivedQuantity, acceptedQuantity: $acceptedQuantity, rejectedQuantity: $rejectedQuantity, vendorId: $vendorId, rate: $rate)';
+    return 'StockGRNDetails(grnNo: $grnNo, grnDate: $grnDate, receivedQuantity: $receivedQuantity, acceptedQuantity: $acceptedQuantity, rejectedQuantity: $rejectedQuantity, vendorId: $vendorId, rate: $rate, issuedQuantity: $issuedQuantity, issuedQuantities: $issuedQuantities)';
   }
 }
 
@@ -277,8 +435,15 @@ class StockPODetails {
   double rate;
 
   @HiveField(6)
-  Map<String, Map<String, double>> receivedQuantities =
-      {}; // GRN -> PR -> Quantity mapping
+  Map<String, Map<String, double>> receivedQuantities = {}; // GRN -> PR -> Quantity mapping
+
+  @HiveField(7)
+  double issuedQuantity = 0.0;
+
+  @HiveField(8)
+  Map<String, double> issuedQuantities = {}; // PR -> Issued Quantity mapping
+
+  double get availableQuantity => receivedQuantity - issuedQuantity;
 
   StockPODetails({
     required this.poNo,
@@ -288,9 +453,16 @@ class StockPODetails {
     required this.vendorId,
     required this.rate,
     Map<String, Map<String, double>>? receivedQuantities,
+    this.issuedQuantity = 0.0,
+    Map<String, double>? issuedQuantities,
   }) {
-    this.receivedQuantities =
-        Map<String, Map<String, double>>.from(receivedQuantities ?? {});
+    this.receivedQuantities = Map<String, Map<String, double>>.from(receivedQuantities ?? {});
+    this.issuedQuantities = Map<String, double>.from(issuedQuantities ?? {});
+  }
+
+  void addIssuedQuantity(String prNo, double quantity) {
+    issuedQuantities[prNo] = (issuedQuantities[prNo] ?? 0.0) + quantity;
+    issuedQuantity += quantity;
   }
 
   // Helper method to safely add received quantities
@@ -308,9 +480,19 @@ class StockPODetails {
     return total;
   }
 
+  // Helper method to get total issued quantity for a PR
+  double getIssuedQuantityForPR(String prNo) {
+    return issuedQuantities[prNo] ?? 0.0;
+  }
+
+  // Helper method to get available quantity for a PR
+  double getAvailableQuantityForPR(String prNo) {
+    return getReceivedQuantityForPR(prNo) - getIssuedQuantityForPR(prNo);
+  }
+
   @override
   String toString() {
-    return 'StockPODetails(poNo: $poNo, poDate: $poDate, orderedQuantity: $orderedQuantity, receivedQuantity: $receivedQuantity, vendorId: $vendorId, rate: $rate, receivedQuantities: $receivedQuantities)';
+    return 'StockPODetails(poNo: $poNo, poDate: $poDate, orderedQuantity: $orderedQuantity, receivedQuantity: $receivedQuantity, vendorId: $vendorId, rate: $rate, receivedQuantities: $receivedQuantities, issuedQuantity: $issuedQuantity, issuedQuantities: $issuedQuantities)';
   }
 }
 
@@ -331,17 +513,27 @@ class StockPRDetails {
   @HiveField(4)
   double receivedQuantity;
 
+  @HiveField(5)
+  double issuedQuantity = 0.0;
+
+  @HiveField(6)
+  String jobNo;
+
+  double get availableQuantity => receivedQuantity - issuedQuantity;
+
   StockPRDetails({
     required this.prNo,
     required this.prDate,
     required this.requestedQuantity,
     required this.orderedQuantity,
     required this.receivedQuantity,
+    this.issuedQuantity = 0.0,
+    required this.jobNo,
   });
 
   @override
   String toString() {
-    return 'StockPRDetails(prNo: $prNo, prDate: $prDate, requestedQuantity: $requestedQuantity, orderedQuantity: $orderedQuantity, receivedQuantity: $receivedQuantity)';
+    return 'StockPRDetails(prNo: $prNo, prDate: $prDate, requestedQuantity: $requestedQuantity, orderedQuantity: $orderedQuantity, receivedQuantity: $receivedQuantity, issuedQuantity: $issuedQuantity, jobNo: $jobNo)';
   }
 }
 

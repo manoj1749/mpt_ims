@@ -1,46 +1,43 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'material_request.dart';
+part of 'material_issue.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class MaterialRequestAdapter extends TypeAdapter<MaterialRequest> {
+class MaterialIssueAdapter extends TypeAdapter<MaterialIssue> {
   @override
-  final int typeId = 30;
+  final int typeId = 32;
 
   @override
-  MaterialRequest read(BinaryReader reader) {
+  MaterialIssue read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return MaterialRequest(
+    return MaterialIssue(
       issueNo: fields[0] as String,
-      date: fields[1] as String,
-      issuedBy: fields[2] as String,
-      items: (fields[4] as List?)?.cast<MaterialRequestItem>(),
-      jobNo: fields[5] as String?,
-    ).._status = fields[3] as String?;
+      issueDate: fields[1] as String,
+      issuedTo: fields[2] as String,
+      items: (fields[3] as List).cast<MaterialIssueItem>(),
+    ).._status = fields[4] as String?;
   }
 
   @override
-  void write(BinaryWriter writer, MaterialRequest obj) {
+  void write(BinaryWriter writer, MaterialIssue obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.issueNo)
       ..writeByte(1)
-      ..write(obj.date)
+      ..write(obj.issueDate)
       ..writeByte(2)
-      ..write(obj.issuedBy)
+      ..write(obj.issuedTo)
       ..writeByte(3)
-      ..write(obj._status)
-      ..writeByte(4)
       ..write(obj.items)
-      ..writeByte(5)
-      ..write(obj.jobNo);
+      ..writeByte(4)
+      ..write(obj._status);
   }
 
   @override
@@ -49,7 +46,7 @@ class MaterialRequestAdapter extends TypeAdapter<MaterialRequest> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MaterialRequestAdapter &&
+      other is MaterialIssueAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

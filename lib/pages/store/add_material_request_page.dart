@@ -4,6 +4,7 @@ import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:mpt_ims/models/material_request_item.dart';
 import '../../models/material_request.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/material_issue_provider.dart';
@@ -274,8 +275,7 @@ class _AddMaterialRequestPageState
         materialDescription: item.materialController.text,
         unit: item.unitController.text,
         quantity: item.quantity!,
-        issueNo: widget.existingIssue?.issueNo ??
-            ref.read(MaterialRequestListProvider.notifier).generateIssueNo(),
+        issueNo: '',  // Initialize with empty string
       );
     }).toList();
 

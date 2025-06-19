@@ -1,0 +1,109 @@
+import 'package:hive/hive.dart';
+
+part 'material_issue_item.g.dart';
+
+@HiveType(typeId: 33)
+class ItemMRDetails {
+  @HiveField(0)
+  String mrNo;
+
+  @HiveField(1)
+  String jobNo;
+
+  @HiveField(2)
+  double quantity;
+
+  ItemMRDetails({
+    required this.mrNo,
+    required this.jobNo,
+    required this.quantity,
+  });
+}
+
+@HiveType(typeId: 34)
+class MaterialIssueItem extends HiveObject {
+  @HiveField(0)
+  String materialCode;
+
+  @HiveField(1)
+  String materialDescription;
+
+  @HiveField(2)
+  String unit;
+
+  @HiveField(3)
+  double quantity;
+
+  @HiveField(4)
+  Map<String, ItemMRDetails> mrDetails = {}; // MR No -> MR Details
+
+  @HiveField(5)
+  Map<String, double> issuedQuantities = {}; // MR No -> issued quantity
+
+  // Get total issued quantity
+  double get totalIssuedQuantity {
+    return issuedQuantities.values.fold(0.0, (sum, qty) => sum + qty);
+  }
+
+  // Get total issued quantity for a specific MR
+  double getIssuedQuantityForMR(String mrNo) {
+    return issuedQuantities[mrNo] ?? 0.0;
+  }
+
+  // Get pending quantity for a specific MR
+  double getPendingQuantityForMR(String mrNo) {
+    final mrDetail = mrDetails[mrNo];
+    if (mrDetail == null) return 0.0;
+
+    final requestedQty = mrDetail.quantity;
+    final issuedQty = getIssuedQuantityForMR(mrNo);
+
+    return requestedQty - issuedQty;
+  }
+
+  // Get all unique job numbers for this item
+  Set<String> get jobNumbers {
+    final jobs = <String>{};
+    for (var detail in mrDetails.values) {
+      if (detail.jobNo != 'General') {
+        jobs.add(detail.jobNo);
+      }
+    }
+    return jobs;
+  }
+
+  // Helper method to add issued quantity
+  void addIssuedQuantity(String mrNo, double quantity) {
+    issuedQuantities[mrNo] = (issuedQuantities[mrNo] ?? 0.0) + quantity;
+  }
+
+  MaterialIssueItem({
+    required this.materialCode,
+    required this.materialDescription,
+    required this.unit,
+    required this.quantity,
+    Map<String, ItemMRDetails>? mrDetails,
+    Map<String, double>? issuedQuantities,
+  }) {
+    this.mrDetails = mrDetails ?? {};
+    this.issuedQuantities = issuedQuantities ?? {};
+  }
+
+  MaterialIssueItem copyWith({
+    String? materialCode,
+    String? materialDescription,
+    String? unit,
+    double? quantity,
+    Map<String, ItemMRDetails>? mrDetails,
+    Map<String, double>? issuedQuantities,
+  }) {
+    return MaterialIssueItem(
+      materialCode: materialCode ?? this.materialCode,
+      materialDescription: materialDescription ?? this.materialDescription,
+      unit: unit ?? this.unit,
+      quantity: quantity ?? this.quantity,
+      mrDetails: mrDetails ?? Map.from(this.mrDetails),
+      issuedQuantities: issuedQuantities ?? Map.from(this.issuedQuantities),
+    );
+  }
+} 

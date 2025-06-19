@@ -22,13 +22,14 @@ class MaterialRequestItemAdapter extends TypeAdapter<MaterialRequestItem> {
       unit: fields[2] as String,
       quantity: fields[3] as String,
       issueNo: fields[4] as String,
+      issuedQuantities: (fields[5] as Map?)?.cast<String, double>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, MaterialRequestItem obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -38,7 +39,9 @@ class MaterialRequestItemAdapter extends TypeAdapter<MaterialRequestItem> {
       ..writeByte(3)
       ..write(obj.quantity)
       ..writeByte(4)
-      ..write(obj.issueNo);
+      ..write(obj.issueNo)
+      ..writeByte(5)
+      ..write(obj.issuedQuantities);
   }
 
   @override

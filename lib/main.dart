@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mpt_ims/provider/material_request_provider.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'db/hive_initializer.dart';
 import 'layout/app_scaffold.dart';
@@ -44,6 +45,7 @@ import 'provider/material_issue_provider.dart';
 import 'firebase_options.dart';
 import 'pages/login_page.dart';
 import 'models/material_request.dart';
+import 'models/material_issue.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,7 +83,8 @@ void main() async {
   final universalParameterBox =
       Hive.box<UniversalParameter>('universalParameters');
   final stockMaintenanceBox = Hive.box<StockMaintenance>('stock_maintenance');
-  final MaterialRequestBox = Hive.box<MaterialRequest>('material_issues');
+  final materialRequestBox = Hive.box<MaterialRequest>('material_requests');
+  final materialIssueBox = Hive.box<MaterialIssue>('material_issues');
 
   final user = FirebaseAuth.instance.currentUser;
 
@@ -106,7 +109,8 @@ void main() async {
         universalParameterBoxProvider.overrideWithValue(universalParameterBox),
         employeeBoxProvider.overrideWithValue(employeeBox),
         stockMaintenanceBoxProvider.overrideWithValue(stockMaintenanceBox),
-        MaterialRequestBoxProvider.overrideWithValue(MaterialRequestBox),
+        materialRequestBoxProvider.overrideWithValue(materialRequestBox),
+        materialIssueBoxProvider.overrideWithValue(materialIssueBox),
       ],
       child: IMSApp(isLoggedIn: user != null),
     ),

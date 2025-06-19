@@ -2,6 +2,7 @@
 
 import 'package:hive/hive.dart';
 import 'package:mpt_ims/models/material_request.dart';
+import 'package:mpt_ims/models/material_request_item.dart';
 import '../models/supplier.dart';
 import '../models/material_item.dart';
 import '../models/customer.dart';
@@ -20,6 +21,8 @@ import '../models/quality.dart';
 import '../models/universal_parameter.dart';
 import '../models/employee.dart';
 import '../models/stock_maintenance.dart';
+import '../models/material_issue.dart';
+import '../models/material_issue_item.dart';
 
 Future<void> initializeHive() async {
   // Register adapters first
@@ -56,6 +59,9 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(StockVendorDetailsAdapter());
   Hive.registerAdapter(MaterialRequestAdapter());
   Hive.registerAdapter(MaterialRequestItemAdapter());
+  Hive.registerAdapter(MaterialIssueAdapter());
+  Hive.registerAdapter(MaterialIssueItemAdapter());
+  Hive.registerAdapter(ItemMRDetailsAdapter());
 
   // Then open boxes
   await Future.wait([
@@ -75,7 +81,8 @@ Future<void> initializeHive() async {
     Hive.openBox<UniversalParameter>('universalParameters'),
     Hive.openBox<Employee>('employees'),
     Hive.openBox<StockMaintenance>('stock_maintenance'),
-    Hive.openBox<MaterialRequest>('material_issues')
+    Hive.openBox<MaterialRequest>('material_requests'),
+    Hive.openBox<MaterialIssue>('material_issues')
   ]);
 }
 
@@ -100,6 +107,7 @@ Future<void> clearIncompatibleData() async {
       // Hive.deleteBoxFromDisk('universal_parameters'),
       // Hive.deleteBoxFromDisk('schemaVersion'),
       Hive.deleteBoxFromDisk('stock_maintenance'),
+      Hive.deleteBoxFromDisk('material_requests'),
       Hive.deleteBoxFromDisk('material_issues'),
     ]);
 
@@ -127,6 +135,7 @@ Future<void> clearIncompatibleData() async {
         // Hive.deleteBoxFromDisk('universal_parameters'),
         // Hive.deleteBoxFromDisk('schemaVersion'),
         Hive.deleteBoxFromDisk('stock_maintenance'),
+        Hive.deleteBoxFromDisk('material_requests'),
         Hive.deleteBoxFromDisk('material_issues'),
       ]);
     } catch (e) {

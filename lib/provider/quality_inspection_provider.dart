@@ -6,11 +6,6 @@ import 'package:intl/intl.dart';
 import '../models/quality_inspection.dart';
 import '../provider/stock_maintenance_provider.dart';
 import '../provider/store_inward_provider.dart';
-import '../models/store_inward.dart';
-import '../models/material_item.dart';
-import '../models/category.dart';
-import '../provider/material_provider.dart';
-import '../provider/category_provider.dart';
 
 final qualityInspectionBoxProvider = Provider<Box<QualityInspection>>((ref) {
   throw UnimplementedError();

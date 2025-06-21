@@ -1,4 +1,4 @@
-// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member, avoid_print
+// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member, avoid_print, unnecessary_null_comparison
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,12 +15,9 @@ import '../../provider/category_parameter_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
 import '../../provider/purchase_order.dart';
 import '../../provider/purchase_request_provider.dart';
-import 'dart:convert';
 import '../../models/category.dart';
 import '../../provider/category_provider.dart';
-import '../../provider/vendor_material_rate_provider.dart';
 import '../../models/store_inward.dart';
-import '../../provider/stock_maintenance_provider.dart';
 
 class AddQualityInspectionPage extends ConsumerStatefulWidget {
   const AddQualityInspectionPage({super.key});
@@ -889,8 +886,9 @@ class _AddQualityInspectionPageState
                                     rejectedQty: 0,
                                     costPerUnit: '0'));
 
-                            if (grnItem.materialCode.isEmpty)
+                            if (grnItem.materialCode.isEmpty) {
                               return const SizedBox.shrink();
+                            }
 
                             return Column(
                               children: grnItem.prQuantities.entries.map((poEntry) {
@@ -921,7 +919,7 @@ class _AddQualityInspectionPageState
                                       // Initialize controller if not exists
                                       _prQtyControllers[grnNo] ??= {};
                                       _prQtyControllers[grnNo]![
-                                              '${poNo}_${prNo}'] ??=
+                                              '${poNo}_$prNo'] ??=
                                           TextEditingController(
                                               text: suggestedQty.toString());
 
@@ -949,7 +947,7 @@ class _AddQualityInspectionPageState
                                                       child: TextFormField(
                                                         controller:
                                                     _prQtyControllers[grnNo]![
-                                                        '${poNo}_${prNo}'],
+                                                        '${poNo}_$prNo'],
                                                 decoration: InputDecoration(
                                                   labelText: 'Accepted Qty',
                                                           border:
@@ -966,12 +964,15 @@ class _AddQualityInspectionPageState
                                                       value.isEmpty) return null;
                                                           final qty =
                                                       double.tryParse(value);
-                                                  if (qty == null)
+                                                  if (qty == null) {
                                                     return 'Invalid number';
-                                                  if (qty < 0)
+                                                  }
+                                                  if (qty < 0) {
                                                     return 'Cannot be negative';
-                                                  if (qty > originalQty)
+                                                  }
+                                                  if (qty > originalQty) {
                                                     return 'Exceeds original qty';
+                                                  }
                                                           return null;
                                                         },
                                                         onChanged: (value) {
@@ -980,7 +981,7 @@ class _AddQualityInspectionPageState
                                                   _prQtyControllers[grnNo]!
                                                       .forEach((key, controller) {
                                                     if (key !=
-                                                        '${poNo}_${prNo}') {
+                                                        '${poNo}_$prNo') {
                                                       total += double.tryParse(
                                                               controller.text) ??
                                                           0;
@@ -1000,7 +1001,7 @@ class _AddQualityInspectionPageState
                                                       ),
                                                     );
                                                     _prQtyControllers[grnNo]![
-                                                            '${poNo}_${prNo}']!
+                                                            '${poNo}_$prNo']!
                                                         .text = suggestedQty
                                                             .toString();
                                                   }
@@ -1010,7 +1011,7 @@ class _AddQualityInspectionPageState
                                                   ],
                                                 ),
                                       );
-                                    }).toList(),
+                                    }),
                                   ],
                                 );
                               }).toList(),
@@ -1088,12 +1089,12 @@ class _AddQualityInspectionPageState
                             ],
                           ),
                           );
-                        }).toList(),
+                        }),
                     ],
                 ],
               ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),

@@ -1,5 +1,4 @@
 import 'package:hive/hive.dart';
-import 'dart:convert';
 
 part 'quality_inspection.g.dart';
 

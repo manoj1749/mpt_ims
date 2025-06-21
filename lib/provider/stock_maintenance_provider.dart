@@ -439,7 +439,6 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
                 
                 // Calculate accepted and rejected quantities for this PR
                 final acceptedQty = poQty.acceptedQty * proportion;
-                final rejectedQty = poQty.rejectedQty * proportion;
 
                 // Update PO details with PR quantities
                 stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, acceptedQty);

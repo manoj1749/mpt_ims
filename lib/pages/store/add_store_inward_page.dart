@@ -815,6 +815,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           try {
             poItem = po.items
                 .firstWhere((item) => item.materialCode == materialCode);
+            // Set cost per unit from PO item
+            inwardItem.costPerUnit = poItem.costPerUnit;
           } catch (_) {
             poItem = null;
           }

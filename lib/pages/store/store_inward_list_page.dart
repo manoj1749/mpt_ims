@@ -41,8 +41,7 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
             'totalCost': PlutoCell(value: totalCost),
             'invoiceNo': PlutoCell(value: inward.invoiceNo),
             'invoiceDate': PlutoCell(value: inward.invoiceDate),
-            'invoiceAmount':
-                PlutoCell(value: inward.invoiceAmount.toStringAsFixed(2)),
+            'invoiceAmount': PlutoCell(value: inward.invoiceAmount),
             'receivedBy': PlutoCell(value: inward.receivedBy),
             'checkedBy': PlutoCell(value: inward.checkedBy),
           },

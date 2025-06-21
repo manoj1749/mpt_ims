@@ -11,6 +11,9 @@ import '../provider/stock_maintenance_provider.dart';
 import '../provider/purchase_order.dart';
 import '../models/quality_inspection.dart';
 import '../models/category.dart';
+import '../provider/material_provider.dart';
+import '../provider/quality_inspection_provider.dart';
+import '../provider/category_provider.dart';
 
 final storeInwardBoxProvider = Provider<Box<StoreInward>>((ref) {
   throw UnimplementedError();
@@ -384,25 +387,21 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
     // If no GRs exist, delete the PO
     if (!hasGRs) {
-      final poBox = await Hive.openBox<PurchaseOrder>('purchase_orders');
+      final poBox = ref.read(purchaseOrderBoxProvider);
       try {
         final po = poBox.values.firstWhere((po) => po.poNo == poNo);
         await po.delete();
       } catch (e) {
         // PO not found, which is fine in this case
       }
-      await poBox.close();
 
       // Also update stock maintenance
-      ref.read(stockMaintenanceProvider.notifier);
-      final stockBox =
-          await Hive.openBox<StockMaintenance>('stock_maintenance');
+      final stockBox = ref.read(stockMaintenanceBoxProvider);
       final stocks = stockBox.values.toList();
       for (var stock in stocks) {
         stock.poDetails.remove(poNo);
         stock.save();
       }
-      await stockBox.close();
     }
   }
 
@@ -465,7 +464,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
     print('Current Status: ${inward.status}');
 
     // Get all inspections for this GRN
-    final inspectionBox = Hive.box<QualityInspection>('quality_inspections');
+    final inspectionBox = ref.read(qualityInspectionBoxProvider);
     final inspections =
         inspectionBox.values.where((insp) => insp.grnNo == grnNo).toList();
 
@@ -478,7 +477,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
       print('Received Qty: ${item.receivedQty}');
 
       // Get the material's category
-      final materialsBox = Hive.box<MaterialItem>('materials');
+      final materialsBox = ref.read(materialBoxProvider);
       final material = materialsBox.values.firstWhere(
         (m) => m.partNo == item.materialCode,
         orElse: () => MaterialItem(
@@ -492,7 +491,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
       );
 
       // Get the category settings
-      final categoriesBox = Hive.box<Category>('categories');
+      final categoriesBox = ref.read(categoryBoxProvider);
       final category = categoriesBox.values.firstWhere(
         (c) => c.name == material.category,
         orElse: () => Category(name: material.category),

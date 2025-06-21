@@ -40,6 +40,7 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(InspectionItemAdapter());
   Hive.registerAdapter(QualityParameterAdapter());
   Hive.registerAdapter(InspectionPOQuantityAdapter());
+  Hive.registerAdapter(InspectionGRNQuantityAdapter());
   Hive.registerAdapter(CategoryParameterMappingAdapter());
   Hive.registerAdapter(SaleOrderAdapter());
   Hive.registerAdapter(CategoryAdapter());

@@ -108,7 +108,7 @@ class _MaterialRequestListPageState
         enableEditingMode: false,
       ),
       PlutoColumn(
-        title: 'Issued By',
+        title: 'Requested By',
         field: 'issuedBy',
         type: PlutoColumnType.text(),
         width: 120,

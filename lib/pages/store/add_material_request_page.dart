@@ -379,7 +379,7 @@ class _AddMaterialRequestPageState
                     child: TextFormField(
                       controller: _issuedByController,
                       decoration: const InputDecoration(
-                        labelText: 'Issued By',
+                        labelText: 'Requested By',
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {

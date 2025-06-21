@@ -119,8 +119,7 @@ class InspectionItem extends HiveObject {
   double pendingQty;
 
   @HiveField(13)
-  String
-      usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
+  String usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
 
   @HiveField(14)
   String receivedDate; // Date when material was received
@@ -134,20 +133,8 @@ class InspectionItem extends HiveObject {
   @HiveField(17)
   bool? isPartialRecheck; // For 100% Recheck cases
 
-  @HiveField(18)
-  String? conditionalAcceptanceReason; // Reason for conditional acceptance
-
-  @HiveField(19)
-  String?
-      conditionalAcceptanceAction; // Required action for conditional acceptance
-
-  @HiveField(20)
-  String?
-      conditionalAcceptanceDeadline; // Deadline for completing the required action
-
   @HiveField(21)
-  Map<String, InspectionPOQuantity> poQuantities =
-      {}; // Store PO-wise quantities and decisions
+  Map<String, InspectionPOQuantity> poQuantities = {}; // Store PO-wise quantities and decisions
 
   @HiveField(22)
   String? grnNo; // GRN number
@@ -162,12 +149,10 @@ class InspectionItem extends HiveObject {
   String? invoiceDate; // Invoice date
 
   @HiveField(26)
-  Map<String, Map<String, String>> grnDetails =
-      {}; // PO No -> Map of GRN No to GRN details
+  Map<String, Map<String, String>> grnDetails = {}; // PO No -> Map of GRN No to GRN details
 
   @HiveField(27)
-  Map<String, InspectionGRNQuantity> grnQuantities =
-      {}; // Store GRN-wise quantities and decisions
+  Map<String, InspectionGRNQuantity> grnQuantities = {}; // Store GRN-wise quantities and decisions
 
   @HiveField(28)
   String? inspectionRemark; // Remark for inspection
@@ -199,9 +184,6 @@ class InspectionItem extends HiveObject {
     required this.expirationDate,
     required this.parameters,
     this.isPartialRecheck,
-    this.conditionalAcceptanceReason,
-    this.conditionalAcceptanceAction,
-    this.conditionalAcceptanceDeadline,
     Map<String, InspectionPOQuantity>? poQuantities,
     this.grnNo,
     this.grnDate,
@@ -247,126 +229,41 @@ class InspectionItem extends HiveObject {
   }
 
   // Helper method to update quantities for a specific GRN
-  void updateGRNQuantities(
-    String grnNo, {
-    double? receivedQty,
-    double? acceptedQty,
-    double? rejectedQty,
-    String? usageDecision,
-  }) {
-    final grnQty = grnQuantities[grnNo] ??
-        InspectionGRNQuantity(
-          receivedQty: 0,
-          acceptedQty: 0,
-          rejectedQty: 0,
-          usageDecision: this.usageDecision,
-        );
-
-    grnQuantities[grnNo] = grnQty.copyWith(
-      receivedQty: receivedQty ?? grnQty.receivedQty,
-      acceptedQty: acceptedQty ?? grnQty.acceptedQty,
-      rejectedQty: rejectedQty ?? grnQty.rejectedQty,
-      usageDecision: usageDecision ?? grnQty.usageDecision,
-    );
-
-    // Update total quantities
-    this.receivedQty =
-        grnQuantities.values.fold(0.0, (sum, qty) => sum + qty.receivedQty);
-    this.acceptedQty =
-        grnQuantities.values.fold(0.0, (sum, qty) => sum + qty.acceptedQty);
-    this.rejectedQty =
-        grnQuantities.values.fold(0.0, (sum, qty) => sum + qty.rejectedQty);
-    pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
+  void updateGRNQuantities(String grnNo, double acceptedQty, double rejectedQty, String usageDecision) {
+    final grnQty = grnQuantities[grnNo];
+    if (grnQty != null) {
+      grnQty.acceptedQty = acceptedQty;
+      grnQty.rejectedQty = rejectedQty;
+      grnQty.usageDecision = usageDecision;
+    }
   }
 
-  // Helper method to update quantities for a specific PO
-  void updatePOQuantities(
-    String poNo, {
-    double? receivedQty,
-    double? acceptedQty,
-    double? rejectedQty,
-    String? usageDecision,
-  }) {
-    final poQty = poQuantities[poNo] ??
-        InspectionPOQuantity(
-          receivedQty: 0,
-          acceptedQty: 0,
-          rejectedQty: 0,
-          usageDecision: this.usageDecision,
-        );
+  // Helper method to update overall usage decision based on GRN quantities
+  void updateOverallUsageDecision() {
+    if (grnQuantities.isEmpty) return;
 
-    poQuantities[poNo] = poQty.copyWith(
-      receivedQty: receivedQty ?? poQty.receivedQty,
-      acceptedQty: acceptedQty ?? poQty.acceptedQty,
-      rejectedQty: rejectedQty ?? poQty.rejectedQty,
-      usageDecision: usageDecision ?? poQty.usageDecision,
-    );
+    bool hasRejected = false;
+    bool hasAccepted = false;
+    bool hasRecheck = false;
 
-    // Automatically distribute quantities across GRNs for this PO
-    if (grnDetails.containsKey(poNo)) {
-      final grnDetailsForPO = grnDetails[poNo]!;
-      double totalGRNQty = 0.0;
-
-      // Calculate total quantity across all GRNs for this PO
-      for (var grnInfo in grnDetailsForPO.values) {
-        final grnData = Map<String, dynamic>.from(json.decode(grnInfo));
-        totalGRNQty += (grnData['quantity'] as num).toDouble();
-      }
-
-      // Distribute accepted and rejected quantities proportionally
-      if (totalGRNQty > 0) {
-        for (var entry in grnDetailsForPO.entries) {
-          final grnNo = entry.key;
-          final grnInfo = Map<String, dynamic>.from(json.decode(entry.value));
-          final grnQty = (grnInfo['quantity'] as num).toDouble();
-
-          // Calculate proportion for this GRN
-          final proportion = grnQty / totalGRNQty;
-
-          // Calculate quantities for this GRN
-          final grnAcceptedQty =
-              (poQty.acceptedQty * proportion).roundToDouble();
-          final grnRejectedQty =
-              (poQty.rejectedQty * proportion).roundToDouble();
-
-          // Update GRN quantities
-          updateGRNQuantities(
-            grnNo,
-            receivedQty: grnQty,
-            acceptedQty: grnAcceptedQty,
-            rejectedQty: grnRejectedQty,
-            usageDecision: poQty.usageDecision,
-          );
-        }
+    for (var grnQty in grnQuantities.values) {
+      if (grnQty.usageDecision == 'Rejected') {
+        hasRejected = true;
+      } else if (grnQty.usageDecision == 'Lot Accepted') {
+        hasAccepted = true;
+      } else if (grnQty.usageDecision == '100% Recheck') {
+        hasRecheck = true;
       }
     }
 
-    // Update total quantities
-    this.receivedQty =
-        poQuantities.values.fold(0.0, (sum, qty) => sum + qty.receivedQty);
-    this.acceptedQty =
-        poQuantities.values.fold(0.0, (sum, qty) => sum + qty.acceptedQty);
-    this.rejectedQty =
-        poQuantities.values.fold(0.0, (sum, qty) => sum + qty.rejectedQty);
-    pendingQty = this.receivedQty - (this.acceptedQty + this.rejectedQty);
-  }
-
-  void updateOverallUsageDecision() {
-    if (poQuantities.isEmpty) return;
-    final allAccepted =
-        poQuantities.values.every((q) => q.usageDecision == 'Lot Accepted');
-    final allRejected =
-        poQuantities.values.every((q) => q.usageDecision == 'Rejected');
-    final anyRecheck =
-        poQuantities.values.any((q) => q.usageDecision == '100% Recheck');
-    if (allAccepted) {
-      usageDecision = 'Lot Accepted';
-    } else if (allRejected) {
+    if (hasRejected && !hasAccepted && !hasRecheck) {
       usageDecision = 'Rejected';
-    } else if (anyRecheck) {
+    } else if (!hasRejected && hasAccepted && !hasRecheck) {
+      usageDecision = 'Lot Accepted';
+    } else if (hasRecheck) {
       usageDecision = '100% Recheck';
     } else {
-      usageDecision = 'Partial';
+      usageDecision = 'Lot Accepted';
     }
   }
 }
@@ -422,7 +319,7 @@ class InspectionPOQuantity extends HiveObject {
 }
 
 @HiveType(typeId: 21)
-class InspectionGRNQuantity {
+class InspectionGRNQuantity extends HiveObject {
   @HiveField(0)
   double receivedQty;
 
@@ -435,11 +332,27 @@ class InspectionGRNQuantity {
   @HiveField(3)
   String usageDecision;
 
+  @HiveField(4)
+  String? poNo;
+
+  @HiveField(5)
+  String? poDate;
+
+  @HiveField(6)
+  String? recheckType;
+
+  @HiveField(7)
+  bool? isSelected;
+
   InspectionGRNQuantity({
     required this.receivedQty,
-    required this.acceptedQty,
-    required this.rejectedQty,
-    required this.usageDecision,
+    this.acceptedQty = 0,
+    this.rejectedQty = 0,
+    this.usageDecision = 'Lot Accepted',
+    this.poNo,
+    this.poDate,
+    this.recheckType,
+    this.isSelected = false,
   });
 
   InspectionGRNQuantity copyWith({
@@ -447,36 +360,44 @@ class InspectionGRNQuantity {
     double? acceptedQty,
     double? rejectedQty,
     String? usageDecision,
+    String? poNo,
+    String? poDate,
+    String? recheckType,
+    bool? isSelected,
   }) {
     return InspectionGRNQuantity(
       receivedQty: receivedQty ?? this.receivedQty,
       acceptedQty: acceptedQty ?? this.acceptedQty,
       rejectedQty: rejectedQty ?? this.rejectedQty,
       usageDecision: usageDecision ?? this.usageDecision,
+      poNo: poNo ?? this.poNo,
+      poDate: poDate ?? this.poDate,
+      recheckType: recheckType ?? this.recheckType,
+      isSelected: isSelected ?? this.isSelected,
     );
   }
 }
 
 @HiveType(typeId: 13)
-class QualityParameter {
+class QualityParameter extends HiveObject {
   @HiveField(0)
   String parameter;
-
-  @HiveField(1)
-  String specification;
 
   @HiveField(2)
   bool isAcceptable;
 
+  @HiveField(3)
+  String observation;
+
+  @HiveField(4)
+  String? result;
+
   QualityParameter({
     required this.parameter,
-    this.specification = '',
-    dynamic isAcceptable = true,
-  }) : isAcceptable = isAcceptable == null
-            ? true
-            : isAcceptable is bool
-                ? isAcceptable
-                : isAcceptable == 'true';
+    this.isAcceptable = true,
+    this.observation = '',
+    this.result = 'OK',
+  });
 
   // Standard Quality Parameters - Exact names as per sheet
   static const String visualCheck = 'Visual Check';
@@ -489,7 +410,6 @@ class QualityParameter {
   static const String platingQuality = 'Plating Quality';
   static const String gradeCheck = 'Grade Check';
   static const String colourShade = 'Colour/Shade';
-  static const String referenceStandard =
-      'Check for Reference Standard (IS/IEC)';
+  static const String referenceStandard = 'Check for Reference Standard (IS/IEC)';
   static const String conformanceReport = 'Review & Verify Conformance Report';
 }

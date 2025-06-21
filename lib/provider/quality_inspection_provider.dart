@@ -5,6 +5,12 @@ import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import '../models/quality_inspection.dart';
 import '../provider/stock_maintenance_provider.dart';
+import '../provider/store_inward_provider.dart';
+import '../models/store_inward.dart';
+import '../models/material_item.dart';
+import '../models/category.dart';
+import '../provider/material_provider.dart';
+import '../provider/category_provider.dart';
 
 final qualityInspectionBoxProvider = Provider<Box<QualityInspection>>((ref) {
   throw UnimplementedError();
@@ -15,35 +21,57 @@ final qualityInspectionProvider =
   (ref) {
     final box = ref.watch(qualityInspectionBoxProvider);
     final stockMaintenance = ref.watch(stockMaintenanceProvider.notifier);
-    return QualityInspectionNotifier(box, stockMaintenance);
+    final storeInward = ref.watch(storeInwardProvider.notifier);
+    return QualityInspectionNotifier(box, stockMaintenance, storeInward);
   },
 );
 
 class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
   final Box<QualityInspection> box;
   final StockMaintenanceNotifier stockMaintenance;
+  final StoreInwardNotifier storeInward;
 
-  QualityInspectionNotifier(this.box, this.stockMaintenance)
+  QualityInspectionNotifier(this.box, this.stockMaintenance, this.storeInward)
       : super(box.values.toList());
 
   String generateInspectionNumber() {
-    final today = DateTime.now();
-    final dateStr = DateFormat('yyyyMMdd').format(today);
-
-    // Get all inspections from today
-    final todayInspections = state.where((inspection) {
-      return inspection.inspectionNo.startsWith('QC$dateStr');
-    }).toList();
-
-    // Get the next sequence number
-    final nextSeq = (todayInspections.length + 1).toString().padLeft(3, '0');
-
-    return 'QC$dateStr$nextSeq';
+    final now = DateTime.now();
+    final year = now.year.toString().substring(2); // Get last 2 digits of year
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    
+    // Get all inspections from this year
+    final yearInspections = state.where((inspection) =>
+        inspection.inspectionNo.startsWith('QI$year')).toList();
+    
+    // Get the highest sequence number
+    int maxSeq = 0;
+    for (var inspection in yearInspections) {
+      try {
+        final seq = int.parse(inspection.inspectionNo.substring(8));
+        if (seq > maxSeq) maxSeq = seq;
+      } catch (e) {
+        print('Error parsing sequence number: $e');
+      }
+    }
+    
+    // Generate new sequence number
+    final seq = (maxSeq + 1).toString().padLeft(4, '0');
+    
+    return 'QI$year$month$day$seq';
   }
 
-  void addInspection(QualityInspection inspection) {
-    box.add(inspection);
-    state = box.values.toList();
+  Future<void> addInspection(QualityInspection inspection) async {
+    // Generate inspection number if not provided
+    if (inspection.inspectionNo.isEmpty) {
+      inspection.inspectionNo = generateInspectionNumber();
+    }
+    
+    // Add to state
+    state = [...state, inspection];
+    
+    // Save to box
+    await box.add(inspection);
   }
 
   void updateInspection(QualityInspection inspection) async {
@@ -95,6 +123,7 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
       if (inspection.status.startsWith('Completed')) {
         print('Updating stock maintenance...');
         await stockMaintenance.updateStockFromInspection(inspection);
+        await storeInward.updateGRNStatus(inspection.grnNo);
       }
     }
   }

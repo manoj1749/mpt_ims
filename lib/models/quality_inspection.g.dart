@@ -110,9 +110,6 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       expirationDate: fields[15] as String,
       parameters: (fields[16] as List).cast<QualityParameter>(),
       isPartialRecheck: fields[17] as bool?,
-      conditionalAcceptanceReason: fields[18] as String?,
-      conditionalAcceptanceAction: fields[19] as String?,
-      conditionalAcceptanceDeadline: fields[20] as String?,
       poQuantities: (fields[21] as Map?)?.cast<String, InspectionPOQuantity>(),
       grnNo: fields[22] as String?,
       grnDate: fields[23] as String?,
@@ -132,7 +129,7 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
   @override
   void write(BinaryWriter writer, InspectionItem obj) {
     writer
-      ..writeByte(31)
+      ..writeByte(28)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -167,12 +164,6 @@ class InspectionItemAdapter extends TypeAdapter<InspectionItem> {
       ..write(obj.parameters)
       ..writeByte(17)
       ..write(obj.isPartialRecheck)
-      ..writeByte(18)
-      ..write(obj.conditionalAcceptanceReason)
-      ..writeByte(19)
-      ..write(obj.conditionalAcceptanceAction)
-      ..writeByte(20)
-      ..write(obj.conditionalAcceptanceDeadline)
       ..writeByte(21)
       ..write(obj.poQuantities)
       ..writeByte(22)
@@ -272,13 +263,17 @@ class InspectionGRNQuantityAdapter extends TypeAdapter<InspectionGRNQuantity> {
       acceptedQty: fields[1] as double,
       rejectedQty: fields[2] as double,
       usageDecision: fields[3] as String,
+      poNo: fields[4] as String?,
+      poDate: fields[5] as String?,
+      recheckType: fields[6] as String?,
+      isSelected: fields[7] as bool?,
     );
   }
 
   @override
   void write(BinaryWriter writer, InspectionGRNQuantity obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.receivedQty)
       ..writeByte(1)
@@ -286,7 +281,15 @@ class InspectionGRNQuantityAdapter extends TypeAdapter<InspectionGRNQuantity> {
       ..writeByte(2)
       ..write(obj.rejectedQty)
       ..writeByte(3)
-      ..write(obj.usageDecision);
+      ..write(obj.usageDecision)
+      ..writeByte(4)
+      ..write(obj.poNo)
+      ..writeByte(5)
+      ..write(obj.poDate)
+      ..writeByte(6)
+      ..write(obj.recheckType)
+      ..writeByte(7)
+      ..write(obj.isSelected);
   }
 
   @override
@@ -312,21 +315,24 @@ class QualityParameterAdapter extends TypeAdapter<QualityParameter> {
     };
     return QualityParameter(
       parameter: fields[0] as String,
-      specification: fields[1] as String,
-      isAcceptable: fields[2] as dynamic,
+      isAcceptable: fields[2] as bool,
+      observation: fields[3] as String,
+      result: fields[4] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, QualityParameter obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.parameter)
-      ..writeByte(1)
-      ..write(obj.specification)
       ..writeByte(2)
-      ..write(obj.isAcceptable);
+      ..write(obj.isAcceptable)
+      ..writeByte(3)
+      ..write(obj.observation)
+      ..writeByte(4)
+      ..write(obj.result);
   }
 
   @override

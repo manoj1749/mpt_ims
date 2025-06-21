@@ -20,6 +20,7 @@ import '../../models/category.dart';
 import '../../provider/category_provider.dart';
 import '../../provider/vendor_material_rate_provider.dart';
 import '../../models/store_inward.dart';
+import '../../provider/stock_maintenance_provider.dart';
 
 class AddQualityInspectionPage extends ConsumerStatefulWidget {
   const AddQualityInspectionPage({super.key});
@@ -66,14 +67,12 @@ class _AddQualityInspectionPageState
     final inwards = ref.watch(storeInwardProvider);
     final inspections = ref.watch(qualityInspectionProvider);
     final categories = ref.watch(categoryListProvider);
-    ref.read(purchaseOrderListProvider);
-    ref.read(purchaseRequestListProvider);
 
-    // Group items by material and PO
-    final materialPOItems = <String, Map<String, List<Map<String, dynamic>>>>{};
-    final grnInfo = <String, Map<String, Map<String, String>>>{};
+    // Group items by material and GRN
+    final materialGRNItems = <String, Map<String, List<Map<String, dynamic>>>>{};
+    final grnInfo = <String, Map<String, String>>{};
 
-    // Track inspected quantities per material and PO
+    // Track inspected quantities per material and GRN
     final inspectedQtys = <String, Map<String, double>>{};
 
     // First, gather all inspected quantities
@@ -81,19 +80,22 @@ class _AddQualityInspectionPageState
       for (var item in inspection.items) {
         inspectedQtys.putIfAbsent(item.materialCode, () => {});
 
-        for (var poEntry in item.poQuantities.entries) {
-          final poNo = poEntry.key;
-          final poQty = poEntry.value;
-          final inspectedQty = poQty.acceptedQty + poQty.rejectedQty;
+        for (var grnEntry in item.grnQuantities.entries) {
+          final grnNo = grnEntry.key;
+          final grnQty = grnEntry.value;
+          final inspectedQty = grnQty.acceptedQty + grnQty.rejectedQty;
 
-          inspectedQtys[item.materialCode]![poNo] =
-              (inspectedQtys[item.materialCode]![poNo] ?? 0.0) + inspectedQty;
+          inspectedQtys[item.materialCode]![grnNo] =
+              (inspectedQtys[item.materialCode]![grnNo] ?? 0.0) + inspectedQty;
         }
       }
     }
 
     // Now process GRNs and check against inspected quantities
     for (var grn in inwards) {
+      // Skip GRNs that are fully inspected
+      if (grn.isFullyInspected) continue;
+
       for (var inwardItem in grn.items) {
         // Find the material to get its category
         final material = materials.firstWhere(
@@ -117,47 +119,39 @@ class _AddQualityInspectionPageState
         );
 
         // Skip items that don't require quality inspection
-        if (!category.requiresQualityCheck) {
-          continue;
-        }
+        if (!category.requiresQualityCheck) continue;
 
-        materialPOItems.putIfAbsent(inwardItem.materialCode, () => {});
-        grnInfo.putIfAbsent(inwardItem.materialCode, () => {});
-
-        final poNos = grn.poNo.split(', ');
-        for (var poNo in poNos) {
-          // Get total received quantity for this PO
-          final receivedQty = inwardItem.getTotalQuantityForPO(poNo);
-          if (receivedQty <= 0) continue;
-
-          // Get inspected quantity for this material and PO
+        // Get inspected quantity for this material and GRN
           final inspectedQty =
-              inspectedQtys[inwardItem.materialCode]?[poNo] ?? 0.0;
+            inspectedQtys[inwardItem.materialCode]?[grn.grnNo] ?? 0.0;
+        final remainingQty = inwardItem.receivedQty - inspectedQty;
 
           // Only include if there's remaining quantity to inspect
-          if (receivedQty > inspectedQty) {
-            // Store item data as a map
+        if (remainingQty > 0) {
+          // Store item data
             final itemData = {
               'materialCode': inwardItem.materialCode,
               'materialDescription': inwardItem.materialDescription,
               'unit': inwardItem.unit,
               'costPerUnit': inwardItem.costPerUnit,
-              'quantity': receivedQty - inspectedQty,
-            };
+            'quantity': remainingQty,
+            'poNo': grn.poNo,
+            'poDate': grn.poDate,
+          };
 
-            materialPOItems[inwardItem.materialCode]!
-                .putIfAbsent(poNo, () => [])
+          // Group by material and GRN
+          materialGRNItems
+              .putIfAbsent(inwardItem.materialCode, () => {})
+              .putIfAbsent(grn.grnNo, () => [])
                 .add(itemData);
 
             // Store GRN info
-            grnInfo[inwardItem.materialCode]!.putIfAbsent(poNo, () => {});
-            grnInfo[inwardItem.materialCode]![poNo]![grn.grnNo] = json.encode({
+          grnInfo[grn.grnNo] = {
               'grnDate': grn.grnDate,
               'invoiceNo': grn.invoiceNo,
               'invoiceDate': grn.invoiceDate,
-              'quantity': receivedQty - inspectedQty,
-            });
-          }
+            'supplierName': grn.supplierName,
+          };
         }
       }
     }
@@ -166,14 +160,15 @@ class _AddQualityInspectionPageState
       _items = [];
 
       // Process each material
-      for (var materialEntry in materialPOItems.entries) {
+      for (var materialEntry in materialGRNItems.entries) {
         final materialCode = materialEntry.key;
-        final poItems = materialEntry.value;
+        final grnItems = materialEntry.value;
 
-        if (poItems.isEmpty) continue;
+        if (grnItems.isEmpty) continue;
 
         // Get first item to access common properties
-        final firstItemData = poItems.values.first.first;
+        final firstGRN = grnItems.values.first;
+        final firstItemData = firstGRN.first;
 
         // Find the material to get its category
         final material = materials.firstWhere(
@@ -193,42 +188,40 @@ class _AddQualityInspectionPageState
           ),
         );
 
-        // Initialize PO quantities
-        final poQuantities = <String, InspectionPOQuantity>{};
-        final grnDetails = <String, Map<String, String>>{};
+        // Initialize GRN quantities
+        final grnQuantities = <String, InspectionGRNQuantity>{};
 
-        // Combine quantities for each PO
-        for (var poEntry in poItems.entries) {
-          final poNo = poEntry.key;
-          final items = poEntry.value;
+        // Process each GRN's items
+        for (var grnEntry in grnItems.entries) {
+          final grnNo = grnEntry.key;
+          final items = grnEntry.value;
 
-          final totalQty = items.fold(
-              0.0, (sum, item) => sum + (item['quantity'] as double));
+          final totalQty =
+              items.fold(0.0, (sum, item) => sum + (item['quantity'] as double));
 
           if (totalQty > 0) {
-            poQuantities[poNo] = InspectionPOQuantity(
+            grnQuantities[grnNo] = InspectionGRNQuantity(
               receivedQty: totalQty,
               acceptedQty: 0,
               rejectedQty: 0,
               usageDecision: 'Lot Accepted',
+              poNo: items.first['poNo'],
+              poDate: items.first['poDate'],
             );
-
-            // Store GRN details for this PO
-            grnDetails[poNo] = grnInfo[materialCode]![poNo]!;
           }
         }
 
-        // Only create inspection item if there are POs with remaining quantities
-        if (poQuantities.isNotEmpty) {
+        // Only create inspection item if there are GRNs with remaining quantities
+        if (grnQuantities.isNotEmpty) {
           final inspectionItem = InspectionItem(
             materialCode: materialCode,
             materialDescription: firstItemData['materialDescription'],
             unit: firstItemData['unit'],
             category: material.category,
-            receivedQty: poQuantities.values
+            receivedQty: grnQuantities.values
                 .fold(0.0, (sum, qty) => sum + qty.receivedQty),
             costPerUnit: double.parse(firstItemData['costPerUnit']),
-            totalCost: poQuantities.values.fold(
+            totalCost: grnQuantities.values.fold(
                 0.0,
                 (sum, qty) =>
                     sum +
@@ -238,15 +231,13 @@ class _AddQualityInspectionPageState
             inspectedQty: 0,
             acceptedQty: 0,
             rejectedQty: 0,
-            pendingQty: poQuantities.values
+            pendingQty: grnQuantities.values
                 .fold(0.0, (sum, qty) => sum + qty.receivedQty),
             usageDecision: 'Lot Accepted',
             receivedDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
             expirationDate: '',
             parameters: [],
-            isPartialRecheck: false,
-            poQuantities: poQuantities,
-            grnDetails: grnDetails,
+            grnQuantities: grnQuantities,
           );
 
           _items.add(inspectionItem);
@@ -265,10 +256,10 @@ class _AddQualityInspectionPageState
       } else {
         // Filter items for selected supplier
         _items = _items.where((item) {
-          // Check if any PO for this item belongs to the selected supplier
-          return item.poQuantities.keys.any((poNo) {
+          // Check if any GRN for this item belongs to the selected supplier
+          return item.grnQuantities.values.any((grnQty) {
             final inward = ref.read(storeInwardProvider).firstWhere(
-                  (inward) => inward.poNo.split(', ').contains(poNo),
+                  (inward) => inward.poNo.split(', ').contains(grnQty.poNo),
                   orElse: () => throw Exception('GRN not found'),
                 );
             return inward.supplierName == supplier.name;
@@ -379,7 +370,7 @@ class _AddQualityInspectionPageState
 
               const SizedBox(height: 20),
               FilledButton(
-                onPressed: _onSavePressed,
+                onPressed: _saveInspection,
                 child: const Text('Save Inspection'),
               ),
             ],
@@ -419,303 +410,51 @@ class _AddQualityInspectionPageState
     );
   }
 
-  Future<void> _onSavePressed() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  Future<void> _saveInspection() async {
+    if (!_formKey.currentState!.validate()) return;
 
     try {
-      print('\n=== Debug: Starting Inspection Save ===');
+      // Generate inspection number
+      final inspectionNo = ref.read(qualityInspectionProvider.notifier).generateInspectionNumber();
 
-      if (_items.isEmpty) {
-        print('Error: No items to inspect');
-        throw Exception('No items to inspect');
-      }
-
-      print('Number of items to inspect: ${_items.length}');
-
-      // Get supplier from the first item's first PO's store inward
-      final firstItem = _items.first;
-      print('First item: ${firstItem.materialCode}');
-
-      if (firstItem.poQuantities.isEmpty) {
-        print('Error: No PO quantities found for first item');
-        throw Exception('No PO quantities found for inspection');
-      }
-
-      print(
-          'PO quantities for first item: ${firstItem.poQuantities.keys.join(', ')}');
-
-      final firstPONo = firstItem.poQuantities.keys.first;
-      print('First PO number: $firstPONo');
-
-      final inwards = ref.read(storeInwardProvider);
-      print('Total inwards available: ${inwards.length}');
-      print('Looking for inward with PO: $firstPONo');
-
-      // Debug print all inwards PO numbers
-      for (var inward in inwards) {
-        print('Inward ${inward.grnNo} has POs: ${inward.poNo}');
-      }
-
-      final inward = inwards.firstWhere(
-        (inward) {
-          final poNos = inward.poNo.split(', ');
-          print('Checking inward ${inward.grnNo} with POs: $poNos');
-          return poNos.contains(firstPONo);
-        },
-        orElse: () {
-          print('Error: No inward found containing PO: $firstPONo');
-          throw Exception('GRN not found for PO: $firstPONo');
-        },
-      );
-
-      print('Found inward: ${inward.grnNo} for PO: $firstPONo');
-
-      // Create quality inspection record
+      // Create inspection object
       final inspection = QualityInspection(
-        inspectionNo: ref
-            .read(qualityInspectionProvider.notifier)
-            .generateInspectionNumber(),
+        inspectionNo: inspectionNo,
         inspectionDate: _inspectionDateController.text,
-        grnNo: '', // Will be populated when saving
-        supplierName: selectedSupplier?.name ?? inward.supplierName,
-        poNo: '', // Will be populated when saving
-        billNo: '', // Will be populated when saving
-        billDate: '', // Will be populated when saving
-        receivedDate: _inspectionDateController.text,
-        grnDate: _inspectionDateController.text,
+        grnNo: _items.first.grnQuantities.keys.first,
+        supplierName: selectedSupplier!.name,
+        poNo: _items.first.grnQuantities.values.first.poNo ?? '',
+        billNo: '',
+        billDate: '',
+        receivedDate: _items.first.receivedDate,
+        grnDate: _items.first.grnDate ?? '',
         inspectedBy: _inspectedByController.text,
         approvedBy: _approvedByController.text,
         items: _items,
         status: 'Pending',
       );
 
-      print('\nProcessing inspection items...');
-
-      // Update GRN status and collect PR/Job numbers
-      final purchaseOrders = ref.read(purchaseOrderListProvider);
-      final purchaseRequests = ref.read(purchaseRequestListProvider);
-      final prNumbers = <String, String>{};
-      final jobNumbers = <String, String>{};
-      final inwardNotifier = ref.read(storeInwardProvider.notifier);
-      final vendorRateNotifier = ref.read(vendorMaterialRateProvider.notifier);
-
-      for (var item in _items) {
-        print('\nProcessing item: ${item.materialCode}');
-        print('PO quantities: ${item.poQuantities.keys.join(', ')}');
-
-        for (var poEntry in item.poQuantities.entries) {
-          final poNo = poEntry.key;
-          final poQty = poEntry.value;
-          print('\nProcessing PO: $poNo');
-          print(
-              'Quantities - Accepted: ${poQty.acceptedQty}, Rejected: ${poQty.rejectedQty}');
-
-          // Find the GRN and update its item quantities
-          print('Looking for inward with PO: $poNo');
-          final inward = inwards.firstWhere(
-            (inward) {
-              final poNos = inward.poNo.split(', ');
-              print('Checking inward ${inward.grnNo} with POs: $poNos');
-              return poNos.contains(poNo);
-            },
-            orElse: () {
-              print('Error: No inward found containing PO: $poNo');
-              throw Exception('GRN not found for PO: $poNo');
-            },
-          );
-
-          print('Found inward: ${inward.grnNo}');
-
-          // Find the inward item
-          print(
-              'Looking for item ${item.materialCode} in inward ${inward.grnNo}');
-          print(
-              'Available items in inward: ${inward.items.map((i) => i.materialCode).join(', ')}');
-
-          final inwardItem = inward.items.firstWhere(
-            (i) => i.materialCode == item.materialCode,
-            orElse: () {
-              print(
-                  'Error: Item ${item.materialCode} not found in inward ${inward.grnNo}');
-              throw Exception(
-                  'Inward item not found for material: ${item.materialCode}');
-            },
-          );
-
-          print('Found inward item: ${inwardItem.materialCode}');
-
-          // Create inspection status
-          final inspectionStatus = InspectionQuantityStatus(
-            inspectedQty: poQty.acceptedQty + poQty.rejectedQty,
-            acceptedQty: poQty.acceptedQty,
-            rejectedQty: poQty.rejectedQty,
-            status: poQty.usageDecision,
-          );
-
-          // Update inward item inspection status
-          inwardItem.updateInspectionStatus(
-              inspection.inspectionNo, inspectionStatus);
-
-          // Update vendor material rate stock
-          if (poQty.acceptedQty > 0) {
-            await vendorRateNotifier.acceptFromInspectionStock(
-              item.materialCode,
-              inward.supplierName,
-              poQty.acceptedQty,
-            );
-          }
-
-          if (poQty.rejectedQty > 0) {
-            await vendorRateNotifier.rejectFromInspectionStock(
-              item.materialCode,
-              inward.supplierName,
-              poQty.rejectedQty,
-            );
-          }
-
-          // Find PR numbers and job numbers from PO items
-          print('\nLooking for PO: $poNo');
-          print(
-              'Available POs: ${purchaseOrders.map((po) => po.poNo).join(', ')}');
-
-          final po = purchaseOrders.firstWhere(
-            (po) => po.poNo == poNo,
-            orElse: () {
-              print('Error: PO $poNo not found in purchase orders');
-              throw Exception('PO not found: $poNo');
-            },
-          );
-
-          print('Found PO: ${po.poNo}');
-          print('Looking for item ${item.materialCode} in PO ${po.poNo}');
-          print(
-              'Available items in PO: ${po.items.map((i) => i.materialCode).join(', ')}');
-
-          final poItem = po.items.firstWhere(
-            (i) => i.materialCode == item.materialCode,
-            orElse: () {
-              print(
-                  'Error: Item ${item.materialCode} not found in PO ${po.poNo}');
-              throw Exception(
-                  'PO item not found for material: ${item.materialCode}');
-            },
-          );
-
-          print('Found PO item: ${poItem.materialCode}');
-
-          // Get PR numbers for this PO item
-          final prNos = poItem.prDetails.values
-              .map((detail) => detail.prNo)
-              .where((prNo) => prNo != 'General')
-              .toList();
-
-          print('PR numbers for PO item: ${prNos.join(', ')}');
-
-          // Get job numbers for these PRs
-          final jobNos = prNos
-              .map((prNo) {
-                print('Looking for PR: $prNo');
-                print(
-                    'Available PRs: ${purchaseRequests.map((pr) => pr.prNo).join(', ')}');
-
-                final pr = purchaseRequests.firstWhere(
-                  (pr) => pr.prNo == prNo,
-                  orElse: () {
-                    print('Error: PR $prNo not found');
-                    throw Exception('PR not found: $prNo');
-                  },
-                );
-                return pr.jobNo ?? '';
-              })
-              .where((jobNo) => jobNo.isNotEmpty)
-              .join(', ');
-
-          print('Job numbers: $jobNos');
-
-          // Display job numbers if available, otherwise show 'General Stock'
-          final displayText = jobNos.isNotEmpty ? jobNos : 'General Stock';
-
-          // Find the PR to get its job number
-          if (prNos.isNotEmpty) {
-            final pr = purchaseRequests.firstWhere(
-              (pr) => pr.prNo == prNos.first,
-              orElse: () {
-                print('Error: PR ${prNos.first} not found for job number');
-                throw Exception('PR not found: ${prNos.first}');
-              },
-            );
-            prNumbers[poNo] = displayText;
-            if (pr.jobNo != null) {
-              jobNumbers[poNo] = pr.jobNo!;
-            }
-          }
-
-          // Update GRN status
-          inward.updateStatus();
-          final inwardIndex = inwards.indexOf(inward);
-          inwardNotifier.updateInward(inwardIndex, inward);
-        }
-      }
-
-      print('\nUpdating inspection with PR and job numbers');
-      print('PR numbers: $prNumbers');
-      print('Job numbers: $jobNumbers');
-
-      // Update inspection with PR and job numbers
-      inspection.prNumbers = prNumbers;
-      inspection.jobNumbers = jobNumbers;
-
-      // Determine inspection status based on items
-      bool hasRejectedItems = false;
-      bool hasRecheckItems = false;
-      bool allItemsAccepted = true;
-
-      for (var item in inspection.items) {
-        for (var poQty in item.poQuantities.values) {
-          if (poQty.usageDecision == 'Rejected') {
-            hasRejectedItems = true;
-            allItemsAccepted = false;
-          } else if (poQty.usageDecision == '100% Recheck') {
-            hasRecheckItems = true;
-            allItemsAccepted = false;
-          } else if (poQty.usageDecision == 'Lot Accepted') {
-            // Check if all quantities are properly inspected
-            if (poQty.acceptedQty + poQty.rejectedQty < poQty.receivedQty) {
-              allItemsAccepted = false;
-            }
-          }
-        }
-      }
-
-      // Update inspection status
-      if (hasRejectedItems) {
-        inspection.status = 'Rejected';
-      } else if (hasRecheckItems) {
-        inspection.status = 'Recheck';
-      } else if (allItemsAccepted) {
-        inspection.status = 'Approved';
-      } else {
-        inspection.status = 'Pending';
-      }
-
-      print('\nSaving inspection with status: ${inspection.status}');
-
-      // Save the inspection
+      // Add inspection
       ref.read(qualityInspectionProvider.notifier).addInspection(inspection);
 
-      print('Inspection saved successfully');
-
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    } catch (e, stackTrace) {
-      print('\nError saving inspection: $e');
-      print('Stack trace: $stackTrace');
+      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving inspection: $e')),
+          const SnackBar(
+            content: Text('Inspection saved successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      print('Error saving inspection: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save inspection: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -739,7 +478,6 @@ class _AddQualityInspectionPageState
       item.parameters = [
         ...universalParams.map((param) => QualityParameter(
               parameter: param.name,
-              specification: '',
               isAcceptable: true,
             )),
         ...categorySpecificParams
@@ -747,7 +485,6 @@ class _AddQualityInspectionPageState
                 !universalParams.any((up) => up.name == paramName))
             .map((paramName) => QualityParameter(
                   parameter: paramName,
-                  specification: '',
                   isAcceptable: true,
                 ))
       ];
@@ -792,308 +529,85 @@ class _AddQualityInspectionPageState
             ),
             const Divider(height: 16),
 
-            // Quality Parameters Section
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[850],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // GRN Selection
+            Row(
                 children: [
-                  const Text('Quality Parameters',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      )),
-                  const SizedBox(height: 12),
-                  ...item.parameters.map((param) {
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(param.parameter,
-                                style: const TextStyle(fontSize: 12)),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 2,
-                            child: TextFormField(
-                              initialValue: param.specification,
-                              decoration: const InputDecoration(
-                                labelText: 'Specification',
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 8,
-                                ),
-                              ),
-                              style: const TextStyle(fontSize: 12),
-                              onChanged: (value) {
+                const Text('Select GRNs:'),
+                const SizedBox(width: 16),
+                TextButton.icon(
+                  onPressed: () {
                                 setState(() {
-                                  param.specification = value;
+                      for (var grnQty in item.grnQuantities.values) {
+                        grnQty.isSelected = true;
+                      }
                                 });
                               },
-                            ),
+                  icon: const Icon(Icons.select_all, size: 18),
+                  label: const Text('Select All'),
                           ),
                           const SizedBox(width: 8),
-                          SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: Checkbox(
-                              value: param.isAcceptable,
-                              onChanged: (value) {
+                TextButton.icon(
+                  onPressed: () {
                                 setState(() {
-                                  param.isAcceptable = value ?? true;
+                      for (var grnQty in item.grnQuantities.values) {
+                        grnQty.isSelected = false;
+                      }
                                 });
                               },
+                  icon: const Icon(Icons.deselect, size: 18),
+                  label: const Text('Deselect All'),
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Text('Accept', style: TextStyle(fontSize: 12)),
                         ],
-                      ),
-                    );
-                  }),
-                ],
-              ),
             ),
             const SizedBox(height: 16),
 
-            // PO-wise Inspection Table
-            Container(
+            // Individual GRN Inspection
+            ...item.grnQuantities.entries.map((entry) {
+              final grnNo = entry.key;
+              final grnQty = entry.value;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[850],
+                  color: Colors.grey[900],
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('PO-wise Inspection',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      )),
-                  const SizedBox(height: 12),
-                  Builder(
-                    builder: (context) {
-                      return Column(
-                        children: item.poQuantities.entries.map((entry) {
-                          final currentPoNo = entry.key;
-                          final currentPoQty = entry.value;
-
-                          // Find PO and PO item
-                          final po = ref
-                              .watch(purchaseOrderListProvider)
-                              .firstWhere(
-                                (po) => po.poNo == currentPoNo,
-                                orElse: () => throw Exception('PO not found'),
-                              );
-
-                          final poItem = po.items.firstWhere(
-                            (i) => i.materialCode == item.materialCode,
-                            orElse: () => throw Exception('PO item not found'),
-                          );
-
-                          // Get PR numbers for this PO item
-                          final prNos = poItem.prDetails.values
-                              .map((detail) => detail.prNo)
-                              .where((prNo) => prNo != 'General')
-                              .toList();
-
-                          // Get job numbers for these PRs
-                          final jobNos = prNos
-                              .map((prNo) {
-                                final pr = ref
-                                    .read(purchaseRequestListProvider)
-                                    .firstWhere((pr) => pr.prNo == prNo);
-                                return pr.jobNo ?? '';
-                              })
-                              .where((jobNo) => jobNo.isNotEmpty)
-                              .join(', ');
-
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    // GRN Header with Checkbox
+                    Row(
                             children: [
-                              // PO Details Table
-                              Table(
-                                columnWidths: const {
-                                  0: FlexColumnWidth(1.2),
-                                  1: FlexColumnWidth(1.0),
-                                  2: FlexColumnWidth(1.0),
-                                  3: FlexColumnWidth(0.8),
-                                  4: FlexColumnWidth(0.8),
-                                  5: FlexColumnWidth(0.8),
-                                },
-                                children: [
-                                  const TableRow(
-                                    children: [
-                                      TableCell(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: Text('PO No',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              )),
-                                        ),
-                                      ),
-                                      TableCell(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: Text('PR No',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              )),
-                                        ),
-                                      ),
-                                      TableCell(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: Text('Job No',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              )),
-                                        ),
-                                      ),
-                                      TableCell(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: Text('Received',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                              textAlign: TextAlign.end),
-                                        ),
-                                      ),
-                                      TableCell(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: Text('Accepted',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                              textAlign: TextAlign.end),
-                                        ),
-                                      ),
-                                      TableCell(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: Text('Rejected',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                              textAlign: TextAlign.end),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  TableRow(
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[900],
-                                    ),
-                                    children: [
-                                      TableCell(
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(currentPoNo,
-                                                    style: const TextStyle(
-                                                        fontSize: 12)),
-                                              ),
-                                              const Icon(Icons.info_outline,
-                                                  size: 16),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      TableCell(
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Text(prNos.join(', '),
-                                              style: const TextStyle(
-                                                  fontSize: 12)),
-                                        ),
-                                      ),
-                                      TableCell(
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Text(
-                                              jobNos.isEmpty
-                                                  ? 'General Stock'
-                                                  : jobNos,
-                                              style: const TextStyle(
-                                                  fontSize: 12)),
-                                        ),
-                                      ),
-                                      TableCell(
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Text(
-                                              '${currentPoQty.receivedQty}',
-                                              style:
-                                                  const TextStyle(fontSize: 12),
-                                              textAlign: TextAlign.end),
-                                        ),
-                                      ),
-                                      TableCell(
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Text(
-                                              '${currentPoQty.acceptedQty}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.green[400],
-                                              ),
-                                              textAlign: TextAlign.end),
-                                        ),
-                                      ),
-                                      TableCell(
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Text(
-                                              '${currentPoQty.rejectedQty}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.red[400],
-                                              ),
-                                              textAlign: TextAlign.end),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                        Checkbox(
+                          value: grnQty.isSelected ?? false,
+                          onChanged: (value) {
+                            setState(() {
+                              grnQty.isSelected = value;
+                            });
+                          },
+                        ),
+                        Text('GRN: $grnNo'),
+                        const SizedBox(width: 16),
+                        Text('Received Qty: ${grnQty.receivedQty}'),
+                      ],
+                    ),
+                    if (grnQty.isSelected == true) ...[
                               const SizedBox(height: 16),
-                              // Usage Decision and Controls
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[900],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                      // Usage Decision and CAPA in one row
+                      Row(
                                   children: [
                                     // Usage Decision Dropdown
-                                    DropdownButtonFormField<String>(
-                                      value: currentPoQty.usageDecision,
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: grnQty.usageDecision,
                                       decoration: const InputDecoration(
                                         labelText: 'Usage Decision',
                                         border: OutlineInputBorder(),
-                                        isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                                       ),
                                       items: const [
                                         DropdownMenuItem(
@@ -1109,366 +623,477 @@ class _AddQualityInspectionPageState
                                           child: Text('100% Recheck'),
                                         ),
                                       ],
-                                      onChanged: (value) {
+                              onChanged: (value) async {
+                                // Show confirmation dialog for rejection
+                                if (value == 'Rejected') {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Confirm Rejection'),
+                                      content: const Text(
+                                          'Are you sure you want to reject this lot? This will require CAPA.'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: const Text('Confirm'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm != true) return;
+                                }
+
                                         setState(() {
-                                          currentPoQty.usageDecision = value!;
+                                  grnQty.usageDecision = value!;
                                           if (value != '100% Recheck') {
-                                            currentPoQty.recheckType = null;
+                                    grnQty.recheckType = null;
                                           }
                                           if (value == 'Rejected' ||
                                               value == '100% Recheck') {
                                             item.capaRequired = true;
                                           }
+
                                           // Auto-update accepted/rejected quantities
                                           if (value == 'Lot Accepted') {
-                                            currentPoQty.acceptedQty =
-                                                currentPoQty.receivedQty;
-                                            currentPoQty.rejectedQty = 0;
+                                    // Validate parameters before accepting
+                                    bool hasInvalidParams = item.parameters
+                                        .any((param) => !param.isAcceptable);
+                                    if (hasInvalidParams) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Cannot accept lot with failed parameters'),
+                                        ),
+                                      );
+                                      grnQty.usageDecision = 'Rejected';
+                                      grnQty.acceptedQty = 0;
+                                      grnQty.rejectedQty =
+                                          grnQty.receivedQty;
+                                      return;
+                                    }
+                                    grnQty.acceptedQty =
+                                        grnQty.receivedQty;
+                                    grnQty.rejectedQty = 0;
                                           } else if (value == 'Rejected') {
-                                            currentPoQty.acceptedQty = 0;
-                                            currentPoQty.rejectedQty =
-                                                currentPoQty.receivedQty;
+                                    grnQty.acceptedQty = 0;
+                                    grnQty.rejectedQty =
+                                        grnQty.receivedQty;
                                           } else if (value == '100% Recheck') {
-                                            currentPoQty.acceptedQty = 0;
-                                            currentPoQty.rejectedQty = 0;
-                                          }
-                                          // Update the overall usage decision for the item
-                                          item.updateOverallUsageDecision();
-                                          // Recalculate item totals
-                                          item.acceptedQty =
-                                              item.poQuantities.values.fold(
-                                                  0.0,
-                                                  (sum, q) =>
-                                                      sum + (q.acceptedQty));
-                                          item.rejectedQty =
-                                              item.poQuantities.values.fold(
-                                                  0.0,
-                                                  (sum, q) =>
-                                                      sum + (q.rejectedQty));
-                                          item.pendingQty = item.receivedQty -
-                                              (item.acceptedQty +
-                                                  item.rejectedQty);
+                                    grnQty.acceptedQty = 0;
+                                    grnQty.rejectedQty = 0;
+                                  }
                                         });
                                       },
                                     ),
-                                    // CAPA Checkbox
-                                    if (currentPoQty.usageDecision ==
-                                            'Rejected' ||
-                                        currentPoQty.usageDecision ==
-                                            '100% Recheck') ...[
-                                      const SizedBox(height: 16),
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey[850],
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            SizedBox(
-                                              width: 24,
-                                              height: 24,
-                                              child: Checkbox(
-                                                value: item.capaRequired,
-                                                onChanged: (value) {
+                          ),
+                          const SizedBox(width: 16),
+                          // CAPA Required Checkbox
+                          if (grnQty.usageDecision == 'Rejected' ||
+                              grnQty.usageDecision == '100% Recheck')
+                            Expanded(
+                              child: CheckboxListTile(
+                                title: const Text('CAPA Required'),
+                                value: item.capaRequired ?? false,
+                                onChanged: (bool? value) {
                                                   setState(() {
-                                                    item.capaRequired =
-                                                        value ?? false;
+                                    item.capaRequired = value;
                                                   });
                                                 },
                                               ),
                                             ),
-                                            const SizedBox(width: 12),
-                                            const Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text('CAPA Required',
-                                                      style: TextStyle(
-                                                        fontSize: 13,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      )),
-                                                  Text(
-                                                      'Corrective Action / Preventive Action',
-                                                      style: TextStyle(
-                                                          fontSize: 11,
-                                                          color: Colors.grey)),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                    // Recheck Type Dropdown
-                                    if (currentPoQty.usageDecision ==
-                                        '100% Recheck') ...[
+                        ],
+                      ),
+
+                      // Recheck Settings (only if 100% Recheck)
+                      if (grnQty.usageDecision == '100% Recheck') ...[
                                       const SizedBox(height: 16),
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey[850],
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                        Row(
                                           children: [
-                                            const Text('Recheck Details',
+                            const Icon(Icons.refresh, size: 16),
+                            const SizedBox(width: 8),
+                            const Text('Recheck Settings',
                                                 style: TextStyle(
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w500,
                                                 )),
-                                            const SizedBox(height: 12),
-                                            DropdownButtonFormField<String>(
-                                              value: currentPoQty.recheckType ??
-                                                  '100% Acceptance',
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: grnQty.recheckType ?? '100% Acceptance',
                                               decoration: const InputDecoration(
                                                 labelText: 'Recheck Type',
                                                 border: OutlineInputBorder(),
-                                                isDense: true,
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
+                                  contentPadding: EdgeInsets.symmetric(
                                                         horizontal: 12,
-                                                        vertical: 12),
+                                    vertical: 8,
                                               ),
-                                              isExpanded: true,
+                                ),
                                               items: const [
                                                 DropdownMenuItem(
                                                   value: '100% Acceptance',
-                                                  child: Text('100% Acceptance',
-                                                      style: TextStyle(
-                                                          fontSize: 13)),
+                                    child: Text('100% Acceptance'),
                                                 ),
                                                 DropdownMenuItem(
                                                   value: 'Partial Acceptance',
-                                                  child: Text(
-                                                      'Partial Acceptance',
-                                                      style: TextStyle(
-                                                          fontSize: 13)),
+                                    child: Text('Partial Acceptance'),
                                                 ),
                                               ],
                                               onChanged: (value) {
                                                 setState(() {
-                                                  currentPoQty.recheckType =
-                                                      value;
+                                    grnQty.recheckType = value;
                                                   item.capaRequired = true;
                                                 });
                                               },
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                    // PR-wise quantity allocation
-                                    if (currentPoQty.usageDecision ==
-                                            '100% Recheck' &&
-                                        currentPoQty.recheckType ==
-                                            'Partial Acceptance') ...[
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      // Partial Acceptance Quantities (only if Partial Acceptance)
+                      if (grnQty.usageDecision == '100% Recheck' &&
+                          grnQty.recheckType == 'Partial Acceptance') ...[
                                       const SizedBox(height: 16),
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey[850],
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                        Row(
                                           children: [
-                                            const Row(
-                                              children: [
-                                                Icon(Icons.assignment,
-                                                    size: 16),
-                                                SizedBox(width: 8),
-                                                Text('PR-wise Allocation',
+                            Expanded(
+                              child: TextFormField(
+                                decoration: InputDecoration(
+                                  labelText: 'Accepted Quantity',
+                                  border: const OutlineInputBorder(),
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  hintText: 'Max: ${grnQty.receivedQty.toString()}',
+                                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                                ),
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                controller: TextEditingController(text: grnQty.acceptedQty.toString()),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) return null;
+                                  final qty = double.tryParse(value);
+                                  if (qty == null) return 'Invalid number';
+                                  if (qty < 0) return 'Cannot be negative';
+                                  if (qty > grnQty.receivedQty) return 'Exceeds received qty';
+                                  return null;
+                                },
+                                onChanged: (value) {
+                                  // Allow empty value during editing
+                                  if (value.isEmpty) {
+                                    setState(() {
+                                      grnQty.acceptedQty = 0;
+                                      grnQty.rejectedQty = grnQty.receivedQty;
+                                    });
+                                    return;
+                                  }
+
+                                  final qty = double.tryParse(value) ?? 0;
+                                  setState(() {
+                                    // Auto-adjust if exceeds received quantity
+                                    if (qty > grnQty.receivedQty) {
+                                      grnQty.acceptedQty = grnQty.receivedQty;
+                                      grnQty.rejectedQty = 0;
+                                      // Update the text field outside setState
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        final controller = TextEditingController(
+                                            text: grnQty.receivedQty.toString());
+                                        controller.selection = TextSelection.fromPosition(
+                                            TextPosition(offset: controller.text.length));
+                                        // Find the current focus node
+                                        final focusNode = FocusScope.of(context).focusedChild;
+                                        // Update the controller while maintaining focus
+                                        setState(() {
+                                          controller.text = grnQty.receivedQty.toString();
+                                          if (focusNode != null) {
+                                            FocusScope.of(context).requestFocus(focusNode);
+                                          }
+                                        });
+                                      });
+                                    } else {
+                                      grnQty.acceptedQty = qty;
+                                      grnQty.rejectedQty = grnQty.receivedQty - qty;
+                                    }
+                                  });
+                                },
+                                onEditingComplete: () {
+                                  // Allow zero value when focus is lost
+                                  if (grnQty.acceptedQty == 0) {
+                                    setState(() {
+                                      grnQty.rejectedQty = grnQty.receivedQty;
+                                    });
+                                  }
+                                  FocusScope.of(context).unfocus();
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: TextFormField(
+                                decoration: const InputDecoration(
+                                  labelText: 'Rejected Quantity',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                ),
+                                readOnly: true,
+                                controller: TextEditingController(text: grnQty.rejectedQty.toString()),
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // PR/Job-wise Distribution for Partial Acceptance
+                        if (grnQty.acceptedQty > 0) ...[
+                          const Text('PR/Job Distribution',
                                                     style: TextStyle(
                                                       fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    )),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 12),
-                                            // PR allocation content
-                                            ...poItem.prDetails.entries
-                                                .map((prEntry) {
+                                fontWeight: FontWeight.w500,
+                              )),
+                          const SizedBox(height: 8),
+                          // Get the GRN from store inward provider
+                          Builder(builder: (context) {
+                            final inwards = ref.watch(storeInwardProvider);
+                            final grn = inwards.firstWhere(
+                                (g) => g.grnNo == grnNo,
+                                orElse: () => StoreInward(
+                                    grnNo: '',
+                                    grnDate: '',
+                                    supplierName: '',
+                                    poNo: '',
+                                    poDate: '',
+                                    invoiceNo: '',
+                                    invoiceDate: '',
+                                    invoiceAmount: 0,
+                                    receivedBy: '',
+                                    checkedBy: '',
+                                    items: []));
+
+                            if (grn.grnNo.isEmpty) return const SizedBox.shrink();
+
+                            final grnItem = grn.items.firstWhere(
+                                (i) => i.materialCode == item.materialCode,
+                                orElse: () => InwardItem(
+                                    materialCode: '',
+                                    materialDescription: '',
+                                    unit: '',
+                                    orderedQty: 0,
+                                    receivedQty: 0,
+                                    acceptedQty: 0,
+                                    rejectedQty: 0,
+                                    costPerUnit: '0'));
+
+                            if (grnItem.materialCode.isEmpty)
+                              return const SizedBox.shrink();
+
+                            return Column(
+                              children: grnItem.prQuantities.entries.map((poEntry) {
+                                final poNo = poEntry.key;
+                                final prMap = poEntry.value;
+                                if (prMap == null) return const SizedBox.shrink();
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('PO: $poNo',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w500)),
+                                    const SizedBox(height: 8),
+                                    ...prMap.entries.map((prEntry) {
                                               final prNo = prEntry.key;
-                                              final prDetail = prEntry.value;
+                                      final originalQty = prEntry.value;
+                                      final jobNo = grnItem
+                                              .prJobNumbers[poNo]?[prNo] ??
+                                          'General';
 
-                                              // Initialize map for current PO if it doesn't exist
-                                              _prQtyControllers.putIfAbsent(
-                                                  currentPoNo, () => {});
+                                      // Calculate proportional accepted quantity
+                                      final proportion =
+                                          originalQty / grnItem.receivedQty;
+                                      final suggestedQty =
+                                          grnQty.acceptedQty * proportion;
 
-                                              // Initialize controller for this PR
-                                              _prQtyControllers[currentPoNo]!
-                                                  .putIfAbsent(
-                                                prNo,
-                                                () => TextEditingController(
-                                                    text: '0.0'),
-                                              );
+                                      // Initialize controller if not exists
+                                      _prQtyControllers[grnNo] ??= {};
+                                      _prQtyControllers[grnNo]![
+                                              '${poNo}_${prNo}'] ??=
+                                          TextEditingController(
+                                              text: suggestedQty.toString());
 
-                                              return Container(
-                                                margin: const EdgeInsets.only(
-                                                    bottom: 8),
-                                                padding:
-                                                    const EdgeInsets.all(8),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.grey[900],
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                ),
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                            left: 16, bottom: 8),
                                                 child: Row(
                                                   children: [
-                                                    // PR Info
                                                     Expanded(
+                                              flex: 2,
                                                       child: Column(
                                                         crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
+                                                    CrossAxisAlignment.start,
                                                         children: [
-                                                          Text(prNo,
-                                                              style:
-                                                                  const TextStyle(
-                                                                fontSize: 12,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w500,
-                                                              )),
-                                                          if (prDetail.jobNo !=
-                                                              'General')
-                                                            Text(prDetail.jobNo,
-                                                                style:
-                                                                    TextStyle(
-                                                                  fontSize: 11,
-                                                                  color: Colors
-                                                                          .grey[
-                                                                      400],
-                                                                )),
-                                                          Text(
-                                                            'Ordered: ${prDetail.quantity} ${item.unit}',
-                                                            style:
-                                                                const TextStyle(
-                                                                    fontSize:
-                                                                        11),
-                                                          ),
-                                                          Text(
-                                                            'Received: ${poItem.getReceivedQuantityForPR(prNo)} ${item.unit}',
+                                                  Text('PR: $prNo'),
+                                                  Text('Job: $jobNo',
                                                             style: TextStyle(
-                                                              fontSize: 11,
-                                                              color: Colors
-                                                                  .grey[400],
-                                                            ),
-                                                          ),
+                                                          color:
+                                                              Colors.grey[500])),
                                                         ],
                                                       ),
                                                     ),
                                                     const SizedBox(width: 8),
-                                                    // Accept Qty Input
-                                                    SizedBox(
-                                                      width: 100,
+                                            Expanded(
                                                       child: TextFormField(
                                                         controller:
-                                                            _prQtyControllers[
-                                                                    currentPoNo]![
-                                                                prNo],
-                                                        decoration:
-                                                            InputDecoration(
-                                                          labelText: 'Accept',
+                                                    _prQtyControllers[grnNo]![
+                                                        '${poNo}_${prNo}'],
+                                                decoration: InputDecoration(
+                                                  labelText: 'Accepted Qty',
                                                           border:
                                                               const OutlineInputBorder(),
                                                           isDense: true,
-                                                          contentPadding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 8,
-                                                          ),
-                                                          suffixText: item.unit,
-                                                        ),
-                                                        keyboardType:
-                                                            const TextInputType
+                                                  hintText:
+                                                      'Max: ${originalQty.toString()}',
+                                                ),
+                                                keyboardType: const TextInputType
                                                                 .numberWithOptions(
-                                                          decimal: true,
-                                                        ),
-                                                        style: const TextStyle(
-                                                            fontSize: 12),
+                                                    decimal: true),
                                                         validator: (value) {
                                                           if (value == null ||
-                                                              value.isEmpty) {
-                                                            return 'Required';
-                                                          }
+                                                      value.isEmpty) return null;
                                                           final qty =
-                                                              double.tryParse(
-                                                                  value);
-                                                          if (qty == null) {
-                                                            return 'Invalid';
-                                                          }
-                                                          if (qty < 0) {
-                                                            return 'Invalid';
-                                                          }
-                                                          final totalReceived =
-                                                              poItem
-                                                                  .getReceivedQuantityForPR(
-                                                                      prNo);
-                                                          if (qty >
-                                                              totalReceived) {
-                                                            return 'Max $totalReceived';
-                                                          }
+                                                      double.tryParse(value);
+                                                  if (qty == null)
+                                                    return 'Invalid number';
+                                                  if (qty < 0)
+                                                    return 'Cannot be negative';
+                                                  if (qty > originalQty)
+                                                    return 'Exceeds original qty';
                                                           return null;
                                                         },
                                                         onChanged: (value) {
-                                                          // Update accepted quantity
-                                                          setState(() {
-                                                            currentPoQty
-                                                                .acceptedQty = _prQtyControllers[
-                                                                    currentPoNo]!
-                                                                .values
-                                                                .map((controller) =>
-                                                                    double.tryParse(
-                                                                        controller
-                                                                            .text) ??
-                                                                    0.0)
-                                                                .fold(
-                                                                    0.0,
-                                                                    (sum, qty) =>
-                                                                        sum +
-                                                                        qty);
-                                                            currentPoQty
-                                                                    .rejectedQty =
-                                                                currentPoQty
-                                                                        .receivedQty -
-                                                                    currentPoQty
-                                                                        .acceptedQty;
-                                                          });
+                                                  // Validate total doesn't exceed accepted qty
+                                                  double total = 0;
+                                                  _prQtyControllers[grnNo]!
+                                                      .forEach((key, controller) {
+                                                    if (key !=
+                                                        '${poNo}_${prNo}') {
+                                                      total += double.tryParse(
+                                                              controller.text) ??
+                                                          0;
+                                                    }
+                                                  });
+                                                  total += double.tryParse(
+                                                          value) ??
+                                                      0;
+
+                                                  if (total >
+                                                      grnQty.acceptedQty) {
+                                                    ScaffoldMessenger.of(context)
+                                                        .showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                            'Total PR quantities cannot exceed accepted quantity'),
+                                                      ),
+                                                    );
+                                                    _prQtyControllers[grnNo]![
+                                                            '${poNo}_${prNo}']!
+                                                        .text = suggestedQty
+                                                            .toString();
+                                                  }
                                                         },
                                                       ),
                                                     ),
                                                   ],
                                                 ),
+                                      );
+                                    }).toList(),
+                                  ],
+                                );
+                              }).toList(),
                                               );
                                             }),
                                           ],
-                                        ),
-                                      ),
-                                    ],
+                      ],
+
+                      // Quality Parameters
+                      const SizedBox(height: 16),
+                      const Text('Quality Parameters',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          )),
+                      const SizedBox(height: 8),
+                      ...item.parameters.map((param) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Text(param.parameter),
+                              ),
+                              const SizedBox(width: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextFormField(
+                                  initialValue: param.observation,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Observation',
+                                    border: OutlineInputBorder(),
+                                    isDense: true,
+                                  ),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      param.observation = value;
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: param.result ?? 'OK',
+                                  decoration: const InputDecoration(
+                                    labelText: 'Result',
+                                    border: OutlineInputBorder(),
+                                    contentPadding:
+                                        EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'OK',
+                                      child: Text('OK'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'NOT OK',
+                                      child: Text('NOT OK'),
+                                    ),
                                   ],
+                                  onChanged: (value) {
+                                    setState(() {
+                                      param.result = value;
+                                      param.isAcceptable =
+                                          value == 'OK';
+                                    });
+                                  },
                                 ),
                               ),
                             ],
+                          ),
                           );
                         }).toList(),
-                      );
-                    },
-                  ),
+                    ],
                 ],
               ),
-            ),
+              );
+            }).toList(),
           ],
         ),
       ),

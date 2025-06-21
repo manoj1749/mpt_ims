@@ -357,20 +357,6 @@ class _QualityInspectionListPageState
         enableEditingMode: false,
       ),
       PlutoColumn(
-        title: 'PR No',
-        field: 'prNo',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Job No',
-        field: 'jobNo',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
         title: 'Supplier',
         field: 'supplier',
         type: PlutoColumnType.text(),
@@ -428,17 +414,23 @@ class _QualityInspectionListPageState
         renderer: (rendererContext) {
           final item = rendererContext.row.cells['inspection']!.value
               as QualityInspection;
-          final poQty = item.items.first.poQuantities.values.first;
-
-          String displayText = poQty.usageDecision;
-          if (poQty.usageDecision == '100% Recheck' &&
-              poQty.recheckType != null) {
-            displayText += '\n${poQty.recheckType}';
-            if (poQty.conditionalAcceptance == true) {
-              displayText += '\nConditional';
+          final inspItem = item.items.first;
+          
+          // Get the usage decision from GRN quantities
+          String displayText = '';
+          if (inspItem.grnQuantities.isNotEmpty) {
+            final grnQty = inspItem.grnQuantities.values.first;
+            displayText = grnQty.usageDecision;
+            
+            if (grnQty.usageDecision == '100% Recheck' &&
+                grnQty.recheckType != null) {
+              displayText += '\n${grnQty.recheckType}';
             }
+          } else {
+            displayText = inspItem.usageDecision;
           }
-          if (item.items.first.capaRequired == true) {
+
+          if (inspItem.capaRequired == true) {
             displayText += '\nCAPA Required';
           }
 
@@ -448,8 +440,7 @@ class _QualityInspectionListPageState
               displayText,
               style: TextStyle(
                 fontSize: 12,
-                color:
-                    item.items.first.capaRequired == true ? Colors.red : null,
+                color: inspItem.capaRequired == true ? Colors.red : null,
               ),
             ),
           );
@@ -598,41 +589,50 @@ class _QualityInspectionListPageState
     final rows = <PlutoRow>[];
 
     for (var inspection in inspections) {
-      for (var item in inspection.items) {
-        final pendingQty = item.getPendingQuantityForGRN(inspection.grnNo);
+      // Skip if no items
+      if (inspection.items.isEmpty) continue;
 
-        // Create a map of all required cells with proper null handling
-        final cells = {
-          'grnNo': PlutoCell(value: inspection.grnNo),
-          'poNo': PlutoCell(value: inspection.poNo),
-          'prNo':
-              PlutoCell(value: inspection.prNumbers[inspection.poNo] ?? '-'),
-          'jobNo':
-              PlutoCell(value: inspection.jobNumbers[inspection.poNo] ?? '-'),
-          'supplier': PlutoCell(value: inspection.supplierName),
-          'partNo': PlutoCell(value: item.materialCode),
-          'description': PlutoCell(value: item.materialDescription),
-          'receivedQty': PlutoCell(value: item.receivedQty),
-          'acceptedQty': PlutoCell(value: item.acceptedQty),
-          'rejectedQty': PlutoCell(value: item.rejectedQty),
-          'pendingQty': PlutoCell(value: pendingQty),
-          'usageDecision': PlutoCell(value: item.usageDecision),
-          'unit': PlutoCell(value: item.unit),
-          'costPerUnit': PlutoCell(value: item.costPerUnit),
-          'totalCost': PlutoCell(value: item.totalCost),
-          'billNo': PlutoCell(value: inspection.billNo),
-          'billDate': PlutoCell(value: inspection.billDate),
-          'receivedDate': PlutoCell(value: inspection.receivedDate),
-          'grDate': PlutoCell(value: inspection.grnDate),
-          'category': PlutoCell(value: item.category),
-          'sampleSize': PlutoCell(value: item.sampleSize),
-          'parameters': PlutoCell(value: item.parameters),
-          'actions': PlutoCell(value: ''),
-          'inspection': PlutoCell(value: inspection),
-        };
-
-        rows.add(PlutoRow(cells: cells));
+      final item = inspection.items.first;
+      
+      // Calculate total quantities from all GRNs
+      double totalAcceptedQty = 0.0;
+      double totalRejectedQty = 0.0;
+      for (var grnQty in item.grnQuantities.values) {
+        totalAcceptedQty += grnQty.acceptedQty;
+        totalRejectedQty += grnQty.rejectedQty;
       }
+      
+      // Calculate pending quantity
+      double pendingQty = item.receivedQty - (totalAcceptedQty + totalRejectedQty);
+
+      rows.add(
+        PlutoRow(
+          cells: {
+            'inspection': PlutoCell(value: inspection),
+            'grnNo': PlutoCell(value: inspection.grnNo),
+            'poNo': PlutoCell(value: inspection.poNo),
+            'supplier': PlutoCell(value: inspection.supplierName),
+            'partNo': PlutoCell(value: item.materialCode),
+            'description': PlutoCell(value: item.materialDescription),
+            'receivedQty': PlutoCell(value: item.receivedQty),
+            'acceptedQty': PlutoCell(value: totalAcceptedQty),
+            'rejectedQty': PlutoCell(value: totalRejectedQty),
+            'pendingQty': PlutoCell(value: pendingQty),
+            'usageDecision': PlutoCell(value: item.usageDecision),
+            'unit': PlutoCell(value: item.unit),
+            'costPerUnit': PlutoCell(value: item.costPerUnit),
+            'totalCost': PlutoCell(value: item.totalCost),
+            'billNo': PlutoCell(value: inspection.billNo ?? ''),
+            'billDate': PlutoCell(value: inspection.billDate ?? ''),
+            'receivedDate': PlutoCell(value: item.receivedDate),
+            'grDate': PlutoCell(value: inspection.grnDate),
+            'category': PlutoCell(value: item.category),
+            'sampleSize': PlutoCell(value: item.sampleSize),
+            'parameters': PlutoCell(value: item.parameters),
+            'actions': PlutoCell(value: ''),
+          },
+        ),
+      );
     }
 
     return rows;

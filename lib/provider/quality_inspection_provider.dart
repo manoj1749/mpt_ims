@@ -34,11 +34,12 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
     final year = now.year.toString().substring(2); // Get last 2 digits of year
     final month = now.month.toString().padLeft(2, '0');
     final day = now.day.toString().padLeft(2, '0');
-    
+
     // Get all inspections from this year
-    final yearInspections = state.where((inspection) =>
-        inspection.inspectionNo.startsWith('QI$year')).toList();
-    
+    final yearInspections = state
+        .where((inspection) => inspection.inspectionNo.startsWith('QI$year'))
+        .toList();
+
     // Get the highest sequence number
     int maxSeq = 0;
     for (var inspection in yearInspections) {
@@ -49,10 +50,10 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
         print('Error parsing sequence number: $e');
       }
     }
-    
+
     // Generate new sequence number
     final seq = (maxSeq + 1).toString().padLeft(4, '0');
-    
+
     return 'QI$year$month$day$seq';
   }
 
@@ -61,10 +62,10 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
     if (inspection.inspectionNo.isEmpty) {
       inspection.inspectionNo = generateInspectionNumber();
     }
-    
+
     // Add to state
     state = [...state, inspection];
-    
+
     // Save to box
     await box.add(inspection);
   }

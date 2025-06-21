@@ -118,7 +118,8 @@ class InspectionItem extends HiveObject {
   double pendingQty;
 
   @HiveField(13)
-  String usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
+  String
+      usageDecision; // Lot Accepted / Rejected / 100% Recheck / Conditionally Accepted
 
   @HiveField(14)
   String receivedDate; // Date when material was received
@@ -133,7 +134,8 @@ class InspectionItem extends HiveObject {
   bool? isPartialRecheck; // For 100% Recheck cases
 
   @HiveField(21)
-  Map<String, InspectionPOQuantity> poQuantities = {}; // Store PO-wise quantities and decisions
+  Map<String, InspectionPOQuantity> poQuantities =
+      {}; // Store PO-wise quantities and decisions
 
   @HiveField(22)
   String? grnNo; // GRN number
@@ -148,10 +150,12 @@ class InspectionItem extends HiveObject {
   String? invoiceDate; // Invoice date
 
   @HiveField(26)
-  Map<String, Map<String, String>> grnDetails = {}; // PO No -> Map of GRN No to GRN details
+  Map<String, Map<String, String>> grnDetails =
+      {}; // PO No -> Map of GRN No to GRN details
 
   @HiveField(27)
-  Map<String, InspectionGRNQuantity> grnQuantities = {}; // Store GRN-wise quantities and decisions
+  Map<String, InspectionGRNQuantity> grnQuantities =
+      {}; // Store GRN-wise quantities and decisions
 
   @HiveField(28)
   String? inspectionRemark; // Remark for inspection
@@ -228,7 +232,8 @@ class InspectionItem extends HiveObject {
   }
 
   // Helper method to update quantities for a specific GRN
-  void updateGRNQuantities(String grnNo, double acceptedQty, double rejectedQty, String usageDecision) {
+  void updateGRNQuantities(String grnNo, double acceptedQty, double rejectedQty,
+      String usageDecision) {
     final grnQty = grnQuantities[grnNo];
     if (grnQty != null) {
       grnQty.acceptedQty = acceptedQty;
@@ -409,6 +414,7 @@ class QualityParameter extends HiveObject {
   static const String platingQuality = 'Plating Quality';
   static const String gradeCheck = 'Grade Check';
   static const String colourShade = 'Colour/Shade';
-  static const String referenceStandard = 'Check for Reference Standard (IS/IEC)';
+  static const String referenceStandard =
+      'Check for Reference Standard (IS/IEC)';
   static const String conformanceReport = 'Review & Verify Conformance Report';
 }

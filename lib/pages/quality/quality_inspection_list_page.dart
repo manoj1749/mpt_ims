@@ -415,13 +415,13 @@ class _QualityInspectionListPageState
           final item = rendererContext.row.cells['inspection']!.value
               as QualityInspection;
           final inspItem = item.items.first;
-          
+
           // Get the usage decision from GRN quantities
           String displayText = '';
           if (inspItem.grnQuantities.isNotEmpty) {
             final grnQty = inspItem.grnQuantities.values.first;
             displayText = grnQty.usageDecision;
-            
+
             if (grnQty.usageDecision == '100% Recheck' &&
                 grnQty.recheckType != null) {
               displayText += '\n${grnQty.recheckType}';
@@ -593,7 +593,7 @@ class _QualityInspectionListPageState
       if (inspection.items.isEmpty) continue;
 
       final item = inspection.items.first;
-      
+
       // Calculate total quantities from all GRNs
       double totalAcceptedQty = 0.0;
       double totalRejectedQty = 0.0;
@@ -601,9 +601,10 @@ class _QualityInspectionListPageState
         totalAcceptedQty += grnQty.acceptedQty;
         totalRejectedQty += grnQty.rejectedQty;
       }
-      
+
       // Calculate pending quantity
-      double pendingQty = item.receivedQty - (totalAcceptedQty + totalRejectedQty);
+      double pendingQty =
+          item.receivedQty - (totalAcceptedQty + totalRejectedQty);
 
       rows.add(
         PlutoRow(

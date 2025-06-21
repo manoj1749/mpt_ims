@@ -332,7 +332,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
   // Update stock based on inspection status change
   Future<void> updateStockFromInspection(QualityInspection inspection) async {
-    print('\n=== Debug: Updating Stock from Inspection ${inspection.inspectionNo} ===');
+    print(
+        '\n=== Debug: Updating Stock from Inspection ${inspection.inspectionNo} ===');
 
     // Only process completed inspections
     if (!inspection.status.startsWith('Completed')) {
@@ -408,7 +409,6 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
           // For partial acceptance, handle PR-wise quantities
           if (grnQty.usageDecision == '100% Recheck' &&
               grnQty.recheckType == 'Partial Acceptance') {
-            
             // Process each PO's quantities
             for (var poEntry in grnItem.prQuantities.entries) {
               final poNo = poEntry.key;
@@ -436,12 +436,13 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
                 // Calculate proportion of this PR in the original GRN
                 final proportion = originalQty / grnItem.receivedQty;
-                
+
                 // Calculate accepted and rejected quantities for this PR
                 final acceptedQty = poQty.acceptedQty * proportion;
 
                 // Update PO details with PR quantities
-                stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, acceptedQty);
+                stock.poDetails[poNo]!
+                    .addReceivedQuantity(grnNo, prNo, acceptedQty);
 
                 // Ensure PR details exist
                 stock.prDetails[prNo] ??= StockPRDetails(
@@ -495,7 +496,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
                 final acceptedQty = grnQty.acceptedQty * proportion;
 
                 // Update PO details with PR quantities
-                stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, acceptedQty);
+                stock.poDetails[poNo]!
+                    .addReceivedQuantity(grnNo, prNo, acceptedQty);
 
                 // Ensure PR details exist
                 stock.prDetails[prNo] ??= StockPRDetails(

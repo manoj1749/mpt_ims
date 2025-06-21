@@ -19,11 +19,11 @@ class MaterialIssueListPage extends ConsumerStatefulWidget {
 class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
   late final List<PlutoColumn> columns;
   PlutoGridStateManager? stateManager;
-  String _selectedStatus = 'Pending'; // Default to Pending view
 
   @override
   void initState() {
     super.initState();
+    // Initialize columns
     columns = [
       PlutoColumn(
         title: 'S.No',
@@ -56,30 +56,10 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
         enableEditingMode: false,
       ),
       PlutoColumn(
-        title: 'Issued To',
-        field: 'issuedTo',
-        type: PlutoColumnType.text(),
-        width: 150,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.center,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
         title: 'Job Numbers',
         field: 'jobNumbers',
         type: PlutoColumnType.text(),
         width: 200,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.center,
-        enableEditingMode: false,
-      ),
-      PlutoColumn(
-        title: 'Status',
-        field: 'status',
-        type: PlutoColumnType.text(),
-        width: 120,
         backgroundColor: Colors.grey[850],
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
@@ -167,19 +147,12 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
 
   List<PlutoRow> _getRows() {
     final materialIssues = ref.watch(materialIssueProvider);
-    final filteredIssues = materialIssues.where((issue) {
-      if (_selectedStatus == 'All') return true;
-      return issue.status == _selectedStatus;
-    }).toList();
-
-    return filteredIssues.mapIndexed((index, issue) {
+    return materialIssues.mapIndexed((index, issue) {
       return PlutoRow(cells: {
         'serialNo': PlutoCell(value: index + 1),
         'issueNo': PlutoCell(value: issue.issueNo),
         'issueDate': PlutoCell(value: issue.issueDate),
-        'issuedTo': PlutoCell(value: issue.issuedTo),
         'jobNumbers': PlutoCell(value: issue.formattedJobNo),
-        'status': PlutoCell(value: issue.status),
         'actions': PlutoCell(value: ''),
       });
     }).toList();
@@ -187,22 +160,28 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch the provider to trigger rebuilds
+    ref.watch(materialIssueProvider);
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Material Issues'),
         actions: [
-          DropdownButton<String>(
-            value: _selectedStatus,
-            items: const [
-              DropdownMenuItem(value: 'Pending', child: Text('Pending')),
-              DropdownMenuItem(value: 'Completed', child: Text('Completed')),
-              DropdownMenuItem(value: 'All', child: Text('All')),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedStatus = value;
-                });
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              if (stateManager != null) {
+                // Force a refresh of the provider
+                ref.invalidate(materialIssueProvider);
+                stateManager!.removeAllRows();
+                stateManager!.appendRows(_getRows());
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Material Issues refreshed'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
               }
             },
           ),
@@ -226,11 +205,13 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
         ],
       ),
       body: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(8),
         child: PlutoGrid(
           columns: columns,
           rows: _getRows(),
-          onLoaded: (event) => stateManager = event.stateManager,
+          onLoaded: (PlutoGridOnLoadedEvent event) {
+            stateManager = event.stateManager;
+          },
           configuration: PlutoGridConfigurations.darkMode(),
         ),
       ),

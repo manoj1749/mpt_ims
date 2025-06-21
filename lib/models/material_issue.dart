@@ -16,21 +16,12 @@ class MaterialIssue extends HiveObject {
   @HiveField(3)
   List<MaterialIssueItem> items;
 
-  @HiveField(4)
-  String? _status;
-
-  String get status => _status ?? 'Pending';
-
-  set status(String value) {
-    _status = value;
-  }
-
   // Get all unique job numbers from all items
   Set<String> get jobNumbers {
     final jobs = <String>{};
     for (var item in items) {
       for (var mrDetail in item.mrDetails.values) {
-        if (mrDetail.jobNo != 'General') {
+        if (mrDetail.jobNo.isNotEmpty && mrDetail.jobNo != 'General') {
           jobs.add(mrDetail.jobNo);
         }
       }
@@ -43,6 +34,8 @@ class MaterialIssue extends HiveObject {
     final jobs = jobNumbers;
     if (jobs.isEmpty) {
       return 'General Stock';
+    } else if (jobs.length == 1) {
+      return jobs.first;
     } else {
       return jobs.join(', ');
     }
@@ -53,24 +46,19 @@ class MaterialIssue extends HiveObject {
     required this.issueDate,
     required this.issuedTo,
     required this.items,
-    String? status,
-  }) {
-    _status = status;
-  }
+  });
 
   MaterialIssue copyWith({
     String? issueNo,
     String? issueDate,
     String? issuedTo,
     List<MaterialIssueItem>? items,
-    String? status,
   }) {
     return MaterialIssue(
       issueNo: issueNo ?? this.issueNo,
       issueDate: issueDate ?? this.issueDate,
       issuedTo: issuedTo ?? this.issuedTo,
       items: items ?? this.items.map((item) => item.copyWith()).toList(),
-      status: status ?? _status,
     );
   }
 }

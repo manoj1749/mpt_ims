@@ -76,15 +76,6 @@ class MaterialRequestNotifier extends Notifier<List<MaterialRequest>> {
     final count = (todayIssues + 1).toString().padLeft(3, '0');
     return 'MI$year$month$day$count';
   }
-
-  // Update issue status
-  Future<void> updateStatus(String issueNo, String status) async {
-    final issue = getMaterialRequest(issueNo);
-    if (issue != null) {
-      issue.status = status;
-      await updateMaterialRequest(issue);
-    }
-  }
 }
 
 class MaterialIssueProvider with ChangeNotifier {
@@ -92,7 +83,28 @@ class MaterialIssueProvider with ChangeNotifier {
   final Box<MaterialRequest> _requestBox;
   final Box<StockMaintenance> _stockBox;
 
-  MaterialIssueProvider(this._issueBox, this._requestBox, this._stockBox);
+  MaterialIssueProvider(this._issueBox, this._requestBox, this._stockBox) {
+    // Print all material issues when provider is initialized
+    print('\n=== Material Issues Debug ===');
+    for (var issue in _issueBox.values) {
+      print('\nMaterial Issue: ${issue.issueNo}');
+      print('Issue Date: ${issue.issueDate}');
+      print('Issued To: ${issue.issuedTo}');
+      print('Job Numbers: ${issue.formattedJobNo}');
+      
+      for (var item in issue.items) {
+        print('\n  Item: ${item.materialCode} - ${item.materialDescription}');
+        print('  Quantity: ${item.quantity} ${item.unit}');
+        
+        for (var mrDetail in item.mrDetails.entries) {
+          print('\n    MR No: ${mrDetail.key}');
+          print('    Job No: ${mrDetail.value.jobNo}');
+          print('    Quantity: ${mrDetail.value.quantity}');
+          print('    Issued Quantities: ${item.issuedQuantities[mrDetail.key]}');
+        }
+      }
+    }
+  }
 
   List<MaterialIssue> get issues => _issueBox.values.toList();
 
@@ -103,7 +115,7 @@ class MaterialIssueProvider with ChangeNotifier {
         .toList();
   }
 
-  // Check if we have sufficient stock for a material request
+  // Check if we have sufficient stock for a material request in the specific job
   bool hasSufficientStock(
       String materialCode, String jobNo, double requestedQty) {
     final stockItem = _stockBox.values
@@ -121,83 +133,109 @@ class MaterialIssueProvider with ChangeNotifier {
 
   // Create a new material issue
   Future<void> createMaterialIssue(MaterialIssue issue) async {
+    print('\n=== Creating Material Issue ===');
+    print('Issue No: ${issue.issueNo}');
+    print('Issue Date: ${issue.issueDate}');
+    print('Job Numbers: ${issue.formattedJobNo}');
+
     // Validate stock availability and update stock for each item
     for (var item in issue.items) {
+      print('\nChecking Item: ${item.materialCode} - ${item.materialDescription}');
+      
       for (var mrDetail in item.mrDetails.entries) {
+        final mrNo = mrDetail.key;
         final jobNo = mrDetail.value.jobNo;
         final requestedQty = mrDetail.value.quantity;
+
+        print('\n  MR No: $mrNo');
+        print('  Job No: $jobNo');
+        print('  Requested Qty: $requestedQty');
 
         // Get the stock item
         final stockItem = _stockBox.values
             .firstWhere((stock) => stock.materialCode == item.materialCode);
-
-        // Get job-specific stock if it exists
-        final jobDetails = stockItem.jobDetails[jobNo];
-        if (jobDetails == null) {
-          throw Exception('No stock allocated for job $jobNo');
+        
+        print('  Current Stock: ${stockItem.currentStock}');
+        if (stockItem.jobDetails.containsKey(jobNo)) {
+          final jobStock = stockItem.jobDetails[jobNo]!;
+          print('  Job Stock - Allocated: ${jobStock.allocatedQuantity}, Consumed: ${jobStock.consumedQuantity}');
         }
 
-        // Check available quantity
-        final availableQty =
-            jobDetails.allocatedQuantity - jobDetails.consumedQuantity;
-        if (availableQty < requestedQty) {
-          throw Exception(
-              'Insufficient stock for ${item.materialDescription} for job $jobNo. Available: $availableQty, Requested: $requestedQty');
-        }
+        // Get the material request
+        final materialRequest = _requestBox.values.firstWhere(
+          (mr) => mr.issueNo == mrNo,
+          orElse: () => throw Exception('Material Request $mrNo not found'),
+        );
+
+        print('  MR Status: ${materialRequest.status}');
 
         // Get the material request item
-        final materialRequest = _requestBox.values.firstWhere(
-          (mr) =>
-              mr.jobNo == jobNo &&
-              mr.items.any((i) => i.issueNo == mrDetail.key),
-        );
-        final mrItem =
-            materialRequest.items.firstWhere((i) => i.issueNo == mrDetail.key);
+        final mrItem = materialRequest.items
+            .firstWhere((i) => i.materialCode == item.materialCode);
+
+        print('  MR Item - Total Qty: ${mrItem.quantity}, Issued: ${mrItem.totalIssuedQuantity}, Pending: ${mrItem.pendingQuantity}');
 
         // Check if there's enough pending quantity in the material request
         if (mrItem.pendingQuantity < requestedQty) {
           throw Exception(
-              'Cannot issue more than the pending quantity for material request ${mrDetail.key}');
+              'Cannot issue more than the pending quantity for material request $mrNo');
         }
+
+        // Find available PR for the job that has stock
+        final prInfo = stockItem.findAvailablePRForJob(jobNo, requestedQty);
+        if (prInfo == null) {
+          throw Exception('No available stock found for job $jobNo');
+        }
+        print('  Found PR: ${prInfo.$1} with available qty: ${prInfo.$2}');
       }
     }
 
     // If all validations pass, create the issue and update stock
     await _issueBox.add(issue);
+    print('\nMaterial Issue created successfully');
 
     // Update stock quantities and material request issued quantities
     for (var item in issue.items) {
+      print('\nUpdating stock for: ${item.materialCode}');
       final stockItem = _stockBox.values
           .firstWhere((stock) => stock.materialCode == item.materialCode);
 
       for (var mrDetail in item.mrDetails.entries) {
+        final mrNo = mrDetail.key;
         final jobNo = mrDetail.value.jobNo;
         final issuedQty = mrDetail.value.quantity;
 
-        // Update stock at all levels (PR -> PO -> GRN)
-        stockItem.issueStockForJob(jobNo, issue.issueNo, issuedQty);
-        await stockItem.save();
+        print('\n  Updating MR: $mrNo');
+        print('  Job No: $jobNo');
+        print('  Issued Qty: $issuedQty');
+
+        // Get the material request
+        final materialRequest = _requestBox.values.firstWhere(
+          (mr) => mr.issueNo == mrNo,
+        );
+        final mrItem = materialRequest.items
+            .firstWhere((i) => i.materialCode == item.materialCode);
 
         // Update issued quantity in material request
-        final materialRequest = _requestBox.values.firstWhere(
-          (mr) =>
-              mr.jobNo == jobNo &&
-              mr.items.any((i) => i.issueNo == mrDetail.key),
-        );
-        final mrItem =
-            materialRequest.items.firstWhere((i) => i.issueNo == mrDetail.key);
         mrItem.addIssuedQuantity(issue.issueNo, issuedQty);
-        await materialRequest.save();
+        print('  Updated MR Item - Total Issued: ${mrItem.totalIssuedQuantity}, Pending: ${mrItem.pendingQuantity}');
+
+        // Issue stock from the specific job's allocation
+        stockItem.issueStockForJob(jobNo, issue.issueNo, issuedQty);
+        print('  Updated Job Stock');
 
         // If all requested quantity has been issued, update the material request status
         if (mrItem.pendingQuantity <= 0) {
           materialRequest.status = 'Completed';
-          await materialRequest.save();
+          print('  MR Status updated to Completed');
         }
+        await materialRequest.save();
       }
+      await stockItem.save();
     }
 
     notifyListeners();
+    print('\nMaterial Issue process completed successfully');
   }
 
   // Update an existing material issue
@@ -216,7 +254,7 @@ class MaterialIssueProvider with ChangeNotifier {
           final jobNo = mrDetail.value.jobNo;
           final issuedQty = mrDetail.value.quantity;
 
-          // Revert consumed quantity for the job
+          // Revert job-specific consumed quantity
           final jobDetails = stockItem.jobDetails[jobNo]!;
           jobDetails.consumedQuantity -= issuedQty;
           await stockItem.save();
@@ -230,6 +268,12 @@ class MaterialIssueProvider with ChangeNotifier {
           final mrItem = materialRequest.items
               .firstWhere((i) => i.issueNo == mrDetail.key);
           mrItem.removeIssuedQuantity(issue.issueNo);
+
+          // Reset material request status if needed
+          if (materialRequest.status == 'Completed' &&
+              mrItem.pendingQuantity > 0) {
+            materialRequest.status = 'Active';
+          }
           await materialRequest.save();
         }
       }
@@ -257,7 +301,7 @@ class MaterialIssueProvider with ChangeNotifier {
           final jobNo = mrDetail.value.jobNo;
           final issuedQty = mrDetail.value.quantity;
 
-          // Revert consumed quantity for the job
+          // Revert job-specific consumed quantity
           final jobDetails = stockItem.jobDetails[jobNo]!;
           jobDetails.consumedQuantity -= issuedQty;
           await stockItem.save();
@@ -271,6 +315,12 @@ class MaterialIssueProvider with ChangeNotifier {
           final mrItem = materialRequest.items
               .firstWhere((i) => i.issueNo == mrDetail.key);
           mrItem.removeIssuedQuantity(issueNo);
+
+          // Reset material request status if needed
+          if (materialRequest.status == 'Completed' &&
+              mrItem.pendingQuantity > 0) {
+            materialRequest.status = 'Active';
+          }
           await materialRequest.save();
         }
       }
@@ -297,6 +347,12 @@ final materialIssueBoxProvider = Provider<Box<MaterialIssue>>((ref) {
 final materialIssueListProvider = Provider<List<MaterialIssue>>((ref) {
   final box = ref.watch(materialIssueBoxProvider);
   return box.values.toList();
+});
+
+final materialIssueProvider =
+    StateNotifierProvider<MaterialIssueNotifier, List<MaterialIssue>>((ref) {
+  final box = ref.watch(materialIssueBoxProvider);
+  return MaterialIssueNotifier(box, ref);
 });
 
 class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
@@ -341,9 +397,3 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
     }
   }
 }
-
-final materialIssueProvider =
-    StateNotifierProvider<MaterialIssueNotifier, List<MaterialIssue>>((ref) {
-  final box = ref.watch(materialIssueBoxProvider);
-  return MaterialIssueNotifier(box, ref);
-});

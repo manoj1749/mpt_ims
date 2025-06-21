@@ -21,13 +21,13 @@ class MaterialIssueAdapter extends TypeAdapter<MaterialIssue> {
       issueDate: fields[1] as String,
       issuedTo: fields[2] as String,
       items: (fields[3] as List).cast<MaterialIssueItem>(),
-    ).._status = fields[4] as String?;
+    );
   }
 
   @override
   void write(BinaryWriter writer, MaterialIssue obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.issueNo)
       ..writeByte(1)
@@ -35,9 +35,7 @@ class MaterialIssueAdapter extends TypeAdapter<MaterialIssue> {
       ..writeByte(2)
       ..write(obj.issuedTo)
       ..writeByte(3)
-      ..write(obj.items)
-      ..writeByte(4)
-      ..write(obj._status);
+      ..write(obj.items);
   }
 
   @override

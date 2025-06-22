@@ -62,3 +62,4 @@ class MaterialIssue extends HiveObject {
     );
   }
 }
+ 

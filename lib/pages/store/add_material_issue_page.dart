@@ -121,25 +121,31 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     final Map<String, ItemMRDetails> mrDetails = {};
     double totalQty = 0.0;
 
+    print('\n=== Creating Material Issue Item ===');
+    print('Material: ${material.partNo} - ${material.description}');
+
     for (var (mrItem, mr) in mrItems) {
-      final key = '${material.partNo}_${mrItem.issueNo}';
+      final key = '${material.partNo}_${mr.issueNo}';
       if (selectedMRs[key] == true) {
         final qty = double.tryParse(qtyControllers[key]!.text) ?? 0.0;
         if (qty > 0) {
           // Make sure we get the job number from the MR
           final jobNo = mr.jobNo ?? 'General';
-          print('Creating MI Item - MR: ${mrItem.issueNo}, Job No: $jobNo'); // Debug log
+          print('  MR: ${mr.issueNo}, Job No: $jobNo, Quantity: $qty');
           
-          mrDetails[mrItem.issueNo] = ItemMRDetails(
-            mrNo: mrItem.issueNo,
+          mrDetails[mr.issueNo] = ItemMRDetails(
+            mrNo: mr.issueNo,
             jobNo: jobNo,
             quantity: qty,
           );
-          issuedQuantities[mrItem.issueNo] = qty;
+          issuedQuantities[mr.issueNo] = qty;
           totalQty += qty;
         }
       }
     }
+
+    print('  Total Quantity: $totalQty');
+    print('  Job Numbers: ${mrDetails.values.map((d) => d.jobNo).join(", ")}');
 
     return MaterialIssueItem(
       materialCode: material.partNo,
@@ -213,7 +219,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
     final issueDate = DateFormat('dd-MM-yyyy').format(DateTime.now());
     final issueNo = widget.existingIssue?.issueNo ??
-        'MI${DateFormat('yyyyMMddHHmmss').format(DateTime.now())}';
+        ref.read(materialIssueProvider.notifier).generateIssueNo();
 
     // Check if any items are selected and have valid quantities
     bool hasSelectedItems = false;
@@ -240,13 +246,27 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       return;
     }
 
-    // Create issue items
-    final items = <MaterialIssueItem>[];
+    // Group items by material code
+    final materialGroups = <String, List<(MaterialRequestItem, MaterialRequest)>>{};
     for (var item in materialMRItems) {
       final material = item.$1;
       final mrItem = item.$2;
       final mr = item.$3;
-      final issueItem = _createIssueItem(material, [(mrItem, mr)]);
+      final key = '${material.partNo}_${mr.issueNo}';
+      
+      if (selectedMRs[key] == true) {
+        final qty = double.tryParse(qtyControllers[key]?.text ?? '') ?? 0;
+        if (qty > 0) {
+          materialGroups.putIfAbsent(material.partNo, () => []).add((mrItem, mr));
+        }
+      }
+    }
+
+    // Create issue items
+    final items = <MaterialIssueItem>[];
+    for (var entry in materialGroups.entries) {
+      final material = materialMRItems.firstWhere((item) => item.$1.partNo == entry.key).$1;
+      final issueItem = _createIssueItem(material, entry.value);
       if (issueItem.mrDetails.isNotEmpty) {
         items.add(issueItem);
       }
@@ -255,7 +275,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     final materialIssue = MaterialIssue(
       issueNo: issueNo,
       issueDate: issueDate,
-      issuedTo: 'Store',  // Default to Store since we removed the field
+      issuedTo: 'Store',
       items: items,
     );
 
@@ -264,19 +284,33 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
         await ref
             .read(materialIssueProvider.notifier)
             .updateMaterialIssue(materialIssue);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Material Issue updated successfully')),
+          );
+        }
       } else {
         await ref
             .read(materialIssueProvider.notifier)
             .createMaterialIssue(materialIssue);
+            
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Material Issue created successfully')),
+          );
+        }
       }
 
       if (mounted) {
         Navigator.of(context).pop();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -465,137 +499,135 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
     // Get job-specific stock if available
     final jobNo = mr.jobNo ?? 'General';
-    final jobDetails = stockItem.jobDetails[jobNo];
-    final availableQty = jobDetails != null
-        ? jobDetails.allocatedQuantity - jobDetails.consumedQuantity
-        : 0.0;
+    double availableQty = 0.0;
+    String prNo = '';
+
+    // Find available PR for this job
+    final prInfo = stockItem.findAvailablePRForJob(jobNo, mrItem.pendingQuantity);
+    if (prInfo != null) {
+      prNo = prInfo.$1;
+      availableQty = prInfo.$2;
+      print('Found PR $prNo with available quantity $availableQty for job $jobNo');
+    } else {
+      print('No available PR found for job $jobNo');
+    }
 
     return Card(
-      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.all(8.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    material.description,
-                    style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Stock: $availableQty ${material.unit}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                SizedBox(
-                  width: 24,
-                  child: Checkbox(
-                    value: selectedMRs[key] ?? false,
-                    onChanged: (value) {
-                      setState(() {
-                        selectedMRs[key] = value ?? false;
-                        if (value == true) {
-                          final issuedQty = mrItem.issuedQuantities.values
-                              .fold(0.0, (sum, qty) => sum + qty);
-                          final remainingQty =
-                              double.parse(mrItem.quantity) - issuedQty;
-                          // Only allow issuing up to available stock
-                          final maxQty = remainingQty < availableQty
-                              ? remainingQty
-                              : availableQty;
-                          qtyControllers[key]?.text = maxQty.toString();
-                        } else {
-                          qtyControllers[key]?.text = '0';
-                        }
-                      });
-                    },
-                  ),
+                Checkbox(
+                  value: selectedMRs[key] ?? false,
+                  onChanged: (value) {
+                    if (value == true && availableQty <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('No available stock for job $jobNo'),
+                        ),
+                      );
+                      return;
+                    }
+                    setState(() {
+                      selectedMRs[key] = value ?? false;
+                      if (value == false) {
+                        qtyControllers[key]?.text = '';
+                      }
+                    });
+                  },
                 ),
                 Expanded(
-                  flex: 2,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Code: ${material.partNo}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      Text(
-                        mr.issueNo,
+                        '${material.partNo} - ${material.description}',
                         style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Unit: ${material.unit}',
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Job: ${mr.jobNo ?? "General"}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    Text(
-                      'Req: ${mrItem.quantity} | Issued: ${mrItem.issuedQuantities.values.fold(0.0, (sum, qty) => sum + qty)}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                SizedBox(
-                  width: 80,
-                  child: TextFormField(
-                    controller: qtyControllers[key],
-                    keyboardType: TextInputType.number,
-                    enabled: selectedMRs[key] == true,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 8,
-                      ),
-                      hintText: '0.0',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (selectedMRs[key] == true) {
-                        final qty = double.tryParse(value ?? '') ?? 0;
-                        if (qty <= 0) {
-                          return 'Required';
-                        }
-                        if (qty > availableQty) {
-                          return 'Exceeds stock';
-                        }
-                        final issuedQty = mrItem.issuedQuantities.values
-                            .fold(0.0, (sum, qty) => sum + qty);
-                        final remainingQty =
-                            double.parse(mrItem.quantity) - issuedQty;
-                        if (qty > remainingQty) {
-                          return 'Exceeds pending';
-                        }
-                      }
-                      return null;
-                    },
-                  ),
-                ),
               ],
             ),
+            if (selectedMRs[key] == true) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Job: $jobNo',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      Text(
+                        'PR: $prNo',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      Text(
+                        'Available: $availableQty ${material.unit}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      Text(
+                        'Pending in MR: ${mrItem.pendingQuantity} ${material.unit}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  SizedBox(
+                    width: 80,
+                    child: TextFormField(
+                      controller: qtyControllers[key],
+                      keyboardType: TextInputType.number,
+                      enabled: selectedMRs[key] == true,
+                      style: const TextStyle(fontSize: 13),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        hintText: '0.0',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (selectedMRs[key] == true) {
+                          final qty = double.tryParse(value ?? '') ?? 0;
+                          if (qty <= 0) {
+                            return 'Required';
+                          }
+                          if (qty > availableQty) {
+                            return 'Exceeds available';
+                          }
+                          if (qty > mrItem.pendingQuantity) {
+                            return 'Exceeds pending';
+                          }
+                        }
+                        return null;
+                      },
+                      onChanged: (value) {
+                        setState(() {
+                          // Trigger rebuild to update validation
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

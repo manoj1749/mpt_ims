@@ -18,6 +18,7 @@ import '../../provider/purchase_request_provider.dart';
 import '../../models/category.dart';
 import '../../provider/category_provider.dart';
 import '../../models/store_inward.dart';
+import '../../provider/stock_maintenance_provider.dart';
 
 class AddQualityInspectionPage extends ConsumerStatefulWidget {
   const AddQualityInspectionPage({super.key});
@@ -66,8 +67,7 @@ class _AddQualityInspectionPageState
     final categories = ref.watch(categoryListProvider);
 
     // Group items by material and GRN
-    final materialGRNItems =
-        <String, Map<String, List<Map<String, dynamic>>>>{};
+    final materialGRNItems = <String, Map<String, List<Map<String, dynamic>>>>{};
     final grnInfo = <String, Map<String, String>>{};
 
     // Track inspected quantities per material and GRN
@@ -216,21 +216,14 @@ class _AddQualityInspectionPageState
             materialDescription: firstItemData['materialDescription'],
             unit: firstItemData['unit'],
             category: material.category,
-            receivedQty: grnQuantities.values
-                .fold(0.0, (sum, qty) => sum + qty.receivedQty),
+            receivedQty: 0, // Initialize to 0, will be updated when GRN is selected
             costPerUnit: double.parse(firstItemData['costPerUnit']),
-            totalCost: grnQuantities.values.fold(
-                0.0,
-                (sum, qty) =>
-                    sum +
-                    qty.receivedQty *
-                        (double.tryParse(firstItemData['costPerUnit']) ?? 0.0)),
+            totalCost: 0, // Initialize to 0, will be updated when GRN is selected
             sampleSize: 0,
             inspectedQty: 0,
             acceptedQty: 0,
             rejectedQty: 0,
-            pendingQty: grnQuantities.values
-                .fold(0.0, (sum, qty) => sum + qty.receivedQty),
+            pendingQty: 0, // Initialize to 0, will be updated when GRN is selected
             usageDecision: 'Lot Accepted',
             receivedDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
             expirationDate: '',
@@ -267,6 +260,14 @@ class _AddQualityInspectionPageState
     });
   }
 
+  // Update quantities when GRN is selected
+  void _updateSelectedGRNQuantities(InspectionItem item, String selectedGRNNo) {
+    final selectedGRNQty = item.grnQuantities[selectedGRNNo]!;
+    item.receivedQty = selectedGRNQty.receivedQty;
+    item.pendingQty = selectedGRNQty.receivedQty;
+    item.totalCost = selectedGRNQty.receivedQty * item.costPerUnit;
+  }
+
   @override
   Widget build(BuildContext context) {
     final suppliers = ref.watch(supplierListProvider);
@@ -274,13 +275,46 @@ class _AddQualityInspectionPageState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Quality Inspection'),
+        actions: [
+          FilledButton.icon(
+            onPressed: _saveInspection,
+            icon: const Icon(Icons.save),
+            label: const Text('Save'),
+          ),
+          const SizedBox(width: 16),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child: ListView(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+                // Info message about one material at a time
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue[300], size: 20),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Select GRN for only one material at a time. All materials are shown but you can only inspect one material in each inspection.',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
               buildTextField(_inspectionDateController, 'Inspection Date',
                   isDate: true),
 
@@ -367,11 +401,8 @@ class _AddQualityInspectionPageState
                 ..._items.map((item) => _buildItemCard(item)),
 
               const SizedBox(height: 20),
-              FilledButton(
-                onPressed: _saveInspection,
-                child: const Text('Save Inspection'),
-              ),
             ],
+            ),
           ),
         ),
       ),
@@ -412,61 +443,134 @@ class _AddQualityInspectionPageState
     if (!_formKey.currentState!.validate()) return;
 
     try {
-      // Validate that exactly one GR is selected
+      // Validate inspected by and approved by fields
+      if (_inspectedByController.text.trim().isEmpty) {
+        throw Exception('Please enter the inspector name');
+      }
+
+      if (_approvedByController.text.trim().isEmpty) {
+        throw Exception('Please enter the approver name');
+      }
+
+      // Count how many materials have selected GRNs
+      int materialsWithSelectedGRNs = 0;
+      InspectionItem? selectedItem;
+
       for (var item in _items) {
-        final selectedGRNs = item.grnQuantities.values.where((grnQty) => grnQty.isSelected == true).length;
-        if (selectedGRNs != 1) {
-          throw Exception('Please select exactly one GRN for each material');
+        final hasSelectedGRN = item.grnQuantities.values.any((grnQty) => grnQty.isSelected == true);
+        if (hasSelectedGRN) {
+          materialsWithSelectedGRNs++;
+          selectedItem = item;
         }
       }
 
-      // Generate inspection number
-      final inspectionNo = ref
-          .read(qualityInspectionProvider.notifier)
-          .generateInspectionNumber();
+      // Validate GRN selection
+      if (materialsWithSelectedGRNs == 0) {
+        throw Exception('Please select a GRN for at least one material');
+      }
+      if (materialsWithSelectedGRNs > 1) {
+        throw Exception('Please select GRN for only one material at a time');
+      }
 
-      // Create inspection object
-      final inspection = QualityInspection(
-        inspectionNo: inspectionNo,
-        inspectionDate: _inspectionDateController.text,
-        grnNo: _items.first.grnQuantities.entries
-            .firstWhere((entry) => entry.value.isSelected == true)
-            .key,
-        supplierName: selectedSupplier!.name,
-        poNo: _items.first.grnQuantities.values
-            .firstWhere((grnQty) => grnQty.isSelected == true)
-            .poNo ?? '',
-        billNo: '',
-        billDate: '',
-        receivedDate: _items.first.receivedDate,
-        grnDate: _items.first.grnDate ?? '',
-        inspectedBy: _inspectedByController.text,
-        approvedBy: _approvedByController.text,
-        items: _items,
-        status: 'Pending',
+      // Validate that exactly one GRN is selected for the chosen material
+      final selectedGRNs = selectedItem!.grnQuantities.values.where((grnQty) => grnQty.isSelected == true).length;
+      if (selectedGRNs != 1) {
+        throw Exception('Please select exactly one GRN for the material');
+      }
+
+      // Get the selected GRN entry
+      final selectedGRNEntry = selectedItem.grnQuantities.entries
+          .firstWhere((entry) => entry.value.isSelected == true);
+      final selectedGRNQty = selectedGRNEntry.value;
+
+      // Get the GRN details to find the supplier
+      final inwards = ref.read(storeInwardProvider);
+      final selectedGRN = inwards.firstWhere(
+        (grn) => grn.grnNo == selectedGRNEntry.key,
+        orElse: () => throw Exception('Selected GRN not found'),
       );
 
-      // Add inspection
-      ref.read(qualityInspectionProvider.notifier).addInspection(inspection);
+      // Set quantities based on usage decision
+      if (selectedGRNQty.usageDecision == 'Lot Accepted') {
+        // If lot is accepted, all received quantity is accepted
+        selectedGRNQty.acceptedQty = selectedGRNQty.receivedQty;
+        selectedGRNQty.rejectedQty = 0.0;
+        selectedItem.acceptedQty = selectedGRNQty.receivedQty;
+        selectedItem.rejectedQty = 0.0;
+      } else if (selectedGRNQty.usageDecision == 'Rejected') {
+        // If lot is rejected, all received quantity is rejected
+        selectedGRNQty.acceptedQty = 0.0;
+        selectedGRNQty.rejectedQty = selectedGRNQty.receivedQty;
+        selectedItem.acceptedQty = 0.0;
+        selectedItem.rejectedQty = selectedGRNQty.receivedQty;
+      } else if (selectedGRNQty.usageDecision == '100% Recheck') {
+        if (selectedGRNQty.recheckType == '100% Acceptance') {
+          // For 100% acceptance after recheck
+          selectedGRNQty.acceptedQty = selectedGRNQty.receivedQty;
+          selectedGRNQty.rejectedQty = 0.0;
+          selectedItem.acceptedQty = selectedGRNQty.receivedQty;
+          selectedItem.rejectedQty = 0.0;
+        } else if (selectedGRNQty.recheckType == 'Partial Acceptance') {
+          // For partial acceptance, use the quantities from PR distribution
+          double totalAcceptedQty = 0.0;
+          for (var poEntry in selectedGRN.items.first.prQuantities.entries) {
+            final prMap = poEntry.value;
+            if (prMap != null) {
+              for (var prEntry in prMap.entries) {
+                final qtyController = _prQtyControllers[selectedGRNEntry.key]!['${poEntry.key}_${prEntry.key}'];
+                if (qtyController != null && qtyController.text.isNotEmpty) {
+                  totalAcceptedQty += double.parse(qtyController.text);
+                }
+              }
+            }
+          }
+          selectedGRNQty.acceptedQty = totalAcceptedQty;
+          selectedGRNQty.rejectedQty = selectedGRNQty.receivedQty - totalAcceptedQty;
+          selectedItem.acceptedQty = totalAcceptedQty;
+          selectedItem.rejectedQty = selectedGRNQty.receivedQty - totalAcceptedQty;
+        }
+      }
+
+      // Update pending quantity
+      selectedItem.pendingQty = selectedGRNQty.receivedQty - (selectedGRNQty.acceptedQty + selectedGRNQty.rejectedQty);
+
+      // Create the inspection with Completed status
+      final inspection = QualityInspection(
+        inspectionNo: ref.read(qualityInspectionProvider.notifier).generateInspectionNumber(),
+        inspectionDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        grnNo: selectedGRNEntry.key,
+        supplierName: selectedGRN.supplierName,
+        poNo: selectedGRN.poNo,
+        billNo: selectedGRN.invoiceNo,
+        billDate: selectedGRN.invoiceDate,
+        receivedDate: selectedGRN.grnDate,
+        grnDate: selectedGRN.grnDate,
+        inspectedBy: _inspectedByController.text.trim(),
+        approvedBy: _approvedByController.text.trim(),
+        items: [selectedItem],
+        status: selectedItem.usageDecision == 'Lot Accepted' ? 'Completed - Accepted' : 'Completed - Rejected',
+      );
+
+      // Add the inspection and update stock
+      await ref.read(qualityInspectionProvider.notifier).addInspection(inspection);
+      
+      // Update stock maintenance
+      await ref.read(stockMaintenanceProvider.notifier).updateStockFromInspection(inspection);
+
+      // Update GRN status
+      await ref.read(storeInwardProvider.notifier).updateGRNStatus(inspection.grnNo);
 
       // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Inspection saved successfully'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('Inspection saved successfully')),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
-      print('Error saving inspection: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save inspection: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: ${e.toString()}')),
         );
       }
     }
@@ -478,6 +582,13 @@ class _AddQualityInspectionPageState
     final categoryParams = ref.watch(categoryParameterProvider);
     ref.read(purchaseOrderListProvider);
     ref.read(purchaseRequestListProvider);
+
+    // Calculate minimum sample size based on lot size
+    double getMinimumSampleSize(double lotSize) {
+      if (lotSize <= 50) return lotSize;  // 100% inspection for small lots
+      if (lotSize <= 500) return lotSize * 0.1;  // 10% for medium lots
+      return lotSize * 0.05;  // 5% for large lots, minimum 50 pieces
+    }
 
     // Get category-specific parameters
     final categorySpecificParams = categoryParams
@@ -581,6 +692,8 @@ class _AddQualityInspectionPageState
                               }
                               // Select only this GRN
                               grnQty.isSelected = true;
+                              // Update quantities based on selected GRN
+                              _updateSelectedGRNQuantities(item, grnNo);
                             });
                           },
                         ),

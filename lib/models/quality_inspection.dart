@@ -52,6 +52,28 @@ class QualityInspection extends HiveObject {
   @HiveField(15)
   Map<String, String> jobNumbers = {}; // Map of PO No to Job No
 
+  // CAPA Details
+  @HiveField(16)
+  String? capaNo;
+
+  @HiveField(17)
+  String? capaStatus; // 'Not Required', 'Pending', 'In Progress', 'Completed'
+
+  @HiveField(18)
+  String? capaDescription;
+
+  @HiveField(19)
+  String? capaAssignedTo;
+
+  @HiveField(20)
+  String? capaTargetDate;
+
+  @HiveField(21)
+  String? capaCompletionDate;
+
+  @HiveField(22)
+  List<String> capaActions = [];
+
   QualityInspection({
     required this.inspectionNo,
     required this.inspectionDate,
@@ -68,14 +90,58 @@ class QualityInspection extends HiveObject {
     this.status = 'Pending',
     Map<String, String>? prNumbers,
     Map<String, String>? jobNumbers,
+    this.capaNo,
+    this.capaStatus = 'Not Required',
+    this.capaDescription,
+    this.capaAssignedTo,
+    this.capaTargetDate,
+    this.capaCompletionDate,
+    List<String>? capaActions,
   }) {
     this.prNumbers = prNumbers ?? {};
     this.jobNumbers = jobNumbers ?? {};
+    this.capaActions = capaActions ?? [];
+  }
+
+  // Helper method to check if CAPA is needed
+  bool get requiresCapa {
+    return items.any((item) => item.capaRequired == true);
+  }
+
+  // Helper method to generate CAPA number
+  void generateCapaNo() {
+    if (capaNo != null) return;  // Already has CAPA number
+    
+    final now = DateTime.now();
+    final year = now.year.toString().substring(2);
+    final month = now.month.toString().padLeft(2, '0');
+    capaNo = 'CAPA$year$month${inspectionNo.substring(8)}';
+  }
+
+  // Helper method to update CAPA status
+  void updateCapaStatus() {
+    if (!requiresCapa) {
+      capaStatus = 'Not Required';
+      return;
+    }
+    
+    if (capaStatus == 'Not Required') {
+      capaStatus = 'Pending';
+      generateCapaNo();
+    }
+    
+    if (capaCompletionDate != null) {
+      capaStatus = 'Completed';
+    } else if (capaActions.isNotEmpty) {
+      capaStatus = 'In Progress';
+    } else {
+      capaStatus = 'Pending';
+    }
   }
 
   @override
   String toString() {
-    return '\nQualityInspection(inspectionNo: $inspectionNo, inspectionDate: $inspectionDate, grnNo: $grnNo, supplierName: $supplierName, poNo: $poNo, status: $status, items: [\n  ${items.map((e) => e.toString()).join(',\n  ')}\n], prNumbers: $prNumbers, jobNumbers: $jobNumbers)';
+    return '\nQualityInspection(inspectionNo: $inspectionNo, inspectionDate: $inspectionDate, grnNo: $grnNo, supplierName: $supplierName, poNo: $poNo, status: $status, capaStatus: $capaStatus, items: [\n  ${items.map((e) => e.toString()).join(',\n  ')}\n], prNumbers: $prNumbers, jobNumbers: $jobNumbers)';
   }
 }
 

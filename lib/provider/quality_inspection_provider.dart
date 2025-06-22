@@ -79,47 +79,85 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
         );
 
     if (index != -1) {
+      // Validate all required fields are filled
+      bool allParametersFilled = inspection.items.every((item) {
+        return item.parameters.every((param) {
+          return param.observation.isNotEmpty && param.result != null;
+        });
+      });
+
+      if (!allParametersFilled) {
+        print('Warning: Not all parameters have observations filled');
+      }
+
       // Update overall usage decision for each item
       for (var item in inspection.items) {
-        item.updateOverallUsageDecision();
+        print('\nProcessing item: ${item.materialCode}');
+        
+        // Get the selected GRN's quantities
+        final selectedGRN = item.grnQuantities.entries
+            .firstWhere((entry) => entry.value.isSelected == true);
+        
+        print('Selected GRN: ${selectedGRN.key}');
+        print('Usage Decision: ${selectedGRN.value.usageDecision}');
+        print('Received Qty: ${selectedGRN.value.receivedQty}');
+        
+        // Update quantities based on usage decision
+        if (selectedGRN.value.usageDecision == 'Lot Accepted') {
+          // If lot is accepted, set all received quantity as accepted
+          selectedGRN.value.acceptedQty = selectedGRN.value.receivedQty;
+          selectedGRN.value.rejectedQty = 0.0;
+          item.acceptedQty = selectedGRN.value.receivedQty;
+          item.rejectedQty = 0.0;
+        } else if (selectedGRN.value.usageDecision == 'Rejected') {
+          // If lot is rejected, set all received quantity as rejected
+          selectedGRN.value.acceptedQty = 0.0;
+          selectedGRN.value.rejectedQty = selectedGRN.value.receivedQty;
+          item.acceptedQty = 0.0;
+          item.rejectedQty = selectedGRN.value.receivedQty;
+        } else if (selectedGRN.value.usageDecision == '100% Recheck') {
+          if (item.recheckType == '100% Acceptance') {
+            // For 100% acceptance after recheck
+            selectedGRN.value.acceptedQty = selectedGRN.value.receivedQty;
+            selectedGRN.value.rejectedQty = 0.0;
+            item.acceptedQty = selectedGRN.value.receivedQty;
+            item.rejectedQty = 0.0;
+          } else {
+            // For partial acceptance after recheck, use the quantities as set
+            selectedGRN.value.acceptedQty = item.acceptedQty;
+            selectedGRN.value.rejectedQty = item.rejectedQty;
+          }
+        }
+        
+        item.receivedQty = selectedGRN.value.receivedQty;
+        
+        print('Updated quantities:');
+        print('Accepted: ${item.acceptedQty}');
+        print('Rejected: ${item.rejectedQty}');
+        print('Received: ${item.receivedQty}');
+
+        // Update pending quantity
+        item.pendingQty = item.receivedQty - (item.acceptedQty + item.rejectedQty);
+        print('Pending: ${item.pendingQty}');
       }
-      // Update inspection status based on all items
-      bool allItemsAccepted = inspection.items.every((item) =>
-          item.usageDecision == 'Lot Accepted' &&
-          item.acceptedQty == item.receivedQty);
 
-      bool allItemsRejected = inspection.items.every((item) =>
-          item.usageDecision == 'Rejected' &&
-          item.rejectedQty == item.receivedQty);
-
-      bool allItemsProcessed = inspection.items.every(
-          (item) => item.acceptedQty + item.rejectedQty >= item.receivedQty);
-
-      print('All Items Accepted: $allItemsAccepted');
-      print('All Items Rejected: $allItemsRejected');
-      print('All Items Processed: $allItemsProcessed');
-
-      if (allItemsAccepted) {
-        inspection.status = 'Completed - Accepted';
-      } else if (allItemsRejected) {
-        inspection.status = 'Completed - Rejected';
-      } else if (allItemsProcessed) {
-        inspection.status = 'Completed - Partial';
-      } else {
-        inspection.status = 'Pending';
-      }
-
-      print('Setting inspection status to: ${inspection.status}');
+      // Set inspection status to Completed immediately
+      inspection.status = 'Completed - Accepted';
+      print('Inspection status set to: ${inspection.status}');
 
       // Update the inspection in Hive
       await box.putAt(index, inspection);
       state = box.values.toList();
 
-      // Update stock if inspection is completed
-      if (inspection.status.startsWith('Completed')) {
-        print('Updating stock maintenance...');
-        await stockMaintenance.updateStockFromInspection(inspection);
+      // First update GRN status
+      print('Updating GRN status...');
+      try {
         await storeInward.updateGRNStatus(inspection.grnNo);
+        // Then update stock
+        await stockMaintenance.updateStockFromInspection(inspection);
+      } catch (e) {
+        print('Error updating GRN and stock: $e');
+        rethrow;
       }
     }
   }
@@ -208,5 +246,42 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
               .where((item) => item.materialCode == materialCode)
               .fold(0.0, (itemSum, item) => itemSum + item.pendingQty);
     });
+  }
+
+  // Get inspections requiring CAPA
+  List<QualityInspection> getInspectionsRequiringCAPA() {
+    return state.where((inspection) => 
+      inspection.capaStatus == 'Pending' || 
+      inspection.capaStatus == 'In Progress'
+    ).toList();
+  }
+
+  // Update CAPA details
+  Future<void> updateCapaDetails(
+    String inspectionNo, {
+    String? description,
+    String? assignedTo,
+    String? targetDate,
+    String? completionDate,
+    List<String>? actions,
+  }) async {
+    final index = box.values.toList().indexWhere(
+          (insp) => insp.inspectionNo == inspectionNo,
+        );
+
+    if (index != -1) {
+      final inspection = box.values.elementAt(index);
+      
+      if (description != null) inspection.capaDescription = description;
+      if (assignedTo != null) inspection.capaAssignedTo = assignedTo;
+      if (targetDate != null) inspection.capaTargetDate = targetDate;
+      if (completionDate != null) inspection.capaCompletionDate = completionDate;
+      if (actions != null) inspection.capaActions = actions;
+
+      inspection.updateCapaStatus();
+      
+      await box.putAt(index, inspection);
+      state = box.values.toList();
+    }
   }
 }

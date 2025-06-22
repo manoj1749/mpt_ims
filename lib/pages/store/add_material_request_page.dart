@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:mpt_ims/models/material_request_item.dart';
 import 'package:mpt_ims/provider/material_issue_provider.dart';
+import 'package:mpt_ims/provider/material_request_provider.dart';
 import '../../models/material_request.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/sale_order_provider.dart';
@@ -281,7 +282,7 @@ class _AddMaterialRequestPageState
 
     final materialRequest = MaterialRequest(
       issueNo: widget.existingIssue?.issueNo ??
-          ref.read(MaterialRequestListProvider.notifier).generateIssueNo(),
+          ref.read(materialRequestProvider.notifier).generateIssueNo(),
       date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
       jobNo: _selectedJobNo,
       issuedBy: _issuedByController.text,
@@ -291,7 +292,7 @@ class _AddMaterialRequestPageState
 
     if (widget.existingIssue != null) {
       await ref
-          .read(MaterialRequestListProvider.notifier)
+          .read(materialRequestProvider.notifier)
           .updateMaterialRequest(materialRequest);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -301,7 +302,7 @@ class _AddMaterialRequestPageState
       }
     } else {
       await ref
-          .read(MaterialRequestListProvider.notifier)
+          .read(materialRequestProvider.notifier)
           .addMaterialRequest(materialRequest);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

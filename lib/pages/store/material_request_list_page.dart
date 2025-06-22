@@ -32,9 +32,6 @@ class _MaterialRequestListPageState
         field: 'serialNo',
         type: PlutoColumnType.number(),
         width: 60,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -42,9 +39,6 @@ class _MaterialRequestListPageState
         field: 'jobNo',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -52,19 +46,13 @@ class _MaterialRequestListPageState
         field: 'issueNo',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
         title: 'Issue Date',
         field: 'issueDate',
-        type: PlutoColumnType.date(),
+        type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -72,9 +60,6 @@ class _MaterialRequestListPageState
         field: 'partNo',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -82,19 +67,13 @@ class _MaterialRequestListPageState
         field: 'description',
         type: PlutoColumnType.text(),
         width: 200,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.start,
         enableEditingMode: false,
       ),
       PlutoColumn(
         title: 'Issue Qty',
         field: 'issueQty',
-        type: PlutoColumnType.number(),
+        type: PlutoColumnType.text(),
         width: 100,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
       ),
       PlutoColumn(
@@ -102,97 +81,86 @@ class _MaterialRequestListPageState
         field: 'unit',
         type: PlutoColumnType.text(),
         width: 80,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
-        title: 'Requested By',
+        title: 'Issued By',
         field: 'issuedBy',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
       ),
       PlutoColumn(
         title: 'Status',
         field: 'status',
         type: PlutoColumnType.text(),
-        width: 120,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.center,
+        width: 100,
         enableEditingMode: false,
       ),
       PlutoColumn(
         title: 'Actions',
         field: 'actions',
         type: PlutoColumnType.text(),
-        width: 140,
-        backgroundColor: Colors.grey[850],
-        titleTextAlign: PlutoColumnTextAlign.center,
-        textAlign: PlutoColumnTextAlign.center,
+        width: 120,
         enableEditingMode: false,
         renderer: (rendererContext) {
           return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
                 icon: const Icon(Icons.edit),
                 onPressed: () {
-                  final rowData = rendererContext.row.cells;
-                  final issueNo = rowData['issueNo']?.value as String;
-                  final MaterialRequests =
-                      ref.read(MaterialRequestListProvider);
-                  final index = MaterialRequests.indexWhere(
-                      (mi) => mi.issueNo == issueNo);
-                  if (index != -1) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddMaterialRequestPage(
-                          existingIssue: MaterialRequests[index],
-                          index: index,
-                        ),
+                  final issue = ref.read(materialRequestProvider).firstWhere(
+                        (issue) =>
+                            issue.issueNo ==
+                            rendererContext.cell.row.cells['issueNo']!.value,
+                      );
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddMaterialRequestPage(
+                        existingIssue: issue,
+                        index: rendererContext.rowIdx,
                       ),
-                    );
-                  }
+                    ),
+                  );
                 },
-                color: Colors.blue,
-                iconSize: 20,
               ),
               IconButton(
                 icon: const Icon(Icons.delete),
                 onPressed: () async {
-                  final rowData = rendererContext.row.cells;
-                  final issueNo = rowData['issueNo']?.value as String;
-                  final confirmed = await showDialog<bool>(
+                  final issueNo =
+                      rendererContext.cell.row.cells['issueNo']!.value;
+
+                  final shouldDelete = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
                       title: const Text('Confirm Delete'),
-                      content: Text(
-                          'Are you sure you want to delete Issue No: $issueNo?'),
+                      content: const Text(
+                          'Are you sure you want to delete this Material Request?'),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.pop(context, false),
+                          onPressed: () =>
+                              Navigator.of(context).pop(false),
                           child: const Text('Cancel'),
                         ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.of(context).pop(true),
                           child: const Text('Delete'),
                         ),
                       ],
                     ),
                   );
 
-                  if (confirmed == true) {
+                  if (shouldDelete == true) {
                     await ref
-                        .read(MaterialRequestListProvider.notifier)
+                        .read(materialRequestProvider.notifier)
                         .deleteMaterialRequest(issueNo);
-                    if (mounted) {
+
+                    if (stateManager != null) {
+                      stateManager!.removeRows([rendererContext.row]);
+
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                             content:
@@ -201,8 +169,6 @@ class _MaterialRequestListPageState
                     }
                   }
                 },
-                color: Colors.red,
-                iconSize: 20,
               ),
             ],
           );
@@ -212,8 +178,8 @@ class _MaterialRequestListPageState
   }
 
   List<PlutoRow> _getRows() {
-    final MaterialRequests = ref.watch(MaterialRequestListProvider);
-    final filteredIssues = MaterialRequests.where((issue) {
+    final materialRequests = ref.watch(materialRequestProvider);
+    final filteredIssues = materialRequests.where((issue) {
       if (_selectedStatus == 'All') return true;
       return issue.status == _selectedStatus;
     }).toList();

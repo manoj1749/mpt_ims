@@ -42,6 +42,15 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
 
   List<MaterialRequest> get requests => state;
 
+  // Get active requests for a specific job
+  List<MaterialRequest> getActiveRequestsForJob(String jobNo) {
+    return state.where((mr) => 
+      mr.jobNo == jobNo && 
+      mr.status != 'Completed' &&
+      mr.items.any((item) => item.pendingQuantity > 0)
+    ).toList();
+  }
+
   Future<void> addMaterialRequest(MaterialRequest request) async {
     print('\n=== Adding Material Request ===');
     print('Issue No: ${request.issueNo}');
@@ -87,6 +96,18 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
       print('Material Request updated successfully');
     } else {
       print('Error: Material Request not found');
+    }
+  }
+
+  Future<void> updateMaterialRequestStatus(String issueNo, {bool checkCompletion = true}) async {
+    final request = getMaterialRequestByNo(issueNo);
+    if (request != null) {
+      if (checkCompletion) {
+        // Check if all items are fully issued
+        bool allItemsIssued = request.items.every((item) => item.pendingQuantity <= 0);
+        request.status = allItemsIssued ? 'Completed' : 'Active';
+      }
+      await updateMaterialRequest(request);
     }
   }
 

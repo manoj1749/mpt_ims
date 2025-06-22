@@ -37,19 +37,28 @@ class StockMaintenancePageState extends ConsumerState<StockMaintenancePage> {
 
   List<PlutoRow> _buildRows(List<StockMaintenance> stocks) {
     return stocks.map((stock) {
+      // Calculate total issued quantity
+      double totalIssuedQty = 0.0;
+      for (var prDetail in stock.prDetails.values) {
+        totalIssuedQty += prDetail.issuedQuantity;
+      }
+
+      // Calculate current stock after subtracting issued quantity
+      double currentStock = stock.calculatedCurrentStock - totalIssuedQty;
+      double totalStock = stock.calculatedTotalStock - totalIssuedQty;
+
       return PlutoRow(
         cells: {
           'materialCode': PlutoCell(value: stock.materialCode),
           'description': PlutoCell(value: stock.materialDescription),
-          'currentStock': PlutoCell(value: stock.calculatedCurrentStock),
+          'currentStock': PlutoCell(value: currentStock),
           'underInspection': PlutoCell(value: stock.calculatedUnderInspection),
-          'totalStock': PlutoCell(value: stock.calculatedTotalStock),
+          'totalStock': PlutoCell(value: totalStock),
           'unit': PlutoCell(value: stock.unit),
           'location': PlutoCell(value: stock.storageLocation),
           'rack': PlutoCell(value: stock.rackNumber),
           'stockValue': PlutoCell(
-              value:
-                  stock.calculatedCurrentStock > 0 ? stock.totalStockValue : 0),
+              value: currentStock > 0 ? currentStock * stock.averageRate : 0),
           'avgRate': PlutoCell(value: stock.averageRate),
           'actions': PlutoCell(value: stock),
         },

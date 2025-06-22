@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, unnecessary_null_comparison
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
@@ -8,10 +8,7 @@ import '../models/purchase_order.dart';
 import '../models/po_item.dart';
 import '../provider/stock_maintenance_provider.dart';
 import '../provider/purchase_order.dart';
-import '../models/category.dart';
-import '../provider/material_provider.dart';
 import '../provider/quality_inspection_provider.dart';
-import '../provider/category_provider.dart';
 
 final storeInwardBoxProvider = Provider<Box<StoreInward>>((ref) {
   throw UnimplementedError();
@@ -489,7 +486,6 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
       if (item.receivedQty > 0) {
         double acceptanceRatio = totalAcceptedQty / item.receivedQty;
         for (var poEntry in item.prQuantities.entries) {
-          final poNo = poEntry.key;
           final prMap = poEntry.value;
           if (prMap != null) {
             for (var prEntry in prMap.entries) {

@@ -584,11 +584,6 @@ class _AddQualityInspectionPageState
     ref.read(purchaseRequestListProvider);
 
     // Calculate minimum sample size based on lot size
-    double getMinimumSampleSize(double lotSize) {
-      if (lotSize <= 50) return lotSize;  // 100% inspection for small lots
-      if (lotSize <= 500) return lotSize * 0.1;  // 10% for medium lots
-      return lotSize * 0.05;  // 5% for large lots, minimum 50 pieces
-    }
 
     // Get category-specific parameters
     final categorySpecificParams = categoryParams
@@ -653,9 +648,9 @@ class _AddQualityInspectionPageState
             const Divider(height: 16),
 
             // GRN Selection
-            Row(
+            const Row(
                 children: [
-                const Text('Select GRN:'),
+                Text('Select GRN:'),
                 ],
             ),
             const SizedBox(height: 16),
@@ -889,13 +884,15 @@ class _AddQualityInspectionPageState
                                 controller: TextEditingController(
                                     text: grnQty.acceptedQty.toString()),
                                 validator: (value) {
-                                  if (value == null || value.isEmpty)
+                                  if (value == null || value.isEmpty) {
                                     return null;
+                                  }
                                   final qty = double.tryParse(value);
                                   if (qty == null) return 'Invalid number';
                                   if (qty < 0) return 'Cannot be negative';
-                                  if (qty > grnQty.receivedQty)
+                                  if (qty > grnQty.receivedQty) {
                                     return 'Exceeds received qty';
+                                  }
                                   return null;
                                 },
                                 onChanged: (value) {
@@ -1002,8 +999,9 @@ class _AddQualityInspectionPageState
                                     checkedBy: '',
                                     items: []));
 
-                            if (grn.grnNo.isEmpty)
+                            if (grn.grnNo.isEmpty) {
                               return const SizedBox.shrink();
+                            }
 
                             final grnItem = grn.items.firstWhere(
                                 (i) => i.materialCode == item.materialCode,
@@ -1026,8 +1024,9 @@ class _AddQualityInspectionPageState
                                   grnItem.prQuantities.entries.map((poEntry) {
                                 final poNo = poEntry.key;
                                 final prMap = poEntry.value;
-                                if (prMap == null)
+                                if (prMap == null) {
                                   return const SizedBox.shrink();
+                                }
 
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1094,8 +1093,9 @@ class _AddQualityInspectionPageState
                                                         decimal: true),
                                                         validator: (value) {
                                                           if (value == null ||
-                                                      value.isEmpty)
-                                                    return null;
+                                                      value.isEmpty) {
+                                                            return null;
+                                                          }
                                                           final qty =
                                                       double.tryParse(value);
                                                           if (qty == null) {

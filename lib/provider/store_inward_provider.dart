@@ -439,133 +439,104 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
     final inward = _inwardBox.values.firstWhere(
       (gr) => gr.grnNo == grnNo,
-      orElse: () => StoreInward(
-        grnNo: '',
-        grnDate: '',
-        supplierName: '',
-        poNo: '',
-        poDate: '',
-        invoiceNo: '',
-        invoiceDate: '',
-        invoiceAmount: 0.0,
-        receivedBy: '',
-        checkedBy: '',
-        items: [],
-      ),
+      orElse: () => throw Exception('GRN not found'),
     );
-
-    if (inward.grnNo.isEmpty) {
-      print('GRN not found: $grnNo');
-      return;
-    }
 
     print('Current Status: ${inward.status}');
 
     // Get all inspections for this GRN
     final inspectionBox = ref.read(qualityInspectionBoxProvider);
-    final inspections =
-        inspectionBox.values.where((insp) => insp.grnNo == grnNo).toList();
+    final inspections = inspectionBox.values
+        .where((insp) => insp.grnNo == grnNo)
+        .toList();
 
-    bool allItemsProcessed = true;
-    bool hasProcessedItems = false;
-    bool hasItemsNeedingInspection = false;
-
+    // Process each item in the GRN
     for (var item in inward.items) {
       print('\nChecking Item: ${item.materialCode}');
       print('Received Qty: ${item.receivedQty}');
 
-      // Get the material's category
-      final materialsBox = ref.read(materialBoxProvider);
-      final material = materialsBox.values.firstWhere(
-        (m) => m.partNo == item.materialCode,
-        orElse: () => MaterialItem(
-          slNo: item.materialCode,
-          description: item.materialDescription,
-          partNo: item.materialCode,
-          unit: item.unit,
-          category: 'General',
-          subCategory: '',
-        ),
-      );
-
-      // Get the category settings
-      final categoriesBox = ref.read(categoryBoxProvider);
-      final category = categoriesBox.values.firstWhere(
-        (c) => c.name == material.category,
-        orElse: () => Category(name: material.category),
-      );
-
-      // If quality check is not required, consider it as fully processed
-      if (!category.requiresQualityCheck) {
-        hasProcessedItems = true;
-        item.acceptedQty = item.receivedQty;
-        item.rejectedQty = 0;
-        continue;
-      }
-
-      hasItemsNeedingInspection = true;
-
-      // Calculate total inspected, accepted, and rejected quantities from all inspections
-      double totalInspectedQty = 0;
-      double totalAcceptedQty = 0;
-      double totalRejectedQty = 0;
+      // Calculate total accepted and rejected quantities from all inspections
+      double totalAcceptedQty = 0.0;
+      double totalRejectedQty = 0.0;
 
       for (var inspection in inspections) {
-        for (var inspItem in inspection.items) {
-          if (inspItem.materialCode == item.materialCode) {
-            if (inspection.status == 'Completed') {
-              totalInspectedQty += inspItem.inspectedQty;
-              totalAcceptedQty += inspItem.acceptedQty;
-              totalRejectedQty += inspItem.rejectedQty;
-            }
+        var inspectionItem = inspection.items
+            .where((i) => i.materialCode == item.materialCode)
+            .firstOrNull;
+
+        if (inspectionItem != null) {
+          // Get the GRN quantities from the inspection item
+          var grnQty = inspectionItem.grnQuantities[grnNo];
+          if (grnQty?.isSelected == true) {
+            print('\nFound inspection: ${inspection.inspectionNo}');
+            print('Accepted Qty: ${grnQty!.acceptedQty}');
+            print('Rejected Qty: ${grnQty.rejectedQty}');
+            
+            totalAcceptedQty += grnQty.acceptedQty;
+            totalRejectedQty += grnQty.rejectedQty;
           }
         }
       }
 
-      // Update item's accepted and rejected quantities
-      item.acceptedQty = totalAcceptedQty;
-      item.rejectedQty = totalRejectedQty;
-
-      print('Total Inspected Qty: $totalInspectedQty');
       print('Total Accepted Qty: $totalAcceptedQty');
       print('Total Rejected Qty: $totalRejectedQty');
 
-      if (totalInspectedQty > 0) {
-        hasProcessedItems = true;
-      }
+      // Update item quantities
+      item.acceptedQty = totalAcceptedQty;
+      item.rejectedQty = totalRejectedQty;
 
-      if (totalInspectedQty < item.receivedQty) {
-        allItemsProcessed = false;
-        print(
-            'Item not fully inspected: $totalInspectedQty < ${item.receivedQty}');
+      // Update PR-wise quantities based on acceptance ratio
+      if (item.receivedQty > 0) {
+        double acceptanceRatio = totalAcceptedQty / item.receivedQty;
+        for (var poEntry in item.prQuantities.entries) {
+          final poNo = poEntry.key;
+          final prMap = poEntry.value;
+          if (prMap != null) {
+            for (var prEntry in prMap.entries) {
+              final prNo = prEntry.key;
+              final originalQty = prEntry.value;
+              prMap[prNo] = originalQty * acceptanceRatio;
+            }
+          }
+        }
       }
     }
 
+    // Determine GRN status based on all items
+    bool allItemsInspected = inward.items.every((item) {
+      double totalProcessedQty = item.acceptedQty + item.rejectedQty;
+      bool isFullyProcessed = (totalProcessedQty - item.receivedQty).abs() < 0.001;
+      print('\nItem: ${item.materialCode}');
+      print('Received: ${item.receivedQty}');
+      print('Processed: $totalProcessedQty');
+      print('Fully Processed: $isFullyProcessed');
+      return isFullyProcessed;
+    });
+
+    bool hasAcceptedItems = inward.items.any((item) => item.acceptedQty > 0);
+    bool hasRejectedItems = inward.items.any((item) => item.rejectedQty > 0);
+
     String newStatus;
-    if (!hasItemsNeedingInspection) {
-      newStatus =
-          'Completed'; // All items are general stock or don't need inspection
-    } else if (!hasProcessedItems) {
-      newStatus = 'Under Inspection';
-    } else if (allItemsProcessed) {
-      newStatus = 'Inspected';
+    if (allItemsInspected) {
+      if (hasRejectedItems && !hasAcceptedItems) {
+        newStatus = 'Rejected';
+      } else if (hasRejectedItems && hasAcceptedItems) {
+        newStatus = 'Partially Accepted';
+      } else {
+        newStatus = 'Accepted';
+      }
     } else {
-      newStatus = 'Partially Inspected';
+      newStatus = 'Under Inspection';
     }
 
     print('New Status: $newStatus');
     inward.status = newStatus;
 
-    // Save the updated inward
-    final index = _inwardBox.values.toList().indexOf(inward);
-    await _inwardBox.putAt(index, inward);
+    // Save the updated GRN
+    await inward.save();
+    state = [..._inwardBox.values];
 
     // Update stock maintenance
-    await ref
-        .read(stockMaintenanceProvider.notifier)
-        .updateStockFromGRN(inward);
-
-    // Update state
-    state = [..._inwardBox.values];
+    await ref.read(stockMaintenanceProvider.notifier).updateStockFromGRN(inward);
   }
 }

@@ -67,7 +67,8 @@ class _AddQualityInspectionPageState
     final categories = ref.watch(categoryListProvider);
 
     // Group items by material and GRN
-    final materialGRNItems = <String, Map<String, List<Map<String, dynamic>>>>{};
+    final materialGRNItems =
+        <String, Map<String, List<Map<String, dynamic>>>>{};
     final grnInfo = <String, Map<String, String>>{};
 
     // Track inspected quantities per material and GRN
@@ -120,18 +121,18 @@ class _AddQualityInspectionPageState
         if (!category.requiresQualityCheck) continue;
 
         // Get inspected quantity for this material and GRN
-          final inspectedQty =
+        final inspectedQty =
             inspectedQtys[inwardItem.materialCode]?[grn.grnNo] ?? 0.0;
         final remainingQty = inwardItem.receivedQty - inspectedQty;
 
-          // Only include if there's remaining quantity to inspect
+        // Only include if there's remaining quantity to inspect
         if (remainingQty > 0) {
           // Store item data
-            final itemData = {
-              'materialCode': inwardItem.materialCode,
-              'materialDescription': inwardItem.materialDescription,
-              'unit': inwardItem.unit,
-              'costPerUnit': inwardItem.costPerUnit,
+          final itemData = {
+            'materialCode': inwardItem.materialCode,
+            'materialDescription': inwardItem.materialDescription,
+            'unit': inwardItem.unit,
+            'costPerUnit': inwardItem.costPerUnit,
             'quantity': remainingQty,
             'poNo': grn.poNo,
             'poDate': grn.poDate,
@@ -141,13 +142,13 @@ class _AddQualityInspectionPageState
           materialGRNItems
               .putIfAbsent(inwardItem.materialCode, () => {})
               .putIfAbsent(grn.grnNo, () => [])
-                .add(itemData);
+              .add(itemData);
 
-            // Store GRN info
+          // Store GRN info
           grnInfo[grn.grnNo] = {
-              'grnDate': grn.grnDate,
-              'invoiceNo': grn.invoiceNo,
-              'invoiceDate': grn.invoiceDate,
+            'grnDate': grn.grnDate,
+            'invoiceNo': grn.invoiceNo,
+            'invoiceDate': grn.invoiceDate,
             'supplierName': grn.supplierName,
           };
         }
@@ -216,14 +217,17 @@ class _AddQualityInspectionPageState
             materialDescription: firstItemData['materialDescription'],
             unit: firstItemData['unit'],
             category: material.category,
-            receivedQty: 0, // Initialize to 0, will be updated when GRN is selected
+            receivedQty:
+                0, // Initialize to 0, will be updated when GRN is selected
             costPerUnit: double.parse(firstItemData['costPerUnit']),
-            totalCost: 0, // Initialize to 0, will be updated when GRN is selected
+            totalCost:
+                0, // Initialize to 0, will be updated when GRN is selected
             sampleSize: 0,
             inspectedQty: 0,
             acceptedQty: 0,
             rejectedQty: 0,
-            pendingQty: 0, // Initialize to 0, will be updated when GRN is selected
+            pendingQty:
+                0, // Initialize to 0, will be updated when GRN is selected
             usageDecision: 'Lot Accepted',
             receivedDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
             expirationDate: '',
@@ -292,7 +296,7 @@ class _AddQualityInspectionPageState
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              children: [
                 // Info message about one material at a time
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -303,7 +307,8 @@ class _AddQualityInspectionPageState
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, color: Colors.blue[300], size: 20),
+                      Icon(Icons.info_outline,
+                          color: Colors.blue[300], size: 20),
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Text(
@@ -315,93 +320,93 @@ class _AddQualityInspectionPageState
                   ),
                 ),
                 const SizedBox(height: 24),
-              buildTextField(_inspectionDateController, 'Inspection Date',
-                  isDate: true),
+                buildTextField(_inspectionDateController, 'Inspection Date',
+                    isDate: true),
 
-              // Optional Supplier Filter Dropdown
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: DropdownButtonFormField2<Supplier?>(
-                  decoration: const InputDecoration(
-                    labelText: 'Filter by Supplier (Optional)',
-                    border: OutlineInputBorder(),
-                  ),
-                  isExpanded: true,
-                  value: selectedSupplier,
-                  items: [
-                    const DropdownMenuItem<Supplier?>(
-                      value: null,
-                      child: Text('All Suppliers'),
+                // Optional Supplier Filter Dropdown
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: DropdownButtonFormField2<Supplier?>(
+                    decoration: const InputDecoration(
+                      labelText: 'Filter by Supplier (Optional)',
+                      border: OutlineInputBorder(),
                     ),
-                    ...suppliers.map((supplier) {
-                      return DropdownMenuItem<Supplier>(
-                        value: supplier,
-                        child: Text(
-                          supplier.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }),
-                  ],
-                  onChanged: _onSupplierSelected,
-                  dropdownStyleData: DropdownStyleData(
-                    maxHeight: 300,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                    isExpanded: true,
+                    value: selectedSupplier,
+                    items: [
+                      const DropdownMenuItem<Supplier?>(
+                        value: null,
+                        child: Text('All Suppliers'),
+                      ),
+                      ...suppliers.map((supplier) {
+                        return DropdownMenuItem<Supplier>(
+                          value: supplier,
+                          child: Text(
+                            supplier.name,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: _onSupplierSelected,
+                    dropdownStyleData: DropdownStyleData(
+                      maxHeight: 300,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                  ),
-                  menuItemStyleData: const MenuItemStyleData(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    menuItemStyleData: const MenuItemStyleData(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                    ),
                   ),
                 ),
-              ),
 
-              buildTextField(_inspectedByController, 'Inspected By'),
-              buildTextField(_approvedByController, 'Approved By'),
+                buildTextField(_inspectedByController, 'Inspected By'),
+                buildTextField(_approvedByController, 'Approved By'),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              // Material Groups
-              if (_items.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.inventory_2_outlined,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No pending materials for inspection',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
+                // Material Groups
+                if (_items.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 64,
+                            color: Colors.grey[400],
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          selectedSupplier != null
-                              ? 'No pending items for ${selectedSupplier!.name}'
-                              : 'There are no GRNs pending inspection',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[500],
+                          const SizedBox(height: 16),
+                          Text(
+                            'No pending materials for inspection',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            selectedSupplier != null
+                                ? 'No pending items for ${selectedSupplier!.name}'
+                                : 'There are no GRNs pending inspection',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                )
-              else
-                ..._items.map((item) => _buildItemCard(item)),
+                  )
+                else
+                  ..._items.map((item) => _buildItemCard(item)),
 
-              const SizedBox(height: 20),
-            ],
+                const SizedBox(height: 20),
+              ],
             ),
           ),
         ),
@@ -457,7 +462,8 @@ class _AddQualityInspectionPageState
       InspectionItem? selectedItem;
 
       for (var item in _items) {
-        final hasSelectedGRN = item.grnQuantities.values.any((grnQty) => grnQty.isSelected == true);
+        final hasSelectedGRN = item.grnQuantities.values
+            .any((grnQty) => grnQty.isSelected == true);
         if (hasSelectedGRN) {
           materialsWithSelectedGRNs++;
           selectedItem = item;
@@ -473,7 +479,9 @@ class _AddQualityInspectionPageState
       }
 
       // Validate that exactly one GRN is selected for the chosen material
-      final selectedGRNs = selectedItem!.grnQuantities.values.where((grnQty) => grnQty.isSelected == true).length;
+      final selectedGRNs = selectedItem!.grnQuantities.values
+          .where((grnQty) => grnQty.isSelected == true)
+          .length;
       if (selectedGRNs != 1) {
         throw Exception('Please select exactly one GRN for the material');
       }
@@ -517,7 +525,8 @@ class _AddQualityInspectionPageState
             final prMap = poEntry.value;
             if (prMap != null) {
               for (var prEntry in prMap.entries) {
-                final qtyController = _prQtyControllers[selectedGRNEntry.key]!['${poEntry.key}_${prEntry.key}'];
+                final qtyController = _prQtyControllers[selectedGRNEntry.key]![
+                    '${poEntry.key}_${prEntry.key}'];
                 if (qtyController != null && qtyController.text.isNotEmpty) {
                   totalAcceptedQty += double.parse(qtyController.text);
                 }
@@ -525,18 +534,23 @@ class _AddQualityInspectionPageState
             }
           }
           selectedGRNQty.acceptedQty = totalAcceptedQty;
-          selectedGRNQty.rejectedQty = selectedGRNQty.receivedQty - totalAcceptedQty;
+          selectedGRNQty.rejectedQty =
+              selectedGRNQty.receivedQty - totalAcceptedQty;
           selectedItem.acceptedQty = totalAcceptedQty;
-          selectedItem.rejectedQty = selectedGRNQty.receivedQty - totalAcceptedQty;
+          selectedItem.rejectedQty =
+              selectedGRNQty.receivedQty - totalAcceptedQty;
         }
       }
 
       // Update pending quantity
-      selectedItem.pendingQty = selectedGRNQty.receivedQty - (selectedGRNQty.acceptedQty + selectedGRNQty.rejectedQty);
+      selectedItem.pendingQty = selectedGRNQty.receivedQty -
+          (selectedGRNQty.acceptedQty + selectedGRNQty.rejectedQty);
 
       // Create the inspection with Completed status
       final inspection = QualityInspection(
-        inspectionNo: ref.read(qualityInspectionProvider.notifier).generateInspectionNumber(),
+        inspectionNo: ref
+            .read(qualityInspectionProvider.notifier)
+            .generateInspectionNumber(),
         inspectionDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
         grnNo: selectedGRNEntry.key,
         supplierName: selectedGRN.supplierName,
@@ -548,17 +562,25 @@ class _AddQualityInspectionPageState
         inspectedBy: _inspectedByController.text.trim(),
         approvedBy: _approvedByController.text.trim(),
         items: [selectedItem],
-        status: selectedItem.usageDecision == 'Lot Accepted' ? 'Completed - Accepted' : 'Completed - Rejected',
+        status: selectedItem.usageDecision == 'Lot Accepted'
+            ? 'Completed - Accepted'
+            : 'Completed - Rejected',
       );
 
       // Add the inspection and update stock
-      await ref.read(qualityInspectionProvider.notifier).addInspection(inspection);
-      
+      await ref
+          .read(qualityInspectionProvider.notifier)
+          .addInspection(inspection);
+
       // Update stock maintenance
-      await ref.read(stockMaintenanceProvider.notifier).updateStockFromInspection(inspection);
+      await ref
+          .read(stockMaintenanceProvider.notifier)
+          .updateStockFromInspection(inspection);
 
       // Update GRN status
-      await ref.read(storeInwardProvider.notifier).updateGRNStatus(inspection.grnNo);
+      await ref
+          .read(storeInwardProvider.notifier)
+          .updateGRNStatus(inspection.grnNo);
 
       // Show success message
       if (mounted) {
@@ -649,9 +671,9 @@ class _AddQualityInspectionPageState
 
             // GRN Selection
             const Row(
-                children: [
+              children: [
                 Text('Select GRN:'),
-                ],
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -662,17 +684,17 @@ class _AddQualityInspectionPageState
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
                   color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     // GRN Header with Radio button
                     Row(
-                            children: [
+                      children: [
                         Radio<String>(
                           value: grnNo,
                           groupValue: item.grnQuantities.entries
@@ -682,7 +704,8 @@ class _AddQualityInspectionPageState
                           onChanged: (value) {
                             setState(() {
                               // Deselect all other GRNs
-                              for (var otherGrnQty in item.grnQuantities.values) {
+                              for (var otherGrnQty
+                                  in item.grnQuantities.values) {
                                 otherGrnQty.isSelected = false;
                               }
                               // Select only this GRN
@@ -698,36 +721,36 @@ class _AddQualityInspectionPageState
                       ],
                     ),
                     if (grnQty.isSelected == true) ...[
-                              const SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       // Usage Decision and CAPA in one row
                       Row(
-                                  children: [
-                                    // Usage Decision Dropdown
+                        children: [
+                          // Usage Decision Dropdown
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               value: grnQty.usageDecision,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Usage Decision',
-                                        border: OutlineInputBorder(),
+                              decoration: const InputDecoration(
+                                labelText: 'Usage Decision',
+                                border: OutlineInputBorder(),
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 8,
                                 ),
-                                      ),
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'Lot Accepted',
-                                          child: Text('Lot Accepted'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Rejected',
-                                          child: Text('Rejected'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: '100% Recheck',
-                                          child: Text('100% Recheck'),
-                                        ),
-                                      ],
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'Lot Accepted',
+                                  child: Text('Lot Accepted'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Rejected',
+                                  child: Text('Rejected'),
+                                ),
+                                DropdownMenuItem(
+                                  value: '100% Recheck',
+                                  child: Text('100% Recheck'),
+                                ),
+                              ],
                               onChanged: (value) async {
                                 // Show confirmation dialog for rejection
                                 if (value == 'Rejected') {
@@ -754,18 +777,18 @@ class _AddQualityInspectionPageState
                                   if (confirm != true) return;
                                 }
 
-                                        setState(() {
+                                setState(() {
                                   grnQty.usageDecision = value!;
-                                          if (value != '100% Recheck') {
+                                  if (value != '100% Recheck') {
                                     grnQty.recheckType = null;
-                                          }
-                                          if (value == 'Rejected' ||
-                                              value == '100% Recheck') {
-                                            item.capaRequired = true;
-                                          }
+                                  }
+                                  if (value == 'Rejected' ||
+                                      value == '100% Recheck') {
+                                    item.capaRequired = true;
+                                  }
 
-                                          // Auto-update accepted/rejected quantities
-                                          if (value == 'Lot Accepted') {
+                                  // Auto-update accepted/rejected quantities
+                                  if (value == 'Lot Accepted') {
                                     // Validate parameters before accepting
                                     bool hasInvalidParams = item.parameters
                                         .any((param) => !param.isAcceptable);
@@ -784,16 +807,16 @@ class _AddQualityInspectionPageState
                                     }
                                     grnQty.acceptedQty = grnQty.receivedQty;
                                     grnQty.rejectedQty = 0;
-                                          } else if (value == 'Rejected') {
+                                  } else if (value == 'Rejected') {
                                     grnQty.acceptedQty = 0;
                                     grnQty.rejectedQty = grnQty.receivedQty;
-                                          } else if (value == '100% Recheck') {
+                                  } else if (value == '100% Recheck') {
                                     grnQty.acceptedQty = 0;
                                     grnQty.rejectedQty = 0;
                                   }
-                                        });
-                                      },
-                                    ),
+                                });
+                              },
+                            ),
                           ),
                           const SizedBox(width: 16),
                           // CAPA Required Checkbox
@@ -804,55 +827,55 @@ class _AddQualityInspectionPageState
                                 title: const Text('CAPA Required'),
                                 value: item.capaRequired ?? false,
                                 onChanged: (bool? value) {
-                                                  setState(() {
+                                  setState(() {
                                     item.capaRequired = value;
-                                                  });
-                                                },
-                                              ),
-                                            ),
+                                  });
+                                },
+                              ),
+                            ),
                         ],
                       ),
 
                       // Recheck Settings (only if 100% Recheck)
                       if (grnQty.usageDecision == '100% Recheck') ...[
-                                      const SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Row(
-                                          children: [
+                          children: [
                             const Icon(Icons.refresh, size: 16),
                             const SizedBox(width: 8),
                             const Text('Recheck Settings',
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w500,
-                                                )),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                )),
                             const SizedBox(width: 16),
                             Expanded(
                               child: DropdownButtonFormField<String>(
                                 value: grnQty.recheckType ?? '100% Acceptance',
-                                              decoration: const InputDecoration(
-                                                labelText: 'Recheck Type',
-                                                border: OutlineInputBorder(),
+                                decoration: const InputDecoration(
+                                  labelText: 'Recheck Type',
+                                  border: OutlineInputBorder(),
                                   contentPadding: EdgeInsets.symmetric(
-                                                        horizontal: 12,
+                                    horizontal: 12,
                                     vertical: 8,
-                                              ),
+                                  ),
                                 ),
-                                              items: const [
-                                                DropdownMenuItem(
-                                                  value: '100% Acceptance',
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: '100% Acceptance',
                                     child: Text('100% Acceptance'),
-                                                ),
-                                                DropdownMenuItem(
-                                                  value: 'Partial Acceptance',
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Partial Acceptance',
                                     child: Text('Partial Acceptance'),
-                                                ),
-                                              ],
-                                              onChanged: (value) {
-                                                setState(() {
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  setState(() {
                                     grnQty.recheckType = value;
-                                                  item.capaRequired = true;
-                                                });
-                                              },
+                                    item.capaRequired = true;
+                                  });
+                                },
                               ),
                             ),
                           ],
@@ -862,9 +885,9 @@ class _AddQualityInspectionPageState
                       // Partial Acceptance Quantities (only if Partial Acceptance)
                       if (grnQty.usageDecision == '100% Recheck' &&
                           grnQty.recheckType == 'Partial Acceptance') ...[
-                                      const SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Row(
-                                          children: [
+                          children: [
                             Expanded(
                               child: TextFormField(
                                 decoration: InputDecoration(
@@ -976,8 +999,8 @@ class _AddQualityInspectionPageState
                         // PR/Job-wise Distribution for Partial Acceptance
                         if (grnQty.acceptedQty > 0) ...[
                           const Text('PR/Job Distribution',
-                                                    style: TextStyle(
-                                                      fontSize: 13,
+                              style: TextStyle(
+                                fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               )),
                           const SizedBox(height: 8),
@@ -1036,7 +1059,7 @@ class _AddQualityInspectionPageState
                                             fontWeight: FontWeight.w500)),
                                     const SizedBox(height: 8),
                                     ...prMap.entries.map((prEntry) {
-                                              final prNo = prEntry.key;
+                                      final prNo = prEntry.key;
                                       final originalQty = prEntry.value;
                                       final jobNo = grnItem.prJobNumbers[poNo]
                                               ?[prNo] ??
@@ -1058,58 +1081,58 @@ class _AddQualityInspectionPageState
                                       return Padding(
                                         padding: const EdgeInsets.only(
                                             left: 16, bottom: 8),
-                                                child: Row(
-                                                  children: [
-                                                    Expanded(
+                                        child: Row(
+                                          children: [
+                                            Expanded(
                                               flex: 2,
-                                                      child: Column(
-                                                        crossAxisAlignment:
+                                              child: Column(
+                                                crossAxisAlignment:
                                                     CrossAxisAlignment.start,
-                                                        children: [
+                                                children: [
                                                   Text('PR: $prNo'),
                                                   Text('Job: $jobNo',
-                                                            style: TextStyle(
-                                                              color: Colors
+                                                      style: TextStyle(
+                                                          color: Colors
                                                               .grey[500])),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 8),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
                                             Expanded(
-                                                      child: TextFormField(
+                                              child: TextFormField(
                                                 controller: _prQtyControllers[
                                                     grnNo]!['${poNo}_$prNo'],
                                                 decoration: InputDecoration(
                                                   labelText: 'Accepted Qty',
-                                                          border:
-                                                              const OutlineInputBorder(),
-                                                          isDense: true,
+                                                  border:
+                                                      const OutlineInputBorder(),
+                                                  isDense: true,
                                                   hintText:
                                                       'Max: ${originalQty.toString()}',
-                                                        ),
-                                                        keyboardType:
-                                                            const TextInputType
-                                                                .numberWithOptions(
+                                                ),
+                                                keyboardType:
+                                                    const TextInputType
+                                                        .numberWithOptions(
                                                         decimal: true),
-                                                        validator: (value) {
-                                                          if (value == null ||
+                                                validator: (value) {
+                                                  if (value == null ||
                                                       value.isEmpty) {
-                                                            return null;
-                                                          }
-                                                          final qty =
+                                                    return null;
+                                                  }
+                                                  final qty =
                                                       double.tryParse(value);
-                                                          if (qty == null) {
+                                                  if (qty == null) {
                                                     return 'Invalid number';
-                                                          }
-                                                          if (qty < 0) {
+                                                  }
+                                                  if (qty < 0) {
                                                     return 'Cannot be negative';
                                                   }
-                                                          if (qty > originalQty) {
+                                                  if (qty > originalQty) {
                                                     return 'Exceeds original qty';
-                                                          }
-                                                          return null;
-                                                        },
-                                                        onChanged: (value) {
+                                                  }
+                                                  return null;
+                                                },
+                                                onChanged: (value) {
                                                   // Validate total doesn't exceed accepted qty
                                                   double total = 0;
                                                   _prQtyControllers[grnNo]!
@@ -1118,8 +1141,8 @@ class _AddQualityInspectionPageState
                                                     if (key !=
                                                         '${poNo}_$prNo') {
                                                       total += double.tryParse(
-                                                                        controller
-                                                                            .text) ??
+                                                              controller
+                                                                  .text) ??
                                                           0;
                                                     }
                                                   });
@@ -1142,14 +1165,14 @@ class _AddQualityInspectionPageState
                                                             .text =
                                                         suggestedQty.toString();
                                                   }
-                                                        },
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            }),
+                                                },
+                                              ),
+                                            ),
                                           ],
+                                        ),
+                                      );
+                                    }),
+                                  ],
                                 );
                               }).toList(),
                             );
@@ -1220,14 +1243,14 @@ class _AddQualityInspectionPageState
                                     });
                                   },
                                 ),
-                  ),
-                ],
-              ),
+                              ),
+                            ],
+                          ),
                         );
                       }),
                     ],
                   ],
-            ),
+                ),
               );
             }),
           ],

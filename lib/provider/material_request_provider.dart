@@ -25,13 +25,13 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
       print('Job No: ${mr.jobNo}');
       print('Issued By: ${mr.issuedBy}');
       print('Status: ${mr.status}');
-      
+
       for (var item in mr.items) {
         print('\n  Item: ${item.materialCode} - ${item.materialDescription}');
         print('  Quantity: ${item.quantity} ${item.unit}');
         print('  Total Issued: ${item.totalIssuedQuantity}');
         print('  Pending: ${item.pendingQuantity}');
-        
+
         if (item.issuedQuantities.isNotEmpty) {
           print('\n  Issued Quantities:');
           for (var entry in item.issuedQuantities.entries) {
@@ -46,11 +46,12 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
 
   // Get active requests for a specific job
   List<MaterialRequest> getActiveRequestsForJob(String jobNo) {
-    return state.where((mr) => 
-      mr.jobNo == jobNo && 
-      mr.status != 'Completed' &&
-      mr.items.any((item) => item.pendingQuantity > 0)
-    ).toList();
+    return state
+        .where((mr) =>
+            mr.jobNo == jobNo &&
+            mr.status != 'Completed' &&
+            mr.items.any((item) => item.pendingQuantity > 0))
+        .toList();
   }
 
   Future<void> addMaterialRequest(MaterialRequest request) async {
@@ -59,7 +60,7 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
     print('Date: ${request.date}');
     print('Job No: ${request.jobNo}');
     print('Status: ${request.status}');
-    
+
     for (var item in request.items) {
       print('\n  Item: ${item.materialCode} - ${item.materialDescription}');
       print('  Quantity: ${item.quantity} ${item.unit}');
@@ -76,13 +77,13 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
     print('Date: ${request.date}');
     print('Job No: ${request.jobNo}');
     print('Status: ${request.status}');
-    
+
     for (var item in request.items) {
       print('\n  Item: ${item.materialCode} - ${item.materialDescription}');
       print('  Quantity: ${item.quantity} ${item.unit}');
       print('  Total Issued: ${item.totalIssuedQuantity}');
       print('  Pending: ${item.pendingQuantity}');
-      
+
       if (item.issuedQuantities.isNotEmpty) {
         print('\n  Issued Quantities:');
         for (var entry in item.issuedQuantities.entries) {
@@ -91,7 +92,8 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
       }
     }
 
-    final index = _box.values.toList().indexWhere((r) => r.issueNo == request.issueNo);
+    final index =
+        _box.values.toList().indexWhere((r) => r.issueNo == request.issueNo);
     if (index != -1) {
       await _box.putAt(index, request);
       state = _box.values.toList();
@@ -101,12 +103,14 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
     }
   }
 
-  Future<void> updateMaterialRequestStatus(String issueNo, {bool checkCompletion = true}) async {
+  Future<void> updateMaterialRequestStatus(String issueNo,
+      {bool checkCompletion = true}) async {
     final request = getMaterialRequestByNo(issueNo);
     if (request != null) {
       if (checkCompletion) {
         // Check if all items are fully issued
-        bool allItemsIssued = request.items.every((item) => item.pendingQuantity <= 0);
+        bool allItemsIssued =
+            request.items.every((item) => item.pendingQuantity <= 0);
         request.status = allItemsIssued ? 'Completed' : 'Active';
       }
       await updateMaterialRequest(request);
@@ -116,7 +120,7 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
   Future<void> deleteMaterialRequest(String issueNo) async {
     print('\n=== Deleting Material Request ===');
     print('Issue No: $issueNo');
-    
+
     final index = _box.values.toList().indexWhere((r) => r.issueNo == issueNo);
     if (index != -1) {
       await _box.deleteAt(index);
@@ -129,7 +133,8 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
 
   MaterialRequest? getMaterialRequestByNo(String issueNo) {
     try {
-      final request = _box.values.firstWhere((request) => request.issueNo == issueNo);
+      final request =
+          _box.values.firstWhere((request) => request.issueNo == issueNo);
       print('\n=== Getting Material Request ===');
       print('Issue No: ${request.issueNo}');
       print('Date: ${request.date}');

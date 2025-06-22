@@ -443,9 +443,8 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
     // Get all inspections for this GRN
     final inspectionBox = ref.read(qualityInspectionBoxProvider);
-    final inspections = inspectionBox.values
-        .where((insp) => insp.grnNo == grnNo)
-        .toList();
+    final inspections =
+        inspectionBox.values.where((insp) => insp.grnNo == grnNo).toList();
 
     // Process each item in the GRN
     for (var item in inward.items) {
@@ -468,7 +467,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
             print('\nFound inspection: ${inspection.inspectionNo}');
             print('Accepted Qty: ${grnQty!.acceptedQty}');
             print('Rejected Qty: ${grnQty.rejectedQty}');
-            
+
             totalAcceptedQty += grnQty.acceptedQty;
             totalRejectedQty += grnQty.rejectedQty;
           }
@@ -501,7 +500,8 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
     // Determine GRN status based on all items
     bool allItemsInspected = inward.items.every((item) {
       double totalProcessedQty = item.acceptedQty + item.rejectedQty;
-      bool isFullyProcessed = (totalProcessedQty - item.receivedQty).abs() < 0.001;
+      bool isFullyProcessed =
+          (totalProcessedQty - item.receivedQty).abs() < 0.001;
       print('\nItem: ${item.materialCode}');
       print('Received: ${item.receivedQty}');
       print('Processed: $totalProcessedQty');
@@ -533,6 +533,8 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
     state = [..._inwardBox.values];
 
     // Update stock maintenance
-    await ref.read(stockMaintenanceProvider.notifier).updateStockFromGRN(inward);
+    await ref
+        .read(stockMaintenanceProvider.notifier)
+        .updateStockFromGRN(inward);
   }
 }

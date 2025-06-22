@@ -162,7 +162,7 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
   Widget build(BuildContext context) {
     // Watch the provider to trigger rebuilds
     ref.watch(materialIssueProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Material Issues'),
@@ -218,4 +218,3 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
     );
   }
 }
- 

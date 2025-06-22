@@ -93,15 +93,15 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
       // Update overall usage decision for each item
       for (var item in inspection.items) {
         print('\nProcessing item: ${item.materialCode}');
-        
+
         // Get the selected GRN's quantities
         final selectedGRN = item.grnQuantities.entries
             .firstWhere((entry) => entry.value.isSelected == true);
-        
+
         print('Selected GRN: ${selectedGRN.key}');
         print('Usage Decision: ${selectedGRN.value.usageDecision}');
         print('Received Qty: ${selectedGRN.value.receivedQty}');
-        
+
         // Update quantities based on usage decision
         if (selectedGRN.value.usageDecision == 'Lot Accepted') {
           // If lot is accepted, set all received quantity as accepted
@@ -128,16 +128,17 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
             selectedGRN.value.rejectedQty = item.rejectedQty;
           }
         }
-        
+
         item.receivedQty = selectedGRN.value.receivedQty;
-        
+
         print('Updated quantities:');
         print('Accepted: ${item.acceptedQty}');
         print('Rejected: ${item.rejectedQty}');
         print('Received: ${item.receivedQty}');
 
         // Update pending quantity
-        item.pendingQty = item.receivedQty - (item.acceptedQty + item.rejectedQty);
+        item.pendingQty =
+            item.receivedQty - (item.acceptedQty + item.rejectedQty);
         print('Pending: ${item.pendingQty}');
       }
 
@@ -250,10 +251,11 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
 
   // Get inspections requiring CAPA
   List<QualityInspection> getInspectionsRequiringCAPA() {
-    return state.where((inspection) => 
-      inspection.capaStatus == 'Pending' || 
-      inspection.capaStatus == 'In Progress'
-    ).toList();
+    return state
+        .where((inspection) =>
+            inspection.capaStatus == 'Pending' ||
+            inspection.capaStatus == 'In Progress')
+        .toList();
   }
 
   // Update CAPA details
@@ -271,15 +273,16 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
 
     if (index != -1) {
       final inspection = box.values.elementAt(index);
-      
+
       if (description != null) inspection.capaDescription = description;
       if (assignedTo != null) inspection.capaAssignedTo = assignedTo;
       if (targetDate != null) inspection.capaTargetDate = targetDate;
-      if (completionDate != null) inspection.capaCompletionDate = completionDate;
+      if (completionDate != null)
+        inspection.capaCompletionDate = completionDate;
       if (actions != null) inspection.capaActions = actions;
 
       inspection.updateCapaStatus();
-      
+
       await box.putAt(index, inspection);
       state = box.values.toList();
     }

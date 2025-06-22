@@ -332,7 +332,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
   // Update stock based on inspection status change
   Future<void> updateStockFromInspection(QualityInspection inspection) async {
-    print('\n=== Debug: Updating Stock from Inspection ${inspection.inspectionNo} ===');
+    print(
+        '\n=== Debug: Updating Stock from Inspection ${inspection.inspectionNo} ===');
 
     // Get required boxes from providers
     final inwardBox = ref.read(storeInwardBoxProvider);
@@ -420,8 +421,9 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
           );
 
           // Calculate acceptance ratio for this GRN
-          double acceptanceRatio = grnQty.receivedQty > 0 ? 
-              grnQty.acceptedQty / grnQty.receivedQty : 0.0;
+          double acceptanceRatio = grnQty.receivedQty > 0
+              ? grnQty.acceptedQty / grnQty.receivedQty
+              : 0.0;
 
           for (var prEntry in prMap.entries) {
             final prNo = prEntry.key;
@@ -439,7 +441,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
             if (!stock.poDetails[poNo]!.receivedQuantities.containsKey(grnNo)) {
               stock.poDetails[poNo]!.receivedQuantities[grnNo] = {};
             }
-            stock.poDetails[poNo]!.receivedQuantities[grnNo]![prNo] = prAcceptedQty;
+            stock.poDetails[poNo]!.receivedQuantities[grnNo]![prNo] =
+                prAcceptedQty;
 
             // Ensure PR details exist
             stock.prDetails[prNo] ??= StockPRDetails(
@@ -475,8 +478,10 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
           // Update total received quantity for PO
           double totalPoAcceptedQty = 0.0;
-          for (var grnQtys in stock.poDetails[poNo]!.receivedQuantities.values) {
-            totalPoAcceptedQty += grnQtys.values.fold(0.0, (sum, qty) => sum + qty);
+          for (var grnQtys
+              in stock.poDetails[poNo]!.receivedQuantities.values) {
+            totalPoAcceptedQty +=
+                grnQtys.values.fold(0.0, (sum, qty) => sum + qty);
           }
           stock.poDetails[poNo]!.receivedQuantity = totalPoAcceptedQty;
         }

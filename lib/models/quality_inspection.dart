@@ -110,8 +110,8 @@ class QualityInspection extends HiveObject {
 
   // Helper method to generate CAPA number
   void generateCapaNo() {
-    if (capaNo != null) return;  // Already has CAPA number
-    
+    if (capaNo != null) return; // Already has CAPA number
+
     final now = DateTime.now();
     final year = now.year.toString().substring(2);
     final month = now.month.toString().padLeft(2, '0');
@@ -124,12 +124,12 @@ class QualityInspection extends HiveObject {
       capaStatus = 'Not Required';
       return;
     }
-    
+
     if (capaStatus == 'Not Required') {
       capaStatus = 'Pending';
       generateCapaNo();
     }
-    
+
     if (capaCompletionDate != null) {
       capaStatus = 'Completed';
     } else if (capaActions.isNotEmpty) {

@@ -44,7 +44,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
   Set<String> jobNumbers = {};
 
   // Store materials with their MR items and parent MR - no merging
-  List<(MaterialItem, MaterialRequestItem, MaterialRequest)> materialMRItems = [];
+  List<(MaterialItem, MaterialRequestItem, MaterialRequest)> materialMRItems =
+      [];
 
   // Get unique job numbers from MRs
   Set<String> _getUniqueJobNumbers() {
@@ -116,7 +117,6 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
   MaterialIssueItem _createIssueItem(MaterialItem material,
       List<(MaterialRequestItem, MaterialRequest)> mrItems) {
-    
     final Map<String, double> issuedQuantities = {};
     final Map<String, ItemMRDetails> mrDetails = {};
     double totalQty = 0.0;
@@ -132,7 +132,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
           // Make sure we get the job number from the MR
           final jobNo = mr.jobNo ?? 'General';
           print('  MR: ${mr.issueNo}, Job No: $jobNo, Quantity: $qty');
-          
+
           mrDetails[mr.issueNo] = ItemMRDetails(
             mrNo: mr.issueNo,
             jobNo: jobNo,
@@ -228,7 +228,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       final mrItem = item.$2;
       final mr = item.$3;
       final key = '${material.partNo}_${mr.issueNo}';
-      
+
       if (selectedMRs[key] == true) {
         final qty = double.tryParse(qtyControllers[key]?.text ?? '') ?? 0;
         if (qty > 0) {
@@ -241,23 +241,27 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     if (!hasSelectedItems) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Please select at least one item and enter a valid quantity')),
+            content: Text(
+                'Please select at least one item and enter a valid quantity')),
       );
       return;
     }
 
     // Group items by material code
-    final materialGroups = <String, List<(MaterialRequestItem, MaterialRequest)>>{};
+    final materialGroups =
+        <String, List<(MaterialRequestItem, MaterialRequest)>>{};
     for (var item in materialMRItems) {
       final material = item.$1;
       final mrItem = item.$2;
       final mr = item.$3;
       final key = '${material.partNo}_${mr.issueNo}';
-      
+
       if (selectedMRs[key] == true) {
         final qty = double.tryParse(qtyControllers[key]?.text ?? '') ?? 0;
         if (qty > 0) {
-          materialGroups.putIfAbsent(material.partNo, () => []).add((mrItem, mr));
+          materialGroups
+              .putIfAbsent(material.partNo, () => [])
+              .add((mrItem, mr));
         }
       }
     }
@@ -265,7 +269,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     // Create issue items
     final items = <MaterialIssueItem>[];
     for (var entry in materialGroups.entries) {
-      final material = materialMRItems.firstWhere((item) => item.$1.partNo == entry.key).$1;
+      final material =
+          materialMRItems.firstWhere((item) => item.$1.partNo == entry.key).$1;
       final issueItem = _createIssueItem(material, entry.value);
       if (issueItem.mrDetails.isNotEmpty) {
         items.add(issueItem);
@@ -284,20 +289,22 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
         await ref
             .read(materialIssueProvider.notifier)
             .updateMaterialIssue(materialIssue);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Material Issue updated successfully')),
+            const SnackBar(
+                content: Text('Material Issue updated successfully')),
           );
         }
       } else {
         await ref
             .read(materialIssueProvider.notifier)
             .createMaterialIssue(materialIssue);
-            
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Material Issue created successfully')),
+            const SnackBar(
+                content: Text('Material Issue created successfully')),
           );
         }
       }
@@ -341,7 +348,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 16),
                       ),
                       icon: const Icon(Icons.filter_list),
                       label: Text(
@@ -383,7 +391,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                       decoration: const InputDecoration(
                         labelText: 'Vendor',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       ),
                       items: _getUniqueVendors()
                           .map((vendor) => DropdownMenuItem(
@@ -404,9 +413,13 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
               const SizedBox(height: 24),
               // Select All Row
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest
+                      .withOpacity(0.3),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -417,7 +430,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                         Checkbox(
                           value: materialMRItems.isNotEmpty &&
                               materialMRItems.every((item) {
-                                final key = '${item.$1.partNo}_${item.$3.issueNo}';
+                                final key =
+                                    '${item.$1.partNo}_${item.$3.issueNo}';
                                 return selectedMRs[key] == true;
                               }),
                           onChanged: (value) {
@@ -430,7 +444,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                                 final key = '${material.partNo}_${mr.issueNo}';
                                 selectedMRs[key] = value;
                                 if (value) {
-                                  final issuedQty = mrItem.issuedQuantities.values
+                                  final issuedQty = mrItem
+                                      .issuedQuantities.values
                                       .fold(0.0, (sum, qty) => sum + qty);
                                   final remainingQty =
                                       double.parse(mrItem.quantity) - issuedQty;
@@ -447,8 +462,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                             style: TextStyle(fontWeight: FontWeight.w500)),
                       ],
                     ),
-                    Text(
-                        'Total Items: ${materialMRItems.length}',
+                    Text('Total Items: ${materialMRItems.length}',
                         style: const TextStyle(fontWeight: FontWeight.w500)),
                   ],
                 ),
@@ -472,7 +486,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                     return _buildCompactItemRow(material, mrItem, mr);
                   },
                 ),
-                const SizedBox(height: 8),  // Add spacing between items
+                const SizedBox(height: 8), // Add spacing between items
               ],
             ],
           ),
@@ -481,7 +495,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     );
   }
 
-  Widget _buildCompactItemRow(MaterialItem material, MaterialRequestItem mrItem, MaterialRequest mr) {
+  Widget _buildCompactItemRow(
+      MaterialItem material, MaterialRequestItem mrItem, MaterialRequest mr) {
     final materialCode = material.partNo;
     final key = '${materialCode}_${mr.issueNo}';
 
@@ -503,11 +518,13 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     String prNo = '';
 
     // Find available PR for this job
-    final prInfo = stockItem.findAvailablePRForJob(jobNo, mrItem.pendingQuantity);
+    final prInfo =
+        stockItem.findAvailablePRForJob(jobNo, mrItem.pendingQuantity);
     if (prInfo != null) {
       prNo = prInfo.$1;
       availableQty = prInfo.$2;
-      print('Found PR $prNo with available quantity $availableQty for job $jobNo');
+      print(
+          'Found PR $prNo with available quantity $availableQty for job $jobNo');
     } else {
       print('No available PR found for job $jobNo');
     }

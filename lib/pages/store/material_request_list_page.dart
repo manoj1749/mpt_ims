@@ -140,13 +140,11 @@ class _MaterialRequestListPageState
                           'Are you sure you want to delete this Material Request?'),
                       actions: [
                         TextButton(
-                          onPressed: () =>
-                              Navigator.of(context).pop(false),
+                          onPressed: () => Navigator.of(context).pop(false),
                           child: const Text('Cancel'),
                         ),
                         TextButton(
-                          onPressed: () =>
-                              Navigator.of(context).pop(true),
+                          onPressed: () => Navigator.of(context).pop(true),
                           child: const Text('Delete'),
                         ),
                       ],

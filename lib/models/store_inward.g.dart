@@ -24,7 +24,7 @@ class StoreInwardAdapter extends TypeAdapter<StoreInward> {
       poDate: fields[4] as String,
       invoiceNo: fields[5] as String,
       invoiceDate: fields[6] as String,
-      invoiceAmount: (fields[7] as num).toDouble(),
+      invoiceAmount: fields[7] as double,
       receivedBy: fields[8] as String,
       checkedBy: fields[9] as String,
       items: (fields[10] as List).cast<InwardItem>(),

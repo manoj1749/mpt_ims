@@ -6,6 +6,7 @@ import '../../provider/category_parameter_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
 import '../../models/category.dart';
 import '../../models/category_parameter_mapping.dart';
+import 'package:hive/hive.dart';
 
 class CategorySettingsPage extends ConsumerStatefulWidget {
   const CategorySettingsPage({super.key});
@@ -20,6 +21,56 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
   final _subCategoryController = TextEditingController();
   final _parameterController = TextEditingController();
   Category? _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _printBoxContents();
+    });
+  }
+
+  void _printBoxContents() {
+    print('\n==== PRINTING CATEGORY SETTINGS DATA ====');
+    
+    // Print Categories
+    if (Hive.isBoxOpen('categories')) {
+      final categoryBox = Hive.box<Category>('categories');
+      print('\n-- Categories Box Contents --');
+      for (var category in categoryBox.values) {
+        print('''
+Category: ${category.name}
+- Requires Quality Check: ${category.requiresQualityCheck}
+- Sample Size <100: ${category.sampleSizeLessThan100}
+- Sample Size 100-500: ${category.sampleSize100To500}
+- Sample Size >500: ${category.sampleSizeGreaterThan500}
+- Has Expiry Date: ${category.hasExpiryDate}
+- Has Shelf Life: ${category.hasShelfLife}
+- Shelf Life Value: ${category.shelfLifeValue}
+- Shelf Life Unit: ${category.shelfLifeUnit}
+''');
+      }
+    } else {
+      print('Categories box is not open');
+    }
+
+    // Print Category Parameter Mappings
+    if (Hive.isBoxOpen('categoryParameterMappings')) {
+      final mappingBox = Hive.box<CategoryParameterMapping>('categoryParameterMappings');
+      print('\n-- Category Parameter Mappings Box Contents --');
+      for (var mapping in mappingBox.values) {
+        print('''
+Mapping for Category: ${mapping.category}
+- Parameters: ${mapping.parameters}
+- Requires Expiry Date: ${mapping.requiresExpiryDate}
+''');
+      }
+    } else {
+      print('Category Parameter Mappings box is not open');
+    }
+
+    print('\n==== END CATEGORY SETTINGS DATA ====\n');
+  }
 
   @override
   void dispose() {
@@ -135,6 +186,12 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
     );
   }
 
+  Future<void> _updateCategory(Category updatedCategory) async {
+    await ref.read(categoryListProvider.notifier).updateCategory(updatedCategory);
+    setState(() => _selectedCategory = updatedCategory);
+    _printBoxContents(); // Print contents after update
+  }
+
   Widget _buildQualityParameterSection() {
     final mappings = ref.watch(categoryParameterProvider);
     final universalParams = ref.watch(universalParameterProvider);
@@ -167,6 +224,7 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                       ref
                           .read(universalParameterProvider.notifier)
                           .addParameter(name);
+                      _printBoxContents(); // Print contents after adding parameter
                     },
                   ),
                 ),
@@ -178,6 +236,26 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                SwitchListTile(
+                  title: const Text('Requires Quality Check'),
+                  subtitle: const Text(
+                      'Enable if materials in this category require quality inspection'),
+                  value: _selectedCategory?.requiresQualityCheck ?? true,
+                  onChanged: (value) {
+                    final updatedCategory = _selectedCategory!.copyWith(
+                      requiresQualityCheck: value,
+                      sampleSizeLessThan100: value ? _selectedCategory!.sampleSizeLessThan100 : null,
+                      sampleSize100To500: value ? _selectedCategory!.sampleSize100To500 : null,
+                      sampleSizeGreaterThan500: value ? _selectedCategory!.sampleSizeGreaterThan500 : null,
+                      hasExpiryDate: value ? _selectedCategory!.hasExpiryDate : false,
+                      hasShelfLife: value ? _selectedCategory!.hasShelfLife : false,
+                      shelfLifeValue: value ? _selectedCategory!.shelfLifeValue : null,
+                      shelfLifeUnit: value ? _selectedCategory!.shelfLifeUnit : null,
+                    );
+                    _updateCategory(updatedCategory);
+                  },
+                ),
+                const SizedBox(height: 16),
                 const Text(
                   'Universal Parameters',
                   style: TextStyle(
@@ -285,34 +363,210 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
                       });
                     },
                   ),
-                  SwitchListTile(
-                    title: const Text('Requires Expiry Date'),
-                    subtitle: const Text(
-                        'Enable if materials in this category need expiration date tracking'),
-                    value: mappings
-                        .firstWhere(
-                          (m) => m.category == _selectedCategory!.name,
-                          orElse: () => CategoryParameterMapping(
-                            category: _selectedCategory!.name,
-                            parameters: [],
-                            requiresExpiryDate: false,
-                          ),
-                        )
-                        .requiresExpiryDate,
-                    onChanged: (value) {
-                      final mapping = mappings.firstWhere(
-                        (m) => m.category == _selectedCategory!.name,
-                        orElse: () => CategoryParameterMapping(
-                          category: _selectedCategory!.name,
-                          parameters: [],
-                          requiresExpiryDate: false,
-                        ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSamplePlanSection() {
+    if (_selectedCategory == null) return const SizedBox.shrink();
+
+    return Card(
+      margin: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.black,
+            child: const Text(
+              'Sample Plan Settings',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Sample Size for Qty < 100',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  initialValue: _selectedCategory!.sampleSizeLessThan100?.toString() ?? '',
+                  onChanged: (value) {
+                    final intValue = int.tryParse(value);
+                    if (intValue != null) {
+                      final updatedCategory = _selectedCategory!.copyWith(
+                        sampleSizeLessThan100: intValue,
                       );
-                      mapping.requiresExpiryDate = value;
-                      ref
-                          .read(categoryParameterProvider.notifier)
-                          .updateMapping(mapping);
-                    },
+                      _updateCategory(updatedCategory);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Sample Size for Qty 100-500',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  initialValue: _selectedCategory!.sampleSize100To500?.toString() ?? '',
+                  onChanged: (value) {
+                    final intValue = int.tryParse(value);
+                    if (intValue != null) {
+                      final updatedCategory = _selectedCategory!.copyWith(
+                        sampleSize100To500: intValue,
+                      );
+                      _updateCategory(updatedCategory);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Sample Size for Qty > 500',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  initialValue: _selectedCategory!.sampleSizeGreaterThan500?.toString() ?? '',
+                  onChanged: (value) {
+                    final intValue = int.tryParse(value);
+                    if (intValue != null) {
+                      final updatedCategory = _selectedCategory!.copyWith(
+                        sampleSizeGreaterThan500: intValue,
+                      );
+                      _updateCategory(updatedCategory);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpiryShelfLifeSection() {
+    if (_selectedCategory == null) return const SizedBox.shrink();
+
+    return Card(
+      margin: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.black,
+            child: const Text(
+              'Expiry/Shelf Life Settings',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: CheckboxListTile(
+                        title: const Text('Has Expiry Date'),
+                        value: _selectedCategory!.hasExpiryDate ?? false,
+                        onChanged: (value) {
+                          if (value != null) {
+                            final updatedCategory = _selectedCategory!.copyWith(
+                              hasExpiryDate: value,
+                              hasShelfLife: false,
+                              shelfLifeValue: null,
+                              shelfLifeUnit: null,
+                            );
+                            _updateCategory(updatedCategory);
+                          }
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: CheckboxListTile(
+                        title: const Text('Has Shelf Life'),
+                        value: _selectedCategory!.hasShelfLife ?? false,
+                        onChanged: (value) {
+                          if (value != null) {
+                            final updatedCategory = _selectedCategory!.copyWith(
+                              hasShelfLife: value,
+                              hasExpiryDate: false,
+                              shelfLifeValue: value ? _selectedCategory!.shelfLifeValue : null,
+                              shelfLifeUnit: value ? _selectedCategory!.shelfLifeUnit : null,
+                            );
+                            _updateCategory(updatedCategory);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                if (_selectedCategory!.hasShelfLife == true) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextFormField(
+                          decoration: const InputDecoration(
+                            labelText: 'Shelf Life Duration',
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                          initialValue: _selectedCategory!.shelfLifeValue?.toString() ?? '',
+                          onChanged: (value) {
+                            final intValue = int.tryParse(value);
+                            if (intValue != null) {
+                              final updatedCategory = _selectedCategory!.copyWith(
+                                shelfLifeValue: intValue,
+                              );
+                              _updateCategory(updatedCategory);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          decoration: const InputDecoration(
+                            labelText: 'Unit',
+                            border: OutlineInputBorder(),
+                          ),
+                          value: _selectedCategory!.shelfLifeUnit ?? 'days',
+                          items: const [
+                            DropdownMenuItem(value: 'days', child: Text('Days')),
+                            DropdownMenuItem(value: 'months', child: Text('Months')),
+                            DropdownMenuItem(value: 'years', child: Text('Years')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              final updatedCategory = _selectedCategory!.copyWith(
+                                shelfLifeUnit: value,
+                              );
+                              _updateCategory(updatedCategory);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ],
@@ -328,48 +582,50 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
     final categories = ref.watch(categoryListProvider);
     final subCategories = ref.watch(subCategoryListProvider);
 
-    final filteredSubCategories = _selectedCategory != null
-        ? subCategories
-            .where((sc) => sc.categoryName == _selectedCategory!.name)
-            .toList()
-        : subCategories;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Category Settings'),
       ),
-      body: ListView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        children: [
-          _buildSection(
-            'Category',
-            categories,
-            (name) => ref.read(categoryListProvider.notifier).addCategory(name),
-            onDelete: (category) => ref
-                .read(categoryListProvider.notifier)
-                .deleteCategory(category),
-          ),
-          _buildSection(
-            'Sub-Category',
-            _selectedCategory != null ? filteredSubCategories : [],
-            (name) => ref
-                .read(subCategoryListProvider.notifier)
-                .addSubCategory(name, _selectedCategory?.name ?? ''),
-            onDelete: (subCategory) => ref
-                .read(subCategoryListProvider.notifier)
-                .deleteSubCategory(subCategory),
-          ),
-          if (_selectedCategory == null)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                'Select a category to manage its sub-categories',
-                style:
-                    TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-              ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildSection(
+              'Category',
+              categories,
+              (name) {
+                ref.read(categoryListProvider.notifier).addCategory(name);
+              },
+              onDelete: (category) {
+                ref.read(categoryListProvider.notifier).deleteCategory(category);
+                if (_selectedCategory == category) {
+                  setState(() => _selectedCategory = null);
+                }
+              },
             ),
-          _buildQualityParameterSection(),
-        ],
+            if (_selectedCategory != null) ...[
+              _buildSection(
+                'Sub-Category',
+                subCategories.where((sc) => sc.categoryName == _selectedCategory!.name).toList(),
+                (name) {
+                  ref.read(subCategoryListProvider.notifier).addSubCategory(
+                    name,
+                    _selectedCategory!.name,
+                  );
+                },
+                onDelete: (subCategory) {
+                  ref.read(subCategoryListProvider.notifier).deleteSubCategory(subCategory);
+                },
+              ),
+              _buildQualityParameterSection(),
+              if (_selectedCategory?.requiresQualityCheck == true) ...[
+                _buildSamplePlanSection(),
+                _buildExpiryShelfLifeSection(),
+              ],
+            ],
+          ],
+        ),
       ),
     );
   }

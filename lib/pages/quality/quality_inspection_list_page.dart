@@ -415,34 +415,38 @@ class _QualityInspectionListPageState
           final item = rendererContext.row.cells['inspection']!.value
               as QualityInspection;
           final inspItem = item.items.first;
-
+          print(1);
+          print('inspItem: ${inspItem.toString()}');
+          print('item: ${item.toString()}');
+          print(2);
           // Get the usage decision from GRN quantities
           String displayText = '';
           Color? textColor;
 
           if (inspItem.grnQuantities.isNotEmpty) {
             final grnQty = inspItem.grnQuantities.values.first;
-
+            print(3);
+            print('grnQty: ${grnQty.toString()}');
+            print(4);
             // First check if it's a direct rejection or acceptance
-            if (grnQty.usageDecision == 'Rejected') {
+            if (inspItem.usageDecision == 'Rejected') {
               displayText = 'Rejected';
               textColor = Colors.red;
-            } else if (grnQty.usageDecision == 'Lot Accepted') {
+            } else if (inspItem.usageDecision == 'Lot Accepted') {
               displayText = 'Lot Accepted';
               textColor = Colors.green;
             }
             // Only show recheck statuses if it was actually a recheck case
-            else if (grnQty.usageDecision == '100% Recheck') {
+            else if (inspItem.usageDecision == '100% Recheck') {
               displayText = '100% Recheck';
-              if (grnQty.recheckType != null) {
-                displayText += '\n${grnQty.recheckType}';
+              if (inspItem.recheckType != null) {
+                displayText += ' - ${inspItem.recheckType}';
               }
               textColor = Colors.orange;
-            } else if (grnQty.usageDecision == 'Accepted After 100% Recheck') {
+            } else if (inspItem.usageDecision == 'Accepted After 100% Recheck') {
               displayText = 'Accepted After 100% Recheck';
               textColor = Colors.green;
-            } else if (grnQty.usageDecision ==
-                'Partially Accepted After 100% Recheck') {
+            } else if (inspItem.usageDecision == 'Partially Accepted After 100% Recheck') {
               displayText = 'Partially Accepted After 100% Recheck';
               textColor = Colors.orange;
             }
@@ -458,7 +462,7 @@ class _QualityInspectionListPageState
 
           // Add CAPA Required if applicable
           if (inspItem.capaRequired == true) {
-            displayText += '\nCAPA Required';
+            displayText += ' - CAPA Required';
             textColor = Colors.red;
           }
 

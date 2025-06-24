@@ -60,6 +60,16 @@ class _AddQualityInspectionPageState
     super.dispose();
   }
 
+  // Generate a new inspection number
+  String _generateInspectionNo() {
+    final now = DateTime.now();
+    final year = now.year.toString().substring(2);
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    final random = (1000 + DateTime.now().millisecondsSinceEpoch % 9000).toString();
+    return 'QI$year$month$day$random';
+  }
+
   void _loadAllPendingItems() {
     final materials = ref.read(materialListProvider);
     final inwards = ref.watch(storeInwardProvider);
@@ -607,9 +617,55 @@ class _AddQualityInspectionPageState
           selectedGRNQty.rejectedQty = 0.0;
           selectedItem.acceptedQty = selectedGRNQty.receivedQty;
           selectedItem.rejectedQty = 0.0;
+          selectedItem.pendingQty = 0.0; // Clear pending quantity
+          
           // Set the final usage decision to indicate it was accepted after recheck
-          selectedGRNQty.usageDecision = 'Accepted After Recheck';
-          selectedItem.usageDecision = 'Accepted After Recheck';
+          selectedGRNQty.usageDecision = 'Accepted After 100% Recheck';
+          selectedItem.usageDecision = 'Accepted After 100% Recheck';
+          
+          // Create a new inspection record for stock update
+          final recheckInspection = QualityInspection(
+            inspectionNo: _generateInspectionNo(),
+            inspectionDate: _inspectionDateController.text,
+            grnNo: selectedGRN.grnNo,
+            supplierName: selectedGRN.supplierName,
+            poNo: selectedGRN.poNo,
+            billNo: selectedGRN.invoiceNo,
+            billDate: selectedGRN.invoiceDate,
+            receivedDate: selectedGRN.grnDate,
+            grnDate: selectedGRN.grnDate,
+            inspectedBy: _inspectedByController.text,
+            approvedBy: _approvedByController.text,
+            items: [selectedItem],
+            status: 'Completed - Accepted After 100% Recheck'
+          );
+          
+          // Add the recheck inspection first
+          await ref.read(qualityInspectionProvider.notifier).addInspection(recheckInspection);
+          
+          // Update the stock maintenance with recheck result
+          await ref.read(stockMaintenanceProvider.notifier).updateStockFromInspection(recheckInspection);
+          
+          // Try to find and update the original inspection status if it exists
+          final inspections = ref.read(qualityInspectionProvider);
+          final originalInspection = inspections.where(
+            (insp) => insp.grnNo == selectedGRN.grnNo && insp.inspectionNo != recheckInspection.inspectionNo
+          ).firstOrNull;
+          
+          // Only update the original inspection if it exists
+          if (originalInspection != null) {
+            await ref.read(qualityInspectionProvider.notifier)
+                .updateInspectionStatus(originalInspection.inspectionNo, 'Completed - Accepted After 100% Recheck');
+          }
+
+          // Show success and return early since we've handled everything
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Inspection saved successfully')),
+            );
+            Navigator.of(context).pop();
+          }
+          return;
         } else if (selectedGRNQty.recheckType == 'Partial Acceptance') {
           // For partial acceptance, use the quantities from PR distribution
           double totalAcceptedQty = 0.0;
@@ -631,9 +687,37 @@ class _AddQualityInspectionPageState
           selectedItem.acceptedQty = totalAcceptedQty;
           selectedItem.rejectedQty =
               selectedGRNQty.receivedQty - totalAcceptedQty;
+          selectedItem.pendingQty = 0.0; // Clear pending quantity
+          
           // Set the final usage decision to indicate partial acceptance after recheck
-          selectedGRNQty.usageDecision = 'Partially Accepted After Recheck';
-          selectedItem.usageDecision = 'Partially Accepted After Recheck';
+          selectedGRNQty.usageDecision = 'Partially Accepted After 100% Recheck';
+          selectedItem.usageDecision = 'Partially Accepted After 100% Recheck';
+          
+          // Create a new inspection record for stock update
+          final recheckInspection = QualityInspection(
+            inspectionNo: _generateInspectionNo(),
+            inspectionDate: _inspectionDateController.text,
+            grnNo: selectedGRN.grnNo,
+            supplierName: selectedGRN.supplierName,
+            poNo: selectedGRN.poNo,
+            billNo: selectedGRN.invoiceNo,
+            billDate: selectedGRN.invoiceDate,
+            receivedDate: selectedGRN.grnDate,
+            grnDate: selectedGRN.grnDate,
+            inspectedBy: _inspectedByController.text,
+            approvedBy: _approvedByController.text,
+            items: [selectedItem],
+            status: 'Completed - Partially Accepted After Recheck'
+          );
+          
+          // Update the stock maintenance with recheck result
+          await ref.read(stockMaintenanceProvider.notifier).updateStockFromInspection(recheckInspection);
+          
+          // Update the original inspection status
+          final originalInspection = ref.read(qualityInspectionProvider)
+              .firstWhere((insp) => insp.grnNo == selectedGRN.grnNo);
+          await ref.read(qualityInspectionProvider.notifier)
+              .updateInspectionStatus(originalInspection.inspectionNo, 'Completed - Partially Accepted After Recheck');
         }
       }
 
@@ -872,18 +956,22 @@ class _AddQualityInspectionPageState
                                           ),
                                         );
                                         grnQty.usageDecision = 'Rejected';
+                                        firstItem.usageDecision = 'Rejected';
                                         grnQty.acceptedQty = 0;
                                         grnQty.rejectedQty = grnQty.receivedQty;
                                         return;
                                       }
                                       grnQty.acceptedQty = grnQty.receivedQty;
                                       grnQty.rejectedQty = 0;
+                                      firstItem.usageDecision = 'Lot Accepted';
                                     } else if (value == 'Rejected') {
                                       grnQty.acceptedQty = 0;
                                       grnQty.rejectedQty = grnQty.receivedQty;
+                                      firstItem.usageDecision = 'Rejected';
                                     } else if (value == '100% Recheck') {
                                       grnQty.acceptedQty = 0;
                                       grnQty.rejectedQty = 0;
+                                      firstItem.usageDecision = '100% Recheck';
                                     }
                                   });
                                 },

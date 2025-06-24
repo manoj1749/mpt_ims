@@ -422,29 +422,30 @@ class _QualityInspectionListPageState
           if (inspItem.grnQuantities.isNotEmpty) {
             final grnQty = inspItem.grnQuantities.values.first;
             
-            // Check if item is rejected based on quantities
-            if (grnQty.rejectedQty > 0 && grnQty.acceptedQty == 0) {
+            // First check if it's a direct rejection or acceptance
+            if (grnQty.usageDecision == 'Rejected') {
               displayText = 'Rejected';
               textColor = Colors.red;
-            } else if (grnQty.usageDecision == '100% Recheck') {
+            } else if (grnQty.usageDecision == 'Lot Accepted') {
+              displayText = 'Lot Accepted';
+              textColor = Colors.green;
+            } 
+            // Only show recheck statuses if it was actually a recheck case
+            else if (grnQty.usageDecision == '100% Recheck') {
               displayText = '100% Recheck';
               if (grnQty.recheckType != null) {
                 displayText += '\n${grnQty.recheckType}';
               }
               textColor = Colors.orange;
-            } else if (grnQty.usageDecision == 'Accepted After Recheck') {
-              displayText = 'Accepted-After Recheck';
+            } else if (grnQty.usageDecision == 'Accepted After 100% Recheck') {
+              displayText = 'Accepted After 100% Recheck';
               textColor = Colors.green;
-            } else if (grnQty.usageDecision == 'Partially Accepted After Recheck') {
-              displayText = 'Partially Accepted-After Recheck';
+            } else if (grnQty.usageDecision == 'Partially Accepted After 100% Recheck') {
+              displayText = 'Partially Accepted After 100% Recheck';
               textColor = Colors.orange;
-            } else {
-              displayText = grnQty.usageDecision;
-              if (displayText == 'Lot Accepted') {
-                textColor = Colors.green;
-              }
             }
           } else {
+            // Fallback to inspection item's usage decision
             displayText = inspItem.usageDecision;
             if (displayText == 'Lot Accepted') {
               textColor = Colors.green;
@@ -453,6 +454,7 @@ class _QualityInspectionListPageState
             }
           }
 
+          // Add CAPA Required if applicable
           if (inspItem.capaRequired == true) {
             displayText += '\nCAPA Required';
             textColor = Colors.red;
@@ -651,11 +653,8 @@ class _QualityInspectionListPageState
       String usageDecision = item.usageDecision;
       if (item.grnQuantities.isNotEmpty) {
         final grnQty = item.grnQuantities.values.first;
-        if (grnQty.rejectedQty > 0 && grnQty.acceptedQty == 0) {
-          usageDecision = 'Rejected';
-        } else {
-          usageDecision = grnQty.usageDecision;
-        }
+        // Use the GRN's usage decision directly instead of checking quantities
+        usageDecision = grnQty.usageDecision;
       }
 
       rows.add(

@@ -143,6 +143,57 @@ class QualityInspection extends HiveObject {
   String toString() {
     return '\nQualityInspection(inspectionNo: $inspectionNo, inspectionDate: $inspectionDate, grnNo: $grnNo, supplierName: $supplierName, poNo: $poNo, status: $status, capaStatus: $capaStatus, items: [\n  ${items.map((e) => e.toString()).join(',\n  ')}\n], prNumbers: $prNumbers, jobNumbers: $jobNumbers)';
   }
+
+  // Helper method to create a copy with some fields updated
+  QualityInspection copyWith({
+    String? inspectionNo,
+    String? inspectionDate,
+    String? grnNo,
+    String? supplierName,
+    String? poNo,
+    String? billNo,
+    String? billDate,
+    String? receivedDate,
+    String? grnDate,
+    String? inspectedBy,
+    String? approvedBy,
+    List<InspectionItem>? items,
+    String? status,
+    Map<String, String>? prNumbers,
+    Map<String, String>? jobNumbers,
+    String? capaNo,
+    String? capaStatus,
+    String? capaDescription,
+    String? capaAssignedTo,
+    String? capaTargetDate,
+    String? capaCompletionDate,
+    List<String>? capaActions,
+  }) {
+    return QualityInspection(
+      inspectionNo: inspectionNo ?? this.inspectionNo,
+      inspectionDate: inspectionDate ?? this.inspectionDate,
+      grnNo: grnNo ?? this.grnNo,
+      supplierName: supplierName ?? this.supplierName,
+      poNo: poNo ?? this.poNo,
+      billNo: billNo ?? this.billNo,
+      billDate: billDate ?? this.billDate,
+      receivedDate: receivedDate ?? this.receivedDate,
+      grnDate: grnDate ?? this.grnDate,
+      inspectedBy: inspectedBy ?? this.inspectedBy,
+      approvedBy: approvedBy ?? this.approvedBy,
+      items: items ?? List.from(this.items),
+      status: status ?? this.status,
+      prNumbers: prNumbers ?? Map.from(this.prNumbers),
+      jobNumbers: jobNumbers ?? Map.from(this.jobNumbers),
+      capaNo: capaNo ?? this.capaNo,
+      capaStatus: capaStatus ?? this.capaStatus,
+      capaDescription: capaDescription ?? this.capaDescription,
+      capaAssignedTo: capaAssignedTo ?? this.capaAssignedTo,
+      capaTargetDate: capaTargetDate ?? this.capaTargetDate,
+      capaCompletionDate: capaCompletionDate ?? this.capaCompletionDate,
+      capaActions: capaActions ?? List.from(this.capaActions),
+    );
+  }
 }
 
 @HiveType(typeId: 12)

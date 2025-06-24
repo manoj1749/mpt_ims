@@ -70,7 +70,7 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
     await box.add(inspection);
   }
 
-  void updateInspection(QualityInspection inspection) async {
+  Future<void> updateInspection(QualityInspection inspection) async {
     print('\n=== Debug: Updating Inspection ${inspection.inspectionNo} ===');
 
     // Find the index of the inspection to update
@@ -109,24 +109,30 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
           selectedGRN.value.rejectedQty = 0.0;
           item.acceptedQty = selectedGRN.value.receivedQty;
           item.rejectedQty = 0.0;
+          item.usageDecision = 'Lot Accepted';
+          inspection.status = 'Completed - Accepted';
         } else if (selectedGRN.value.usageDecision == 'Rejected') {
           // If lot is rejected, set all received quantity as rejected
           selectedGRN.value.acceptedQty = 0.0;
           selectedGRN.value.rejectedQty = selectedGRN.value.receivedQty;
           item.acceptedQty = 0.0;
           item.rejectedQty = selectedGRN.value.receivedQty;
-        } else if (selectedGRN.value.usageDecision == '100% Recheck') {
-          if (item.recheckType == '100% Acceptance') {
-            // For 100% acceptance after recheck
-            selectedGRN.value.acceptedQty = selectedGRN.value.receivedQty;
-            selectedGRN.value.rejectedQty = 0.0;
-            item.acceptedQty = selectedGRN.value.receivedQty;
-            item.rejectedQty = 0.0;
-          } else {
-            // For partial acceptance after recheck, use the quantities as set
-            selectedGRN.value.acceptedQty = item.acceptedQty;
-            selectedGRN.value.rejectedQty = item.rejectedQty;
-          }
+          item.usageDecision = 'Rejected';
+          inspection.status = 'Completed - Rejected';
+        } else if (selectedGRN.value.usageDecision == 'Accepted After 100% Recheck') {
+          // For 100% acceptance after recheck
+          selectedGRN.value.acceptedQty = selectedGRN.value.receivedQty;
+          selectedGRN.value.rejectedQty = 0.0;
+          item.acceptedQty = selectedGRN.value.receivedQty;
+          item.rejectedQty = 0.0;
+          item.usageDecision = 'Accepted After 100% Recheck';
+          inspection.status = 'Completed - Accepted After 100% Recheck';
+        } else if (selectedGRN.value.usageDecision == 'Partially Accepted After 100% Recheck') {
+          // For partial acceptance after recheck, use the quantities as set
+          selectedGRN.value.acceptedQty = item.acceptedQty;
+          selectedGRN.value.rejectedQty = item.rejectedQty;
+          item.usageDecision = 'Partially Accepted After 100% Recheck';
+          inspection.status = 'Completed - Partially Accepted After 100% Recheck';
         }
 
         item.receivedQty = selectedGRN.value.receivedQty;
@@ -142,8 +148,6 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
         print('Pending: ${item.pendingQty}');
       }
 
-      // Set inspection status to Completed immediately
-      inspection.status = 'Completed - Accepted';
       print('Inspection status set to: ${inspection.status}');
 
       // Update the inspection in Hive
@@ -285,6 +289,38 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
 
       await box.putAt(index, inspection);
       state = box.values.toList();
+    }
+  }
+
+  // Update inspection status
+  Future<void> updateInspectionStatus(String inspectionNo, String newStatus) async {
+    print('\n=== Debug: Updating Inspection Status for $inspectionNo to $newStatus ===');
+    
+    // Find the index of the inspection to update
+    final index = box.values.toList().indexWhere(
+          (insp) => insp.inspectionNo == inspectionNo,
+        );
+
+    if (index != -1) {
+      final inspection = box.getAt(index);
+      if (inspection != null) {
+        inspection.status = newStatus;
+        
+        // For recheck cases, update the usage decision of items too
+        if (newStatus == 'Completed - Accepted After 100% Recheck') {
+          for (var item in inspection.items) {
+            for (var grnQty in item.grnQuantities.values) {
+              if (grnQty.isSelected == true) {  // Explicitly check for true
+                grnQty.usageDecision = 'Accepted After 100% Recheck';
+                item.usageDecision = 'Accepted After 100% Recheck';
+              }
+            }
+          }
+        }
+        
+        await box.putAt(index, inspection);
+        state = box.values.toList();
+      }
     }
   }
 }

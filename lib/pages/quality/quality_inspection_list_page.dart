@@ -415,19 +415,11 @@ class _QualityInspectionListPageState
           final item = rendererContext.row.cells['inspection']!.value
               as QualityInspection;
           final inspItem = item.items.first;
-          print(1);
-          print('inspItem: ${inspItem.toString()}');
-          print('item: ${item.toString()}');
-          print(2);
           // Get the usage decision from GRN quantities
           String displayText = '';
           Color? textColor;
 
           if (inspItem.grnQuantities.isNotEmpty) {
-            final grnQty = inspItem.grnQuantities.values.first;
-            print(3);
-            print('grnQty: ${grnQty.toString()}');
-            print(4);
             // First check if it's a direct rejection or acceptance
             if (inspItem.usageDecision == 'Rejected') {
               displayText = 'Rejected';

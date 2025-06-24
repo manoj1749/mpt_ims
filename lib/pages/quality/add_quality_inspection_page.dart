@@ -1248,18 +1248,10 @@ class _AddQualityInspectionPageState
                                                 ?[prNo] ??
                                             'General';
 
-                                        // Calculate proportional accepted quantity
-                                        final proportion =
-                                            originalQty / grnItem.receivedQty;
-                                        final suggestedQty =
-                                            grnQty.acceptedQty * proportion;
-
                                         // Initialize controller if not exists
                                         _prQtyControllers[grnNo] ??= {};
-                                        _prQtyControllers[grnNo]![
-                                                '${poNo}_$prNo'] ??=
-                                            TextEditingController(
-                                                text: suggestedQty.toString());
+                                        _prQtyControllers[grnNo]!['${poNo}_$prNo'] ??=
+                                            TextEditingController(text: '0');
 
                                         return Padding(
                                           padding: const EdgeInsets.only(
@@ -1291,7 +1283,7 @@ class _AddQualityInspectionPageState
                                                         const OutlineInputBorder(),
                                                     isDense: true,
                                                     hintText:
-                                                        'Max: ${originalQty.toString()}',
+                                                        'Max: ${grnQty.acceptedQty.toString()}',
                                                   ),
                                                   keyboardType:
                                                       const TextInputType
@@ -1309,9 +1301,6 @@ class _AddQualityInspectionPageState
                                                     }
                                                     if (qty < 0) {
                                                       return 'Cannot be negative';
-                                                    }
-                                                    if (qty > originalQty) {
-                                                      return 'Exceeds original qty';
                                                     }
                                                     return null;
                                                   },
@@ -1346,8 +1335,7 @@ class _AddQualityInspectionPageState
                                                       _prQtyControllers[grnNo]![
                                                                   '${poNo}_$prNo']!
                                                               .text =
-                                                          suggestedQty
-                                                              .toString();
+                                                          (grnQty.acceptedQty - (total - (double.tryParse(value) ?? 0))).toString();
                                                     }
                                                   },
                                                 ),

@@ -335,252 +335,272 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
   // Update stock based on inspection status change
   Future<void> updateStockFromInspection(QualityInspection inspection) async {
-    print(
-        '\n=== Debug: Updating Stock from Inspection ${inspection.inspectionNo} ===');
+    print('\n=== Debug: Starting Stock Update from Inspection ${inspection.inspectionNo} ===');
+    print('GRN Number: ${inspection.grnNo}');
 
     // Get required boxes from providers
     final inwardBox = ref.read(storeInwardBoxProvider);
 
     try {
       // Get the GRN
+      print('Looking for GRN in inward box...');
       final grn = inwardBox.values.firstWhere(
         (gr) => gr.grnNo == inspection.grnNo,
-        orElse: () => throw Exception('GRN not found'),
+        orElse: () {
+          print('Available GRNs: ${inwardBox.values.map((g) => g.grnNo).join(", ")}');
+          throw Exception('GRN ${inspection.grnNo} not found');
+        },
       );
+      print('Found GRN: ${grn.grnNo}');
 
       // Process each inspected item
       for (var inspectionItem in inspection.items) {
-        print('\nProcessing item: ${inspectionItem.materialCode}');
-
-        // Get or create stock record for this material
-        var stock = _stockBox.values.firstWhere(
-          (s) => s.materialCode == inspectionItem.materialCode,
-          orElse: () => StockMaintenance(
-            materialCode: inspectionItem.materialCode,
-            materialDescription: inspectionItem.materialDescription,
-            unit: inspectionItem.unit,
-            storageLocation: '',
-            rackNumber: '',
-          ),
-        );
-
-        if (!_stockBox.values.contains(stock)) {
-          print('Adding new stock for ${inspectionItem.materialCode}');
-          await _stockBox.add(stock);
-          stock = _stockBox.values.firstWhere(
+        print('\n--- Processing item: ${inspectionItem.materialCode} ---');
+        try {
+          print('GRN Quantities available: ${inspectionItem.grnQuantities.keys.join(", ")}');
+          print('Looking for GRN ${inspection.grnNo} in quantities...');
+          
+          // Get or create stock record for this material
+          var stock = _stockBox.values.firstWhere(
             (s) => s.materialCode == inspectionItem.materialCode,
+            orElse: () {
+              print('Creating new stock record for ${inspectionItem.materialCode}');
+              return StockMaintenance(
+                materialCode: inspectionItem.materialCode,
+                materialDescription: inspectionItem.materialDescription,
+                unit: inspectionItem.unit,
+                storageLocation: '',
+                rackNumber: '',
+              );
+            },
           );
-        }
 
-        // Get the selected GRN's quantities
-        final selectedGRN = inspectionItem.grnQuantities.entries
-            .firstWhere((entry) => entry.value.isSelected == true);
-        final grnNo = selectedGRN.key;
-        final grnQty = selectedGRN.value;
-
-        print('Selected GRN: $grnNo');
-        print('Accepted Qty: ${grnQty.acceptedQty}');
-        print('Rejected Qty: ${grnQty.rejectedQty}');
-        print('Received Qty: ${grnQty.receivedQty}');
-
-        // Get the GRN item
-        final grnItem = grn.items.firstWhere(
-          (item) => item.materialCode == inspectionItem.materialCode,
-          orElse: () => throw Exception('Material not found in GRN'),
-        );
-
-        // Update GRN details in stock
-        if (!stock.grnDetails.containsKey(grnNo)) {
-          stock.grnDetails[grnNo] = StockGRNDetails(
-            grnNo: grnNo,
-            grnDate: grn.grnDate,
-            receivedQuantity: grnQty.receivedQty,
-            acceptedQuantity: grnQty.acceptedQty,
-            rejectedQuantity: grnQty.rejectedQty,
-            vendorId: grn.supplierName,
-            rate: double.tryParse(grnItem.costPerUnit) ?? 0.0,
-          );
-        } else {
-          // Update existing GRN details
-          final grnDetail = stock.grnDetails[grnNo]!;
-
-          // Handle recheck cases
-          if (grnQty.usageDecision == 'Accepted After 100% Recheck') {
-            // For accepted after recheck, move all quantity to accepted
-            grnDetail.acceptedQuantity = grnQty.receivedQty;
-            grnDetail.rejectedQuantity = 0.0;
-
-            // Update current stock and under inspection
-            stock.updateCurrentStock(stock.currentStock + grnQty.receivedQty);
-            stock.updateStockUnderInspection(
-                math.max(0, stock.stockUnderInspection - grnQty.receivedQty));
-
-            // Update PR and PO quantities
-            for (var poEntry in grn.items.first.prQuantities.entries) {
-              final poNo = poEntry.key;
-              final prMap = poEntry.value;
-              if (prMap == null) continue;
-
-              for (var prEntry in prMap.entries) {
-                final prNo = prEntry.key;
-                final qty = prEntry.value;
-
-                // Update PO details
-                if (stock.poDetails.containsKey(poNo)) {
-                  stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, qty);
-                }
-
-                // Update PR details
-                if (stock.prDetails.containsKey(prNo)) {
-                  stock.prDetails[prNo]!.receivedQuantity = qty;
-                }
-              }
-            }
-          } else if (grnQty.usageDecision ==
-              'Partially Accepted After 100% Recheck') {
-            // For partial acceptance after recheck
-            grnDetail.acceptedQuantity = grnQty.acceptedQty;
-            grnDetail.rejectedQuantity = grnQty.rejectedQty;
-
-            // Update current stock and under inspection
-            stock.updateCurrentStock(stock.currentStock + grnQty.acceptedQty);
-            stock.updateStockUnderInspection(
-                math.max(0, stock.stockUnderInspection - grnQty.receivedQty));
-
-            // Calculate acceptance ratio for PR distribution
-            final acceptanceRatio = grnQty.acceptedQty / grnQty.receivedQty;
-
-            // Update PR and PO quantities
-            for (var poEntry in grn.items.first.prQuantities.entries) {
-              final poNo = poEntry.key;
-              final prMap = poEntry.value;
-              if (prMap == null) continue;
-
-              for (var prEntry in prMap.entries) {
-                final prNo = prEntry.key;
-                final originalQty = prEntry.value;
-                final acceptedQty = originalQty * acceptanceRatio;
-
-                // Update PO details
-                if (stock.poDetails.containsKey(poNo)) {
-                  stock.poDetails[poNo]!
-                      .addReceivedQuantity(grnNo, prNo, acceptedQty);
-                }
-
-                // Update PR details
-                if (stock.prDetails.containsKey(prNo)) {
-                  stock.prDetails[prNo]!.receivedQuantity = acceptedQty;
-                }
-              }
-            }
-          } else {
-            // For normal cases, update quantities as is
-            grnDetail.acceptedQuantity = grnQty.acceptedQty;
-            grnDetail.rejectedQuantity = grnQty.rejectedQty;
+          if (!_stockBox.values.contains(stock)) {
+            print('Adding new stock for ${inspectionItem.materialCode}');
+            await _stockBox.add(stock);
+            stock = _stockBox.values.firstWhere(
+              (s) => s.materialCode == inspectionItem.materialCode,
+              orElse: () {
+                throw Exception('Failed to add new stock record');
+              },
+            );
           }
-        }
 
-        // Update PO and PR quantities based on acceptance
-        for (var poEntry in grnItem.prQuantities.entries) {
-          final poNo = poEntry.key;
-          final prMap = poEntry.value;
-          if (prMap == null) continue;
+          // Get the selected GRN's quantities
+          final selectedGRN = inspectionItem.grnQuantities.entries
+              .firstWhere(
+                (entry) => entry.key == inspection.grnNo,
+                orElse: () {
+                  print('Available GRN entries: ${inspectionItem.grnQuantities.keys.join(", ")}');
+                  throw Exception('GRN ${inspection.grnNo} not found in quantities');
+                },
+              );
+          final grnNo = selectedGRN.key;
+          final grnQty = selectedGRN.value;
 
-          // Ensure PO details exist
-          stock.poDetails[poNo] ??= StockPODetails(
-            poNo: poNo,
-            poDate: grn.poDate,
-            orderedQuantity: 0.0,
-            receivedQuantity: 0.0,
-            vendorId: grn.supplierName,
-            rate: double.tryParse(grnItem.costPerUnit) ?? 0.0,
+          print('Found GRN entry:');
+          print('GRN No: $grnNo');
+          print('Accepted Qty: ${grnQty.acceptedQty}');
+          print('Rejected Qty: ${grnQty.rejectedQty}');
+          print('Received Qty: ${grnQty.receivedQty}');
+
+          // Get the GRN item
+          final grnItem = grn.items.firstWhere(
+            (item) => item.materialCode == inspectionItem.materialCode,
+            orElse: () => throw Exception('Material not found in GRN'),
           );
 
-          // Calculate acceptance ratio for this GRN
-          double acceptanceRatio = grnQty.receivedQty > 0
-              ? grnQty.acceptedQty / grnQty.receivedQty
-              : 0.0;
+          // Update GRN details in stock
+          if (!stock.grnDetails.containsKey(grnNo)) {
+            stock.grnDetails[grnNo] = StockGRNDetails(
+              grnNo: grnNo,
+              grnDate: grn.grnDate,
+              receivedQuantity: grnQty.receivedQty,
+              acceptedQuantity: grnQty.acceptedQty,
+              rejectedQuantity: grnQty.rejectedQty,
+              vendorId: grn.supplierName,
+              rate: double.tryParse(grnItem.costPerUnit) ?? 0.0,
+            );
+          } else {
+            // Update existing GRN details
+            final grnDetail = stock.grnDetails[grnNo]!;
 
-          for (var prEntry in prMap.entries) {
-            final prNo = prEntry.key;
-            final originalQty = prEntry.value;
+            // Handle recheck cases
+            if (grnQty.usageDecision == 'Accepted After 100% Recheck') {
+              // For accepted after recheck, move all quantity to accepted
+              grnDetail.acceptedQuantity = grnQty.receivedQty;
+              grnDetail.rejectedQuantity = 0.0;
 
-            // Calculate accepted quantity for this PR
-            double prAcceptedQty = originalQty * acceptanceRatio;
+              // Update current stock and under inspection
+              stock.updateCurrentStock(stock.currentStock + grnQty.receivedQty);
+              stock.updateStockUnderInspection(
+                  math.max(0, stock.stockUnderInspection - grnQty.receivedQty));
 
-            print('\nUpdating quantities for PO: $poNo, PR: $prNo');
-            print('Original Qty: $originalQty');
-            print('Acceptance Ratio: $acceptanceRatio');
-            print('Accepted Qty: $prAcceptedQty');
+              // Update PR and PO quantities
+              for (var poEntry in grn.items.first.prQuantities.entries) {
+                final poNo = poEntry.key;
+                final prMap = poEntry.value;
+                if (prMap == null) continue;
 
-            // Update PO details with PR quantities
-            if (!stock.poDetails[poNo]!.receivedQuantities.containsKey(grnNo)) {
-              stock.poDetails[poNo]!.receivedQuantities[grnNo] = {};
+                for (var prEntry in prMap.entries) {
+                  final prNo = prEntry.key;
+                  final qty = prEntry.value;
+
+                  // Update PO details
+                  if (stock.poDetails.containsKey(poNo)) {
+                    stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, qty);
+                  }
+
+                  // Update PR details
+                  if (stock.prDetails.containsKey(prNo)) {
+                    stock.prDetails[prNo]!.receivedQuantity = qty;
+                  }
+                }
+              }
+            } else if (grnQty.usageDecision ==
+                'Partially Accepted After 100% Recheck') {
+              // For partial acceptance after recheck
+              grnDetail.acceptedQuantity = grnQty.acceptedQty;
+              grnDetail.rejectedQuantity = grnQty.rejectedQty;
+
+              // Update current stock and under inspection
+              stock.updateCurrentStock(stock.currentStock + grnQty.acceptedQty);
+              stock.updateStockUnderInspection(
+                  math.max(0, stock.stockUnderInspection - grnQty.receivedQty));
+
+              // Update PR and PO quantities using the GRN item's PR quantities
+              for (var poEntry in grnItem.prQuantities.entries) {
+                final poNo = poEntry.key;
+                final prMap = poEntry.value;
+                if (prMap == null) continue;
+
+                for (var prEntry in prMap.entries) {
+                  final prNo = prEntry.key;
+                  final qty = prEntry.value;
+
+                  // Update PO details
+                  if (stock.poDetails.containsKey(poNo)) {
+                    stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, qty);
+                  }
+
+                  // Update PR details
+                  if (stock.prDetails.containsKey(prNo)) {
+                    stock.prDetails[prNo]!.receivedQuantity = qty;
+                  }
+                }
+              }
+            } else {
+              // For normal cases, update quantities as is
+              grnDetail.acceptedQuantity = grnQty.acceptedQty;
+              grnDetail.rejectedQuantity = grnQty.rejectedQty;
             }
-            stock.poDetails[poNo]!.receivedQuantities[grnNo]![prNo] =
-                prAcceptedQty;
+          }
 
-            // Ensure PR details exist
-            stock.prDetails[prNo] ??= StockPRDetails(
-              prNo: prNo,
-              prDate: '',
-              requestedQuantity: 0.0,
-              orderedQuantity: originalQty,
+          // Update PO and PR quantities based on acceptance
+          for (var poEntry in grnItem.prQuantities.entries) {
+            final poNo = poEntry.key;
+            final prMap = poEntry.value;
+            if (prMap == null) continue;
+
+            // Ensure PO details exist
+            stock.poDetails[poNo] ??= StockPODetails(
+              poNo: poNo,
+              poDate: grn.poDate,
+              orderedQuantity: 0.0,
               receivedQuantity: 0.0,
-              jobNo: grnItem.prJobNumbers[poNo]?[prNo] ?? 'General',
+              vendorId: grn.supplierName,
+              rate: double.tryParse(grnItem.costPerUnit) ?? 0.0,
             );
 
-            // Update PR details with total accepted quantity from all GRNs
-            double totalPrAcceptedQty = 0.0;
-            for (var poDetail in stock.poDetails.values) {
-              for (var grnQtys in poDetail.receivedQuantities.values) {
-                totalPrAcceptedQty += grnQtys[prNo] ?? 0.0;
+            // Calculate acceptance ratio for this GRN
+            double acceptanceRatio = grnQty.receivedQty > 0
+                ? grnQty.acceptedQty / grnQty.receivedQty
+                : 0.0;
+
+            for (var prEntry in prMap.entries) {
+              final prNo = prEntry.key;
+              final originalQty = prEntry.value;
+
+              // Calculate accepted quantity for this PR
+              double prAcceptedQty = originalQty * acceptanceRatio;
+
+              print('\nUpdating quantities for PO: $poNo, PR: $prNo');
+              print('Original Qty: $originalQty');
+              print('Acceptance Ratio: $acceptanceRatio');
+              print('Accepted Qty: $prAcceptedQty');
+
+              // Update PO details with PR quantities
+              if (!stock.poDetails[poNo]!.receivedQuantities.containsKey(grnNo)) {
+                stock.poDetails[poNo]!.receivedQuantities[grnNo] = {};
+              }
+              stock.poDetails[poNo]!.receivedQuantities[grnNo]![prNo] =
+                  prAcceptedQty;
+
+              // Ensure PR details exist
+              stock.prDetails[prNo] ??= StockPRDetails(
+                prNo: prNo,
+                prDate: '',
+                requestedQuantity: 0.0,
+                orderedQuantity: originalQty,
+                receivedQuantity: 0.0,
+                jobNo: grnItem.prJobNumbers[poNo]?[prNo] ?? 'General',
+              );
+
+              // Update PR details with total accepted quantity from all GRNs
+              double totalPrAcceptedQty = 0.0;
+              for (var poDetail in stock.poDetails.values) {
+                for (var grnQtys in poDetail.receivedQuantities.values) {
+                  totalPrAcceptedQty += grnQtys[prNo] ?? 0.0;
+                }
+              }
+              stock.prDetails[prNo]!.receivedQuantity = totalPrAcceptedQty;
+
+              // Update job details if not General
+              final jobNo = grnItem.prJobNumbers[poNo]?[prNo];
+              if (jobNo != null && jobNo != 'General') {
+                stock.jobDetails[jobNo] ??= StockJobDetails(
+                  jobNo: jobNo,
+                  allocatedQuantity: 0.0,
+                  consumedQuantity: 0.0,
+                  prNo: prNo,
+                );
+                stock.jobDetails[jobNo]!.allocatedQuantity = totalPrAcceptedQty;
               }
             }
-            stock.prDetails[prNo]!.receivedQuantity = totalPrAcceptedQty;
 
-            // Update job details if not General
-            final jobNo = grnItem.prJobNumbers[poNo]?[prNo];
-            if (jobNo != null && jobNo != 'General') {
-              stock.jobDetails[jobNo] ??= StockJobDetails(
-                jobNo: jobNo,
-                allocatedQuantity: 0.0,
-                consumedQuantity: 0.0,
-                prNo: prNo,
-              );
-              stock.jobDetails[jobNo]!.allocatedQuantity = totalPrAcceptedQty;
+            // Update total received quantity for PO
+            double totalPoAcceptedQty = 0.0;
+            for (var grnQtys
+                in stock.poDetails[poNo]!.receivedQuantities.values) {
+              totalPoAcceptedQty +=
+                  grnQtys.values.fold(0.0, (sum, qty) => sum + qty);
             }
+            stock.poDetails[poNo]!.receivedQuantity = totalPoAcceptedQty;
           }
 
-          // Update total received quantity for PO
-          double totalPoAcceptedQty = 0.0;
-          for (var grnQtys
-              in stock.poDetails[poNo]!.receivedQuantities.values) {
-            totalPoAcceptedQty +=
-                grnQtys.values.fold(0.0, (sum, qty) => sum + qty);
+          // Calculate total stock quantities
+          double totalCurrentStock = 0.0;
+          double totalUnderInspection = 0.0;
+
+          for (var grnDetail in stock.grnDetails.values) {
+            totalCurrentStock += grnDetail.acceptedQuantity;
+            totalUnderInspection += grnDetail.receivedQuantity -
+                (grnDetail.acceptedQuantity + grnDetail.rejectedQuantity);
           }
-          stock.poDetails[poNo]!.receivedQuantity = totalPoAcceptedQty;
+
+          print('New Current Stock: $totalCurrentStock');
+          print('New Under Inspection: $totalUnderInspection');
+
+          // Update stock quantities
+          stock.updateCurrentStock(totalCurrentStock);
+          stock.updateStockUnderInspection(totalUnderInspection);
+
+          // Save stock
+          await stock.save();
+        } catch (e) {
+          print('Error processing item: $e');
+          rethrow;
         }
-
-        // Calculate total stock quantities
-        double totalCurrentStock = 0.0;
-        double totalUnderInspection = 0.0;
-
-        for (var grnDetail in stock.grnDetails.values) {
-          totalCurrentStock += grnDetail.acceptedQuantity;
-          totalUnderInspection += grnDetail.receivedQuantity -
-              (grnDetail.acceptedQuantity + grnDetail.rejectedQuantity);
-        }
-
-        print('New Current Stock: $totalCurrentStock');
-        print('New Under Inspection: $totalUnderInspection');
-
-        // Update stock quantities
-        stock.updateCurrentStock(totalCurrentStock);
-        stock.updateStockUnderInspection(totalUnderInspection);
-
-        // Save stock
-        await stock.save();
       }
 
       // Update state

@@ -435,10 +435,12 @@ class _QualityInspectionListPageState
                 displayText += ' - ${inspItem.recheckType}';
               }
               textColor = Colors.orange;
-            } else if (inspItem.usageDecision == 'Accepted After 100% Recheck') {
+            } else if (inspItem.usageDecision ==
+                'Accepted After 100% Recheck') {
               displayText = 'Accepted After 100% Recheck';
               textColor = Colors.green;
-            } else if (inspItem.usageDecision == 'Partially Accepted After 100% Recheck') {
+            } else if (inspItem.usageDecision ==
+                'Partially Accepted After 100% Recheck') {
               displayText = 'Partially Accepted After 100% Recheck';
               textColor = Colors.orange;
             }

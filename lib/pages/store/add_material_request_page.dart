@@ -272,12 +272,13 @@ class _AddMaterialRequestPageState
     final items = _items.map((item) {
       // Get the quantity from the controller
       final quantity = double.tryParse(item.quantityController.text) ?? 0.0;
-      
+
       return MaterialRequestItem(
         materialCode: item.partNoController.text,
         materialDescription: item.materialController.text,
         unit: item.unitController.text,
-        quantity: quantity.toString(),  // Convert to string since the model expects a string
+        quantity: quantity
+            .toString(), // Convert to string since the model expects a string
         issueNo: '', // Initialize with empty string
       );
     }).toList();

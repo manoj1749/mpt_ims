@@ -858,7 +858,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         poDate: '', // Multiple dates possible
         invoiceNo: _invoiceNoController.text,
         invoiceDate: _invoiceDateController.text,
-        invoiceAmount: StoreInward.parseInvoiceAmount(_invoiceAmountController.text),
+        invoiceAmount:
+            StoreInward.parseInvoiceAmount(_invoiceAmountController.text),
         receivedBy: _receivedByController.text,
         checkedBy: _checkedByController.text,
         items: inwardItems,
@@ -935,7 +936,8 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
             totalReceivedQty = item.receivedQuantities.values.fold<double>(
                 0.0,
                 (sum, grnQtys) =>
-                    sum + grnQtys.values.fold<double>(0.0, (s, qty) => s + qty));
+                    sum +
+                    grnQtys.values.fold<double>(0.0, (s, qty) => s + qty));
           } else {
             // Calculate PR-wise quantities
             for (var prDetail in item.prDetails.entries) {
@@ -947,9 +949,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               totalOrderedQty += prDetail.value.quantity;
               // Fix: properly handle nested map structure for PR-specific quantities
               totalReceivedQty += item.receivedQuantities.values.fold<double>(
-                  0.0,
-                  (sum, grnQtys) =>
-                      sum + (grnQtys[prDetail.key] ?? 0.0));
+                  0.0, (sum, grnQtys) => sum + (grnQtys[prDetail.key] ?? 0.0));
             }
           }
 

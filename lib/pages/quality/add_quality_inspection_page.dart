@@ -1249,7 +1249,8 @@ class _AddQualityInspectionPageState
 
                                         // Initialize controller if not exists
                                         _prQtyControllers[grnNo] ??= {};
-                                        _prQtyControllers[grnNo]!['${poNo}_$prNo'] ??=
+                                        _prQtyControllers[grnNo]![
+                                                '${poNo}_$prNo'] ??=
                                             TextEditingController(text: '0');
 
                                         return Padding(
@@ -1332,9 +1333,14 @@ class _AddQualityInspectionPageState
                                                         ),
                                                       );
                                                       _prQtyControllers[grnNo]![
-                                                                  '${poNo}_$prNo']!
-                                                              .text =
-                                                          (grnQty.acceptedQty - (total - (double.tryParse(value) ?? 0))).toString();
+                                                              '${poNo}_$prNo']!
+                                                          .text = (grnQty
+                                                                  .acceptedQty -
+                                                              (total -
+                                                                  (double.tryParse(
+                                                                          value) ??
+                                                                      0)))
+                                                          .toString();
                                                     }
                                                   },
                                                 ),

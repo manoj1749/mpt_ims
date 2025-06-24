@@ -50,7 +50,7 @@ class MaterialIssueItem extends HiveObject {
   Map<String, double> issuedQuantities = {}; // MR No -> issued quantity
 
   @HiveField(6)
-  Map<String, String> prMapping = {};  // Add PR mapping field
+  Map<String, String> prMapping = {}; // Add PR mapping field
 
   // Get total issued quantity
   double get totalIssuedQuantity {

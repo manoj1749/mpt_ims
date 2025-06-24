@@ -133,10 +133,10 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
 
     try {
       // First add the issue to the box
-      
+
       // Then update stock and MR status
       await _updateStockAndMRStatus(issue);
-      
+
       // Update state only after everything succeeds
       state = [...state, issue];
       print('\nMaterial Issue created successfully');
@@ -146,7 +146,9 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
       try {
         // Only try to delete if it was actually added to the box
         if (_issueBox.values.any((i) => i.issueNo == issue.issueNo)) {
-          final index = _issueBox.values.toList().indexWhere((i) => i.issueNo == issue.issueNo);
+          final index = _issueBox.values
+              .toList()
+              .indexWhere((i) => i.issueNo == issue.issueNo);
           if (index != -1) {
             await _issueBox.deleteAt(index);
           }

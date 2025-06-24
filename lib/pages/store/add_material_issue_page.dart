@@ -120,7 +120,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       List<(MaterialRequestItem, MaterialRequest)> mrItems) {
     final Map<String, double> issuedQuantities = {};
     final Map<String, ItemMRDetails> mrDetails = {};
-    final Map<String, String> prMapping = {};  // Add PR mapping
+    final Map<String, String> prMapping = {}; // Add PR mapping
     double totalQty = 0.0;
 
     print('\n=== Creating Material Issue Item ===');
@@ -132,16 +132,17 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
         final qty = double.tryParse(qtyControllers[key]!.text) ?? 0.0;
         if (qty > 0) {
           final jobNo = mr.jobNo ?? 'General';
-          print('  MR: ${mr.issueNo}, Job No: $jobNo, PR: ${selectedPRs[key]}, Quantity: $qty');
+          print(
+              '  MR: ${mr.issueNo}, Job No: $jobNo, PR: ${selectedPRs[key]}, Quantity: $qty');
 
           mrDetails[mr.issueNo] = ItemMRDetails(
             mrNo: mr.issueNo,
             jobNo: jobNo,
             quantity: qty,
-            prNo: selectedPRs[key],  // Add PR number
+            prNo: selectedPRs[key], // Add PR number
           );
           issuedQuantities[mr.issueNo] = qty;
-          prMapping[mr.issueNo] = selectedPRs[key]!;  // Store PR mapping
+          prMapping[mr.issueNo] = selectedPRs[key]!; // Store PR mapping
           totalQty += qty;
         }
       }
@@ -157,7 +158,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       quantity: totalQty,
       mrDetails: mrDetails,
       issuedQuantities: issuedQuantities,
-      prMapping: prMapping,  // Add PR mapping to issue item
+      prMapping: prMapping, // Add PR mapping to issue item
     );
   }
 
@@ -173,7 +174,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       double totalIssued = 0.0;
       for (var issue in existingIssues) {
         for (var item in issue.items) {
-          if (item.materialCode == materialCode && item.mrDetails.containsKey(mrNo)) {
+          if (item.materialCode == materialCode &&
+              item.mrDetails.containsKey(mrNo)) {
             totalIssued += item.mrDetails[mrNo]!.quantity;
           }
         }
@@ -190,7 +192,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
       // Check if any items in this MR still have pending quantities
       return mr.items.any((mrItem) {
-        final issuedQty = getIssuedQuantityForMRItem(mr.issueNo, mrItem.materialCode);
+        final issuedQty =
+            getIssuedQuantityForMRItem(mr.issueNo, mrItem.materialCode);
         final requestedQty = double.tryParse(mrItem.quantity.toString()) ?? 0.0;
         return issuedQty < requestedQty; // Has pending quantity
       });
@@ -200,7 +203,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     for (var mr in filteredMRs) {
       for (var mrItem in mr.items) {
         // Check if this specific item has pending quantity
-        final issuedQty = getIssuedQuantityForMRItem(mr.issueNo, mrItem.materialCode);
+        final issuedQty =
+            getIssuedQuantityForMRItem(mr.issueNo, mrItem.materialCode);
         final requestedQty = double.tryParse(mrItem.quantity.toString()) ?? 0.0;
         if (issuedQty >= requestedQty) continue; // Skip if fully issued
 
@@ -555,10 +559,11 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
     // Get job-specific stock if available
     final jobNo = mr.jobNo ?? 'General';
-    
+
     // Get all available PRs for this job
     final availablePRs = stockItem.prDetails.entries
-        .where((entry) => entry.value.jobNo == jobNo && 
+        .where((entry) =>
+            entry.value.jobNo == jobNo &&
             entry.value.receivedQuantity > entry.value.issuedQuantity)
         .toList();
 
@@ -590,7 +595,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text('MR: ${mr.issueNo} | Job: ${mr.jobNo ?? "General"}'),
-                      Text('Pending Qty: ${mrItem.pendingQuantity} ${material.unit}'),
+                      Text(
+                          'Pending Qty: ${mrItem.pendingQuantity} ${material.unit}'),
                     ],
                   ),
                 ),
@@ -604,7 +610,8 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                       for (var pr in availablePRs)
                         DropdownMenuItem(
                           value: pr.key,
-                          child: Text('${pr.key} (${pr.value.receivedQuantity - pr.value.issuedQuantity} ${material.unit})'),
+                          child: Text(
+                              '${pr.key} (${pr.value.receivedQuantity - pr.value.issuedQuantity} ${material.unit})'),
                         ),
                     ],
                     onChanged: (value) {
@@ -613,8 +620,11 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                         selectedPRs[key] = value;
                         // Update available quantity based on selected PR
                         final prDetails = stockItem.prDetails[value]!;
-                        final availableQty = prDetails.receivedQuantity - prDetails.issuedQuantity;
-                        qtyControllers[key]?.text = math.min(availableQty, mrItem.pendingQuantity).toString();
+                        final availableQty = prDetails.receivedQuantity -
+                            prDetails.issuedQuantity;
+                        qtyControllers[key]?.text = math
+                            .min(availableQty, mrItem.pendingQuantity)
+                            .toString();
                       });
                     },
                   ),
@@ -639,8 +649,10 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                           if (qty <= 0) {
                             return 'Required';
                           }
-                          final prDetails = stockItem.prDetails[selectedPRs[key]]!;
-                          final availableQty = prDetails.receivedQuantity - prDetails.issuedQuantity;
+                          final prDetails =
+                              stockItem.prDetails[selectedPRs[key]]!;
+                          final availableQty = prDetails.receivedQuantity -
+                              prDetails.issuedQuantity;
                           if (qty > availableQty) {
                             return 'Exceeds PR';
                           }

@@ -86,9 +86,10 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
         enableEditingMode: false,
         renderer: (rendererContext) {
           final issue = ref.read(materialIssueProvider).firstWhere(
-                (mi) => mi.issueNo == rendererContext.row.cells['issueNo']!.value,
+                (mi) =>
+                    mi.issueNo == rendererContext.row.cells['issueNo']!.value,
               );
-          
+
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: SingleChildScrollView(
@@ -191,10 +192,8 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
     final materialIssues = ref.watch(materialIssueProvider);
     return materialIssues.mapIndexed((index, issue) {
       // Get unique MR numbers
-      final mrNumbers = issue.items
-          .expand((item) => item.mrDetails.keys)
-          .toSet()
-          .join(', ');
+      final mrNumbers =
+          issue.items.expand((item) => item.mrDetails.keys).toSet().join(', ');
 
       // Get unique job numbers
       final jobNumbers = issue.items

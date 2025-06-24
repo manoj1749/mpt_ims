@@ -335,7 +335,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
   // Update stock based on inspection status change
   Future<void> updateStockFromInspection(QualityInspection inspection) async {
-    print('\n=== Debug: Starting Stock Update from Inspection ${inspection.inspectionNo} ===');
+    print(
+        '\n=== Debug: Starting Stock Update from Inspection ${inspection.inspectionNo} ===');
     print('GRN Number: ${inspection.grnNo}');
 
     // Get required boxes from providers
@@ -347,7 +348,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
       final grn = inwardBox.values.firstWhere(
         (gr) => gr.grnNo == inspection.grnNo,
         orElse: () {
-          print('Available GRNs: ${inwardBox.values.map((g) => g.grnNo).join(", ")}');
+          print(
+              'Available GRNs: ${inwardBox.values.map((g) => g.grnNo).join(", ")}');
           throw Exception('GRN ${inspection.grnNo} not found');
         },
       );
@@ -357,14 +359,16 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
       for (var inspectionItem in inspection.items) {
         print('\n--- Processing item: ${inspectionItem.materialCode} ---');
         try {
-          print('GRN Quantities available: ${inspectionItem.grnQuantities.keys.join(", ")}');
+          print(
+              'GRN Quantities available: ${inspectionItem.grnQuantities.keys.join(", ")}');
           print('Looking for GRN ${inspection.grnNo} in quantities...');
-          
+
           // Get or create stock record for this material
           var stock = _stockBox.values.firstWhere(
             (s) => s.materialCode == inspectionItem.materialCode,
             orElse: () {
-              print('Creating new stock record for ${inspectionItem.materialCode}');
+              print(
+                  'Creating new stock record for ${inspectionItem.materialCode}');
               return StockMaintenance(
                 materialCode: inspectionItem.materialCode,
                 materialDescription: inspectionItem.materialDescription,
@@ -387,14 +391,15 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
           }
 
           // Get the selected GRN's quantities
-          final selectedGRN = inspectionItem.grnQuantities.entries
-              .firstWhere(
-                (entry) => entry.key == inspection.grnNo,
-                orElse: () {
-                  print('Available GRN entries: ${inspectionItem.grnQuantities.keys.join(", ")}');
-                  throw Exception('GRN ${inspection.grnNo} not found in quantities');
-                },
-              );
+          final selectedGRN = inspectionItem.grnQuantities.entries.firstWhere(
+            (entry) => entry.key == inspection.grnNo,
+            orElse: () {
+              print(
+                  'Available GRN entries: ${inspectionItem.grnQuantities.keys.join(", ")}');
+              throw Exception(
+                  'GRN ${inspection.grnNo} not found in quantities');
+            },
+          );
           final grnNo = selectedGRN.key;
           final grnQty = selectedGRN.value;
 
@@ -448,7 +453,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
                   // Update PO details
                   if (stock.poDetails.containsKey(poNo)) {
-                    stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, qty);
+                    stock.poDetails[poNo]!
+                        .addReceivedQuantity(grnNo, prNo, qty);
                   }
 
                   // Update PR details
@@ -480,7 +486,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
                   // Update PO details
                   if (stock.poDetails.containsKey(poNo)) {
-                    stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, qty);
+                    stock.poDetails[poNo]!
+                        .addReceivedQuantity(grnNo, prNo, qty);
                   }
 
                   // Update PR details
@@ -530,7 +537,8 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
               print('Accepted Qty: $prAcceptedQty');
 
               // Update PO details with PR quantities
-              if (!stock.poDetails[poNo]!.receivedQuantities.containsKey(grnNo)) {
+              if (!stock.poDetails[poNo]!.receivedQuantities
+                  .containsKey(grnNo)) {
                 stock.poDetails[poNo]!.receivedQuantities[grnNo] = {};
               }
               stock.poDetails[poNo]!.receivedQuantities[grnNo]![prNo] =

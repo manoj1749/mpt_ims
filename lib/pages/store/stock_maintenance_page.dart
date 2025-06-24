@@ -383,7 +383,7 @@ class _StockDetailsViewState extends State<StockDetailsView> {
   Widget _buildSummaryView() {
     // First group by job number
     Map<String, List<MapEntry<String, StockPRDetails>>> jobWiseStock = {};
-    
+
     for (var entry in widget.stock.prDetails.entries) {
       final jobNo = entry.value.jobNo.isEmpty ? 'General' : entry.value.jobNo;
       jobWiseStock.putIfAbsent(jobNo, () => []);
@@ -434,24 +434,30 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text('Total Received:'),
-                                  Text('${totalReceived.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                  Text(
+                                      '${totalReceived.toStringAsFixed(2)} ${widget.stock.unit}'),
                                 ],
                               ),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text('Total Issued:'),
-                                  Text('${totalIssued.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                  Text(
+                                      '${totalIssued.toStringAsFixed(2)} ${widget.stock.unit}'),
                                 ],
                               ),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text('Available:'),
-                                  Text('${(totalReceived - totalIssued).toStringAsFixed(2)} ${widget.stock.unit}'),
+                                  Text(
+                                      '${(totalReceived - totalIssued).toStringAsFixed(2)} ${widget.stock.unit}'),
                                 ],
                               ),
                             ],
@@ -468,7 +474,8 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                         // Look through PO details to find the vendor
                         for (var poDetail in widget.stock.poDetails.entries) {
                           // Check if this PO has received quantities for this PR
-                          for (var grnQtys in poDetail.value.receivedQuantities.values) {
+                          for (var grnQtys
+                              in poDetail.value.receivedQuantities.values) {
                             if (grnQtys.containsKey(prNo)) {
                               vendorName = poDetail.value.vendorId;
                               break;
@@ -476,7 +483,7 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                           }
                           if (vendorName.isNotEmpty) break;
                         }
-                        
+
                         return Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
@@ -484,31 +491,38 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                             children: [
                               Text(
                                 'PR: $prNo | Vendor: $vendorName',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                               Padding(
                                 padding: const EdgeInsets.only(left: 16.0),
                                 child: Column(
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         const Text('Received:'),
-                                        Text('${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                        Text(
+                                            '${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
                                       ],
                                     ),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         const Text('Issued:'),
-                                        Text('${pr.issuedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                        Text(
+                                            '${pr.issuedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
                                       ],
                                     ),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         const Text('Available:'),
-                                        Text('${(pr.receivedQuantity - pr.issuedQuantity).toStringAsFixed(2)} ${widget.stock.unit}'),
+                                        Text(
+                                            '${(pr.receivedQuantity - pr.issuedQuantity).toStringAsFixed(2)} ${widget.stock.unit}'),
                                       ],
                                     ),
                                   ],

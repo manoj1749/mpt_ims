@@ -71,7 +71,8 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
   }
 
   Future<void> updateInspection(QualityInspection inspection) async {
-    print('\n=== Debug: Starting Inspection Update ${inspection.inspectionNo} ===');
+    print(
+        '\n=== Debug: Starting Inspection Update ${inspection.inspectionNo} ===');
     try {
       // Find the index of the inspection to update
       final index = box.values.toList().indexWhere(
@@ -95,18 +96,19 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
           print('\n--- Processing item: ${item.materialCode} ---');
           try {
             // Get the selected GRN's quantities
-            print('GRN Quantities available: ${item.grnQuantities.keys.join(", ")}');
+            print(
+                'GRN Quantities available: ${item.grnQuantities.keys.join(", ")}');
             print('Looking for selected GRN...');
-            
-            final selectedGRN = item.grnQuantities.entries
-                .firstWhere((entry) => entry.value.isSelected == true,
-                    orElse: () {
-                      print('No selected GRN found. Available GRNs and their selection status:');
-                      item.grnQuantities.forEach((key, value) {
-                        print('GRN: $key, Selected: ${value.isSelected}');
-                      });
-                      throw Exception('No selected GRN found for ${item.materialCode}');
-                    });
+
+            final selectedGRN = item.grnQuantities.entries.firstWhere(
+                (entry) => entry.value.isSelected == true, orElse: () {
+              print(
+                  'No selected GRN found. Available GRNs and their selection status:');
+              item.grnQuantities.forEach((key, value) {
+                print('GRN: $key, Selected: ${value.isSelected}');
+              });
+              throw Exception('No selected GRN found for ${item.materialCode}');
+            });
 
             print('Selected GRN: ${selectedGRN.key}');
             print('Usage Decision: ${selectedGRN.value.usageDecision}');
@@ -134,50 +136,62 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
               if (selectedGRN.value.recheckType == 'Partial Acceptance') {
                 // For partial acceptance, use the quantities as set in the form
                 // Keep the quantities that were set in the form
-                selectedGRN.value.usageDecision = 'Partially Accepted After 100% Recheck';
+                selectedGRN.value.usageDecision =
+                    'Partially Accepted After 100% Recheck';
                 item.usageDecision = 'Partially Accepted After 100% Recheck';
-                inspection.status = 'Completed - Partially Accepted After 100% Recheck';
+                inspection.status =
+                    'Completed - Partially Accepted After 100% Recheck';
               } else {
                 // For 100% acceptance
                 selectedGRN.value.acceptedQty = selectedGRN.value.receivedQty;
                 selectedGRN.value.rejectedQty = 0.0;
                 item.acceptedQty = selectedGRN.value.receivedQty;
                 item.rejectedQty = 0.0;
-                
+
                 // Set proper usage decision based on CAPA requirement
                 if (inspection.requiresCapa) {
-                  selectedGRN.value.usageDecision = 'Lot Accepted - CAPA Required';
+                  selectedGRN.value.usageDecision =
+                      'Lot Accepted - CAPA Required';
                   item.usageDecision = 'Lot Accepted - CAPA Required';
                   inspection.status = 'Completed - Accepted with CAPA';
-                  inspection.updateCapaStatus(); // Update CAPA status and generate number if needed
+                  inspection
+                      .updateCapaStatus(); // Update CAPA status and generate number if needed
                 } else {
-                  selectedGRN.value.usageDecision = 'Accepted After 100% Recheck';
+                  selectedGRN.value.usageDecision =
+                      'Accepted After 100% Recheck';
                   item.usageDecision = 'Accepted After 100% Recheck';
                   inspection.status = 'Completed - Accepted After 100% Recheck';
                 }
               }
-            } else if (selectedGRN.value.usageDecision == 'Accepted After 100% Recheck' || 
-                      selectedGRN.value.usageDecision == 'Lot Accepted - CAPA Required') {
+            } else if (selectedGRN.value.usageDecision ==
+                    'Accepted After 100% Recheck' ||
+                selectedGRN.value.usageDecision ==
+                    'Lot Accepted - CAPA Required') {
               // For 100% acceptance after recheck (with or without CAPA)
               selectedGRN.value.acceptedQty = selectedGRN.value.receivedQty;
               selectedGRN.value.rejectedQty = 0.0;
               item.acceptedQty = selectedGRN.value.receivedQty;
               item.rejectedQty = 0.0;
-              
+
               // Keep the same usage decision and status
               item.usageDecision = selectedGRN.value.usageDecision;
-              if (selectedGRN.value.usageDecision == 'Lot Accepted - CAPA Required') {
+              if (selectedGRN.value.usageDecision ==
+                  'Lot Accepted - CAPA Required') {
                 inspection.status = 'Completed - Accepted with CAPA';
-                inspection.updateCapaStatus(); // Update CAPA status and generate number if needed
+                inspection
+                    .updateCapaStatus(); // Update CAPA status and generate number if needed
               } else {
                 inspection.status = 'Completed - Accepted After 100% Recheck';
               }
-            } else if (selectedGRN.value.usageDecision == 'Partially Accepted After 100% Recheck') {
+            } else if (selectedGRN.value.usageDecision ==
+                'Partially Accepted After 100% Recheck') {
               // For partial acceptance after recheck, use the quantities as set
               // The quantities should already be set in the form, just update the status
-              selectedGRN.value.usageDecision = 'Partially Accepted After 100% Recheck';
+              selectedGRN.value.usageDecision =
+                  'Partially Accepted After 100% Recheck';
               item.usageDecision = 'Partially Accepted After 100% Recheck';
-              inspection.status = 'Completed - Partially Accepted After 100% Recheck';
+              inspection.status =
+                  'Completed - Partially Accepted After 100% Recheck';
             }
 
             item.receivedQty = selectedGRN.value.receivedQty;

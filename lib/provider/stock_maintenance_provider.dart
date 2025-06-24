@@ -230,6 +230,9 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
         for (var grnEntry in stock.grnDetails.entries) {
           final grnDetail = grnEntry.value;
           if (!category.requiresQualityCheck) {
+            // For materials that don't require quality check, set accepted quantity equal to received quantity
+            grnDetail.acceptedQuantity = grnDetail.receivedQuantity;
+            grnDetail.rejectedQuantity = 0.0;
             totalCurrentStock += grnDetail.receivedQuantity;
           } else {
             // Check if there's a completed inspection for this GRN

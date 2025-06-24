@@ -323,7 +323,7 @@ class InspectionItem extends HiveObject {
 
   @override
   String toString() {
-    return 'InspectionItem(materialCode: $materialCode, materialDescription: $materialDescription, unit: $unit, receivedQty: $receivedQty, acceptedQty: $acceptedQty, rejectedQty: $rejectedQty, usageDecision: $usageDecision, poQuantities: ${poQuantities.toString()}, grnQuantities: $grnQuantities.toString())';
+    return 'InspectionItem(materialCode: $materialCode, materialDescription: $materialDescription, unit: $unit, receivedQty: $receivedQty, acceptedQty: $acceptedQty, rejectedQty: $rejectedQty, usageDecision: $usageDecision, poQuantities: ${poQuantities.toString()}, grnQuantities: ${grnQuantities.toString()}';
   }
 
   // Helper method to get total received quantity for a specific GRN
@@ -496,6 +496,11 @@ class InspectionGRNQuantity extends HiveObject {
       recheckType: recheckType ?? this.recheckType,
       isSelected: isSelected ?? this.isSelected,
     );
+  }
+
+  @override
+  String toString() {
+    return 'InspectionGRNQuantity(receivedQty: $receivedQty, acceptedQty: $acceptedQty, rejectedQty: $rejectedQty, usageDecision: $usageDecision, poNo: $poNo, poDate: $poDate, recheckType: $recheckType, isSelected: $isSelected)';
   }
 }
 

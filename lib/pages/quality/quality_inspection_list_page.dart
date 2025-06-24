@@ -412,18 +412,26 @@ class _QualityInspectionListPageState
         width: 150,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final item = rendererContext.row.cells['inspection']!.value
-              as QualityInspection;
+          final item = rendererContext.row.cells['inspection']!.value as QualityInspection;
           final inspItem = item.items.first;
 
           // Get the usage decision from GRN quantities
           String displayText = '';
+          Color? textColor;
+          
           if (inspItem.grnQuantities.isNotEmpty) {
             final grnQty = inspItem.grnQuantities.values.first;
-            displayText = grnQty.usageDecision;
+            
+            // Check if item is rejected based on quantities
+            if (grnQty.rejectedQty > 0 && grnQty.acceptedQty == 0) {
+              displayText = 'Rejected';
+              textColor = Colors.red;
+            } else {
+              displayText = grnQty.usageDecision;
+              textColor = null;
+            }
 
-            if (grnQty.usageDecision == '100% Recheck' &&
-                grnQty.recheckType != null) {
+            if (grnQty.usageDecision == '100% Recheck' && grnQty.recheckType != null) {
               displayText += '\n${grnQty.recheckType}';
             }
           } else {
@@ -432,6 +440,7 @@ class _QualityInspectionListPageState
 
           if (inspItem.capaRequired == true) {
             displayText += '\nCAPA Required';
+            textColor = Colors.red;
           }
 
           return Padding(
@@ -440,7 +449,7 @@ class _QualityInspectionListPageState
               displayText,
               style: TextStyle(
                 fontSize: 12,
-                color: inspItem.capaRequired == true ? Colors.red : null,
+                color: textColor,
               ),
             ),
           );
@@ -516,6 +525,23 @@ class _QualityInspectionListPageState
         type: PlutoColumnType.number(),
         width: 120,
         enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Expiry Date',
+        field: 'expiryDate',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final item = rendererContext.row.cells['inspection']!.value as QualityInspection;
+          final expiryDate = item.items.first.expirationDate;
+          
+          if (expiryDate.isEmpty) {
+            return const Text('-');
+          }
+          
+          return Text(expiryDate);
+        },
       ),
       PlutoColumn(
         title: 'Parameters',
@@ -606,6 +632,16 @@ class _QualityInspectionListPageState
       double pendingQty =
           item.receivedQty - (totalAcceptedQty + totalRejectedQty);
 
+      String usageDecision = item.usageDecision;
+      if (item.grnQuantities.isNotEmpty) {
+        final grnQty = item.grnQuantities.values.first;
+        if (grnQty.rejectedQty > 0 && grnQty.acceptedQty == 0) {
+          usageDecision = 'Rejected';
+        } else {
+          usageDecision = grnQty.usageDecision;
+        }
+      }
+
       rows.add(
         PlutoRow(
           cells: {
@@ -619,7 +655,7 @@ class _QualityInspectionListPageState
             'acceptedQty': PlutoCell(value: totalAcceptedQty),
             'rejectedQty': PlutoCell(value: totalRejectedQty),
             'pendingQty': PlutoCell(value: pendingQty),
-            'usageDecision': PlutoCell(value: item.usageDecision),
+            'usageDecision': PlutoCell(value: usageDecision),
             'unit': PlutoCell(value: item.unit),
             'costPerUnit': PlutoCell(value: item.costPerUnit),
             'totalCost': PlutoCell(value: item.totalCost),
@@ -629,6 +665,7 @@ class _QualityInspectionListPageState
             'grDate': PlutoCell(value: inspection.grnDate),
             'category': PlutoCell(value: item.category),
             'sampleSize': PlutoCell(value: item.sampleSize),
+            'expiryDate': PlutoCell(value: item.expirationDate),
             'parameters': PlutoCell(value: item.parameters),
             'actions': PlutoCell(value: ''),
           },

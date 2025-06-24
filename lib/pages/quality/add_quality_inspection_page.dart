@@ -212,26 +212,48 @@ class _AddQualityInspectionPageState
 
         // Only create inspection item if there are GRNs with remaining quantities
         if (grnQuantities.isNotEmpty) {
+          // Get standard parameters from provider
+          final universalParams = ref.read(universalParameterProvider);
+          final categoryParams = ref.read(categoryParameterProvider);
+
+          // Get category-specific parameters
+          final categorySpecificParams = categoryParams
+              .where((mapping) => mapping.category == material.category)
+              .expand((mapping) => mapping.parameters)
+              .toList();
+
+          // Initialize parameters
+          final parameters = [
+            ...universalParams.map((param) => QualityParameter(
+                  parameter: param.name,
+                  isAcceptable: true,
+                )),
+            ...categorySpecificParams
+                .where((paramName) =>
+                    !universalParams.any((up) => up.name == paramName))
+                .map((paramName) => QualityParameter(
+                      parameter: paramName,
+                      isAcceptable: true,
+                    ))
+          ];
+
           final inspectionItem = InspectionItem(
             materialCode: materialCode,
             materialDescription: firstItemData['materialDescription'],
             unit: firstItemData['unit'],
             category: material.category,
-            receivedQty:
-                0, // Initialize to 0, will be updated when GRN is selected
+            receivedQty: 0, // Initialize to 0, will be updated when GRN is selected
             costPerUnit: double.parse(firstItemData['costPerUnit']),
-            totalCost:
-                0, // Initialize to 0, will be updated when GRN is selected
+            totalCost: 0, // Initialize to 0, will be updated when GRN is selected
             sampleSize: 0,
             inspectedQty: 0,
             acceptedQty: 0,
             rejectedQty: 0,
-            pendingQty:
-                0, // Initialize to 0, will be updated when GRN is selected
+            pendingQty: 0, // Initialize to 0, will be updated when GRN is selected
             usageDecision: 'Lot Accepted',
             receivedDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
             expirationDate: '',
-            parameters: [],
+            parameters: parameters,
             grnQuantities: grnQuantities,
           );
 
@@ -239,6 +261,52 @@ class _AddQualityInspectionPageState
         }
       }
     });
+  }
+
+  // Calculate sample size based on quantity
+  int _calculateSampleSize(double quantity, Category category) {
+    if (quantity < 100 && category.sampleSizeLessThan100 != null) {
+      return category.sampleSizeLessThan100!;
+    } else if (quantity >= 100 && quantity <= 500 && category.sampleSize100To500 != null) {
+      return category.sampleSize100To500!;
+    } else if (quantity > 500 && category.sampleSizeGreaterThan500 != null) {
+      return category.sampleSizeGreaterThan500!;
+    }
+    return 0; // Default if no sample size is configured
+  }
+
+  // Calculate expiry date based on shelf life
+  String _calculateExpiryDate(Category category, String receivedDate) {
+    if (category.hasShelfLife != true || category.shelfLifeValue == null || category.shelfLifeUnit == null) {
+      return '';
+    }
+
+    final received = DateFormat('yyyy-MM-dd').parse(receivedDate);
+    DateTime expiryDate;
+
+    switch (category.shelfLifeUnit) {
+      case 'days':
+        expiryDate = received.add(Duration(days: category.shelfLifeValue!));
+        break;
+      case 'months':
+        expiryDate = DateTime(
+          received.year,
+          received.month + category.shelfLifeValue!,
+          received.day,
+        );
+        break;
+      case 'years':
+        expiryDate = DateTime(
+          received.year + category.shelfLifeValue!,
+          received.month,
+          received.day,
+        );
+        break;
+      default:
+        return '';
+    }
+
+    return DateFormat('yyyy-MM-dd').format(expiryDate);
   }
 
   void _onSupplierSelected(Supplier? supplier) {
@@ -270,6 +338,27 @@ class _AddQualityInspectionPageState
     item.receivedQty = selectedGRNQty.receivedQty;
     item.pendingQty = selectedGRNQty.receivedQty;
     item.totalCost = selectedGRNQty.receivedQty * item.costPerUnit;
+
+    // Get the category settings
+    final categories = ref.read(categoryListProvider);
+    final category = categories.firstWhere(
+      (c) => c.name == item.category,
+      orElse: () => Category(name: item.category),
+    );
+
+    // Calculate and set sample size
+    item.sampleSize = _calculateSampleSize(item.receivedQty, category).toDouble();
+
+    // Calculate expiry date if needed
+    if (category.hasExpiryDate == true) {
+      // Keep the expiry date field empty to let user input it
+      item.expirationDate = '';
+    } else if (category.hasShelfLife == true) {
+      // Calculate expiry date based on shelf life
+      item.expirationDate = _calculateExpiryDate(category, item.receivedDate);
+    }
+
+    setState(() {});
   }
 
   @override
@@ -403,7 +492,7 @@ class _AddQualityInspectionPageState
                     ),
                   )
                 else
-                  ..._items.map((item) => _buildItemCard(item)),
+                  ...buildMaterialGroups(),
 
                 const SizedBox(height: 20),
               ],
@@ -598,262 +687,117 @@ class _AddQualityInspectionPageState
     }
   }
 
-  Widget _buildItemCard(InspectionItem item) {
-    // Get standard parameters from provider
-    final universalParams = ref.watch(universalParameterProvider);
-    final categoryParams = ref.watch(categoryParameterProvider);
-    ref.read(purchaseOrderListProvider);
-    ref.read(purchaseRequestListProvider);
-
-    // Calculate minimum sample size based on lot size
-
-    // Get category-specific parameters
-    final categorySpecificParams = categoryParams
-        .where((mapping) => mapping.category == item.category)
-        .expand((mapping) => mapping.parameters)
-        .toList();
-
-    // Initialize parameters if not already done
-    if (item.parameters.isEmpty) {
-      item.parameters = [
-        ...universalParams.map((param) => QualityParameter(
-              parameter: param.name,
-              isAcceptable: true,
-            )),
-        ...categorySpecificParams
-            .where((paramName) =>
-                !universalParams.any((up) => up.name == paramName))
-            .map((paramName) => QualityParameter(
-                  parameter: paramName,
-                  isAcceptable: true,
-                ))
-      ];
+  List<Widget> buildMaterialGroups() {
+    final groups = <String, List<InspectionItem>>{};
+    for (var item in _items) {
+      groups.putIfAbsent(item.materialCode, () => []).add(item);
     }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Material Info
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
+    return groups.entries.map((entry) {
+      final items = entry.value;
+      final firstItem = items.first;
+
+      return Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Material Info
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          firstItem.materialDescription,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          'Code: ${firstItem.materialCode} | Unit: ${firstItem.unit}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Cost/Unit: ₹${firstItem.costPerUnit}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 16),
+
+              // GRN Selection
+              const Row(
+                children: [
+                  Text('Select GRN:'),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Individual GRN Inspection
+              ...firstItem.grnQuantities.entries.map((entry) {
+                final grnNo = entry.key;
+                final grnQty = entry.value;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[900],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        item.materialDescription,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      Text(
-                        'Code: ${item.materialCode} | Unit: ${item.unit}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    'Cost/Unit: ₹${item.costPerUnit}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 16),
-
-            // GRN Selection
-            const Row(
-              children: [
-                Text('Select GRN:'),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Individual GRN Inspection
-            ...item.grnQuantities.entries.map((entry) {
-              final grnNo = entry.key;
-              final grnQty = entry.value;
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // GRN Header with Radio button
-                    Row(
-                      children: [
-                        Radio<String>(
-                          value: grnNo,
-                          groupValue: item.grnQuantities.entries
-                              .where((e) => e.value.isSelected == true)
-                              .map((e) => e.key)
-                              .firstOrNull,
-                          onChanged: (value) {
-                            setState(() {
-                              // Deselect all other GRNs
-                              for (var otherGrnQty
-                                  in item.grnQuantities.values) {
-                                otherGrnQty.isSelected = false;
-                              }
-                              // Select only this GRN
-                              grnQty.isSelected = true;
-                              // Update quantities based on selected GRN
-                              _updateSelectedGRNQuantities(item, grnNo);
-                            });
-                          },
-                        ),
-                        Text('GRN: $grnNo'),
-                        const SizedBox(width: 16),
-                        Text('Received Qty: ${grnQty.receivedQty}'),
-                      ],
-                    ),
-                    if (grnQty.isSelected == true) ...[
-                      const SizedBox(height: 16),
-                      // Usage Decision and CAPA in one row
+                      // GRN Header with Radio button
                       Row(
                         children: [
-                          // Usage Decision Dropdown
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: grnQty.usageDecision,
-                              decoration: const InputDecoration(
-                                labelText: 'Usage Decision',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'Lot Accepted',
-                                  child: Text('Lot Accepted'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'Rejected',
-                                  child: Text('Rejected'),
-                                ),
-                                DropdownMenuItem(
-                                  value: '100% Recheck',
-                                  child: Text('100% Recheck'),
-                                ),
-                              ],
-                              onChanged: (value) async {
-                                // Show confirmation dialog for rejection
-                                if (value == 'Rejected') {
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('Confirm Rejection'),
-                                      content: const Text(
-                                          'Are you sure you want to reject this lot? This will require CAPA.'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, false),
-                                          child: const Text('Cancel'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, true),
-                                          child: const Text('Confirm'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirm != true) return;
+                          Radio<String>(
+                            value: grnNo,
+                            groupValue: firstItem.grnQuantities.entries
+                                .where((e) => e.value.isSelected == true)
+                                .map((e) => e.key)
+                                .firstOrNull,
+                            onChanged: (value) {
+                              setState(() {
+                                // Deselect all other GRNs
+                                for (var otherGrnQty
+                                    in firstItem.grnQuantities.values) {
+                                  otherGrnQty.isSelected = false;
                                 }
-
-                                setState(() {
-                                  grnQty.usageDecision = value!;
-                                  if (value != '100% Recheck') {
-                                    grnQty.recheckType = null;
-                                  }
-                                  if (value == 'Rejected' ||
-                                      value == '100% Recheck') {
-                                    item.capaRequired = true;
-                                  }
-
-                                  // Auto-update accepted/rejected quantities
-                                  if (value == 'Lot Accepted') {
-                                    // Validate parameters before accepting
-                                    bool hasInvalidParams = item.parameters
-                                        .any((param) => !param.isAcceptable);
-                                    if (hasInvalidParams) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Cannot accept lot with failed parameters'),
-                                        ),
-                                      );
-                                      grnQty.usageDecision = 'Rejected';
-                                      grnQty.acceptedQty = 0;
-                                      grnQty.rejectedQty = grnQty.receivedQty;
-                                      return;
-                                    }
-                                    grnQty.acceptedQty = grnQty.receivedQty;
-                                    grnQty.rejectedQty = 0;
-                                  } else if (value == 'Rejected') {
-                                    grnQty.acceptedQty = 0;
-                                    grnQty.rejectedQty = grnQty.receivedQty;
-                                  } else if (value == '100% Recheck') {
-                                    grnQty.acceptedQty = 0;
-                                    grnQty.rejectedQty = 0;
-                                  }
-                                });
-                              },
-                            ),
+                                // Select only this GRN
+                                grnQty.isSelected = true;
+                                // Update quantities based on selected GRN
+                                _updateSelectedGRNQuantities(firstItem, grnNo);
+                              });
+                            },
                           ),
+                          Text('GRN: $grnNo'),
                           const SizedBox(width: 16),
-                          // CAPA Required Checkbox
-                          if (grnQty.usageDecision == 'Rejected' ||
-                              grnQty.usageDecision == '100% Recheck')
-                            Expanded(
-                              child: CheckboxListTile(
-                                title: const Text('CAPA Required'),
-                                value: item.capaRequired ?? false,
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    item.capaRequired = value;
-                                  });
-                                },
-                              ),
-                            ),
+                          Text('Received Qty: ${grnQty.receivedQty}'),
                         ],
                       ),
-
-                      // Recheck Settings (only if 100% Recheck)
-                      if (grnQty.usageDecision == '100% Recheck') ...[
+                      if (grnQty.isSelected == true) ...[
                         const SizedBox(height: 16),
+                        // Usage Decision and CAPA in one row
                         Row(
                           children: [
-                            const Icon(Icons.refresh, size: 16),
-                            const SizedBox(width: 8),
-                            const Text('Recheck Settings',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                )),
-                            const SizedBox(width: 16),
+                            // Usage Decision Dropdown
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: grnQty.recheckType ?? '100% Acceptance',
+                                value: grnQty.usageDecision,
                                 decoration: const InputDecoration(
-                                  labelText: 'Recheck Type',
+                                  labelText: 'Usage Decision',
                                   border: OutlineInputBorder(),
                                   contentPadding: EdgeInsets.symmetric(
                                     horizontal: 12,
@@ -862,364 +806,121 @@ class _AddQualityInspectionPageState
                                 ),
                                 items: const [
                                   DropdownMenuItem(
-                                    value: '100% Acceptance',
-                                    child: Text('100% Acceptance'),
+                                    value: 'Lot Accepted',
+                                    child: Text('Lot Accepted'),
                                   ),
                                   DropdownMenuItem(
-                                    value: 'Partial Acceptance',
-                                    child: Text('Partial Acceptance'),
+                                    value: 'Rejected',
+                                    child: Text('Rejected'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: '100% Recheck',
+                                    child: Text('100% Recheck'),
                                   ),
                                 ],
-                                onChanged: (value) {
-                                  setState(() {
-                                    grnQty.recheckType = value;
-                                    item.capaRequired = true;
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-
-                      // Partial Acceptance Quantities (only if Partial Acceptance)
-                      if (grnQty.usageDecision == '100% Recheck' &&
-                          grnQty.recheckType == 'Partial Acceptance') ...[
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                decoration: InputDecoration(
-                                  labelText: 'Accepted Quantity',
-                                  border: const OutlineInputBorder(),
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 8),
-                                  hintText:
-                                      'Max: ${grnQty.receivedQty.toString()}',
-                                  hintStyle: TextStyle(
-                                      fontSize: 12, color: Colors.grey[500]),
-                                ),
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                        decimal: true),
-                                controller: TextEditingController(
-                                    text: grnQty.acceptedQty.toString()),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return null;
-                                  }
-                                  final qty = double.tryParse(value);
-                                  if (qty == null) return 'Invalid number';
-                                  if (qty < 0) return 'Cannot be negative';
-                                  if (qty > grnQty.receivedQty) {
-                                    return 'Exceeds received qty';
-                                  }
-                                  return null;
-                                },
-                                onChanged: (value) {
-                                  // Allow empty value during editing
-                                  if (value.isEmpty) {
-                                    setState(() {
-                                      grnQty.acceptedQty = 0;
-                                      grnQty.rejectedQty = grnQty.receivedQty;
-                                    });
-                                    return;
+                                onChanged: (value) async {
+                                  // Show confirmation dialog for rejection
+                                  if (value == 'Rejected') {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Confirm Rejection'),
+                                        content: const Text(
+                                            'Are you sure you want to reject this lot? This will require CAPA.'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: const Text('Confirm'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm != true) return;
                                   }
 
-                                  final qty = double.tryParse(value) ?? 0;
                                   setState(() {
-                                    // Auto-adjust if exceeds received quantity
-                                    if (qty > grnQty.receivedQty) {
+                                    grnQty.usageDecision = value!;
+                                    if (value != '100% Recheck') {
+                                      grnQty.recheckType = null;
+                                    }
+                                    if (value == 'Rejected' ||
+                                        value == '100% Recheck') {
+                                      firstItem.capaRequired = true;
+                                    }
+
+                                    // Auto-update accepted/rejected quantities
+                                    if (value == 'Lot Accepted') {
+                                      // Validate parameters before accepting
+                                      bool hasInvalidParams = firstItem.parameters
+                                          .any((param) => !param.isAcceptable);
+                                      if (hasInvalidParams) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Cannot accept lot with failed parameters'),
+                                          ),
+                                        );
+                                        grnQty.usageDecision = 'Rejected';
+                                        grnQty.acceptedQty = 0;
+                                        grnQty.rejectedQty = grnQty.receivedQty;
+                                        return;
+                                      }
                                       grnQty.acceptedQty = grnQty.receivedQty;
                                       grnQty.rejectedQty = 0;
-                                      // Update the text field outside setState
-                                      WidgetsBinding.instance
-                                          .addPostFrameCallback((_) {
-                                        final controller =
-                                            TextEditingController(
-                                                text: grnQty.receivedQty
-                                                    .toString());
-                                        controller.selection =
-                                            TextSelection.fromPosition(
-                                                TextPosition(
-                                                    offset: controller
-                                                        .text.length));
-                                        // Find the current focus node
-                                        final focusNode =
-                                            FocusScope.of(context).focusedChild;
-                                        // Update the controller while maintaining focus
-                                        setState(() {
-                                          controller.text =
-                                              grnQty.receivedQty.toString();
-                                          if (focusNode != null) {
-                                            FocusScope.of(context)
-                                                .requestFocus(focusNode);
-                                          }
-                                        });
-                                      });
-                                    } else {
-                                      grnQty.acceptedQty = qty;
-                                      grnQty.rejectedQty =
-                                          grnQty.receivedQty - qty;
+                                    } else if (value == 'Rejected') {
+                                      grnQty.acceptedQty = 0;
+                                      grnQty.rejectedQty = grnQty.receivedQty;
+                                    } else if (value == '100% Recheck') {
+                                      grnQty.acceptedQty = 0;
+                                      grnQty.rejectedQty = 0;
                                     }
                                   });
-                                },
-                                onEditingComplete: () {
-                                  // Allow zero value when focus is lost
-                                  if (grnQty.acceptedQty == 0) {
-                                    setState(() {
-                                      grnQty.rejectedQty = grnQty.receivedQty;
-                                    });
-                                  }
-                                  FocusScope.of(context).unfocus();
                                 },
                               ),
                             ),
                             const SizedBox(width: 16),
-                            Expanded(
-                              child: TextFormField(
-                                decoration: const InputDecoration(
-                                  labelText: 'Rejected Quantity',
-                                  border: OutlineInputBorder(),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 8),
-                                ),
-                                readOnly: true,
-                                controller: TextEditingController(
-                                    text: grnQty.rejectedQty.toString()),
-                                style: TextStyle(color: Colors.grey[700]),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // PR/Job-wise Distribution for Partial Acceptance
-                        if (grnQty.acceptedQty > 0) ...[
-                          const Text('PR/Job Distribution',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              )),
-                          const SizedBox(height: 8),
-                          // Get the GRN from store inward provider
-                          Builder(builder: (context) {
-                            final inwards = ref.watch(storeInwardProvider);
-                            final grn = inwards.firstWhere(
-                                (g) => g.grnNo == grnNo,
-                                orElse: () => StoreInward(
-                                    grnNo: '',
-                                    grnDate: '',
-                                    supplierName: '',
-                                    poNo: '',
-                                    poDate: '',
-                                    invoiceNo: '',
-                                    invoiceDate: '',
-                                    invoiceAmount: 0,
-                                    receivedBy: '',
-                                    checkedBy: '',
-                                    items: []));
-
-                            if (grn.grnNo.isEmpty) {
-                              return const SizedBox.shrink();
-                            }
-
-                            final grnItem = grn.items.firstWhere(
-                                (i) => i.materialCode == item.materialCode,
-                                orElse: () => InwardItem(
-                                    materialCode: '',
-                                    materialDescription: '',
-                                    unit: '',
-                                    orderedQty: 0,
-                                    receivedQty: 0,
-                                    acceptedQty: 0,
-                                    rejectedQty: 0,
-                                    costPerUnit: '0'));
-
-                            if (grnItem.materialCode.isEmpty) {
-                              return const SizedBox.shrink();
-                            }
-
-                            return Column(
-                              children:
-                                  grnItem.prQuantities.entries.map((poEntry) {
-                                final poNo = poEntry.key;
-                                final prMap = poEntry.value;
-                                if (prMap == null) {
-                                  return const SizedBox.shrink();
-                                }
-
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('PO: $poNo',
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w500)),
-                                    const SizedBox(height: 8),
-                                    ...prMap.entries.map((prEntry) {
-                                      final prNo = prEntry.key;
-                                      final originalQty = prEntry.value;
-                                      final jobNo = grnItem.prJobNumbers[poNo]
-                                              ?[prNo] ??
-                                          'General';
-
-                                      // Calculate proportional accepted quantity
-                                      final proportion =
-                                          originalQty / grnItem.receivedQty;
-                                      final suggestedQty =
-                                          grnQty.acceptedQty * proportion;
-
-                                      // Initialize controller if not exists
-                                      _prQtyControllers[grnNo] ??= {};
-                                      _prQtyControllers[grnNo]![
-                                              '${poNo}_$prNo'] ??=
-                                          TextEditingController(
-                                              text: suggestedQty.toString());
-
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                            left: 16, bottom: 8),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              flex: 2,
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text('PR: $prNo'),
-                                                  Text('Job: $jobNo',
-                                                      style: TextStyle(
-                                                          color: Colors
-                                                              .grey[500])),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: TextFormField(
-                                                controller: _prQtyControllers[
-                                                    grnNo]!['${poNo}_$prNo'],
-                                                decoration: InputDecoration(
-                                                  labelText: 'Accepted Qty',
-                                                  border:
-                                                      const OutlineInputBorder(),
-                                                  isDense: true,
-                                                  hintText:
-                                                      'Max: ${originalQty.toString()}',
-                                                ),
-                                                keyboardType:
-                                                    const TextInputType
-                                                        .numberWithOptions(
-                                                        decimal: true),
-                                                validator: (value) {
-                                                  if (value == null ||
-                                                      value.isEmpty) {
-                                                    return null;
-                                                  }
-                                                  final qty =
-                                                      double.tryParse(value);
-                                                  if (qty == null) {
-                                                    return 'Invalid number';
-                                                  }
-                                                  if (qty < 0) {
-                                                    return 'Cannot be negative';
-                                                  }
-                                                  if (qty > originalQty) {
-                                                    return 'Exceeds original qty';
-                                                  }
-                                                  return null;
-                                                },
-                                                onChanged: (value) {
-                                                  // Validate total doesn't exceed accepted qty
-                                                  double total = 0;
-                                                  _prQtyControllers[grnNo]!
-                                                      .forEach(
-                                                          (key, controller) {
-                                                    if (key !=
-                                                        '${poNo}_$prNo') {
-                                                      total += double.tryParse(
-                                                              controller
-                                                                  .text) ??
-                                                          0;
-                                                    }
-                                                  });
-                                                  total +=
-                                                      double.tryParse(value) ??
-                                                          0;
-
-                                                  if (total >
-                                                      grnQty.acceptedQty) {
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                            'Total PR quantities cannot exceed accepted quantity'),
-                                                      ),
-                                                    );
-                                                    _prQtyControllers[grnNo]![
-                                                                '${poNo}_$prNo']!
-                                                            .text =
-                                                        suggestedQty.toString();
-                                                  }
-                                                },
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }),
-                                  ],
-                                );
-                              }).toList(),
-                            );
-                          }),
-                        ],
-                      ],
-
-                      // Quality Parameters
-                      const SizedBox(height: 16),
-                      const Text('Quality Parameters',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          )),
-                      const SizedBox(height: 8),
-                      ...item.parameters.map((param) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
+                            // CAPA Required Checkbox
+                            if (grnQty.usageDecision == 'Rejected' ||
+                                grnQty.usageDecision == '100% Recheck')
                               Expanded(
-                                flex: 2,
-                                child: Text(param.parameter),
-                              ),
-                              const SizedBox(width: 16),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextFormField(
-                                  initialValue: param.observation,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Observation',
-                                    border: OutlineInputBorder(),
-                                    isDense: true,
-                                  ),
-                                  onChanged: (value) {
+                                child: CheckboxListTile(
+                                  title: const Text('CAPA Required'),
+                                  value: firstItem.capaRequired ?? false,
+                                  onChanged: (bool? value) {
                                     setState(() {
-                                      param.observation = value;
+                                      firstItem.capaRequired = value;
                                     });
                                   },
                                 ),
                               ),
+                          ],
+                        ),
+
+                        // Recheck Settings (only if 100% Recheck)
+                        if (grnQty.usageDecision == '100% Recheck') ...[
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              const Icon(Icons.refresh, size: 16),
                               const SizedBox(width: 8),
+                              const Text('Recheck Settings',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  )),
+                              const SizedBox(width: 16),
                               Expanded(
                                 child: DropdownButtonFormField<String>(
-                                  value: param.result ?? 'OK',
+                                  value: grnQty.recheckType ?? '100% Acceptance',
                                   decoration: const InputDecoration(
-                                    labelText: 'Result',
+                                    labelText: 'Recheck Type',
                                     border: OutlineInputBorder(),
                                     contentPadding: EdgeInsets.symmetric(
                                       horizontal: 12,
@@ -1228,33 +929,455 @@ class _AddQualityInspectionPageState
                                   ),
                                   items: const [
                                     DropdownMenuItem(
-                                      value: 'OK',
-                                      child: Text('OK'),
+                                      value: '100% Acceptance',
+                                      child: Text('100% Acceptance'),
                                     ),
                                     DropdownMenuItem(
-                                      value: 'NOT OK',
-                                      child: Text('NOT OK'),
+                                      value: 'Partial Acceptance',
+                                      child: Text('Partial Acceptance'),
                                     ),
                                   ],
                                   onChanged: (value) {
                                     setState(() {
-                                      param.result = value;
-                                      param.isAcceptable = value == 'OK';
+                                      grnQty.recheckType = value;
+                                      firstItem.capaRequired = true;
                                     });
                                   },
                                 ),
                               ),
                             ],
                           ),
-                        );
-                      }),
+                        ],
+
+                        // Partial Acceptance Quantities (only if Partial Acceptance)
+                        if (grnQty.usageDecision == '100% Recheck' &&
+                            grnQty.recheckType == 'Partial Acceptance') ...[
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  decoration: InputDecoration(
+                                    labelText: 'Accepted Quantity',
+                                    border: const OutlineInputBorder(),
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 8),
+                                    hintText:
+                                        'Max: ${grnQty.receivedQty.toString()}',
+                                    hintStyle: TextStyle(
+                                        fontSize: 12, color: Colors.grey[500]),
+                                  ),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
+                                  controller: TextEditingController(
+                                      text: grnQty.acceptedQty.toString()),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return null;
+                                    }
+                                    final qty = double.tryParse(value);
+                                    if (qty == null) return 'Invalid number';
+                                    if (qty < 0) return 'Cannot be negative';
+                                    if (qty > grnQty.receivedQty) {
+                                      return 'Exceeds received qty';
+                                    }
+                                    return null;
+                                  },
+                                  onChanged: (value) {
+                                    // Allow empty value during editing
+                                    if (value.isEmpty) {
+                                      setState(() {
+                                        grnQty.acceptedQty = 0;
+                                        grnQty.rejectedQty = grnQty.receivedQty;
+                                      });
+                                      return;
+                                    }
+
+                                    final qty = double.tryParse(value) ?? 0;
+                                    setState(() {
+                                      // Auto-adjust if exceeds received quantity
+                                      if (qty > grnQty.receivedQty) {
+                                        grnQty.acceptedQty = grnQty.receivedQty;
+                                        grnQty.rejectedQty = 0;
+                                        // Update the text field outside setState
+                                        WidgetsBinding.instance
+                                            .addPostFrameCallback((_) {
+                                          final controller =
+                                              TextEditingController(
+                                                  text: grnQty.receivedQty
+                                                      .toString());
+                                          controller.selection =
+                                              TextSelection.fromPosition(
+                                                  TextPosition(
+                                                      offset: controller
+                                                          .text.length));
+                                          // Find the current focus node
+                                          final focusNode =
+                                              FocusScope.of(context).focusedChild;
+                                          // Update the controller while maintaining focus
+                                          setState(() {
+                                            controller.text =
+                                                grnQty.receivedQty.toString();
+                                            if (focusNode != null) {
+                                              FocusScope.of(context)
+                                                  .requestFocus(focusNode);
+                                            }
+                                          });
+                                        });
+                                      } else {
+                                        grnQty.acceptedQty = qty;
+                                        grnQty.rejectedQty =
+                                            grnQty.receivedQty - qty;
+                                      }
+                                    });
+                                  },
+                                  onEditingComplete: () {
+                                    // Allow zero value when focus is lost
+                                    if (grnQty.acceptedQty == 0) {
+                                      setState(() {
+                                        grnQty.rejectedQty = grnQty.receivedQty;
+                                      });
+                                    }
+                                    FocusScope.of(context).unfocus();
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: TextFormField(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Rejected Quantity',
+                                    border: OutlineInputBorder(),
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 8),
+                                  ),
+                                  readOnly: true,
+                                  controller: TextEditingController(
+                                      text: grnQty.rejectedQty.toString()),
+                                  style: TextStyle(color: Colors.grey[700]),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // PR/Job-wise Distribution for Partial Acceptance
+                          if (grnQty.acceptedQty > 0) ...[
+                            const Text('PR/Job Distribution',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                )),
+                            const SizedBox(height: 8),
+                            // Get the GRN from store inward provider
+                            Builder(builder: (context) {
+                              final inwards = ref.watch(storeInwardProvider);
+                              final grn = inwards.firstWhere(
+                                  (g) => g.grnNo == grnNo,
+                                  orElse: () => StoreInward(
+                                      grnNo: '',
+                                      grnDate: '',
+                                      supplierName: '',
+                                      poNo: '',
+                                      poDate: '',
+                                      invoiceNo: '',
+                                      invoiceDate: '',
+                                      invoiceAmount: 0,
+                                      receivedBy: '',
+                                      checkedBy: '',
+                                      items: []));
+
+                              if (grn.grnNo.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+
+                              final grnItem = grn.items.firstWhere(
+                                  (i) => i.materialCode == firstItem.materialCode,
+                                  orElse: () => InwardItem(
+                                      materialCode: '',
+                                      materialDescription: '',
+                                      unit: '',
+                                      orderedQty: 0,
+                                      receivedQty: 0,
+                                      acceptedQty: 0,
+                                      rejectedQty: 0,
+                                      costPerUnit: '0'));
+
+                              if (grnItem.materialCode.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+
+                              return Column(
+                                children:
+                                    grnItem.prQuantities.entries.map((poEntry) {
+                                  final poNo = poEntry.key;
+                                  final prMap = poEntry.value;
+                                  if (prMap == null) {
+                                    return const SizedBox.shrink();
+                                  }
+
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('PO: $poNo',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w500)),
+                                      const SizedBox(height: 8),
+                                      ...prMap.entries.map((prEntry) {
+                                        final prNo = prEntry.key;
+                                        final originalQty = prEntry.value;
+                                        final jobNo = grnItem.prJobNumbers[poNo]
+                                                ?[prNo] ??
+                                            'General';
+
+                                        // Calculate proportional accepted quantity
+                                        final proportion =
+                                            originalQty / grnItem.receivedQty;
+                                        final suggestedQty =
+                                            grnQty.acceptedQty * proportion;
+
+                                        // Initialize controller if not exists
+                                        _prQtyControllers[grnNo] ??= {};
+                                        _prQtyControllers[grnNo]![
+                                                '${poNo}_$prNo'] ??=
+                                            TextEditingController(
+                                                text: suggestedQty.toString());
+
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 16, bottom: 8),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                flex: 2,
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text('PR: $prNo'),
+                                                    Text('Job: $jobNo',
+                                                        style: TextStyle(
+                                                            color: Colors
+                                                                .grey[500])),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: TextFormField(
+                                                  controller: _prQtyControllers[
+                                                      grnNo]!['${poNo}_$prNo'],
+                                                  decoration: InputDecoration(
+                                                    labelText: 'Accepted Qty',
+                                                    border:
+                                                        const OutlineInputBorder(),
+                                                    isDense: true,
+                                                    hintText:
+                                                        'Max: ${originalQty.toString()}',
+                                                  ),
+                                                  keyboardType:
+                                                      const TextInputType
+                                                          .numberWithOptions(
+                                                          decimal: true),
+                                                  validator: (value) {
+                                                    if (value == null ||
+                                                        value.isEmpty) {
+                                                      return null;
+                                                    }
+                                                    final qty =
+                                                        double.tryParse(value);
+                                                    if (qty == null) {
+                                                      return 'Invalid number';
+                                                    }
+                                                    if (qty < 0) {
+                                                      return 'Cannot be negative';
+                                                    }
+                                                    if (qty > originalQty) {
+                                                      return 'Exceeds original qty';
+                                                    }
+                                                    return null;
+                                                  },
+                                                  onChanged: (value) {
+                                                    // Validate total doesn't exceed accepted qty
+                                                    double total = 0;
+                                                    _prQtyControllers[grnNo]!
+                                                        .forEach(
+                                                            (key, controller) {
+                                                      if (key !=
+                                                          '${poNo}_$prNo') {
+                                                        total += double.tryParse(
+                                                                controller
+                                                                    .text) ??
+                                                            0;
+                                                      }
+                                                    });
+                                                    total +=
+                                                        double.tryParse(value) ??
+                                                            0;
+
+                                                    if (total >
+                                                        grnQty.acceptedQty) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                              'Total PR quantities cannot exceed accepted quantity'),
+                                                        ),
+                                                      );
+                                                      _prQtyControllers[grnNo]![
+                                                                  '${poNo}_$prNo']!
+                                                              .text =
+                                                          suggestedQty.toString();
+                                                    }
+                                                  },
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }),
+                                    ],
+                                  );
+                                }).toList(),
+                              );
+                            }),
+                          ],
+                        ],
+
+                        // Quality Parameters
+                        const SizedBox(height: 16),
+                        const Text('Quality Parameters',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            )),
+                        const SizedBox(height: 8),
+                        ...firstItem.parameters.map((param) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(param.parameter),
+                                ),
+                                const SizedBox(width: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextFormField(
+                                    initialValue: param.observation,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Observation',
+                                      border: OutlineInputBorder(),
+                                      isDense: true,
+                                    ),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        param.observation = value;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: param.result ?? 'OK',
+                                    decoration: const InputDecoration(
+                                      labelText: 'Result',
+                                      border: OutlineInputBorder(),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'OK',
+                                        child: Text('OK'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'NOT OK',
+                                        child: Text('NOT OK'),
+                                      ),
+                                    ],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        param.result = value;
+                                        param.isAcceptable = value == 'OK';
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
                     ],
-                  ],
+                  ),
+                );
+              }),
+
+              // Add expiry date field after the GRN selection
+              if (firstItem.grnQuantities.isNotEmpty)
+                _buildExpiryDateField(firstItem),
+
+              // Show sample size if calculated
+              if (firstItem.sampleSize > 0)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'Required Sample Size: ${firstItem.sampleSize.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              );
-            }),
-          ],
+            ],
+          ),
         ),
+      );
+    }).toList();
+  }
+
+  Widget _buildExpiryDateField(InspectionItem item) {
+    final categories = ref.watch(categoryListProvider);
+    final category = categories.firstWhere(
+      (c) => c.name == item.category,
+      orElse: () => Category(name: item.category),
+    );
+
+    if (category.hasExpiryDate != true && category.hasShelfLife != true) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: TextFormField(
+        decoration: InputDecoration(
+          labelText: 'Expiry Date',
+          border: const OutlineInputBorder(),
+          suffixIcon: const Icon(Icons.calendar_today),
+          enabled: category.hasExpiryDate == true, // Only enable if manual expiry date is needed
+        ),
+        initialValue: item.expirationDate,
+        readOnly: true,
+        onTap: category.hasExpiryDate != true ? null : () async {
+          final date = await showDatePicker(
+            context: context,
+            initialDate: DateTime.now(),
+            firstDate: DateTime.now(),
+            lastDate: DateTime.now().add(const Duration(days: 3650)),
+          );
+          if (date != null) {
+            setState(() {
+              item.expirationDate = DateFormat('yyyy-MM-dd').format(date);
+            });
+          }
+        },
       ),
     );
   }

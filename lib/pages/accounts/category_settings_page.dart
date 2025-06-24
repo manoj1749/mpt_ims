@@ -348,21 +348,6 @@ Mapping for Category: ${mapping.category}
                         );
                       }).toList(),
                     ),
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    title: const Text('Requires Quality Check'),
-                    subtitle: const Text(
-                        'Enable if materials in this category require quality inspection'),
-                    value: _selectedCategory?.requiresQualityCheck ?? true,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCategory?.requiresQualityCheck = value;
-                        ref
-                            .read(categoryListProvider.notifier)
-                            .updateCategory(_selectedCategory!);
-                      });
-                    },
-                  ),
                 ],
               ],
             ),

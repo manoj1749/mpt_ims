@@ -98,9 +98,9 @@ class MaterialIssueItem extends HiveObject {
     required this.issuedQuantities,
     required this.prMapping,
   }) {
-    this.mrDetails = mrDetails;
-    this.issuedQuantities = issuedQuantities;
-    this.prMapping = prMapping;
+    mrDetails = mrDetails;
+    issuedQuantities = issuedQuantities;
+    prMapping = prMapping;
   }
 
   MaterialIssueItem copyWith({

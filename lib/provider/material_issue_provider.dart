@@ -133,7 +133,6 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
 
     try {
       // First add the issue to the box
-      final key = await _issueBox.add(issue);
       
       // Then update stock and MR status
       await _updateStockAndMRStatus(issue);

@@ -518,10 +518,10 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                             ],
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),

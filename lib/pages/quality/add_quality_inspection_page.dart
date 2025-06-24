@@ -1243,7 +1243,6 @@ class _AddQualityInspectionPageState
                                       const SizedBox(height: 8),
                                       ...prMap.entries.map((prEntry) {
                                         final prNo = prEntry.key;
-                                        final originalQty = prEntry.value;
                                         final jobNo = grnItem.prJobNumbers[poNo]
                                                 ?[prNo] ??
                                             'General';

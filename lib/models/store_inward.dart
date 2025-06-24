@@ -54,6 +54,19 @@ class StoreInward extends HiveObject {
 
   bool get isFullyInspected => items.every((item) => item.isFullyInspected);
 
+  // Helper method to safely parse invoice amount
+  static double parseInvoiceAmount(dynamic value) {
+    if (value is double) return value;
+    if (value is String) {
+      try {
+        return double.parse(value);
+      } catch (_) {
+        return 0.0;
+      }
+    }
+    return 0.0;
+  }
+
   void updateStatus() {
     print('\n=== Debug: Updating GRN Status ===');
     print('GRN No: $grnNo');

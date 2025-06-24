@@ -32,13 +32,20 @@ class QualityInspectionAdapter extends TypeAdapter<QualityInspection> {
       status: fields[13] as String,
       prNumbers: (fields[14] as Map?)?.cast<String, String>(),
       jobNumbers: (fields[15] as Map?)?.cast<String, String>(),
+      capaNo: fields[16] as String?,
+      capaStatus: fields[17] as String?,
+      capaDescription: fields[18] as String?,
+      capaAssignedTo: fields[19] as String?,
+      capaTargetDate: fields[20] as String?,
+      capaCompletionDate: fields[21] as String?,
+      capaActions: (fields[22] as List?)?.cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, QualityInspection obj) {
     writer
-      ..writeByte(15)
+      ..writeByte(22)
       ..writeByte(0)
       ..write(obj.inspectionNo)
       ..writeByte(1)
@@ -68,7 +75,21 @@ class QualityInspectionAdapter extends TypeAdapter<QualityInspection> {
       ..writeByte(14)
       ..write(obj.prNumbers)
       ..writeByte(15)
-      ..write(obj.jobNumbers);
+      ..write(obj.jobNumbers)
+      ..writeByte(16)
+      ..write(obj.capaNo)
+      ..writeByte(17)
+      ..write(obj.capaStatus)
+      ..writeByte(18)
+      ..write(obj.capaDescription)
+      ..writeByte(19)
+      ..write(obj.capaAssignedTo)
+      ..writeByte(20)
+      ..write(obj.capaTargetDate)
+      ..writeByte(21)
+      ..write(obj.capaCompletionDate)
+      ..writeByte(22)
+      ..write(obj.capaActions);
   }
 
   @override

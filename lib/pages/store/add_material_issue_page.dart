@@ -14,6 +14,7 @@ import '../../provider/material_request_provider.dart';
 import '../../provider/material_issue_provider.dart';
 import '../../provider/stock_maintenance_provider.dart';
 import '../store/select_jobs_dialog.dart';
+import 'dart:math' as math;
 
 class AddMaterialIssuePage extends ConsumerStatefulWidget {
   final MaterialIssue? existingIssue;
@@ -119,6 +120,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       List<(MaterialRequestItem, MaterialRequest)> mrItems) {
     final Map<String, double> issuedQuantities = {};
     final Map<String, ItemMRDetails> mrDetails = {};
+    final Map<String, String> prMapping = {};  // Add PR mapping
     double totalQty = 0.0;
 
     print('\n=== Creating Material Issue Item ===');
@@ -126,26 +128,27 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
     for (var (mrItem, mr) in mrItems) {
       final key = '${material.partNo}_${mr.issueNo}';
-      if (selectedMRs[key] == true) {
+      if (selectedMRs[key] == true && selectedPRs[key] != null) {
         final qty = double.tryParse(qtyControllers[key]!.text) ?? 0.0;
         if (qty > 0) {
-          // Make sure we get the job number from the MR
           final jobNo = mr.jobNo ?? 'General';
-          print('  MR: ${mr.issueNo}, Job No: $jobNo, Quantity: $qty');
+          print('  MR: ${mr.issueNo}, Job No: $jobNo, PR: ${selectedPRs[key]}, Quantity: $qty');
 
           mrDetails[mr.issueNo] = ItemMRDetails(
             mrNo: mr.issueNo,
             jobNo: jobNo,
             quantity: qty,
+            prNo: selectedPRs[key],  // Add PR number
           );
           issuedQuantities[mr.issueNo] = qty;
+          prMapping[mr.issueNo] = selectedPRs[key]!;  // Store PR mapping
           totalQty += qty;
         }
       }
     }
 
     print('  Total Quantity: $totalQty');
-    print('  Job Numbers: ${mrDetails.values.map((d) => d.jobNo).join(", ")}');
+    print('  PR Mapping: $prMapping');
 
     return MaterialIssueItem(
       materialCode: material.partNo,
@@ -154,6 +157,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       quantity: totalQty,
       mrDetails: mrDetails,
       issuedQuantities: issuedQuantities,
+      prMapping: prMapping,  // Add PR mapping to issue item
     );
   }
 
@@ -161,15 +165,45 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     // Clear existing items
     materialMRItems.clear();
 
-    // Filter by selected jobs if not "All"
+    // Get all existing material issues to check issued quantities
+    final existingIssues = ref.read(materialIssueListProvider);
+
+    // Helper function to get total issued quantity for an MR item
+    double getIssuedQuantityForMRItem(String mrNo, String materialCode) {
+      double totalIssued = 0.0;
+      for (var issue in existingIssues) {
+        for (var item in issue.items) {
+          if (item.materialCode == materialCode && item.mrDetails.containsKey(mrNo)) {
+            totalIssued += item.mrDetails[mrNo]!.quantity;
+          }
+        }
+      }
+      return totalIssued;
+    }
+
+    // Filter MRs and their items based on actual issued quantities
     final filteredMRs = materialRequests.where((mr) {
-      if (selectedJobs.contains('All')) return true;
-      return selectedJobs.contains(mr.jobNo);
+      // Filter by selected jobs
+      if (!selectedJobs.contains('All') && !selectedJobs.contains(mr.jobNo)) {
+        return false;
+      }
+
+      // Check if any items in this MR still have pending quantities
+      return mr.items.any((mrItem) {
+        final issuedQty = getIssuedQuantityForMRItem(mr.issueNo, mrItem.materialCode);
+        final requestedQty = double.tryParse(mrItem.quantity.toString()) ?? 0.0;
+        return issuedQty < requestedQty; // Has pending quantity
+      });
     }).toList();
 
     // Get all materials from filtered MRs
     for (var mr in filteredMRs) {
       for (var mrItem in mr.items) {
+        // Check if this specific item has pending quantity
+        final issuedQty = getIssuedQuantityForMRItem(mr.issueNo, mrItem.materialCode);
+        final requestedQty = double.tryParse(mrItem.quantity.toString()) ?? 0.0;
+        if (issuedQty >= requestedQty) continue; // Skip if fully issued
+
         // Get the material
         final material = ref.read(materialListProvider).firstWhere(
               (m) => m.partNo == mrItem.materialCode,
@@ -194,8 +228,15 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
       }
     }
 
-    // Sort by material code
-    materialMRItems.sort((a, b) => a.$1.partNo.compareTo(b.$1.partNo));
+    // Sort materialMRItems by material code and MR number
+    materialMRItems.sort((a, b) {
+      int codeCompare = a.$1.partNo.compareTo(b.$1.partNo);
+      if (codeCompare != 0) return codeCompare;
+      return a.$3.issueNo.compareTo(b.$3.issueNo);
+    });
+
+    // Notify UI to rebuild
+    setState(() {});
   }
 
   void _updateJobFilter() {
@@ -514,20 +555,12 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
     // Get job-specific stock if available
     final jobNo = mr.jobNo ?? 'General';
-    double availableQty = 0.0;
-    String prNo = '';
-
-    // Find available PR for this job
-    final prInfo =
-        stockItem.findAvailablePRForJob(jobNo, mrItem.pendingQuantity);
-    if (prInfo != null) {
-      prNo = prInfo.$1;
-      availableQty = prInfo.$2;
-      print(
-          'Found PR $prNo with available quantity $availableQty for job $jobNo');
-    } else {
-      print('No available PR found for job $jobNo');
-    }
+    
+    // Get all available PRs for this job
+    final availablePRs = stockItem.prDetails.entries
+        .where((entry) => entry.value.jobNo == jobNo && 
+            entry.value.receivedQuantity > entry.value.issuedQuantity)
+        .toList();
 
     return Card(
       child: Padding(
@@ -540,18 +573,10 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                 Checkbox(
                   value: selectedMRs[key] ?? false,
                   onChanged: (value) {
-                    if (value == true && availableQty <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('No available stock for job $jobNo'),
-                        ),
-                      );
-                      return;
-                    }
                     setState(() {
                       selectedMRs[key] = value ?? false;
-                      if (value == false) {
-                        qtyControllers[key]?.text = '';
+                      if (!value!) {
+                        qtyControllers[key]?.text = '0';
                       }
                     });
                   },
@@ -562,92 +587,80 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                     children: [
                       Text(
                         '${material.partNo} - ${material.description}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Unit: ${material.unit}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                      Text('MR: ${mr.issueNo} | Job: ${mr.jobNo ?? "General"}'),
+                      Text('Pending Qty: ${mrItem.pendingQuantity} ${material.unit}'),
                     ],
                   ),
                 ),
-              ],
-            ),
-            if (selectedMRs[key] == true) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Job: $jobNo',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      Text(
-                        'PR: $prNo',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      Text(
-                        'Available: $availableQty ${material.unit}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      Text(
-                        'Pending in MR: ${mrItem.pendingQuantity} ${material.unit}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                const SizedBox(width: 16),
+                if (selectedMRs[key] == true) ...[
+                  // Show PR selection dropdown
+                  DropdownButton<String>(
+                    hint: const Text('Select PR'),
+                    value: selectedPRs[key],
+                    items: [
+                      for (var pr in availablePRs)
+                        DropdownMenuItem(
+                          value: pr.key,
+                          child: Text('${pr.key} (${pr.value.receivedQuantity - pr.value.issuedQuantity} ${material.unit})'),
+                        ),
                     ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() {
+                        selectedPRs[key] = value;
+                        // Update available quantity based on selected PR
+                        final prDetails = stockItem.prDetails[value]!;
+                        final availableQty = prDetails.receivedQuantity - prDetails.issuedQuantity;
+                        qtyControllers[key]?.text = math.min(availableQty, mrItem.pendingQuantity).toString();
+                      });
+                    },
                   ),
                   const SizedBox(width: 16),
                   SizedBox(
-                    width: 80,
+                    width: 120,
                     child: TextFormField(
                       controller: qtyControllers[key],
                       keyboardType: TextInputType.number,
-                      enabled: selectedMRs[key] == true,
-                      style: const TextStyle(fontSize: 13),
                       decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
-                        ),
-                        hintText: '0.0',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+                        labelText: 'Issue Qty',
+                        suffixText: material.unit,
+                        border: const OutlineInputBorder(),
                       ),
+                      enabled: selectedPRs[key] != null,
                       validator: (value) {
                         if (selectedMRs[key] == true) {
+                          if (selectedPRs[key] == null) {
+                            return 'Select PR';
+                          }
                           final qty = double.tryParse(value ?? '') ?? 0;
                           if (qty <= 0) {
                             return 'Required';
                           }
+                          final prDetails = stockItem.prDetails[selectedPRs[key]]!;
+                          final availableQty = prDetails.receivedQuantity - prDetails.issuedQuantity;
                           if (qty > availableQty) {
-                            return 'Exceeds available';
+                            return 'Exceeds PR';
                           }
                           if (qty > mrItem.pendingQuantity) {
-                            return 'Exceeds pending';
+                            return 'Exceeds MR';
                           }
                         }
                         return null;
                       },
-                      onChanged: (value) {
-                        setState(() {
-                          // Trigger rebuild to update validation
-                        });
-                      },
                     ),
                   ),
                 ],
-              ),
-            ],
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+
+  // Add this field to track selected PRs
+  final Map<String, String> selectedPRs = {};
 }

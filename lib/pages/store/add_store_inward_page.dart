@@ -858,7 +858,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         poDate: '', // Multiple dates possible
         invoiceNo: _invoiceNoController.text,
         invoiceDate: _invoiceDateController.text,
-        invoiceAmount: double.parse(_invoiceAmountController.text),
+        invoiceAmount: StoreInward.parseInvoiceAmount(_invoiceAmountController.text),
         receivedBy: _receivedByController.text,
         checkedBy: _checkedByController.text,
         items: inwardItems,

@@ -20,19 +20,22 @@ class ItemMRDetailsAdapter extends TypeAdapter<ItemMRDetails> {
       mrNo: fields[0] as String,
       jobNo: fields[1] as String,
       quantity: fields[2] as double,
+      prNo: fields[3] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ItemMRDetails obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.mrNo)
       ..writeByte(1)
       ..write(obj.jobNo)
       ..writeByte(2)
-      ..write(obj.quantity);
+      ..write(obj.quantity)
+      ..writeByte(3)
+      ..write(obj.prNo);
   }
 
   @override
@@ -61,15 +64,16 @@ class MaterialIssueItemAdapter extends TypeAdapter<MaterialIssueItem> {
       materialDescription: fields[1] as String,
       unit: fields[2] as String,
       quantity: fields[3] as double,
-      mrDetails: (fields[4] as Map?)?.cast<String, ItemMRDetails>(),
-      issuedQuantities: (fields[5] as Map?)?.cast<String, double>(),
+      mrDetails: (fields[4] as Map).cast<String, ItemMRDetails>(),
+      issuedQuantities: (fields[5] as Map).cast<String, double>(),
+      prMapping: (fields[6] as Map).cast<String, String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, MaterialIssueItem obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -81,7 +85,9 @@ class MaterialIssueItemAdapter extends TypeAdapter<MaterialIssueItem> {
       ..writeByte(4)
       ..write(obj.mrDetails)
       ..writeByte(5)
-      ..write(obj.issuedQuantities);
+      ..write(obj.issuedQuantities)
+      ..writeByte(6)
+      ..write(obj.prMapping);
   }
 
   @override

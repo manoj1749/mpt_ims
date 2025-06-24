@@ -131,13 +131,33 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
       }
     }
 
-    // If all validations pass, create the issue and update stock
-    await _issueBox.add(issue);
-    state = [...state, issue];
-    print('\nMaterial Issue created successfully');
-
-    // Update stock and material request status
-    await _updateStockAndMRStatus(issue);
+    try {
+      // First add the issue to the box
+      final key = await _issueBox.add(issue);
+      
+      // Then update stock and MR status
+      await _updateStockAndMRStatus(issue);
+      
+      // Update state only after everything succeeds
+      state = [...state, issue];
+      print('\nMaterial Issue created successfully');
+    } catch (e) {
+      print('Error creating material issue: $e');
+      // If there's an error, try to revert any changes
+      try {
+        // Only try to delete if it was actually added to the box
+        if (_issueBox.values.any((i) => i.issueNo == issue.issueNo)) {
+          final index = _issueBox.values.toList().indexWhere((i) => i.issueNo == issue.issueNo);
+          if (index != -1) {
+            await _issueBox.deleteAt(index);
+          }
+        }
+        await _revertStockAndMRStatus(issue);
+      } catch (revertError) {
+        print('Error reverting changes: $revertError');
+      }
+      rethrow;
+    }
   }
 
   // Update an existing material issue
@@ -197,7 +217,7 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
 
         // Issue stock using the stock maintenance method
         stockItem.issueStockForJob(jobNo, issue.issueNo, issuedQty);
-        await stockItem.save();
+        await _stockBox.put(stockItem.key, stockItem);
         print('  Stock updated successfully');
 
         // Update material request
@@ -209,6 +229,10 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
         print(
             '  Before MR update - Total Issued: ${mrItem.totalIssuedQuantity}, Pending: ${mrItem.pendingQuantity}');
         mrItem.addIssuedQuantity(issue.issueNo, issuedQty);
+
+        // Save the material request
+        await _requestBox.put(materialRequest.key, materialRequest);
+
         print(
             '  After MR update - Total Issued: ${mrItem.totalIssuedQuantity}, Pending: ${mrItem.pendingQuantity}');
 
@@ -222,12 +246,12 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
         if (allItemsIssued) {
           print('  All items in MR fully issued, marking as Completed');
           materialRequest.status = 'Completed';
-          await materialRequest.save();
+          await _requestBox.put(materialRequest.key, materialRequest);
           print('  Material Request status updated to Completed');
         } else {
           print('  Not all items are fully issued, keeping status as Active');
           materialRequest.status = 'Active';
-          await materialRequest.save();
+          await _requestBox.put(materialRequest.key, materialRequest);
         }
       }
     }

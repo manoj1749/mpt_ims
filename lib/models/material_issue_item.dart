@@ -13,11 +13,20 @@ class ItemMRDetails {
   @HiveField(2)
   double quantity;
 
+  @HiveField(3)
+  String? prNo;
+
   ItemMRDetails({
     required this.mrNo,
     required this.jobNo,
     required this.quantity,
+    this.prNo,
   });
+
+  @override
+  String toString() {
+    return 'ItemMRDetails(mrNo: $mrNo, jobNo: $jobNo, quantity: $quantity, prNo: $prNo)';
+  }
 }
 
 @HiveType(typeId: 34)
@@ -39,6 +48,9 @@ class MaterialIssueItem extends HiveObject {
 
   @HiveField(5)
   Map<String, double> issuedQuantities = {}; // MR No -> issued quantity
+
+  @HiveField(6)
+  Map<String, String> prMapping = {};  // Add PR mapping field
 
   // Get total issued quantity
   double get totalIssuedQuantity {
@@ -82,11 +94,13 @@ class MaterialIssueItem extends HiveObject {
     required this.materialDescription,
     required this.unit,
     required this.quantity,
-    Map<String, ItemMRDetails>? mrDetails,
-    Map<String, double>? issuedQuantities,
+    required this.mrDetails,
+    required this.issuedQuantities,
+    required this.prMapping,
   }) {
-    this.mrDetails = mrDetails ?? {};
-    this.issuedQuantities = issuedQuantities ?? {};
+    this.mrDetails = mrDetails;
+    this.issuedQuantities = issuedQuantities;
+    this.prMapping = prMapping;
   }
 
   MaterialIssueItem copyWith({
@@ -96,6 +110,7 @@ class MaterialIssueItem extends HiveObject {
     double? quantity,
     Map<String, ItemMRDetails>? mrDetails,
     Map<String, double>? issuedQuantities,
+    Map<String, String>? prMapping,
   }) {
     return MaterialIssueItem(
       materialCode: materialCode ?? this.materialCode,
@@ -104,6 +119,12 @@ class MaterialIssueItem extends HiveObject {
       quantity: quantity ?? this.quantity,
       mrDetails: mrDetails ?? Map.from(this.mrDetails),
       issuedQuantities: issuedQuantities ?? Map.from(this.issuedQuantities),
+      prMapping: prMapping ?? Map.from(this.prMapping),
     );
+  }
+
+  @override
+  String toString() {
+    return 'MaterialIssueItem(materialCode: $materialCode, materialDescription: $materialDescription, unit: $unit, quantity: $quantity, mrDetails: $mrDetails, issuedQuantities: $issuedQuantities, prMapping: $prMapping)';
   }
 }

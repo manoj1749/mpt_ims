@@ -10,6 +10,8 @@ import '../../models/material_request.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/sale_order_provider.dart';
 import '../../models/material_item.dart';
+import '../../models/stock_maintenance.dart';
+import '../../provider/stock_maintenance_provider.dart';
 
 class AddMaterialRequestPage extends ConsumerStatefulWidget {
   final MaterialRequest? existingIssue;
@@ -270,11 +272,14 @@ class _AddMaterialRequestPageState
     if (!_formKey.currentState!.validate()) return;
 
     final items = _items.map((item) {
+      // Get the quantity from the controller
+      final quantity = double.tryParse(item.quantityController.text) ?? 0.0;
+      
       return MaterialRequestItem(
         materialCode: item.partNoController.text,
         materialDescription: item.materialController.text,
         unit: item.unitController.text,
-        quantity: item.quantity!,
+        quantity: quantity.toString(),  // Convert to string since the model expects a string
         issueNo: '', // Initialize with empty string
       );
     }).toList();
@@ -646,23 +651,21 @@ class _AddMaterialRequestPageState
                           const SizedBox(width: 16),
                           Expanded(
                             child: TextFormField(
-                              initialValue: item.quantity,
+                              controller: item.quantityController,
+                              keyboardType: TextInputType.number,
                               decoration: const InputDecoration(
                                 labelText: 'Quantity',
                                 border: OutlineInputBorder(),
                               ),
-                              keyboardType: TextInputType.number,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Please enter quantity';
                                 }
-                                if (double.tryParse(value) == null) {
-                                  return 'Please enter a valid number';
+                                final qty = double.tryParse(value);
+                                if (qty == null || qty <= 0) {
+                                  return 'Please enter a valid quantity';
                                 }
                                 return null;
-                              },
-                              onChanged: (value) {
-                                item.quantity = value;
                               },
                             ),
                           ),
@@ -692,18 +695,20 @@ class MaterialRequestItemFormData {
   final TextEditingController partNoController;
   final TextEditingController unitController;
   final TextEditingController materialController;
+  final TextEditingController quantityController;
 
   MaterialRequestItemFormData({
-    required this.selectedMaterial,
-    required this.quantity,
+    this.selectedMaterial,
+    this.quantity,
     required this.partNoController,
     required this.unitController,
     required this.materialController,
-  });
+  }) : quantityController = TextEditingController(text: quantity);
 
   void dispose() {
     partNoController.dispose();
     unitController.dispose();
     materialController.dispose();
+    quantityController.dispose();
   }
 }

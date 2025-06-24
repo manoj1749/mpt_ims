@@ -56,6 +56,16 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
         enableEditingMode: false,
       ),
       PlutoColumn(
+        title: 'Material Requests',
+        field: 'mrNumbers',
+        type: PlutoColumnType.text(),
+        width: 200,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
         title: 'Job Numbers',
         field: 'jobNumbers',
         type: PlutoColumnType.text(),
@@ -64,6 +74,38 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Materials',
+        field: 'materials',
+        type: PlutoColumnType.text(),
+        width: 300,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.left,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final issue = ref.read(materialIssueProvider).firstWhere(
+                (mi) => mi.issueNo == rendererContext.row.cells['issueNo']!.value,
+              );
+          
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: issue.items.map((item) {
+                  return Text(
+                    '${item.materialCode} - ${item.materialDescription} (${item.quantity} ${item.unit})',
+                    style: const TextStyle(fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  );
+                }).toList(),
+              ),
+            ),
+          );
+        },
       ),
       PlutoColumn(
         title: 'Actions',
@@ -148,11 +190,26 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
   List<PlutoRow> _getRows() {
     final materialIssues = ref.watch(materialIssueProvider);
     return materialIssues.mapIndexed((index, issue) {
+      // Get unique MR numbers
+      final mrNumbers = issue.items
+          .expand((item) => item.mrDetails.keys)
+          .toSet()
+          .join(', ');
+
+      // Get unique job numbers
+      final jobNumbers = issue.items
+          .expand((item) => item.mrDetails.values)
+          .map((detail) => detail.jobNo)
+          .toSet()
+          .join(', ');
+
       return PlutoRow(cells: {
         'serialNo': PlutoCell(value: index + 1),
         'issueNo': PlutoCell(value: issue.issueNo),
         'issueDate': PlutoCell(value: issue.issueDate),
-        'jobNumbers': PlutoCell(value: issue.formattedJobNo),
+        'mrNumbers': PlutoCell(value: mrNumbers),
+        'jobNumbers': PlutoCell(value: jobNumbers),
+        'materials': PlutoCell(value: ''),
         'actions': PlutoCell(value: ''),
       });
     }).toList();

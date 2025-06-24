@@ -69,7 +69,7 @@ void main() async {
   final purchaseOrderBox = Hive.box<PurchaseOrder>('purchaseOrders');
   final employeeBox = Hive.box<Employee>('employees');
   final customerBox = Hive.box<Customer>('customers');
-  final storeInwardBox = Hive.box<StoreInward>('store_inward');
+  final storeInwardBox = Hive.box<StoreInward>('store_inwards');
   final vendorMaterialRateBox =
       Hive.box<VendorMaterialRate>('vendorMaterialRates');
   final qualityInspectionBox =

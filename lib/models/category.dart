@@ -42,8 +42,8 @@ class Category extends HiveObject {
     this.shelfLifeValue,
     this.shelfLifeUnit,
   }) : 
-    this.hasExpiryDate = hasExpiryDate ?? false,
-    this.hasShelfLife = hasShelfLife ?? false;
+    hasExpiryDate = hasExpiryDate ?? false,
+    hasShelfLife = hasShelfLife ?? false;
 
   Category copyWith({
     String? name,

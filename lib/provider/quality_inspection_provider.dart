@@ -281,8 +281,9 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
       if (description != null) inspection.capaDescription = description;
       if (assignedTo != null) inspection.capaAssignedTo = assignedTo;
       if (targetDate != null) inspection.capaTargetDate = targetDate;
-      if (completionDate != null)
+      if (completionDate != null) {
         inspection.capaCompletionDate = completionDate;
+      }
       if (actions != null) inspection.capaActions = actions;
 
       inspection.updateCapaStatus();

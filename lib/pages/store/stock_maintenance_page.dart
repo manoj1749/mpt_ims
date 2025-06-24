@@ -381,6 +381,15 @@ class _StockDetailsViewState extends State<StockDetailsView> {
   }
 
   Widget _buildSummaryView() {
+    // First group by job number
+    Map<String, List<MapEntry<String, StockPRDetails>>> jobWiseStock = {};
+    
+    for (var entry in widget.stock.prDetails.entries) {
+      final jobNo = entry.value.jobNo.isEmpty ? 'General' : entry.value.jobNo;
+      jobWiseStock.putIfAbsent(jobNo, () => []);
+      jobWiseStock[jobNo]!.add(entry);
+    }
+
     return Expanded(
       child: SingleChildScrollView(
         child: Card(
@@ -398,16 +407,26 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                 ),
                 const SizedBox(height: 16),
                 const Divider(),
-                ...widget.stock.prDetails.entries.map((entry) {
-                  final prNo = entry.key;
-                  final pr = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Column(
+                ...jobWiseStock.entries.map((jobEntry) {
+                  // Calculate job totals
+                  double totalReceived = 0.0;
+                  double totalIssued = 0.0;
+                  for (var prEntry in jobEntry.value) {
+                    totalReceived += prEntry.value.receivedQuantity;
+                    totalIssued += prEntry.value.issuedQuantity;
+                  }
+
+                  // Skip this job if no available stock
+                  if (totalReceived - totalIssued <= 0) {
+                    return const SizedBox.shrink(); // Hide this job
+                  }
+
+                  return ExpansionTile(
+                    title: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'PR: $prNo | Job: ${pr.jobNo.isEmpty ? 'General' : pr.jobNo}',
+                          'Job: ${jobEntry.key}',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Padding(
@@ -415,40 +434,94 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Received:'),
-                                  Text(
-                                      '${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                  const Text('Total Received:'),
+                                  Text('${totalReceived.toStringAsFixed(2)} ${widget.stock.unit}'),
                                 ],
                               ),
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Issued:'),
-                                  Text(
-                                      '${pr.issuedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                  const Text('Total Issued:'),
+                                  Text('${totalIssued.toStringAsFixed(2)} ${widget.stock.unit}'),
                                 ],
                               ),
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text('Available:'),
-                                  Text(
-                                      '${(pr.receivedQuantity - pr.issuedQuantity).toStringAsFixed(2)} ${widget.stock.unit}'),
+                                  Text('${(totalReceived - totalIssued).toStringAsFixed(2)} ${widget.stock.unit}'),
                                 ],
                               ),
                             ],
                           ),
                         ),
-                        const Divider(),
                       ],
                     ),
+                    children: [
+                      ...jobEntry.value.map((prEntry) {
+                        final prNo = prEntry.key;
+                        final pr = prEntry.value;
+                        // Find vendor details from PO
+                        String vendorName = '';
+                        // Look through PO details to find the vendor
+                        for (var poDetail in widget.stock.poDetails.entries) {
+                          // Check if this PO has received quantities for this PR
+                          for (var grnQtys in poDetail.value.receivedQuantities.values) {
+                            if (grnQtys.containsKey(prNo)) {
+                              vendorName = poDetail.value.vendorId;
+                              break;
+                            }
+                          }
+                          if (vendorName.isNotEmpty) break;
+                        }
+                        
+                        return Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'PR: $prNo | Vendor: $vendorName',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16.0),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Received:'),
+                                        Text('${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                      ],
+                                    ),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Issued:'),
+                                        Text('${pr.issuedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                      ],
+                                    ),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Available:'),
+                                        Text('${(pr.receivedQuantity - pr.issuedQuantity).toStringAsFixed(2)} ${widget.stock.unit}'),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Divider(),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
                   );
-                }),
+                }).toList(),
               ],
             ),
           ),

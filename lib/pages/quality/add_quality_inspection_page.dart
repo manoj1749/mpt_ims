@@ -607,6 +607,9 @@ class _AddQualityInspectionPageState
           selectedGRNQty.rejectedQty = 0.0;
           selectedItem.acceptedQty = selectedGRNQty.receivedQty;
           selectedItem.rejectedQty = 0.0;
+          // Set the final usage decision to indicate it was accepted after recheck
+          selectedGRNQty.usageDecision = 'Accepted After Recheck';
+          selectedItem.usageDecision = 'Accepted After Recheck';
         } else if (selectedGRNQty.recheckType == 'Partial Acceptance') {
           // For partial acceptance, use the quantities from PR distribution
           double totalAcceptedQty = 0.0;
@@ -628,6 +631,9 @@ class _AddQualityInspectionPageState
           selectedItem.acceptedQty = totalAcceptedQty;
           selectedItem.rejectedQty =
               selectedGRNQty.receivedQty - totalAcceptedQty;
+          // Set the final usage decision to indicate partial acceptance after recheck
+          selectedGRNQty.usageDecision = 'Partially Accepted After Recheck';
+          selectedItem.usageDecision = 'Partially Accepted After Recheck';
         }
       }
 
@@ -635,7 +641,7 @@ class _AddQualityInspectionPageState
       selectedItem.pendingQty = selectedGRNQty.receivedQty -
           (selectedGRNQty.acceptedQty + selectedGRNQty.rejectedQty);
 
-      // Create the inspection with Completed status
+      // Create the inspection with appropriate status
       final inspection = QualityInspection(
         inspectionNo: ref
             .read(qualityInspectionProvider.notifier)
@@ -651,9 +657,7 @@ class _AddQualityInspectionPageState
         inspectedBy: _inspectedByController.text.trim(),
         approvedBy: _approvedByController.text.trim(),
         items: [selectedItem],
-        status: selectedItem.usageDecision == 'Lot Accepted'
-            ? 'Completed - Accepted'
-            : 'Completed - Rejected',
+        status: _determineInspectionStatus(selectedItem),
       );
 
       // Add the inspection and update stock
@@ -1380,5 +1384,20 @@ class _AddQualityInspectionPageState
         },
       ),
     );
+  }
+
+  // Helper method to determine inspection status
+  String _determineInspectionStatus(InspectionItem item) {
+    if (item.usageDecision == 'Lot Accepted') {
+      return 'Completed - Accepted';
+    } else if (item.usageDecision == 'Rejected') {
+      return 'Completed - Rejected';
+    } else if (item.usageDecision == 'Accepted After Recheck') {
+      return 'Completed - Accepted After Recheck';
+    } else if (item.usageDecision == 'Partially Accepted After Recheck') {
+      return 'Completed - Partially Accepted';
+    } else {
+      return 'Completed - ${item.usageDecision}';
+    }
   }
 }

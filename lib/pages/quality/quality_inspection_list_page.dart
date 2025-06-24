@@ -426,16 +426,31 @@ class _QualityInspectionListPageState
             if (grnQty.rejectedQty > 0 && grnQty.acceptedQty == 0) {
               displayText = 'Rejected';
               textColor = Colors.red;
+            } else if (grnQty.usageDecision == '100% Recheck') {
+              displayText = '100% Recheck';
+              if (grnQty.recheckType != null) {
+                displayText += '\n${grnQty.recheckType}';
+              }
+              textColor = Colors.orange;
+            } else if (grnQty.usageDecision == 'Accepted After Recheck') {
+              displayText = 'Accepted-After Recheck';
+              textColor = Colors.green;
+            } else if (grnQty.usageDecision == 'Partially Accepted After Recheck') {
+              displayText = 'Partially Accepted-After Recheck';
+              textColor = Colors.orange;
             } else {
               displayText = grnQty.usageDecision;
-              textColor = null;
-            }
-
-            if (grnQty.usageDecision == '100% Recheck' && grnQty.recheckType != null) {
-              displayText += '\n${grnQty.recheckType}';
+              if (displayText == 'Lot Accepted') {
+                textColor = Colors.green;
+              }
             }
           } else {
             displayText = inspItem.usageDecision;
+            if (displayText == 'Lot Accepted') {
+              textColor = Colors.green;
+            } else if (displayText == 'Rejected') {
+              textColor = Colors.red;
+            }
           }
 
           if (inspItem.capaRequired == true) {
@@ -450,6 +465,7 @@ class _QualityInspectionListPageState
               style: TextStyle(
                 fontSize: 12,
                 color: textColor,
+                fontWeight: textColor != null ? FontWeight.bold : null,
               ),
             ),
           );

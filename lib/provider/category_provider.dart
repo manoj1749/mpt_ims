@@ -36,10 +36,10 @@ class CategoryListNotifier extends StateNotifier<List<Category>> {
       (c) => c.name == category.name,
       orElse: () => category,
     );
-    
+
     // Get the key from the existing category or generate a new one
     final key = existingCategory.key ?? await box.add(category);
-    
+
     // Update the category
     await box.put(key, category);
     state = box.values.toList();

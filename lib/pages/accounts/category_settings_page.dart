@@ -34,7 +34,7 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
 
   void _printBoxContents() {
     print('\n==== PRINTING CATEGORY SETTINGS DATA ====');
-    
+
     // Print Categories
     if (Hive.isBoxOpen('categories')) {
       final categoryBox = Hive.box<Category>('categories');
@@ -58,7 +58,8 @@ Category: ${category.name}
 
     // Print Category Parameter Mappings
     if (Hive.isBoxOpen('categoryParameterMappings')) {
-      final mappingBox = Hive.box<CategoryParameterMapping>('categoryParameterMappings');
+      final mappingBox =
+          Hive.box<CategoryParameterMapping>('categoryParameterMappings');
       print('\n-- Category Parameter Mappings Box Contents --');
       for (var mapping in mappingBox.values) {
         print('''
@@ -189,7 +190,9 @@ Mapping for Category: ${mapping.category}
   }
 
   Future<void> _updateCategory(Category updatedCategory) async {
-    await ref.read(categoryListProvider.notifier).updateCategory(updatedCategory);
+    await ref
+        .read(categoryListProvider.notifier)
+        .updateCategory(updatedCategory);
     setState(() => _selectedCategory = updatedCategory);
     _printBoxContents(); // Print contents after update
   }
@@ -246,13 +249,22 @@ Mapping for Category: ${mapping.category}
                   onChanged: (value) {
                     final updatedCategory = _selectedCategory!.copyWith(
                       requiresQualityCheck: value,
-                      sampleSizeLessThan100: value ? _selectedCategory!.sampleSizeLessThan100 : null,
-                      sampleSize100To500: value ? _selectedCategory!.sampleSize100To500 : null,
-                      sampleSizeGreaterThan500: value ? _selectedCategory!.sampleSizeGreaterThan500 : null,
-                      hasExpiryDate: value ? _selectedCategory!.hasExpiryDate : false,
-                      hasShelfLife: value ? _selectedCategory!.hasShelfLife : false,
-                      shelfLifeValue: value ? _selectedCategory!.shelfLifeValue : null,
-                      shelfLifeUnit: value ? _selectedCategory!.shelfLifeUnit : null,
+                      sampleSizeLessThan100: value
+                          ? _selectedCategory!.sampleSizeLessThan100
+                          : null,
+                      sampleSize100To500:
+                          value ? _selectedCategory!.sampleSize100To500 : null,
+                      sampleSizeGreaterThan500: value
+                          ? _selectedCategory!.sampleSizeGreaterThan500
+                          : null,
+                      hasExpiryDate:
+                          value ? _selectedCategory!.hasExpiryDate : false,
+                      hasShelfLife:
+                          value ? _selectedCategory!.hasShelfLife : false,
+                      shelfLifeValue:
+                          value ? _selectedCategory!.shelfLifeValue : null,
+                      shelfLifeUnit:
+                          value ? _selectedCategory!.shelfLifeUnit : null,
                     );
                     _updateCategory(updatedCategory);
                   },
@@ -389,7 +401,9 @@ Mapping for Category: ${mapping.category}
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  initialValue: _selectedCategory!.sampleSizeLessThan100?.toString() ?? '',
+                  initialValue:
+                      _selectedCategory!.sampleSizeLessThan100?.toString() ??
+                          '',
                   onChanged: (value) {
                     final intValue = int.tryParse(value);
                     if (intValue != null) {
@@ -407,7 +421,8 @@ Mapping for Category: ${mapping.category}
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  initialValue: _selectedCategory!.sampleSize100To500?.toString() ?? '',
+                  initialValue:
+                      _selectedCategory!.sampleSize100To500?.toString() ?? '',
                   onChanged: (value) {
                     final intValue = int.tryParse(value);
                     if (intValue != null) {
@@ -425,7 +440,9 @@ Mapping for Category: ${mapping.category}
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  initialValue: _selectedCategory!.sampleSizeGreaterThan500?.toString() ?? '',
+                  initialValue:
+                      _selectedCategory!.sampleSizeGreaterThan500?.toString() ??
+                          '',
                   onChanged: (value) {
                     final intValue = int.tryParse(value);
                     if (intValue != null) {
@@ -496,8 +513,12 @@ Mapping for Category: ${mapping.category}
                             final updatedCategory = _selectedCategory!.copyWith(
                               hasShelfLife: value,
                               hasExpiryDate: false,
-                              shelfLifeValue: value ? _selectedCategory!.shelfLifeValue : null,
-                              shelfLifeUnit: value ? _selectedCategory!.shelfLifeUnit : null,
+                              shelfLifeValue: value
+                                  ? _selectedCategory!.shelfLifeValue
+                                  : null,
+                              shelfLifeUnit: value
+                                  ? _selectedCategory!.shelfLifeUnit
+                                  : null,
                             );
                             _updateCategory(updatedCategory);
                           }
@@ -518,11 +539,14 @@ Mapping for Category: ${mapping.category}
                             border: OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.number,
-                          initialValue: _selectedCategory!.shelfLifeValue?.toString() ?? '',
+                          initialValue:
+                              _selectedCategory!.shelfLifeValue?.toString() ??
+                                  '',
                           onChanged: (value) {
                             final intValue = int.tryParse(value);
                             if (intValue != null) {
-                              final updatedCategory = _selectedCategory!.copyWith(
+                              final updatedCategory =
+                                  _selectedCategory!.copyWith(
                                 shelfLifeValue: intValue,
                               );
                               _updateCategory(updatedCategory);
@@ -539,13 +563,17 @@ Mapping for Category: ${mapping.category}
                           ),
                           value: _selectedCategory!.shelfLifeUnit ?? 'days',
                           items: const [
-                            DropdownMenuItem(value: 'days', child: Text('Days')),
-                            DropdownMenuItem(value: 'months', child: Text('Months')),
-                            DropdownMenuItem(value: 'years', child: Text('Years')),
+                            DropdownMenuItem(
+                                value: 'days', child: Text('Days')),
+                            DropdownMenuItem(
+                                value: 'months', child: Text('Months')),
+                            DropdownMenuItem(
+                                value: 'years', child: Text('Years')),
                           ],
                           onChanged: (value) {
                             if (value != null) {
-                              final updatedCategory = _selectedCategory!.copyWith(
+                              final updatedCategory =
+                                  _selectedCategory!.copyWith(
                                 shelfLifeUnit: value,
                               );
                               _updateCategory(updatedCategory);
@@ -585,7 +613,9 @@ Mapping for Category: ${mapping.category}
                 ref.read(categoryListProvider.notifier).addCategory(name);
               },
               onDelete: (category) {
-                ref.read(categoryListProvider.notifier).deleteCategory(category);
+                ref
+                    .read(categoryListProvider.notifier)
+                    .deleteCategory(category);
                 if (_selectedCategory == category) {
                   setState(() => _selectedCategory = null);
                 }
@@ -594,15 +624,19 @@ Mapping for Category: ${mapping.category}
             if (_selectedCategory != null) ...[
               _buildSection(
                 'Sub-Category',
-                subCategories.where((sc) => sc.categoryName == _selectedCategory!.name).toList(),
+                subCategories
+                    .where((sc) => sc.categoryName == _selectedCategory!.name)
+                    .toList(),
                 (name) {
                   ref.read(subCategoryListProvider.notifier).addSubCategory(
-                    name,
-                    _selectedCategory!.name,
-                  );
+                        name,
+                        _selectedCategory!.name,
+                      );
                 },
                 onDelete: (subCategory) {
-                  ref.read(subCategoryListProvider.notifier).deleteSubCategory(subCategory);
+                  ref
+                      .read(subCategoryListProvider.notifier)
+                      .deleteSubCategory(subCategory);
                 },
               ),
               _buildQualityParameterSection(),

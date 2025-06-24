@@ -64,7 +64,8 @@ class _AddQualityInspectionPageState
     final year = now.year.toString().substring(2);
     final month = now.month.toString().padLeft(2, '0');
     final day = now.day.toString().padLeft(2, '0');
-    final random = (1000 + DateTime.now().millisecondsSinceEpoch % 9000).toString();
+    final random =
+        (1000 + DateTime.now().millisecondsSinceEpoch % 9000).toString();
     return 'QI$year$month$day$random';
   }
 
@@ -250,14 +251,17 @@ class _AddQualityInspectionPageState
             materialDescription: firstItemData['materialDescription'],
             unit: firstItemData['unit'],
             category: material.category,
-            receivedQty: 0, // Initialize to 0, will be updated when GRN is selected
+            receivedQty:
+                0, // Initialize to 0, will be updated when GRN is selected
             costPerUnit: double.parse(firstItemData['costPerUnit']),
-            totalCost: 0, // Initialize to 0, will be updated when GRN is selected
+            totalCost:
+                0, // Initialize to 0, will be updated when GRN is selected
             sampleSize: 0,
             inspectedQty: 0,
             acceptedQty: 0,
             rejectedQty: 0,
-            pendingQty: 0, // Initialize to 0, will be updated when GRN is selected
+            pendingQty:
+                0, // Initialize to 0, will be updated when GRN is selected
             usageDecision: 'Lot Accepted',
             receivedDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
             expirationDate: '',
@@ -275,7 +279,9 @@ class _AddQualityInspectionPageState
   int _calculateSampleSize(double quantity, Category category) {
     if (quantity < 100 && category.sampleSizeLessThan100 != null) {
       return category.sampleSizeLessThan100!;
-    } else if (quantity >= 100 && quantity <= 500 && category.sampleSize100To500 != null) {
+    } else if (quantity >= 100 &&
+        quantity <= 500 &&
+        category.sampleSize100To500 != null) {
       return category.sampleSize100To500!;
     } else if (quantity > 500 && category.sampleSizeGreaterThan500 != null) {
       return category.sampleSizeGreaterThan500!;
@@ -285,7 +291,9 @@ class _AddQualityInspectionPageState
 
   // Calculate expiry date based on shelf life
   String _calculateExpiryDate(Category category, String receivedDate) {
-    if (category.hasShelfLife != true || category.shelfLifeValue == null || category.shelfLifeUnit == null) {
+    if (category.hasShelfLife != true ||
+        category.shelfLifeValue == null ||
+        category.shelfLifeUnit == null) {
       return '';
     }
 
@@ -355,7 +363,8 @@ class _AddQualityInspectionPageState
     );
 
     // Calculate and set sample size
-    item.sampleSize = _calculateSampleSize(item.receivedQty, category).toDouble();
+    item.sampleSize =
+        _calculateSampleSize(item.receivedQty, category).toDouble();
 
     // Calculate expiry date if needed
     if (category.hasExpiryDate == true) {
@@ -616,44 +625,51 @@ class _AddQualityInspectionPageState
           selectedItem.acceptedQty = selectedGRNQty.receivedQty;
           selectedItem.rejectedQty = 0.0;
           selectedItem.pendingQty = 0.0; // Clear pending quantity
-          
+
           // Set the final usage decision to indicate it was accepted after recheck
           selectedGRNQty.usageDecision = 'Accepted After 100% Recheck';
           selectedItem.usageDecision = 'Accepted After 100% Recheck';
-          
+
           // Create a new inspection record for stock update
           final recheckInspection = QualityInspection(
-            inspectionNo: _generateInspectionNo(),
-            inspectionDate: _inspectionDateController.text,
-            grnNo: selectedGRN.grnNo,
-            supplierName: selectedGRN.supplierName,
-            poNo: selectedGRN.poNo,
-            billNo: selectedGRN.invoiceNo,
-            billDate: selectedGRN.invoiceDate,
-            receivedDate: selectedGRN.grnDate,
-            grnDate: selectedGRN.grnDate,
-            inspectedBy: _inspectedByController.text,
-            approvedBy: _approvedByController.text,
-            items: [selectedItem],
-            status: 'Completed - Accepted After 100% Recheck'
-          );
-          
+              inspectionNo: _generateInspectionNo(),
+              inspectionDate: _inspectionDateController.text,
+              grnNo: selectedGRN.grnNo,
+              supplierName: selectedGRN.supplierName,
+              poNo: selectedGRN.poNo,
+              billNo: selectedGRN.invoiceNo,
+              billDate: selectedGRN.invoiceDate,
+              receivedDate: selectedGRN.grnDate,
+              grnDate: selectedGRN.grnDate,
+              inspectedBy: _inspectedByController.text,
+              approvedBy: _approvedByController.text,
+              items: [selectedItem],
+              status: 'Completed - Accepted After 100% Recheck');
+
           // Add the recheck inspection first
-          await ref.read(qualityInspectionProvider.notifier).addInspection(recheckInspection);
-          
+          await ref
+              .read(qualityInspectionProvider.notifier)
+              .addInspection(recheckInspection);
+
           // Update the stock maintenance with recheck result
-          await ref.read(stockMaintenanceProvider.notifier).updateStockFromInspection(recheckInspection);
-          
+          await ref
+              .read(stockMaintenanceProvider.notifier)
+              .updateStockFromInspection(recheckInspection);
+
           // Try to find and update the original inspection status if it exists
           final inspections = ref.read(qualityInspectionProvider);
-          final originalInspection = inspections.where(
-            (insp) => insp.grnNo == selectedGRN.grnNo && insp.inspectionNo != recheckInspection.inspectionNo
-          ).firstOrNull;
-          
+          final originalInspection = inspections
+              .where((insp) =>
+                  insp.grnNo == selectedGRN.grnNo &&
+                  insp.inspectionNo != recheckInspection.inspectionNo)
+              .firstOrNull;
+
           // Only update the original inspection if it exists
           if (originalInspection != null) {
-            await ref.read(qualityInspectionProvider.notifier)
-                .updateInspectionStatus(originalInspection.inspectionNo, 'Completed - Accepted After 100% Recheck');
+            await ref
+                .read(qualityInspectionProvider.notifier)
+                .updateInspectionStatus(originalInspection.inspectionNo,
+                    'Completed - Accepted After 100% Recheck');
           }
 
           // Show success and return early since we've handled everything
@@ -686,36 +702,41 @@ class _AddQualityInspectionPageState
           selectedItem.rejectedQty =
               selectedGRNQty.receivedQty - totalAcceptedQty;
           selectedItem.pendingQty = 0.0; // Clear pending quantity
-          
+
           // Set the final usage decision to indicate partial acceptance after recheck
-          selectedGRNQty.usageDecision = 'Partially Accepted After 100% Recheck';
+          selectedGRNQty.usageDecision =
+              'Partially Accepted After 100% Recheck';
           selectedItem.usageDecision = 'Partially Accepted After 100% Recheck';
-          
+
           // Create a new inspection record for stock update
           final recheckInspection = QualityInspection(
-            inspectionNo: _generateInspectionNo(),
-            inspectionDate: _inspectionDateController.text,
-            grnNo: selectedGRN.grnNo,
-            supplierName: selectedGRN.supplierName,
-            poNo: selectedGRN.poNo,
-            billNo: selectedGRN.invoiceNo,
-            billDate: selectedGRN.invoiceDate,
-            receivedDate: selectedGRN.grnDate,
-            grnDate: selectedGRN.grnDate,
-            inspectedBy: _inspectedByController.text,
-            approvedBy: _approvedByController.text,
-            items: [selectedItem],
-            status: 'Completed - Partially Accepted After Recheck'
-          );
-          
+              inspectionNo: _generateInspectionNo(),
+              inspectionDate: _inspectionDateController.text,
+              grnNo: selectedGRN.grnNo,
+              supplierName: selectedGRN.supplierName,
+              poNo: selectedGRN.poNo,
+              billNo: selectedGRN.invoiceNo,
+              billDate: selectedGRN.invoiceDate,
+              receivedDate: selectedGRN.grnDate,
+              grnDate: selectedGRN.grnDate,
+              inspectedBy: _inspectedByController.text,
+              approvedBy: _approvedByController.text,
+              items: [selectedItem],
+              status: 'Completed - Partially Accepted After Recheck');
+
           // Update the stock maintenance with recheck result
-          await ref.read(stockMaintenanceProvider.notifier).updateStockFromInspection(recheckInspection);
-          
+          await ref
+              .read(stockMaintenanceProvider.notifier)
+              .updateStockFromInspection(recheckInspection);
+
           // Update the original inspection status
-          final originalInspection = ref.read(qualityInspectionProvider)
+          final originalInspection = ref
+              .read(qualityInspectionProvider)
               .firstWhere((insp) => insp.grnNo == selectedGRN.grnNo);
-          await ref.read(qualityInspectionProvider.notifier)
-              .updateInspectionStatus(originalInspection.inspectionNo, 'Completed - Partially Accepted After Recheck');
+          await ref
+              .read(qualityInspectionProvider.notifier)
+              .updateInspectionStatus(originalInspection.inspectionNo,
+                  'Completed - Partially Accepted After Recheck');
         }
       }
 
@@ -943,7 +964,8 @@ class _AddQualityInspectionPageState
                                     // Auto-update accepted/rejected quantities
                                     if (value == 'Lot Accepted') {
                                       // Validate parameters before accepting
-                                      bool hasInvalidParams = firstItem.parameters
+                                      bool hasInvalidParams = firstItem
+                                          .parameters
                                           .any((param) => !param.isAcceptable);
                                       if (hasInvalidParams) {
                                         ScaffoldMessenger.of(context)
@@ -1008,7 +1030,8 @@ class _AddQualityInspectionPageState
                               const SizedBox(width: 16),
                               Expanded(
                                 child: DropdownButtonFormField<String>(
-                                  value: grnQty.recheckType ?? '100% Acceptance',
+                                  value:
+                                      grnQty.recheckType ?? '100% Acceptance',
                                   decoration: const InputDecoration(
                                     labelText: 'Recheck Type',
                                     border: OutlineInputBorder(),
@@ -1105,7 +1128,8 @@ class _AddQualityInspectionPageState
                                                           .text.length));
                                           // Find the current focus node
                                           final focusNode =
-                                              FocusScope.of(context).focusedChild;
+                                              FocusScope.of(context)
+                                                  .focusedChild;
                                           // Update the controller while maintaining focus
                                           setState(() {
                                             controller.text =
@@ -1184,7 +1208,8 @@ class _AddQualityInspectionPageState
                               }
 
                               final grnItem = grn.items.firstWhere(
-                                  (i) => i.materialCode == firstItem.materialCode,
+                                  (i) =>
+                                      i.materialCode == firstItem.materialCode,
                                   orElse: () => InwardItem(
                                       materialCode: '',
                                       materialDescription: '',
@@ -1209,7 +1234,8 @@ class _AddQualityInspectionPageState
                                   }
 
                                   return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text('PO: $poNo',
                                           style: const TextStyle(
@@ -1303,9 +1329,9 @@ class _AddQualityInspectionPageState
                                                             0;
                                                       }
                                                     });
-                                                    total +=
-                                                        double.tryParse(value) ??
-                                                            0;
+                                                    total += double.tryParse(
+                                                            value) ??
+                                                        0;
 
                                                     if (total >
                                                         grnQty.acceptedQty) {
@@ -1320,7 +1346,8 @@ class _AddQualityInspectionPageState
                                                       _prQtyControllers[grnNo]![
                                                                   '${poNo}_$prNo']!
                                                               .text =
-                                                          suggestedQty.toString();
+                                                          suggestedQty
+                                                              .toString();
                                                     }
                                                   },
                                                 ),
@@ -1451,23 +1478,26 @@ class _AddQualityInspectionPageState
           labelText: 'Expiry Date',
           border: const OutlineInputBorder(),
           suffixIcon: const Icon(Icons.calendar_today),
-          enabled: category.hasExpiryDate == true, // Only enable if manual expiry date is needed
+          enabled: category.hasExpiryDate ==
+              true, // Only enable if manual expiry date is needed
         ),
         initialValue: item.expirationDate,
         readOnly: true,
-        onTap: category.hasExpiryDate != true ? null : () async {
-          final date = await showDatePicker(
-            context: context,
-            initialDate: DateTime.now(),
-            firstDate: DateTime.now(),
-            lastDate: DateTime.now().add(const Duration(days: 3650)),
-          );
-          if (date != null) {
-            setState(() {
-              item.expirationDate = DateFormat('yyyy-MM-dd').format(date);
-            });
-          }
-        },
+        onTap: category.hasExpiryDate != true
+            ? null
+            : () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 3650)),
+                );
+                if (date != null) {
+                  setState(() {
+                    item.expirationDate = DateFormat('yyyy-MM-dd').format(date);
+                  });
+                }
+              },
       ),
     );
   }

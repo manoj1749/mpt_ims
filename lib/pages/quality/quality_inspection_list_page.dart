@@ -412,16 +412,17 @@ class _QualityInspectionListPageState
         width: 150,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final item = rendererContext.row.cells['inspection']!.value as QualityInspection;
+          final item = rendererContext.row.cells['inspection']!.value
+              as QualityInspection;
           final inspItem = item.items.first;
 
           // Get the usage decision from GRN quantities
           String displayText = '';
           Color? textColor;
-          
+
           if (inspItem.grnQuantities.isNotEmpty) {
             final grnQty = inspItem.grnQuantities.values.first;
-            
+
             // First check if it's a direct rejection or acceptance
             if (grnQty.usageDecision == 'Rejected') {
               displayText = 'Rejected';
@@ -429,7 +430,7 @@ class _QualityInspectionListPageState
             } else if (grnQty.usageDecision == 'Lot Accepted') {
               displayText = 'Lot Accepted';
               textColor = Colors.green;
-            } 
+            }
             // Only show recheck statuses if it was actually a recheck case
             else if (grnQty.usageDecision == '100% Recheck') {
               displayText = '100% Recheck';
@@ -440,7 +441,8 @@ class _QualityInspectionListPageState
             } else if (grnQty.usageDecision == 'Accepted After 100% Recheck') {
               displayText = 'Accepted After 100% Recheck';
               textColor = Colors.green;
-            } else if (grnQty.usageDecision == 'Partially Accepted After 100% Recheck') {
+            } else if (grnQty.usageDecision ==
+                'Partially Accepted After 100% Recheck') {
               displayText = 'Partially Accepted After 100% Recheck';
               textColor = Colors.orange;
             }
@@ -551,13 +553,14 @@ class _QualityInspectionListPageState
         width: 120,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final item = rendererContext.row.cells['inspection']!.value as QualityInspection;
+          final item = rendererContext.row.cells['inspection']!.value
+              as QualityInspection;
           final expiryDate = item.items.first.expirationDate;
-          
+
           if (expiryDate.isEmpty) {
             return const Text('-');
           }
-          
+
           return Text(expiryDate);
         },
       ),

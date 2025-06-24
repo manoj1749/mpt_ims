@@ -41,9 +41,8 @@ class Category extends HiveObject {
     bool? hasShelfLife,
     this.shelfLifeValue,
     this.shelfLifeUnit,
-  }) : 
-    hasExpiryDate = hasExpiryDate ?? false,
-    hasShelfLife = hasShelfLife ?? false;
+  })  : hasExpiryDate = hasExpiryDate ?? false,
+        hasShelfLife = hasShelfLife ?? false;
 
   Category copyWith({
     String? name,
@@ -59,9 +58,11 @@ class Category extends HiveObject {
     return Category(
       name: name ?? this.name,
       requiresQualityCheck: requiresQualityCheck ?? this.requiresQualityCheck,
-      sampleSizeLessThan100: sampleSizeLessThan100 ?? this.sampleSizeLessThan100,
+      sampleSizeLessThan100:
+          sampleSizeLessThan100 ?? this.sampleSizeLessThan100,
       sampleSize100To500: sampleSize100To500 ?? this.sampleSize100To500,
-      sampleSizeGreaterThan500: sampleSizeGreaterThan500 ?? this.sampleSizeGreaterThan500,
+      sampleSizeGreaterThan500:
+          sampleSizeGreaterThan500 ?? this.sampleSizeGreaterThan500,
       hasExpiryDate: hasExpiryDate ?? this.hasExpiryDate,
       hasShelfLife: hasShelfLife ?? this.hasShelfLife,
       shelfLifeValue: shelfLifeValue ?? this.shelfLifeValue,

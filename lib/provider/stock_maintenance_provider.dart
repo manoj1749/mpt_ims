@@ -400,17 +400,18 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
         } else {
           // Update existing GRN details
           final grnDetail = stock.grnDetails[grnNo]!;
-          
+
           // Handle recheck cases
           if (grnQty.usageDecision == 'Accepted After 100% Recheck') {
             // For accepted after recheck, move all quantity to accepted
             grnDetail.acceptedQuantity = grnQty.receivedQty;
             grnDetail.rejectedQuantity = 0.0;
-            
+
             // Update current stock and under inspection
             stock.updateCurrentStock(stock.currentStock + grnQty.receivedQty);
-            stock.updateStockUnderInspection(math.max(0, stock.stockUnderInspection - grnQty.receivedQty));
-            
+            stock.updateStockUnderInspection(
+                math.max(0, stock.stockUnderInspection - grnQty.receivedQty));
+
             // Update PR and PO quantities
             for (var poEntry in grn.items.first.prQuantities.entries) {
               final poNo = poEntry.key;
@@ -420,30 +421,32 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
               for (var prEntry in prMap.entries) {
                 final prNo = prEntry.key;
                 final qty = prEntry.value;
-                
+
                 // Update PO details
                 if (stock.poDetails.containsKey(poNo)) {
                   stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, qty);
                 }
-                
+
                 // Update PR details
                 if (stock.prDetails.containsKey(prNo)) {
                   stock.prDetails[prNo]!.receivedQuantity = qty;
                 }
               }
             }
-          } else if (grnQty.usageDecision == 'Partially Accepted After 100% Recheck') {
+          } else if (grnQty.usageDecision ==
+              'Partially Accepted After 100% Recheck') {
             // For partial acceptance after recheck
             grnDetail.acceptedQuantity = grnQty.acceptedQty;
             grnDetail.rejectedQuantity = grnQty.rejectedQty;
-            
+
             // Update current stock and under inspection
             stock.updateCurrentStock(stock.currentStock + grnQty.acceptedQty);
-            stock.updateStockUnderInspection(math.max(0, stock.stockUnderInspection - grnQty.receivedQty));
-            
+            stock.updateStockUnderInspection(
+                math.max(0, stock.stockUnderInspection - grnQty.receivedQty));
+
             // Calculate acceptance ratio for PR distribution
             final acceptanceRatio = grnQty.acceptedQty / grnQty.receivedQty;
-            
+
             // Update PR and PO quantities
             for (var poEntry in grn.items.first.prQuantities.entries) {
               final poNo = poEntry.key;
@@ -454,12 +457,13 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
                 final prNo = prEntry.key;
                 final originalQty = prEntry.value;
                 final acceptedQty = originalQty * acceptanceRatio;
-                
+
                 // Update PO details
                 if (stock.poDetails.containsKey(poNo)) {
-                  stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, acceptedQty);
+                  stock.poDetails[poNo]!
+                      .addReceivedQuantity(grnNo, prNo, acceptedQty);
                 }
-                
+
                 // Update PR details
                 if (stock.prDetails.containsKey(prNo)) {
                   stock.prDetails[prNo]!.receivedQuantity = acceptedQty;

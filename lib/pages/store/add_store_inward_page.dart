@@ -931,8 +931,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               (item.prDetails.length == 1 &&
                   item.prDetails.containsKey('General'))) {
             totalOrderedQty = double.tryParse(item.quantity) ?? 0.0;
-            totalReceivedQty = item.receivedQuantities.values
-                .fold<double>(0.0, (sum, qty) => sum + (qty as double));
+            // Fix: properly handle nested map structure
+            totalReceivedQty = item.receivedQuantities.values.fold<double>(
+                0.0,
+                (sum, grnQtys) =>
+                    sum + grnQtys.values.fold<double>(0.0, (s, qty) => s + qty));
           } else {
             // Calculate PR-wise quantities
             for (var prDetail in item.prDetails.entries) {
@@ -942,10 +945,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                 continue;
               }
               totalOrderedQty += prDetail.value.quantity;
-              totalReceivedQty += item.receivedQuantities.entries
-                  .where((entry) => entry.key.contains('_${prDetail.key}'))
-                  .fold<double>(
-                      0.0, (sum, entry) => sum + (entry.value as double));
+              // Fix: properly handle nested map structure for PR-specific quantities
+              totalReceivedQty += item.receivedQuantities.values.fold<double>(
+                  0.0,
+                  (sum, grnQtys) =>
+                      sum + (grnQtys[prDetail.key] ?? 0.0));
             }
           }
 

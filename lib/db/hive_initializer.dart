@@ -23,6 +23,7 @@ import '../models/employee.dart';
 import '../models/stock_maintenance.dart';
 import '../models/material_issue.dart';
 import '../models/material_issue_item.dart';
+import '../models/delivery_challan.dart';
 
 Future<void> initializeHive() async {
   // Register adapters first
@@ -64,6 +65,9 @@ Future<void> initializeHive() async {
   Hive.registerAdapter(MaterialIssueItemAdapter());
   Hive.registerAdapter(ItemMRDetailsAdapter());
 
+  // Register delivery challan adapters
+  Hive.registerAdapter(DeliveryChallanAdapter());
+
   // Then open boxes
   await Future.wait([
     Hive.openBox<Supplier>('suppliers'),
@@ -83,7 +87,8 @@ Future<void> initializeHive() async {
     Hive.openBox<Employee>('employees'),
     Hive.openBox<StockMaintenance>('stock_maintenance'),
     Hive.openBox<MaterialRequest>('material_requests'),
-    Hive.openBox<MaterialIssue>('material_issues')
+    Hive.openBox<MaterialIssue>('material_issues'),
+    Hive.openBox<DeliveryChallan>('delivery_challans')
   ]);
 }
 
@@ -110,6 +115,7 @@ Future<void> clearIncompatibleData() async {
       Hive.deleteBoxFromDisk('stock_maintenance'),
       Hive.deleteBoxFromDisk('material_requests'),
       Hive.deleteBoxFromDisk('material_issues'),
+      Hive.deleteBoxFromDisk('delivery_challans')
     ]);
 
     // Create and initialize schema version box
@@ -138,6 +144,7 @@ Future<void> clearIncompatibleData() async {
         Hive.deleteBoxFromDisk('stock_maintenance'),
         Hive.deleteBoxFromDisk('material_requests'),
         Hive.deleteBoxFromDisk('material_issues'),
+        Hive.deleteBoxFromDisk('delivery_challans')
       ]);
     } catch (e) {
       print('Error deleting boxes: $e');

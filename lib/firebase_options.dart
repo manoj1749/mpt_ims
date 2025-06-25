@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -50,21 +47,32 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyC07Ee_SZxczEXflG40WvzrbPAwBjIiqtU',
-    appId: '1:153944133184:ios:90ca5c1069cf2cbea399a5',
-    messagingSenderId: '153944133184',
-    projectId: 'mpt-ims',
-    storageBucket: 'mpt-ims.firebasestorage.app',
+    apiKey: 'AIzaSyA0KQTgN_2Q7_N6_ix9z6XT_-LYBoauMOI',
+    appId: '1:399009485499:ios:c55b9d00c58c83e629cf9e',
+    messagingSenderId: '399009485499',
+    projectId: 'mpts-ims',
+    storageBucket: 'mpts-ims.firebasestorage.app',
     iosBundleId: 'com.manoj.mptIms',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDUr15PfI5s5xbGyJ_F9KW8bZIw2aUjmkA',
-    appId: '1:153944133184:web:0a29df6c39affb90a399a5',
-    messagingSenderId: '153944133184',
-    projectId: 'mpt-ims',
-    authDomain: 'mpt-ims.firebaseapp.com',
-    storageBucket: 'mpt-ims.firebasestorage.app',
-    measurementId: 'G-S0LTSVY5SX',
+    apiKey: 'AIzaSyAMhCQ0gLLEp5CbipY5DnqIn3eC8HMrq2U',
+    appId: '1:399009485499:web:56819193de58514829cf9e',
+    messagingSenderId: '399009485499',
+    projectId: 'mpts-ims',
+    authDomain: 'mpts-ims.firebaseapp.com',
+    storageBucket: 'mpts-ims.firebasestorage.app',
+    measurementId: 'G-6WD7NK6MJ3',
   );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyAMhCQ0gLLEp5CbipY5DnqIn3eC8HMrq2U',
+    appId: '1:399009485499:web:c5838ea52a622be029cf9e',
+    messagingSenderId: '399009485499',
+    projectId: 'mpts-ims',
+    authDomain: 'mpts-ims.firebaseapp.com',
+    storageBucket: 'mpts-ims.firebasestorage.app',
+    measurementId: 'G-EPR2PP47ZC',
+  );
+
 }

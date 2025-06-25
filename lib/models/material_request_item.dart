@@ -41,11 +41,9 @@ class MaterialRequestItem extends HiveObject {
 
   void addIssuedQuantity(String materialIssueNo, double quantity) {
     issuedQuantities[materialIssueNo] = quantity;
-    save();
   }
 
   void removeIssuedQuantity(String materialIssueNo) {
     issuedQuantities.remove(materialIssueNo);
-    save();
   }
 }

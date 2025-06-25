@@ -132,31 +132,19 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
     }
 
     try {
-      // First add the issue to the box
-
-      // Then update stock and MR status
+      // First update stock and MR status
       await _updateStockAndMRStatus(issue);
+
+      // Then add the issue to the box
+      await _issueBox.add(issue);
 
       // Update state only after everything succeeds
       state = [...state, issue];
       print('\nMaterial Issue created successfully');
     } catch (e) {
       print('Error creating material issue: $e');
-      // If there's an error, try to revert any changes
-      try {
-        // Only try to delete if it was actually added to the box
-        if (_issueBox.values.any((i) => i.issueNo == issue.issueNo)) {
-          final index = _issueBox.values
-              .toList()
-              .indexWhere((i) => i.issueNo == issue.issueNo);
-          if (index != -1) {
-            await _issueBox.deleteAt(index);
-          }
-        }
-        await _revertStockAndMRStatus(issue);
-      } catch (revertError) {
-        print('Error reverting changes: $revertError');
-      }
+      // If there's an error, revert any changes made to stock and MR status
+      await _revertStockAndMRStatus(issue);
       rethrow;
     }
   }
@@ -171,10 +159,22 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
       // First revert the old stock deductions and MR status
       await _revertStockAndMRStatus(oldIssue);
 
-      // Then validate and apply the new issue
-      await createMaterialIssue(issue);
-      await _issueBox.putAt(index, issue);
-      state = [...state.where((i) => i.issueNo != issue.issueNo), issue];
+      try {
+        // Then validate and apply the new issue
+        await _updateStockAndMRStatus(issue);
+        await _issueBox.putAt(index, issue);
+        state = [...state.where((i) => i.issueNo != issue.issueNo), issue];
+      } catch (e) {
+        // If there's an error, try to restore the old state
+        // We don't need to call _updateStockAndMRStatus here since we're using the same issue number
+        // Just put back the old issue in the box
+        await _issueBox.putAt(index, oldIssue);
+        state = [
+          ...state.where((i) => i.issueNo != oldIssue.issueNo),
+          oldIssue
+        ];
+        rethrow;
+      }
     }
   }
 
@@ -231,9 +231,6 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
             '  Before MR update - Total Issued: ${mrItem.totalIssuedQuantity}, Pending: ${mrItem.pendingQuantity}');
         mrItem.addIssuedQuantity(issue.issueNo, issuedQty);
 
-        // Save the material request
-        await _requestBox.put(materialRequest.key, materialRequest);
-
         print(
             '  After MR update - Total Issued: ${mrItem.totalIssuedQuantity}, Pending: ${mrItem.pendingQuantity}');
 
@@ -247,13 +244,13 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
         if (allItemsIssued) {
           print('  All items in MR fully issued, marking as Completed');
           materialRequest.status = 'Completed';
-          await _requestBox.put(materialRequest.key, materialRequest);
-          print('  Material Request status updated to Completed');
         } else {
           print('  Not all items are fully issued, keeping status as Active');
           materialRequest.status = 'Active';
-          await _requestBox.put(materialRequest.key, materialRequest);
         }
+
+        // Save the material request once after all updates
+        await _requestBox.put(materialRequest.key, materialRequest);
       }
     }
     print('\nStock and MR Status update completed');
@@ -325,8 +322,9 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
           print('  Reverting MR status to Active');
           materialRequest.status = 'Active';
         }
-        await materialRequest.save();
-        print('  Material Request reverted successfully');
+
+        // Save the material request once after all updates
+        await _requestBox.put(materialRequest.key, materialRequest);
       }
     }
     print('\nStock and MR Status revert completed');

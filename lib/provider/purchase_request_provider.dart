@@ -3,7 +3,6 @@ import 'package:hive/hive.dart';
 import '../models/purchase_request.dart';
 import '../models/purchase_order.dart';
 import '../services/sync_service.dart';
-import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final purchaseRequestBoxProvider = Provider<Box<PurchaseRequest>>((ref) {
   throw UnimplementedError();

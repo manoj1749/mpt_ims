@@ -1,10 +1,9 @@
 // ignore_for_file: cast_from_null_always_fails
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive/hive.dart';
 import '../models/customer.dart';
 import '../services/sync_service.dart';
-import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final customerBoxProvider = Provider<Box<Customer>>((ref) {
   throw UnimplementedError();

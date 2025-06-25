@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/purchase_order.dart';
 import '../services/sync_service.dart';
-import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final purchaseOrderBoxProvider = Provider<Box<PurchaseOrder>>((ref) {
   throw UnimplementedError();

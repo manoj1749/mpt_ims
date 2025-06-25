@@ -8,7 +8,7 @@ import '../models/stock_maintenance.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'material_request_provider.dart';
 import '../services/sync_service.dart';
-import 'supplier_provider.dart';  // Import for syncServiceProvider
+
 
 final materialIssueBoxProvider = Provider<Box<MaterialIssue>>((ref) {
   return Hive.box<MaterialIssue>('material_issues');

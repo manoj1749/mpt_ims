@@ -2,10 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/sub_category.dart';
 import '../services/sync_service.dart';
-import 'supplier_provider.dart';  // Import for syncServiceProvider
 
-final subCategoryBoxProvider =
-    Provider<Box<SubCategory>>((ref) => throw UnimplementedError());
+final subCategoryBoxProvider = Provider<Box<SubCategory>>((ref) {
+  throw UnimplementedError();
+});
 
 final subCategoryListProvider =
     StateNotifierProvider<SubCategoryListNotifier, List<SubCategory>>((ref) {

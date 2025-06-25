@@ -19,6 +19,7 @@ import 'package:mpt_ims/pages/quality/capa_status_page.dart';
 import 'package:mpt_ims/pages/sales/sale_order_list_page.dart';
 import 'package:mpt_ims/pages/store/material_issue_list_page.dart';
 import 'package:mpt_ims/pages/store/delivery_challan_list_page.dart';
+import '../widgets/sync_status_widget.dart';
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({super.key});
@@ -173,6 +174,7 @@ class _AppScaffoldState extends State<AppScaffold> {
               : sectionTitles[_selectedSectionIndex!],
         ),
         actions: [
+          const SyncStatusWidget(),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {

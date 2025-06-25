@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/material_item.dart';
 import '../services/sync_service.dart';
-import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final materialBoxProvider = Provider<Box<MaterialItem>>((ref) {
   throw UnimplementedError(); // Overridden in main

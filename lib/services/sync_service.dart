@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hive/hive.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../widgets/sync_status_widget.dart';
 import '../models/supplier.dart';
 import '../models/customer.dart';
 import '../models/category.dart';
@@ -14,20 +16,29 @@ import '../models/pr_item.dart';
 import '../models/purchase_order.dart';
 import '../models/po_item.dart';
 import '../models/store_inward.dart';
-import '../models/inward_item.dart';
 import '../models/quality_inspection.dart';
-import '../models/inspection_item.dart';
-import '../models/quality_parameter.dart';
 import '../models/material_request.dart';
 import '../models/material_request_item.dart';
+import '../models/material_issue.dart';
+import '../models/material_issue_item.dart';
+import '../models/material_issue.dart';
+import '../models/material_issue_item.dart';
+
+final syncServiceProvider = Provider<SyncService>((ref) => SyncService(ref));
 
 class SyncService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final Ref _ref;
+
+  SyncService(this._ref);
 
   // Generic method to sync data from Hive to Firestore
   Future<void> syncToFirestore<T>(String collection, Box<T> box) async {
     try {
+      _ref.read(syncStatusProvider.notifier).state = 'Syncing $collection to Firestore...';
+      _ref.read(syncErrorProvider.notifier).state = null;
+
       final batch = _firestore.batch();
       final collectionRef = _firestore.collection(collection);
 
@@ -48,8 +59,20 @@ class SyncService {
 
       await batch.commit();
       print('Successfully synced $collection to Firestore');
+      _ref.read(syncStatusProvider.notifier).state = 'Successfully synced $collection to Firestore';
+      
+      // Clear status after 3 seconds
+      Future.delayed(const Duration(seconds: 3), () {
+        _ref.read(syncStatusProvider.notifier).state = null;
+      });
     } catch (e) {
       print('Error syncing $collection to Firestore: $e');
+      _ref.read(syncErrorProvider.notifier).state = 'Error syncing $collection: $e';
+      
+      // Clear error after 5 seconds
+      Future.delayed(const Duration(seconds: 5), () {
+        _ref.read(syncErrorProvider.notifier).state = null;
+      });
       rethrow;
     }
   }
@@ -57,6 +80,9 @@ class SyncService {
   // Generic method to sync data from Firestore to Hive
   Future<void> syncFromFirestore<T>(String collection, Box<T> box, T Function(Map<String, dynamic>) fromMap) async {
     try {
+      _ref.read(syncStatusProvider.notifier).state = 'Syncing $collection from Firestore...';
+      _ref.read(syncErrorProvider.notifier).state = null;
+
       final querySnapshot = await _firestore.collection(collection).get();
 
       await box.clear(); // Clear existing data
@@ -68,8 +94,20 @@ class SyncService {
       }
 
       print('Successfully synced $collection from Firestore');
+      _ref.read(syncStatusProvider.notifier).state = 'Successfully synced $collection from Firestore';
+      
+      // Clear status after 3 seconds
+      Future.delayed(const Duration(seconds: 3), () {
+        _ref.read(syncStatusProvider.notifier).state = null;
+      });
     } catch (e) {
       print('Error syncing $collection from Firestore: $e');
+      _ref.read(syncErrorProvider.notifier).state = 'Error syncing $collection: $e';
+      
+      // Clear error after 5 seconds
+      Future.delayed(const Duration(seconds: 5), () {
+        _ref.read(syncErrorProvider.notifier).state = null;
+      });
       rethrow;
     }
   }
@@ -360,6 +398,28 @@ class SyncService {
         'issueNo': item.issueNo,
         'issuedQuantities': item.issuedQuantities,
       };
+    } else if (item is MaterialIssue) {
+      return {
+        'issueNo': item.issueNo,
+        'issueDate': item.issueDate,
+        'issuedTo': item.issuedTo,
+        'items': item.items.map((i) => _convertToMap(i)).toList(),
+      };
+    } else if (item is MaterialIssueItem) {
+      return {
+        'materialCode': item.materialCode,
+        'materialDescription': item.materialDescription,
+        'unit': item.unit,
+        'quantity': item.quantity,
+        'mrDetails': item.mrDetails.map((key, value) => MapEntry(key, {
+              'mrNo': value.mrNo,
+              'jobNo': value.jobNo,
+              'quantity': value.quantity,
+              'prNo': value.prNo,
+            })),
+        'issuedQuantities': item.issuedQuantities,
+        'prMapping': item.prMapping,
+      };
     } else {
       throw Exception('Unsupported type for conversion: ${item.runtimeType}');
     }
@@ -511,29 +571,54 @@ class SyncService {
     );
   }
 
-  PurchaseOrder purchaseOrderFromMap(Map<String, dynamic> map) {
-    return PurchaseOrder(
-      poNo: map['poNo'] ?? '',
-      date: map['date'] ?? '',
-      requiredBy: map['requiredBy'] ?? '',
-      status: map['status'],
-      items: (map['items'] as List<dynamic>?)
-          ?.map((i) => poItemFromMap(i as Map<String, dynamic>))
-          .toList(),
-      jobNo: map['jobNo'],
+  POItem poItemFromMap(Map<String, dynamic> map) {
+    return POItem(
+      materialCode: map['materialCode'] ?? '',
+      materialDescription: map['materialDescription'] ?? '',
+      unit: map['unit'] ?? '',
+      quantity: map['quantity']?.toString() ?? '0',
+      costPerUnit: map['costPerUnit']?.toString() ?? '0',
+      totalCost: map['totalCost']?.toString() ?? '0',
+      saleRate: map['saleRate']?.toString() ?? '0',
+      marginPerUnit: map['marginPerUnit']?.toString() ?? '0',
+      totalMargin: map['totalMargin']?.toString() ?? '0',
+      prDetails: (map['prDetails'] as Map<String, dynamic>?)?.map(
+        (key, value) => MapEntry(
+          key,
+          ItemPRDetails(
+            prNo: value['prNo']?.toString() ?? '',
+            jobNo: value['jobNo']?.toString() ?? 'General',
+            quantity: (value['quantity'] as num?)?.toDouble() ?? 0.0,
+          ),
+        ),
+      ),
+      receivedQuantities: (map['receivedQuantities'] as Map<String, dynamic>?)?.map(
+        (key, value) => MapEntry(
+          key,
+          (value as Map<String, dynamic>).map(
+            (k, v) => MapEntry(k, (v as num).toDouble()),
+          ),
+        ),
+      ),
     );
   }
 
-  POItem poItemFromMap(Map<String, dynamic> map) {
-    return POItem(
+  PurchaseOrder purchaseOrderFromMap(Map<String, dynamic> map) {
+    return PurchaseOrder(
       poNo: map['poNo'] ?? '',
-      date: map['date'] ?? '',
-      requiredBy: map['requiredBy'] ?? '',
-      status: map['status'],
+      poDate: map['poDate'] ?? '',
+      supplierName: map['supplierName'] ?? '',
+      transport: map['transport'] ?? '',
+      deliveryRequirements: map['deliveryRequirements'] ?? '',
       items: (map['items'] as List<dynamic>?)
-          ?.map((i) => _convertToMap(i))
-          .toList(),
-      jobNo: map['jobNo'],
+          ?.map((i) => poItemFromMap(i as Map<String, dynamic>))
+          .toList() ?? [],
+      total: (map['total'] as num?)?.toDouble() ?? 0.0,
+      igst: (map['igst'] as num?)?.toDouble() ?? 0.0,
+      cgst: (map['cgst'] as num?)?.toDouble() ?? 0.0,
+      sgst: (map['sgst'] as num?)?.toDouble() ?? 0.0,
+      grandTotal: (map['grandTotal'] as num?)?.toDouble() ?? 0.0,
+      status: map['status'],
     );
   }
 
@@ -550,9 +635,44 @@ class SyncService {
       receivedBy: map['receivedBy'] ?? '',
       checkedBy: map['checkedBy'] ?? '',
       items: (map['items'] as List<dynamic>?)
-          ?.map((i) => inwardItemFromMap(i as Map<String, dynamic>))
-          .toList() ??
-          [],
+          ?.map((i) => InwardItem(
+                materialCode: i['materialCode'] ?? '',
+                materialDescription: i['materialDescription'] ?? '',
+                unit: i['unit'] ?? '',
+                orderedQty: (i['orderedQty'] as num?)?.toDouble() ?? 0.0,
+                receivedQty: (i['receivedQty'] as num?)?.toDouble() ?? 0.0,
+                acceptedQty: (i['acceptedQty'] as num?)?.toDouble() ?? 0.0,
+                rejectedQty: (i['rejectedQty'] as num?)?.toDouble() ?? 0.0,
+                costPerUnit: i['costPerUnit']?.toString() ?? '0',
+                prQuantities: (i['prQuantities'] as Map<String, dynamic>?)?.map(
+                  (key, value) => MapEntry(
+                    key,
+                    (value as Map<String, dynamic>).map(
+                      (k, v) => MapEntry(k, (v as num).toDouble()),
+                    ),
+                  ),
+                ),
+                inspectionStatus: (i['inspectionStatus'] as Map<String, dynamic>?)?.map(
+                  (key, value) => MapEntry(
+                    key,
+                    InspectionQuantityStatus(
+                      inspectedQty: (value['inspectedQty'] as num?)?.toDouble() ?? 0.0,
+                      acceptedQty: (value['acceptedQty'] as num?)?.toDouble() ?? 0.0,
+                      rejectedQty: (value['rejectedQty'] as num?)?.toDouble() ?? 0.0,
+                      status: value['status'] ?? 'Pending',
+                    ),
+                  ),
+                ),
+                prJobNumbers: (i['prJobNumbers'] as Map<String, dynamic>?)?.map(
+                  (key, value) => MapEntry(
+                    key,
+                    (value as Map<String, dynamic>).map(
+                      (k, v) => MapEntry(k, v.toString()),
+                    ),
+                  ),
+                ),
+              ))
+          .toList() ?? [],
       status: map['status'],
     );
   }
@@ -598,26 +718,92 @@ class SyncService {
       inspectedBy: map['inspectedBy'] ?? '',
       approvedBy: map['approvedBy'] ?? '',
       items: (map['items'] as List<dynamic>?)
-          ?.map((i) => inspectionItemFromMap(i as Map<String, dynamic>))
-          .toList() ??
-          [],
+          ?.map((i) => InspectionItem(
+                materialCode: i['materialCode'] ?? '',
+                materialDescription: i['materialDescription'] ?? '',
+                unit: i['unit'] ?? '',
+                category: i['category'] ?? '',
+                receivedQty: (i['receivedQty'] as num?)?.toDouble() ?? 0.0,
+                costPerUnit: (i['costPerUnit'] as num?)?.toDouble() ?? 0.0,
+                totalCost: (i['totalCost'] as num?)?.toDouble() ?? 0.0,
+                sampleSize: (i['sampleSize'] as num?)?.toDouble() ?? 0.0,
+                inspectedQty: (i['inspectedQty'] as num?)?.toDouble() ?? 0.0,
+                acceptedQty: (i['acceptedQty'] as num?)?.toDouble() ?? 0.0,
+                rejectedQty: (i['rejectedQty'] as num?)?.toDouble() ?? 0.0,
+                pendingQty: (i['pendingQty'] as num?)?.toDouble() ?? 0.0,
+                usageDecision: i['usageDecision'] ?? 'Lot Accepted',
+                receivedDate: i['receivedDate'] ?? '',
+                expirationDate: i['expirationDate'] ?? '',
+                parameters: (i['parameters'] as List<dynamic>?)
+                    ?.map((p) => QualityParameter(
+                          parameter: p['parameter'] ?? '',
+                          isAcceptable: p['isAcceptable'] ?? true,
+                          observation: p['observation'] ?? '',
+                          result: p['result'] ?? 'OK',
+                        ))
+                    .toList() ?? [],
+                isPartialRecheck: i['isPartialRecheck'],
+                poQuantities: (i['poQuantities'] as Map<String, dynamic>?)?.map(
+                  (key, value) => MapEntry(
+                    key,
+                    InspectionPOQuantity(
+                      receivedQty: (value['receivedQty'] as num?)?.toDouble() ?? 0.0,
+                      acceptedQty: (value['acceptedQty'] as num?)?.toDouble() ?? 0.0,
+                      rejectedQty: (value['rejectedQty'] as num?)?.toDouble() ?? 0.0,
+                      usageDecision: value['usageDecision'] ?? 'Lot Accepted',
+                      recheckType: value['recheckType'],
+                      conditionalAcceptance: value['conditionalAcceptance'],
+                    ),
+                  ),
+                ),
+                grnNo: i['grnNo'],
+                grnDate: i['grnDate'],
+                invoiceNo: i['invoiceNo'],
+                invoiceDate: i['invoiceDate'],
+                grnDetails: (i['grnDetails'] as Map<String, dynamic>?)?.map(
+                  (key, value) => MapEntry(
+                    key,
+                    (value as Map<String, dynamic>).map(
+                      (k, v) => MapEntry(k, v.toString()),
+                    ),
+                  ),
+                ),
+                grnQuantities: (i['grnQuantities'] as Map<String, dynamic>?)?.map(
+                  (key, value) => MapEntry(
+                    key,
+                    InspectionGRNQuantity(
+                      receivedQty: (value['receivedQty'] as num?)?.toDouble() ?? 0.0,
+                      acceptedQty: (value['acceptedQty'] as num?)?.toDouble() ?? 0.0,
+                      rejectedQty: (value['rejectedQty'] as num?)?.toDouble() ?? 0.0,
+                      usageDecision: value['usageDecision'] ?? 'Lot Accepted',
+                      poNo: value['poNo'],
+                      poDate: value['poDate'],
+                      recheckType: value['recheckType'],
+                      isSelected: value['isSelected'],
+                    ),
+                  ),
+                ),
+                inspectionRemark: i['inspectionRemark'],
+                recheckType: i['recheckType'],
+                conditionalAcceptance: i['conditionalAcceptance'],
+                capaRequired: i['capaRequired'],
+              ))
+          .toList() ?? [],
       status: map['status'] ?? 'Pending',
       prNumbers: (map['prNumbers'] as Map<String, dynamic>?)?.map(
-            (key, value) => MapEntry(key, value.toString()),
-          ) ??
-          {},
+        (key, value) => MapEntry(key, value.toString()),
+      ),
       jobNumbers: (map['jobNumbers'] as Map<String, dynamic>?)?.map(
-            (key, value) => MapEntry(key, value.toString()),
-          ) ??
-          {},
+        (key, value) => MapEntry(key, value.toString()),
+      ),
       capaNo: map['capaNo'],
-      capaStatus: map['capaStatus'],
+      capaStatus: map['capaStatus'] ?? 'Not Required',
       capaDescription: map['capaDescription'],
       capaAssignedTo: map['capaAssignedTo'],
       capaTargetDate: map['capaTargetDate'],
       capaCompletionDate: map['capaCompletionDate'],
       capaActions: (map['capaActions'] as List<dynamic>?)
-          ?.map((e) => e.toString())
+          ?.map((a) => a.toString())
           .toList(),
     );
   }
@@ -709,10 +895,19 @@ class SyncService {
       date: map['date'] ?? '',
       issuedBy: map['issuedBy'] ?? '',
       status: map['status'],
-      items: (map['items'] as List<dynamic>?)
-          ?.map((i) => materialRequestItemFromMap(i as Map<String, dynamic>))
-          .toList(),
       jobNo: map['jobNo'],
+      items: (map['items'] as List<dynamic>?)
+          ?.map((i) => MaterialRequestItem(
+                materialCode: i['materialCode'] ?? '',
+                materialDescription: i['materialDescription'] ?? '',
+                unit: i['unit'] ?? '',
+                quantity: i['quantity']?.toString() ?? '0',
+                issueNo: i['issueNo'] ?? '',
+                issuedQuantities: (i['issuedQuantities'] as Map<String, dynamic>?)?.map(
+                  (key, value) => MapEntry(key, (value as num).toDouble()),
+                ),
+              ))
+          .toList() ?? [],
     );
   }
 
@@ -727,6 +922,39 @@ class SyncService {
             (key, value) => MapEntry(key, (value as num).toDouble()),
           ) ??
           {},
+    );
+  }
+
+  MaterialIssue materialIssueFromMap(Map<String, dynamic> map) {
+    return MaterialIssue(
+      issueNo: map['issueNo'] ?? '',
+      issueDate: map['issueDate'] ?? '',
+      issuedTo: map['issuedTo'] ?? '',
+      items: (map['items'] as List<dynamic>?)
+          ?.map((i) => MaterialIssueItem(
+                materialCode: i['materialCode'] ?? '',
+                materialDescription: i['materialDescription'] ?? '',
+                unit: i['unit'] ?? '',
+                quantity: (i['quantity'] as num?)?.toDouble() ?? 0.0,
+                mrDetails: (i['mrDetails'] as Map<String, dynamic>?)?.map(
+                  (key, value) => MapEntry(
+                    key,
+                    ItemMRDetails(
+                      mrNo: value['mrNo'] ?? '',
+                      jobNo: value['jobNo'] ?? '',
+                      quantity: (value['quantity'] as num?)?.toDouble() ?? 0.0,
+                      prNo: value['prNo'],
+                    ),
+                  ),
+                ) ?? {},
+                issuedQuantities: (i['issuedQuantities'] as Map<String, dynamic>?)?.map(
+                  (key, value) => MapEntry(key, (value as num).toDouble()),
+                ) ?? {},
+                prMapping: (i['prMapping'] as Map<String, dynamic>?)?.map(
+                  (key, value) => MapEntry(key, value.toString()),
+                ) ?? {},
+              ))
+          .toList() ?? [],
     );
   }
 } 

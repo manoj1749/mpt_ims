@@ -46,15 +46,25 @@ import 'firebase_options.dart';
 import 'pages/login_page.dart';
 import 'models/material_request.dart';
 import 'models/material_issue.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+
+  if (kIsWeb) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.web,
+    );
+    await Hive.initFlutter();
+  } else {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await Hive.initFlutter();
+  }
 
   // Initialize Hive first
-  await Hive.initFlutter();
+  // await Hive.initFlutter();
 
   // Then clear incompatible data
   // await clearIncompatibleData();

@@ -4,10 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import '../models/quality_inspection.dart';
-import '../provider/stock_maintenance_provider.dart';
-import '../provider/store_inward_provider.dart';
+import '../models/store_inward.dart';
+import '../models/purchase_order.dart';
+import '../models/quality.dart';
+import '../models/category_parameter_mapping.dart';
 import '../services/sync_service.dart';
-import 'supplier_provider.dart';  // Import for syncServiceProvider
+import 'stock_maintenance_provider.dart';
+import 'store_inward_provider.dart';
+
 
 final qualityInspectionBoxProvider = Provider<Box<QualityInspection>>((ref) {
   throw UnimplementedError();

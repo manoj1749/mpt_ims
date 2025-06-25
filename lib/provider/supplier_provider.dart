@@ -3,8 +3,6 @@ import 'package:hive/hive.dart';
 import '../models/supplier.dart';
 import '../services/sync_service.dart';
 
-final syncServiceProvider = Provider<SyncService>((ref) => SyncService());
-
 final supplierBoxProvider =
     Provider<Box<Supplier>>((ref) => throw UnimplementedError());
 

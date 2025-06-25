@@ -10,7 +10,7 @@ import '../provider/stock_maintenance_provider.dart';
 import '../provider/purchase_order.dart';
 import '../provider/quality_inspection_provider.dart';
 import '../services/sync_service.dart';
-import 'supplier_provider.dart';  // Import for syncServiceProvider
+
 
 final storeInwardBoxProvider = Provider<Box<StoreInward>>((ref) {
   throw UnimplementedError();

@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive/hive.dart';
 import '../models/category_parameter_mapping.dart';
 import '../services/sync_service.dart';
 import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final categoryParameterBoxProvider =
     Provider<Box<CategoryParameterMapping>>((ref) {
-  return Hive.box<CategoryParameterMapping>('categoryParameterMappings');
+  throw UnimplementedError();
 });
 
 final categoryParameterProvider = StateNotifierProvider<

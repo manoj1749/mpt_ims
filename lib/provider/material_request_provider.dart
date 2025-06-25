@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/material_request.dart';
 import '../services/sync_service.dart';
-import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final materialRequestBoxProvider = Provider<Box<MaterialRequest>>((ref) {
   return Hive.box<MaterialRequest>('material_requests');
@@ -165,11 +164,33 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
     final count = (todayIssues + 1).toString().padLeft(3, '0');
     return 'MR$year$month$day$count';
   }
+
+  Future<void> _syncToFirebase() async {
+    try {
+      await _syncService.syncToFirestore('material_requests', _box);
+    } catch (e) {
+      print('Error syncing material requests to Firebase: $e');
+    }
+  }
+
+  Future<void> syncFromFirebase() async {
+    try {
+      await _syncService.syncFromFirestore(
+        'material_requests',
+        _box,
+        (map) => _syncService.materialRequestFromMap(map),
+      );
+      state = _box.values.toList();
+    } catch (e) {
+      print('Error syncing material requests from Firebase: $e');
+    }
+  }
 }
 
 final materialRequestProvider =
     StateNotifierProvider<MaterialRequestProvider, List<MaterialRequest>>(
         (ref) {
   final box = ref.watch(materialRequestBoxProvider);
-  return MaterialRequestProvider(box);
+  final syncService = ref.watch(syncServiceProvider);
+  return MaterialRequestProvider(box, syncService);
 });

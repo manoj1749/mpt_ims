@@ -234,6 +234,29 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
             grnDetail.acceptedQuantity = grnDetail.receivedQuantity;
             grnDetail.rejectedQuantity = 0.0;
             totalCurrentStock += grnDetail.receivedQuantity;
+
+            // Update job details for non-QC items
+            for (var poEntry in item.prQuantities.entries) {
+              final poNo = poEntry.key;
+              final prMap = poEntry.value;
+              if (prMap == null) continue;
+
+              for (var prEntry in prMap.entries) {
+                final prNo = prEntry.key;
+                final jobNo = item.prJobNumbers[poNo]?[prNo];
+                if (jobNo != null && jobNo != 'General') {
+                  // Create or update job details
+                  stock.jobDetails[jobNo] ??= StockJobDetails(
+                    jobNo: jobNo,
+                    allocatedQuantity: 0.0,
+                    consumedQuantity: 0.0,
+                    prNo: prNo,
+                  );
+                  stock.jobDetails[jobNo]!.allocatedQuantity =
+                      stock.prDetails[prNo]?.receivedQuantity ?? 0.0;
+                }
+              }
+            }
           } else {
             // Check if there's a completed inspection for this GRN
             final inspections = inspectionsBox.values

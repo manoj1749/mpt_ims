@@ -67,6 +67,7 @@ Future<void> initializeHive() async {
 
   // Register delivery challan adapters
   Hive.registerAdapter(DeliveryChallanAdapter());
+  Hive.registerAdapter(DeliveryChallanItemAdapter());
 
   // Then open boxes
   await Future.wait([

@@ -28,50 +28,95 @@ class DeliveryChallanListPage extends ConsumerWidget {
         field: 'dcNo',
         type: PlutoColumnType.text(),
         enableEditingMode: false,
+        width: 120,
       ),
       PlutoColumn(
         title: 'Date',
         field: 'date',
         type: PlutoColumnType.text(),
         enableEditingMode: false,
+        width: 100,
       ),
       PlutoColumn(
         title: 'Vendor',
         field: 'vendor',
         type: PlutoColumnType.text(),
         enableEditingMode: false,
+        width: 150,
+      ),
+      PlutoColumn(
+        title: 'GSTIN',
+        field: 'gstin',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 150,
+      ),
+      PlutoColumn(
+        title: 'Email',
+        field: 'email',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 200,
       ),
       PlutoColumn(
         title: 'Returnable',
         field: 'returnable',
         type: PlutoColumnType.text(),
         enableEditingMode: false,
+        width: 100,
+      ),
+      PlutoColumn(
+        title: 'Note',
+        field: 'note',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 150,
+      ),
+      PlutoColumn(
+        title: 'Items',
+        field: 'items',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 300,
+        renderer: (rendererContext) {
+          final dc = deliveryChallans.firstWhere(
+            (dc) => dc.dcNo == rendererContext.row.cells['dcNo']!.value,
+          );
+          return Container(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: dc.items.map((item) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4.0),
+                      child: Text(
+                        '${item.materialCode} - ${item.materialDescription} (${item.quantity} ${item.unit}) - Job: ${item.jobNo ?? "General"}${item.prNo != null ? " - PR: ${item.prNo}" : ""}',
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          );
+        },
       ),
       PlutoColumn(
         title: 'Actions',
         field: 'actions',
         type: PlutoColumnType.text(),
         enableEditingMode: false,
+        width: 80,
         renderer: (rendererContext) {
           return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () {
-                  final dc = deliveryChallans.firstWhere(
-                    (dc) => dc.dcNo == rendererContext.cell.value,
-                  );
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddDeliveryChallanPage(
-                        deliveryChallan: dc,
-                      ),
-                    ),
-                  );
-                },
-              ),
               IconButton(
                 icon: const Icon(Icons.delete),
                 onPressed: () {
@@ -115,7 +160,11 @@ class DeliveryChallanListPage extends ConsumerWidget {
         'dcNo': PlutoCell(value: dc.dcNo),
         'date': PlutoCell(value: dc.dcDate),
         'vendor': PlutoCell(value: dc.vendorName),
+        'gstin': PlutoCell(value: dc.vendorGstin ?? ''),
+        'email': PlutoCell(value: dc.vendorEmail ?? ''),
         'returnable': PlutoCell(value: dc.isReturnable ? 'Yes' : 'No'),
+        'note': PlutoCell(value: dc.note ?? ''),
+        'items': PlutoCell(value: dc.dcNo),
         'actions': PlutoCell(value: dc.dcNo),
       });
     }).toList();

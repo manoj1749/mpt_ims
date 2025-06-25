@@ -74,5 +74,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'mpts-ims.firebasestorage.app',
     measurementId: 'G-EPR2PP47ZC',
   );
-
 }

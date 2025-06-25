@@ -3,6 +3,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/customer.dart';
+import '../services/sync_service.dart';
+import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final customerBoxProvider = Provider<Box<Customer>>((ref) {
   throw UnimplementedError();
@@ -10,26 +12,38 @@ final customerBoxProvider = Provider<Box<Customer>>((ref) {
 
 final customerListProvider =
     StateNotifierProvider<CustomerNotifier, List<Customer>>((ref) {
-  return CustomerNotifier(ref.read(customerBoxProvider));
+  return CustomerNotifier(
+    ref.read(customerBoxProvider),
+    ref.read(syncServiceProvider),
+  );
 });
 
 class CustomerNotifier extends StateNotifier<List<Customer>> {
   final Box<Customer> box;
+  final SyncService _syncService;
 
-  CustomerNotifier(this.box) : super(box.values.toList());
+  CustomerNotifier(this.box, this._syncService) : super(box.values.toList());
 
-  void addCustomer(Customer customer) async {
+  Future<void> addCustomer(Customer customer) async {
     await box.add(customer);
     state = box.values.toList();
+    await _syncToFirebase();
   }
 
-  void updateCustomer(int index, Customer customer) async {
+  Future<void> updateCustomer(int index, Customer customer) async {
     await box.putAt(index, customer);
     state = box.values.toList();
+    await _syncToFirebase();
   }
 
-  void deleteCustomer(Customer customer) {
-    customer.delete();
+  Future<void> deleteCustomer(Customer customer) async {
+    await customer.delete();
+    state = box.values.toList();
+    await _syncToFirebase();
+  }
+
+  Future<void> refresh() async {
+    await _syncFromFirebase();
     state = box.values.toList();
   }
 
@@ -56,5 +70,27 @@ class CustomerNotifier extends StateNotifier<List<Customer>> {
           customer.customerCode.toLowerCase().contains(lowercaseQuery) ||
           customer.gstNo.toLowerCase().contains(lowercaseQuery);
     }).toList();
+  }
+
+  Future<void> _syncToFirebase() async {
+    try {
+      await _syncService.syncToFirestore('customers', box);
+    } catch (e) {
+      print('Error syncing customers to Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
+  }
+
+  Future<void> _syncFromFirebase() async {
+    try {
+      await _syncService.syncFromFirestore(
+        'customers',
+        box,
+        _syncService.customerFromMap,
+      );
+    } catch (e) {
+      print('Error syncing customers from Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
   }
 }

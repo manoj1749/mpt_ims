@@ -3,6 +3,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/material_request.dart';
+import '../services/sync_service.dart';
+import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final materialRequestBoxProvider = Provider<Box<MaterialRequest>>((ref) {
   return Hive.box<MaterialRequest>('material_requests');
@@ -15,8 +17,9 @@ final materialRequestListProvider = Provider<List<MaterialRequest>>((ref) {
 
 class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
   final Box<MaterialRequest> _box;
+  final SyncService _syncService;
 
-  MaterialRequestProvider(this._box) : super(_box.values.toList()) {
+  MaterialRequestProvider(this._box, this._syncService) : super(_box.values.toList()) {
     // Print all material requests when provider is initialized
     print('\n=== Material Requests Debug ===');
     for (var mr in _box.values) {
@@ -69,6 +72,7 @@ class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
     await _box.add(request);
     state = _box.values.toList();
     print('Material Request added successfully');
+    await _syncToFirebase();
   }
 
   Future<void> updateMaterialRequest(MaterialRequest request) async {

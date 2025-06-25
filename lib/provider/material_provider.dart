@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/material_item.dart';
+import '../services/sync_service.dart';
+import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final materialBoxProvider = Provider<Box<MaterialItem>>((ref) {
   throw UnimplementedError(); // Overridden in main
@@ -8,19 +10,24 @@ final materialBoxProvider = Provider<Box<MaterialItem>>((ref) {
 
 final materialListProvider =
     StateNotifierProvider<MaterialNotifier, List<MaterialItem>>(
-  (ref) => MaterialNotifier(ref.read(materialBoxProvider)),
+  (ref) => MaterialNotifier(
+    ref.read(materialBoxProvider),
+    ref.read(syncServiceProvider),
+  ),
 );
 
 class MaterialNotifier extends StateNotifier<List<MaterialItem>> {
   final Box<MaterialItem> box;
+  final SyncService _syncService;
 
-  MaterialNotifier(this.box) : super(box.values.toList());
+  MaterialNotifier(this.box, this._syncService) : super(box.values.toList());
 
   Future<void> addMaterial(MaterialItem item) async {
     try {
       await box.add(item);
       if (mounted) {
         state = box.values.toList();
+        await _syncToFirebase();
       }
     } catch (e) {
       // Re-throw the error to be handled by the UI
@@ -34,6 +41,7 @@ class MaterialNotifier extends StateNotifier<List<MaterialItem>> {
         await box.putAt(index, updatedItem);
         if (mounted) {
           state = box.values.toList();
+          await _syncToFirebase();
         }
       }
     } catch (e) {
@@ -49,10 +57,45 @@ class MaterialNotifier extends StateNotifier<List<MaterialItem>> {
         await box.deleteAt(index);
         if (mounted) {
           state = box.values.toList();
+          await _syncToFirebase();
         }
       }
     } catch (e) {
       rethrow;
+    }
+  }
+
+  Future<void> refresh() async {
+    try {
+      await _syncFromFirebase();
+      if (mounted) {
+        state = box.values.toList();
+      }
+    } catch (e) {
+      print('Error refreshing materials: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _syncToFirebase() async {
+    try {
+      await _syncService.syncToFirestore('materials', box);
+    } catch (e) {
+      print('Error syncing materials to Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
+  }
+
+  Future<void> _syncFromFirebase() async {
+    try {
+      await _syncService.syncFromFirestore(
+        'materials',
+        box,
+        _syncService.materialFromMap,
+      );
+    } catch (e) {
+      print('Error syncing materials from Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
     }
   }
 }

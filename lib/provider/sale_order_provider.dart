@@ -3,6 +3,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'dart:math';
 import '../models/sale_order.dart';
+import '../services/sync_service.dart';
+import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final saleOrderBoxProvider = Provider<Box<SaleOrder>>((ref) {
   throw UnimplementedError();
@@ -10,13 +12,17 @@ final saleOrderBoxProvider = Provider<Box<SaleOrder>>((ref) {
 
 final saleOrderProvider =
     StateNotifierProvider<SaleOrderNotifier, List<SaleOrder>>(
-  (ref) => SaleOrderNotifier(ref.watch(saleOrderBoxProvider)),
+  (ref) => SaleOrderNotifier(
+    ref.watch(saleOrderBoxProvider),
+    ref.watch(syncServiceProvider),
+  ),
 );
 
 class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
   final Box<SaleOrder> box;
+  final SyncService _syncService;
 
-  SaleOrderNotifier(this.box) : super(box.values.toList()) {
+  SaleOrderNotifier(this.box, this._syncService) : super(box.values.toList()) {
     // Listen to box changes
     box.listenable().addListener(_updateState);
   }
@@ -57,6 +63,7 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
     await box.add(order);
     if (mounted) {
       state = box.values.toList();
+      await _syncToFirebase();
     }
   }
 
@@ -67,6 +74,7 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
       await box.putAt(index, order);
       if (mounted) {
         state = box.values.toList();
+        await _syncToFirebase();
       }
     }
   }
@@ -75,6 +83,7 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
     await order.delete();
     if (mounted) {
       state = box.values.toList();
+      await _syncToFirebase();
     }
   }
 
@@ -90,5 +99,39 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
       return orderDate.isAfter(start.subtract(const Duration(days: 1))) &&
           orderDate.isBefore(end.add(const Duration(days: 1)));
     }).toList();
+  }
+
+  Future<void> refresh() async {
+    try {
+      await _syncFromFirebase();
+      if (mounted) {
+        state = box.values.toList();
+      }
+    } catch (e) {
+      print('Error refreshing sale orders: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _syncToFirebase() async {
+    try {
+      await _syncService.syncToFirestore('sale_orders', box);
+    } catch (e) {
+      print('Error syncing sale orders to Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
+  }
+
+  Future<void> _syncFromFirebase() async {
+    try {
+      await _syncService.syncFromFirestore(
+        'sale_orders',
+        box,
+        _syncService.saleOrderFromMap,
+      );
+    } catch (e) {
+      print('Error syncing sale orders from Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
   }
 }

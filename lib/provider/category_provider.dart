@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/category.dart';
+import '../services/sync_service.dart';
+import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final categoryBoxProvider =
     Provider<Box<Category>>((ref) => throw UnimplementedError());
@@ -8,13 +10,15 @@ final categoryBoxProvider =
 final categoryListProvider =
     StateNotifierProvider<CategoryListNotifier, List<Category>>((ref) {
   final box = ref.watch(categoryBoxProvider);
-  return CategoryListNotifier(box);
+  final syncService = ref.watch(syncServiceProvider);
+  return CategoryListNotifier(box, syncService);
 });
 
 class CategoryListNotifier extends StateNotifier<List<Category>> {
   final Box<Category> box;
+  final SyncService _syncService;
 
-  CategoryListNotifier(this.box) : super(box.values.toList());
+  CategoryListNotifier(this.box, this._syncService) : super(box.values.toList());
 
   Future<void> addCategory(String name) async {
     final category = Category(
@@ -23,11 +27,13 @@ class CategoryListNotifier extends StateNotifier<List<Category>> {
     );
     await box.add(category);
     state = box.values.toList();
+    await _syncToFirebase();
   }
 
   Future<void> deleteCategory(Category category) async {
     await category.delete();
     state = box.values.toList();
+    await _syncToFirebase();
   }
 
   Future<void> updateCategory(Category category) async {
@@ -43,5 +49,33 @@ class CategoryListNotifier extends StateNotifier<List<Category>> {
     // Update the category
     await box.put(key, category);
     state = box.values.toList();
+    await _syncToFirebase();
+  }
+
+  Future<void> refresh() async {
+    await _syncFromFirebase();
+    state = box.values.toList();
+  }
+
+  Future<void> _syncToFirebase() async {
+    try {
+      await _syncService.syncToFirestore('categories', box);
+    } catch (e) {
+      print('Error syncing categories to Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
+  }
+
+  Future<void> _syncFromFirebase() async {
+    try {
+      await _syncService.syncFromFirestore(
+        'categories',
+        box,
+        _syncService.categoryFromMap,
+      );
+    } catch (e) {
+      print('Error syncing categories from Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
   }
 }

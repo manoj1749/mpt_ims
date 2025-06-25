@@ -9,6 +9,8 @@ import '../models/po_item.dart';
 import '../provider/stock_maintenance_provider.dart';
 import '../provider/purchase_order.dart';
 import '../provider/quality_inspection_provider.dart';
+import '../services/sync_service.dart';
+import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final storeInwardBoxProvider = Provider<Box<StoreInward>>((ref) {
   throw UnimplementedError();
@@ -25,11 +27,13 @@ final storeInwardMaterialBoxProvider = Provider<Box<MaterialItem>>((ref) {
 
 class StoreInwardNotifier extends Notifier<List<StoreInward>> {
   late Box<StoreInward> _inwardBox;
+  late SyncService _syncService;
   int _lastGRNNumber = 0;
 
   @override
   List<StoreInward> build() {
     _inwardBox = ref.watch(storeInwardBoxProvider);
+    _syncService = ref.watch(syncServiceProvider);
     _initializeLastGRNNumber();
     return _inwardBox.values.toList();
   }
@@ -181,6 +185,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
         .updateStockFromGRN(inward);
 
     state = [..._inwardBox.values];
+    await _syncToFirebase();
   }
 
   Future<void> updateInward(int index, StoreInward inward) async {
@@ -221,6 +226,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
     // Update state
     state = [..._inwardBox.values];
+    await _syncToFirebase();
   }
 
   Future<void> deleteInward(StoreInward inward) async {
@@ -232,6 +238,39 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
     // Update state
     state = [..._inwardBox.values];
+    await _syncToFirebase();
+  }
+
+  Future<void> refresh() async {
+    try {
+      await _syncFromFirebase();
+      state = _inwardBox.values.toList();
+    } catch (e) {
+      print('Error refreshing store inwards: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _syncToFirebase() async {
+    try {
+      await _syncService.syncToFirestore('store_inwards', _inwardBox);
+    } catch (e) {
+      print('Error syncing store inwards to Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
+  }
+
+  Future<void> _syncFromFirebase() async {
+    try {
+      await _syncService.syncFromFirestore(
+        'store_inwards',
+        _inwardBox,
+        _syncService.storeInwardFromMap,
+      );
+    } catch (e) {
+      print('Error syncing store inwards from Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
   }
 
   // Helper method to reverse a GRN's effect on stock

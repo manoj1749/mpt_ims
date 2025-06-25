@@ -7,6 +7,8 @@ import '../models/material_issue.dart';
 import '../models/stock_maintenance.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'material_request_provider.dart';
+import '../services/sync_service.dart';
+import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final materialIssueBoxProvider = Provider<Box<MaterialIssue>>((ref) {
   return Hive.box<MaterialIssue>('material_issues');
@@ -21,10 +23,11 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
   final Box<MaterialIssue> _issueBox;
   final Box<MaterialRequest> _requestBox;
   final Box<StockMaintenance> _stockBox;
+  final SyncService _syncService;
   final Ref ref;
 
   MaterialIssueNotifier(
-      this._issueBox, this._requestBox, this._stockBox, this.ref)
+      this._issueBox, this._requestBox, this._stockBox, this._syncService, this.ref)
       : super([]) {
     state = _issueBox.values.toList();
 
@@ -141,6 +144,7 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
       // Update state only after everything succeeds
       state = [...state, issue];
       print('\nMaterial Issue created successfully');
+      await _syncToFirebase();
     } catch (e) {
       print('Error creating material issue: $e');
       // If there's an error, revert any changes made to stock and MR status
@@ -164,6 +168,7 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
         await _updateStockAndMRStatus(issue);
         await _issueBox.putAt(index, issue);
         state = [...state.where((i) => i.issueNo != issue.issueNo), issue];
+        await _syncToFirebase();
       } catch (e) {
         // If there's an error, try to restore the old state
         // We don't need to call _updateStockAndMRStatus here since we're using the same issue number
@@ -187,6 +192,7 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
       await _revertStockAndMRStatus(issue);
       await _issueBox.deleteAt(index);
       state = state.where((i) => i.issueNo != issueNo).toList();
+      await _syncToFirebase();
     }
   }
 
@@ -351,6 +357,38 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
     final count = (todayIssues + 1).toString().padLeft(3, '0');
     return 'MI$year$month$day$count';
   }
+
+  Future<void> refresh() async {
+    try {
+      await _syncFromFirebase();
+      state = _issueBox.values.toList();
+    } catch (e) {
+      print('Error refreshing material issues: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _syncToFirebase() async {
+    try {
+      await _syncService.syncToFirestore('material_issues', _issueBox);
+    } catch (e) {
+      print('Error syncing material issues to Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
+  }
+
+  Future<void> _syncFromFirebase() async {
+    try {
+      await _syncService.syncFromFirestore(
+        'material_issues',
+        _issueBox,
+        _syncService.materialIssueFromMap,
+      );
+    } catch (e) {
+      print('Error syncing material issues from Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
+  }
 }
 
 final materialIssueProvider =
@@ -358,5 +396,6 @@ final materialIssueProvider =
   final issueBox = ref.watch(materialIssueBoxProvider);
   final requestBox = ref.watch(materialRequestBoxProvider);
   final stockBox = Hive.box<StockMaintenance>('stock_maintenance');
-  return MaterialIssueNotifier(issueBox, requestBox, stockBox, ref);
+  final syncService = ref.watch(syncServiceProvider);
+  return MaterialIssueNotifier(issueBox, requestBox, stockBox, syncService, ref);
 });

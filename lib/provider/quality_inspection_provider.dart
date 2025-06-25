@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../models/quality_inspection.dart';
 import '../provider/stock_maintenance_provider.dart';
 import '../provider/store_inward_provider.dart';
+import '../services/sync_service.dart';
+import 'supplier_provider.dart';  // Import for syncServiceProvider
 
 final qualityInspectionBoxProvider = Provider<Box<QualityInspection>>((ref) {
   throw UnimplementedError();
@@ -17,7 +19,8 @@ final qualityInspectionProvider =
     final box = ref.watch(qualityInspectionBoxProvider);
     final stockMaintenance = ref.watch(stockMaintenanceProvider.notifier);
     final storeInward = ref.watch(storeInwardProvider.notifier);
-    return QualityInspectionNotifier(box, stockMaintenance, storeInward);
+    final syncService = ref.watch(syncServiceProvider);
+    return QualityInspectionNotifier(box, stockMaintenance, storeInward, syncService);
   },
 );
 
@@ -25,8 +28,9 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
   final Box<QualityInspection> box;
   final StockMaintenanceNotifier stockMaintenance;
   final StoreInwardNotifier storeInward;
+  final SyncService _syncService;
 
-  QualityInspectionNotifier(this.box, this.stockMaintenance, this.storeInward)
+  QualityInspectionNotifier(this.box, this.stockMaintenance, this.storeInward, this._syncService)
       : super(box.values.toList());
 
   String generateInspectionNumber() {
@@ -68,6 +72,7 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
 
     // Save to box
     await box.add(inspection);
+    await _syncToFirebase();
   }
 
   Future<void> updateInspection(QualityInspection inspection) async {
@@ -223,6 +228,7 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
           await storeInward.updateGRNStatus(inspection.grnNo);
           // Then update stock
           await stockMaintenance.updateStockFromInspection(inspection);
+          await _syncToFirebase();
         } catch (e) {
           print('Error updating GRN and stock: $e');
           rethrow;
@@ -234,15 +240,48 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
     }
   }
 
-  void deleteInspection(QualityInspection inspection) {
+  Future<void> deleteInspection(QualityInspection inspection) async {
     // Find the index of the inspection to delete
     final index = box.values.toList().indexWhere(
           (insp) => insp.inspectionNo == inspection.inspectionNo,
         );
 
     if (index != -1) {
-      box.deleteAt(index);
+      await box.deleteAt(index);
       state = box.values.toList();
+      await _syncToFirebase();
+    }
+  }
+
+  Future<void> refresh() async {
+    try {
+      await _syncFromFirebase();
+      state = box.values.toList();
+    } catch (e) {
+      print('Error refreshing quality inspections: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _syncToFirebase() async {
+    try {
+      await _syncService.syncToFirestore('quality_inspections', box);
+    } catch (e) {
+      print('Error syncing quality inspections to Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
+    }
+  }
+
+  Future<void> _syncFromFirebase() async {
+    try {
+      await _syncService.syncFromFirestore(
+        'quality_inspections',
+        box,
+        _syncService.qualityInspectionFromMap,
+      );
+    } catch (e) {
+      print('Error syncing quality inspections from Firebase: $e');
+      // You might want to show a snackbar or some other UI feedback here
     }
   }
 

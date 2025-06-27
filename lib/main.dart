@@ -140,8 +140,13 @@ class IMSApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue,
+              seedColor: const Color.fromRGBO(75, 85, 115, 1),
               brightness: Brightness.dark,
+            ),
+            scaffoldBackgroundColor: const Color.fromRGBO(75, 85, 115, 1),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color.fromRGBO(75, 85, 115, 1),
+              foregroundColor: Colors.white,
             ),
             useMaterial3: true,
           ),

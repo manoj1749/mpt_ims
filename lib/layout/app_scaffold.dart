@@ -168,10 +168,20 @@ class _AppScaffoldState extends State<AppScaffold> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _selectedSectionIndex == null
-              ? 'Aimant Industries IMS Dashboard'
-              : sectionTitles[_selectedSectionIndex!],
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/logo.jpeg',
+              height: 40,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              _selectedSectionIndex == null
+                  ? 'Aimant Industries IMS Dashboard'
+                  : sectionTitles[_selectedSectionIndex!],
+            ),
+          ],
         ),
         actions: [
           const SyncStatusWidget(),
@@ -237,6 +247,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: Colors.black,
+                          fontSize: 20,
                         ),
                       ),
                     ),

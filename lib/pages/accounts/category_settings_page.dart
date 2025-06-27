@@ -23,6 +23,8 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
   final _subCategoryController = TextEditingController();
   final _parameterController = TextEditingController();
   Category? _selectedCategory;
+  Category? _unsavedCategory;
+  bool _hasUnsavedChanges = false;
 
   @override
   void initState() {
@@ -65,7 +67,6 @@ Category: ${category.name}
         print('''
 Mapping for Category: ${mapping.category}
 - Parameters: ${mapping.parameters}
-- Requires Expiry Date: ${mapping.requiresExpiryDate}
 ''');
       }
     } else {
@@ -120,6 +121,122 @@ Mapping for Category: ${mapping.category}
         ],
       ),
     );
+  }
+
+  Future<bool> _onWillPop() async {
+    if (_hasUnsavedChanges) {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Unsaved Changes'),
+          content: const Text('Do you want to discard your unsaved changes?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Discard'),
+            ),
+          ],
+        ),
+      );
+      return result ?? false;
+    }
+    return true;
+  }
+
+  void _onCategorySelected(Category category) {
+    if (_hasUnsavedChanges) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Unsaved Changes'),
+          content: const Text('Save changes before switching categories?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  _selectedCategory = category;
+                  _unsavedCategory = Category(
+                    name: category.name,
+                    requiresQualityCheck: category.requiresQualityCheck,
+                    sampleSizeLessThan100: category.sampleSizeLessThan100,
+                    sampleSize100To500: category.sampleSize100To500,
+                    sampleSizeGreaterThan500: category.sampleSizeGreaterThan500,
+                    hasExpiryDate: category.hasExpiryDate,
+                    hasShelfLife: category.hasShelfLife,
+                    shelfLifeValue: category.shelfLifeValue,
+                    shelfLifeUnit: category.shelfLifeUnit,
+                  );
+                  _hasUnsavedChanges = false;
+                });
+              },
+              child: const Text('Discard'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _saveChanges();
+                setState(() {
+                  _selectedCategory = category;
+                  _unsavedCategory = Category(
+                    name: category.name,
+                    requiresQualityCheck: category.requiresQualityCheck,
+                    sampleSizeLessThan100: category.sampleSizeLessThan100,
+                    sampleSize100To500: category.sampleSize100To500,
+                    sampleSizeGreaterThan500: category.sampleSizeGreaterThan500,
+                    hasExpiryDate: category.hasExpiryDate,
+                    hasShelfLife: category.hasShelfLife,
+                    shelfLifeValue: category.shelfLifeValue,
+                    shelfLifeUnit: category.shelfLifeUnit,
+                  );
+                  _hasUnsavedChanges = false;
+                });
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      setState(() {
+        _selectedCategory = category;
+        _unsavedCategory = Category(
+          name: category.name,
+          requiresQualityCheck: category.requiresQualityCheck,
+          sampleSizeLessThan100: category.sampleSizeLessThan100,
+          sampleSize100To500: category.sampleSize100To500,
+          sampleSizeGreaterThan500: category.sampleSizeGreaterThan500,
+          hasExpiryDate: category.hasExpiryDate,
+          hasShelfLife: category.hasShelfLife,
+          shelfLifeValue: category.shelfLifeValue,
+          shelfLifeUnit: category.shelfLifeUnit,
+        );
+      });
+    }
+  }
+
+  Future<void> _saveChanges() async {
+    if (_unsavedCategory != null) {
+      await ref
+          .read(categoryListProvider.notifier)
+          .updateCategory(_unsavedCategory!);
+      setState(() {
+        _selectedCategory = _unsavedCategory!.copyWith();
+        _hasUnsavedChanges = false;
+      });
+      _printBoxContents();
+    }
+  }
+
+  void _updateUnsavedCategory(Category updatedCategory) {
+    setState(() {
+      _unsavedCategory = updatedCategory;
+      _hasUnsavedChanges = true;
+    });
   }
 
   Widget _buildSection(
@@ -177,8 +294,7 @@ Mapping for Category: ${mapping.category}
                     onPressed: onDelete != null ? () => onDelete(item) : null,
                   ),
                   onTap: title == 'Category'
-                      ? () =>
-                          setState(() => _selectedCategory = item as Category)
+                      ? () => _onCategorySelected(item as Category)
                       : null,
                   selected: title == 'Category' && item == _selectedCategory,
                 );
@@ -229,7 +345,7 @@ Mapping for Category: ${mapping.category}
                       ref
                           .read(universalParameterProvider.notifier)
                           .addParameter(name);
-                      _printBoxContents(); // Print contents after adding parameter
+                      _printBoxContents();
                     },
                   ),
                 ),
@@ -245,28 +361,12 @@ Mapping for Category: ${mapping.category}
                   title: const Text('Requires Quality Check'),
                   subtitle: const Text(
                       'Enable if materials in this category require quality inspection'),
-                  value: _selectedCategory?.requiresQualityCheck ?? true,
+                  value: _unsavedCategory?.requiresQualityCheck ?? true,
                   onChanged: (value) {
-                    final updatedCategory = _selectedCategory!.copyWith(
+                    final updatedCategory = _unsavedCategory!.copyWith(
                       requiresQualityCheck: value,
-                      sampleSizeLessThan100: value
-                          ? _selectedCategory!.sampleSizeLessThan100
-                          : null,
-                      sampleSize100To500:
-                          value ? _selectedCategory!.sampleSize100To500 : null,
-                      sampleSizeGreaterThan500: value
-                          ? _selectedCategory!.sampleSizeGreaterThan500
-                          : null,
-                      hasExpiryDate:
-                          value ? _selectedCategory!.hasExpiryDate : false,
-                      hasShelfLife:
-                          value ? _selectedCategory!.hasShelfLife : false,
-                      shelfLifeValue:
-                          value ? _selectedCategory!.shelfLifeValue : null,
-                      shelfLifeUnit:
-                          value ? _selectedCategory!.shelfLifeUnit : null,
                     );
-                    _updateCategory(updatedCategory);
+                    _updateUnsavedCategory(updatedCategory);
                   },
                 ),
                 const SizedBox(height: 16),
@@ -372,7 +472,7 @@ Mapping for Category: ${mapping.category}
   }
 
   Widget _buildSamplePlanSection() {
-    if (_selectedCategory == null) return const SizedBox.shrink();
+    if (_unsavedCategory == null) return const SizedBox.shrink();
 
     return Card(
       margin: const EdgeInsets.all(8),
@@ -401,17 +501,16 @@ Mapping for Category: ${mapping.category}
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  initialValue:
-                      _selectedCategory!.sampleSizeLessThan100?.toString() ??
-                          '',
+                  controller: TextEditingController(
+                    text: _unsavedCategory!.sampleSizeLessThan100?.toString() ??
+                        '',
+                  ),
                   onChanged: (value) {
                     final intValue = int.tryParse(value);
-                    if (intValue != null) {
-                      final updatedCategory = _selectedCategory!.copyWith(
-                        sampleSizeLessThan100: intValue,
-                      );
-                      _updateCategory(updatedCategory);
-                    }
+                    final updatedCategory = _unsavedCategory!.copyWith(
+                      sampleSizeLessThan100: intValue,
+                    );
+                    _updateUnsavedCategory(updatedCategory);
                   },
                 ),
                 const SizedBox(height: 16),
@@ -421,16 +520,16 @@ Mapping for Category: ${mapping.category}
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  initialValue:
-                      _selectedCategory!.sampleSize100To500?.toString() ?? '',
+                  controller: TextEditingController(
+                    text:
+                        _unsavedCategory!.sampleSize100To500?.toString() ?? '',
+                  ),
                   onChanged: (value) {
                     final intValue = int.tryParse(value);
-                    if (intValue != null) {
-                      final updatedCategory = _selectedCategory!.copyWith(
-                        sampleSize100To500: intValue,
-                      );
-                      _updateCategory(updatedCategory);
-                    }
+                    final updatedCategory = _unsavedCategory!.copyWith(
+                      sampleSize100To500: intValue,
+                    );
+                    _updateUnsavedCategory(updatedCategory);
                   },
                 ),
                 const SizedBox(height: 16),
@@ -440,17 +539,17 @@ Mapping for Category: ${mapping.category}
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  initialValue:
-                      _selectedCategory!.sampleSizeGreaterThan500?.toString() ??
-                          '',
+                  controller: TextEditingController(
+                    text: _unsavedCategory!.sampleSizeGreaterThan500
+                            ?.toString() ??
+                        '',
+                  ),
                   onChanged: (value) {
                     final intValue = int.tryParse(value);
-                    if (intValue != null) {
-                      final updatedCategory = _selectedCategory!.copyWith(
-                        sampleSizeGreaterThan500: intValue,
-                      );
-                      _updateCategory(updatedCategory);
-                    }
+                    final updatedCategory = _unsavedCategory!.copyWith(
+                      sampleSizeGreaterThan500: intValue,
+                    );
+                    _updateUnsavedCategory(updatedCategory);
                   },
                 ),
               ],
@@ -462,7 +561,7 @@ Mapping for Category: ${mapping.category}
   }
 
   Widget _buildExpiryShelfLifeSection() {
-    if (_selectedCategory == null) return const SizedBox.shrink();
+    if (_unsavedCategory == null) return const SizedBox.shrink();
 
     return Card(
       margin: const EdgeInsets.all(8),
@@ -490,16 +589,16 @@ Mapping for Category: ${mapping.category}
                     Expanded(
                       child: CheckboxListTile(
                         title: const Text('Has Expiry Date'),
-                        value: _selectedCategory!.hasExpiryDate ?? false,
+                        value: _unsavedCategory!.hasExpiryDate,
                         onChanged: (value) {
                           if (value != null) {
-                            final updatedCategory = _selectedCategory!.copyWith(
+                            final updatedCategory = _unsavedCategory!.copyWith(
                               hasExpiryDate: value,
-                              hasShelfLife: false,
-                              shelfLifeValue: null,
-                              shelfLifeUnit: null,
+                              hasShelfLife: value
+                                  ? false
+                                  : _unsavedCategory!.hasShelfLife,
                             );
-                            _updateCategory(updatedCategory);
+                            _updateUnsavedCategory(updatedCategory);
                           }
                         },
                       ),
@@ -507,27 +606,29 @@ Mapping for Category: ${mapping.category}
                     Expanded(
                       child: CheckboxListTile(
                         title: const Text('Has Shelf Life'),
-                        value: _selectedCategory!.hasShelfLife ?? false,
+                        value: _unsavedCategory!.hasShelfLife,
                         onChanged: (value) {
                           if (value != null) {
-                            final updatedCategory = _selectedCategory!.copyWith(
+                            final updatedCategory = _unsavedCategory!.copyWith(
                               hasShelfLife: value,
-                              hasExpiryDate: false,
+                              hasExpiryDate: value
+                                  ? false
+                                  : _unsavedCategory!.hasExpiryDate,
                               shelfLifeValue: value
-                                  ? _selectedCategory!.shelfLifeValue
+                                  ? _unsavedCategory!.shelfLifeValue
                                   : null,
                               shelfLifeUnit: value
-                                  ? _selectedCategory!.shelfLifeUnit
+                                  ? _unsavedCategory!.shelfLifeUnit ?? 'days'
                                   : null,
                             );
-                            _updateCategory(updatedCategory);
+                            _updateUnsavedCategory(updatedCategory);
                           }
                         },
                       ),
                     ),
                   ],
                 ),
-                if (_selectedCategory!.hasShelfLife == true) ...[
+                if (_unsavedCategory!.hasShelfLife == true) ...[
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -539,18 +640,17 @@ Mapping for Category: ${mapping.category}
                             border: OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.number,
-                          initialValue:
-                              _selectedCategory!.shelfLifeValue?.toString() ??
-                                  '',
+                          controller: TextEditingController(
+                            text:
+                                _unsavedCategory!.shelfLifeValue?.toString() ??
+                                    '',
+                          ),
                           onChanged: (value) {
                             final intValue = int.tryParse(value);
-                            if (intValue != null) {
-                              final updatedCategory =
-                                  _selectedCategory!.copyWith(
-                                shelfLifeValue: intValue,
-                              );
-                              _updateCategory(updatedCategory);
-                            }
+                            final updatedCategory = _unsavedCategory!.copyWith(
+                              shelfLifeValue: intValue,
+                            );
+                            _updateUnsavedCategory(updatedCategory);
                           },
                         ),
                       ),
@@ -561,7 +661,7 @@ Mapping for Category: ${mapping.category}
                             labelText: 'Unit',
                             border: OutlineInputBorder(),
                           ),
-                          value: _selectedCategory!.shelfLifeUnit ?? 'days',
+                          value: _unsavedCategory!.shelfLifeUnit ?? 'days',
                           items: const [
                             DropdownMenuItem(
                                 value: 'days', child: Text('Days')),
@@ -573,10 +673,10 @@ Mapping for Category: ${mapping.category}
                           onChanged: (value) {
                             if (value != null) {
                               final updatedCategory =
-                                  _selectedCategory!.copyWith(
+                                  _unsavedCategory!.copyWith(
                                 shelfLifeUnit: value,
                               );
-                              _updateCategory(updatedCategory);
+                              _updateUnsavedCategory(updatedCategory);
                             }
                           },
                         ),
@@ -597,55 +697,88 @@ Mapping for Category: ${mapping.category}
     final categories = ref.watch(categoryListProvider);
     final subCategories = ref.watch(subCategoryListProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Category Settings'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildSection(
-              'Category',
-              categories,
-              (name) {
-                ref.read(categoryListProvider.notifier).addCategory(name);
-              },
-              onDelete: (category) {
-                ref
-                    .read(categoryListProvider.notifier)
-                    .deleteCategory(category);
-                if (_selectedCategory == category) {
-                  setState(() => _selectedCategory = null);
-                }
-              },
-            ),
-            if (_selectedCategory != null) ...[
-              _buildSection(
-                'Sub-Category',
-                subCategories
-                    .where((sc) => sc.categoryName == _selectedCategory!.name)
-                    .toList(),
-                (name) {
-                  ref.read(subCategoryListProvider.notifier).addSubCategory(
-                        name,
-                        _selectedCategory!.name,
-                      );
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Category Settings'),
+          actions: [
+            if (_hasUnsavedChanges)
+              TextButton.icon(
+                onPressed: () {
+                  _saveChanges();
+                  setState(() {
+                    _selectedCategory = _unsavedCategory;
+                    _unsavedCategory = Category(
+                      name: _selectedCategory!.name,
+                      requiresQualityCheck: _selectedCategory!.requiresQualityCheck,
+                      sampleSizeLessThan100: _selectedCategory!.sampleSizeLessThan100,
+                      sampleSize100To500: _selectedCategory!.sampleSize100To500,
+                      sampleSizeGreaterThan500: _selectedCategory!.sampleSizeGreaterThan500,
+                      hasExpiryDate: _selectedCategory!.hasExpiryDate,
+                      hasShelfLife: _selectedCategory!.hasShelfLife,
+                      shelfLifeValue: _selectedCategory!.shelfLifeValue,
+                      shelfLifeUnit: _selectedCategory!.shelfLifeUnit,
+                    );
+                    _hasUnsavedChanges = false;
+                  });
                 },
-                onDelete: (subCategory) {
+                icon: const Icon(Icons.save, color: Colors.white),
+                label: const Text('Save Changes',
+                    style: TextStyle(color: Colors.white)),
+              ),
+          ],
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildSection(
+                'Category',
+                categories,
+                (name) {
+                  ref.read(categoryListProvider.notifier).addCategory(name);
+                },
+                onDelete: (category) {
                   ref
-                      .read(subCategoryListProvider.notifier)
-                      .deleteSubCategory(subCategory);
+                      .read(categoryListProvider.notifier)
+                      .deleteCategory(category);
+                  if (_selectedCategory == category) {
+                    setState(() {
+                      _selectedCategory = null;
+                      _unsavedCategory = null;
+                      _hasUnsavedChanges = false;
+                    });
+                  }
                 },
               ),
-              _buildQualityParameterSection(),
-              if (_selectedCategory?.requiresQualityCheck == true) ...[
-                _buildSamplePlanSection(),
-                _buildExpiryShelfLifeSection(),
+              if (_selectedCategory != null) ...[
+                _buildSection(
+                  'Sub-Category',
+                  subCategories
+                      .where((sc) => sc.categoryName == _selectedCategory!.name)
+                      .toList(),
+                  (name) {
+                    ref.read(subCategoryListProvider.notifier).addSubCategory(
+                          name,
+                          _selectedCategory!.name,
+                        );
+                  },
+                  onDelete: (subCategory) {
+                    ref
+                        .read(subCategoryListProvider.notifier)
+                        .deleteSubCategory(subCategory);
+                  },
+                ),
+                _buildQualityParameterSection(),
+                if (_unsavedCategory?.requiresQualityCheck == true) ...[
+                  _buildSamplePlanSection(),
+                  _buildExpiryShelfLifeSection(),
+                ],
               ],
             ],
-          ],
+          ),
         ),
       ),
     );

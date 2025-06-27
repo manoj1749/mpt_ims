@@ -30,8 +30,16 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshData();
       _printBoxContents();
     });
+  }
+
+  Future<void> _refreshData() async {
+    await ref.read(categoryListProvider.notifier).refresh();
+    await ref.read(subCategoryListProvider.notifier).refresh();
+    await ref.read(categoryParameterProvider.notifier).refresh();
+    await ref.read(universalParameterProvider.notifier).refresh();
   }
 
   void _printBoxContents() {

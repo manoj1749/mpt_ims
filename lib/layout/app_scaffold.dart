@@ -170,7 +170,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       appBar: AppBar(
         title: Text(
           _selectedSectionIndex == null
-              ? 'IMS Dashboard'
+              ? 'Aimant Industries IMS Dashboard'
               : sectionTitles[_selectedSectionIndex!],
         ),
         actions: [

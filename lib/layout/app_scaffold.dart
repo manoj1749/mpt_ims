@@ -177,9 +177,9 @@ class _AppScaffoldState extends State<AppScaffold> {
             ),
             const SizedBox(width: 12),
             Text(
-              _selectedSectionIndex == null
+          _selectedSectionIndex == null
                   ? 'Aimant Industries IMS Dashboard'
-                  : sectionTitles[_selectedSectionIndex!],
+              : sectionTitles[_selectedSectionIndex!],
             ),
           ],
         ),

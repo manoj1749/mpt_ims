@@ -24,12 +24,22 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
 
   SaleOrderNotifier(this.box, this._syncService) : super(box.values.toList()) {
     // Listen to box changes
-    box.listenable().addListener(_updateState);
+    box.listenable().addListener(() async {
+      if (mounted) {
+        state = box.values.toList();
+        await _syncToFirebase();
+      }
+    });
   }
 
   @override
   void dispose() {
-    box.listenable().removeListener(_updateState);
+    box.listenable().removeListener(() async {
+      if (mounted) {
+        state = box.values.toList();
+        await _syncToFirebase();
+      }
+    });
     super.dispose();
   }
 
@@ -53,29 +63,39 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
     return '$currentYearStr$nextYearStr$randomDigits';
   }
 
-  void _updateState() {
-    if (mounted) {
-      state = box.values.toList();
-    }
-  }
-
   Future<void> addOrder(SaleOrder order) async {
-    await box.add(order);
-    if (mounted) {
-      state = box.values.toList();
-      await _syncToFirebase();
+    try {
+      print('Adding sale order: ${order.orderNo}');
+      await box.add(order);
+      if (mounted) {
+        state = box.values.toList();
+        print('Sale order added successfully, syncing to Firebase...');
+        await _syncToFirebase();
+        print('Sync completed');
+      }
+    } catch (e) {
+      print('Error adding sale order: $e');
+      rethrow;
     }
   }
 
   Future<void> updateOrder(SaleOrder order) async {
-    final index =
-        box.values.toList().indexWhere((o) => o.orderNo == order.orderNo);
-    if (index != -1) {
-      await box.putAt(index, order);
-      if (mounted) {
-        state = box.values.toList();
-        await _syncToFirebase();
+    try {
+      print('Updating sale order: ${order.orderNo}');
+      final index =
+          box.values.toList().indexWhere((o) => o.orderNo == order.orderNo);
+      if (index != -1) {
+        await box.putAt(index, order);
+        if (mounted) {
+          state = box.values.toList();
+          print('Sale order updated successfully, syncing to Firebase...');
+          await _syncToFirebase();
+          print('Sync completed');
+        }
       }
+    } catch (e) {
+      print('Error updating sale order: $e');
+      rethrow;
     }
   }
 
@@ -103,9 +123,11 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
 
   Future<void> refresh() async {
     try {
+      print('Refreshing sale orders...');
       await _syncFromFirebase();
       if (mounted) {
         state = box.values.toList();
+        print('Refresh completed, current sale orders: ${state.length}');
       }
     } catch (e) {
       print('Error refreshing sale orders: $e');
@@ -115,7 +137,10 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
 
   Future<void> _syncToFirebase() async {
     try {
-      await _syncService.syncToFirestore('sale_orders', box);
+      print('Starting sync to Firebase...');
+      print('Current sale orders in box: ${box.values.length}');
+      await _syncService.syncToFirestore('saleOrders', box);
+      print('Sync to Firebase completed successfully');
     } catch (e) {
       print('Error syncing sale orders to Firebase: $e');
       // You might want to show a snackbar or some other UI feedback here
@@ -124,11 +149,13 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
 
   Future<void> _syncFromFirebase() async {
     try {
+      print('Starting sync from Firebase...');
       await _syncService.syncFromFirestore(
-        'sale_orders',
+        'saleOrders',
         box,
         _syncService.saleOrderFromMap,
       );
+      print('Sync from Firebase completed successfully');
     } catch (e) {
       print('Error syncing sale orders from Firebase: $e');
       // You might want to show a snackbar or some other UI feedback here

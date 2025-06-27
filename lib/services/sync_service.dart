@@ -21,8 +21,7 @@ import '../models/material_request.dart';
 import '../models/material_request_item.dart';
 import '../models/material_issue.dart';
 import '../models/material_issue_item.dart';
-import '../models/material_issue.dart';
-import '../models/material_issue_item.dart';
+import '../models/stock_maintenance.dart';
 
 final syncServiceProvider = Provider<SyncService>((ref) => SyncService(ref));
 
@@ -54,15 +53,21 @@ class SyncService {
 
       // Then add all current documents
       print('Preparing to sync ${box.values.length} items from Hive');
-      for (var item in box.values) {
-        final docRef = collectionRef.doc();
-        final data = _convertToMap(item);
-        data['lastUpdated'] = FieldValue.serverTimestamp();
-        data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-        batch.set(docRef, data);
+      if (box.values.isNotEmpty) {
+        for (var item in box.values) {
+          final docRef = collectionRef.doc();
+          final data = _convertToMap(item);
+          data['lastUpdated'] = FieldValue.serverTimestamp();
+          data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+          batch.set(docRef, data);
+        }
+
+        // Only commit if there are items to sync
+        await batch.commit();
+      } else {
+        print('No items in Hive box to sync');
       }
 
-      await batch.commit();
       final successStatus = 'Successfully synced $collection to Firestore';
       print(successStatus);
       print('=== END SYNC STATUS ===\n');
@@ -99,14 +104,19 @@ class SyncService {
       final querySnapshot = await _firestore.collection(collection).get();
       print('Found ${querySnapshot.docs.length} documents in Firestore');
 
-      print('Clearing existing data from Hive box: $collection');
-      await box.clear();
-      
-      print('Starting to sync items to Hive');
-      for (var doc in querySnapshot.docs) {
-        final data = doc.data();
-        final item = fromMap(data);
-        await box.add(item);
+      // Only clear and sync if there are documents in Firestore
+      if (querySnapshot.docs.isNotEmpty) {
+        print('Clearing existing data from Hive box: $collection');
+        await box.clear();
+        
+        print('Starting to sync items to Hive');
+        for (var doc in querySnapshot.docs) {
+          final data = doc.data();
+          final item = fromMap(data);
+          await box.add(item);
+        }
+      } else {
+        print('No documents found in Firestore, keeping existing Hive data');
       }
 
       final successStatus = 'Successfully synced $collection from Firestore';
@@ -440,6 +450,33 @@ class SyncService {
             })),
         'issuedQuantities': item.issuedQuantities,
         'prMapping': item.prMapping,
+      };
+    } else if (item is StockMaintenance) {
+      return {
+        'materialCode': item.materialCode,
+        'materialDescription': item.materialDescription,
+        'unit': item.unit,
+        'currentStock': item.currentStock,
+        'stockUnderInspection': item.stockUnderInspection,
+        'storageLocation': item.storageLocation,
+        'rackNumber': item.rackNumber,
+        'grnDetails': item.grnDetails.map((key, value) => MapEntry(key, {
+              'grnNo': value.grnNo,
+              'grnDate': value.grnDate,
+              'receivedQuantity': value.receivedQuantity,
+              'acceptedQuantity': value.acceptedQuantity,
+              'rejectedQuantity': value.rejectedQuantity,
+              'vendorId': value.vendorId,
+              'rate': value.rate,
+            })),
+        'poDetails': item.poDetails.map((key, value) => MapEntry(key, {
+              'poNo': value.poNo,
+              'poDate': value.poDate,
+              'orderedQuantity': value.orderedQuantity,
+              'receivedQuantity': value.receivedQuantity,
+              'vendorId': value.vendorId,
+              'rate': value.rate,
+            })),
       };
     } else {
       throw Exception('Unsupported type for conversion: ${item.runtimeType}');
@@ -977,5 +1014,256 @@ class SyncService {
               ))
           .toList() ?? [],
     );
+  }
+
+  StockMaintenance stockMaintenanceFromMap(Map<String, dynamic> map) {
+    return StockMaintenance(
+      materialCode: map['materialCode'] ?? '',
+      materialDescription: map['materialDescription'] ?? '',
+      unit: map['unit'] ?? '',
+      storageLocation: map['storageLocation'] ?? '',
+      rackNumber: map['rackNumber'] ?? '',
+    )
+      ..currentStock = (map['currentStock'] as num?)?.toDouble() ?? 0.0
+      ..stockUnderInspection = (map['stockUnderInspection'] as num?)?.toDouble() ?? 0.0
+      ..grnDetails = (map['grnDetails'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(
+              key,
+              StockGRNDetails(
+                grnNo: value['grnNo'] ?? '',
+                grnDate: value['grnDate'] ?? '',
+                receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
+                acceptedQuantity: (value['acceptedQuantity'] as num?)?.toDouble() ?? 0.0,
+                rejectedQuantity: (value['rejectedQuantity'] as num?)?.toDouble() ?? 0.0,
+                vendorId: value['vendorId'] ?? '',
+                rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
+              ),
+            ),
+          ) ??
+          {}
+      ..poDetails = (map['poDetails'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(
+              key,
+              StockPODetails(
+                poNo: value['poNo'] ?? '',
+                poDate: value['poDate'] ?? '',
+                orderedQuantity: (value['orderedQuantity'] as num?)?.toDouble() ?? 0.0,
+                receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
+                vendorId: value['vendorId'] ?? '',
+                rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
+              ),
+            ),
+          ) ??
+          {};
+  }
+
+  Future<void> syncAllData() async {
+    try {
+      _ref.read(syncStatusProvider.notifier).state = 'Starting full sync...';
+      _ref.read(syncErrorProvider.notifier).state = null;
+
+      print('\n=== STARTING FULL SYNC ===');
+
+      // Sync suppliers
+      if (Hive.isBoxOpen('suppliers')) {
+        await syncToFirestore('suppliers', Hive.box<Supplier>('suppliers'));
+      }
+
+      // Sync customers
+      if (Hive.isBoxOpen('customers')) {
+        await syncToFirestore('customers', Hive.box<Customer>('customers'));
+      }
+
+      // Sync categories
+      if (Hive.isBoxOpen('categories')) {
+        await syncToFirestore('categories', Hive.box<Category>('categories'));
+      }
+
+      // Sync sub-categories
+      if (Hive.isBoxOpen('subCategories')) {
+        await syncToFirestore('subCategories', Hive.box<SubCategory>('subCategories'));
+      }
+
+      // Sync universal parameters
+      if (Hive.isBoxOpen('universalParameters')) {
+        await syncToFirestore('universalParameters', Hive.box<UniversalParameter>('universalParameters'));
+      }
+
+      // Sync category parameter mappings
+      if (Hive.isBoxOpen('categoryParameterMappings')) {
+        await syncToFirestore('categoryParameterMappings', Hive.box<CategoryParameterMapping>('categoryParameterMappings'));
+      }
+
+      // Sync materials
+      if (Hive.isBoxOpen('materials')) {
+        await syncToFirestore('materials', Hive.box<MaterialItem>('materials'));
+      }
+
+      // Sync sale orders
+      if (Hive.isBoxOpen('saleOrders')) {
+        await syncToFirestore('saleOrders', Hive.box<SaleOrder>('saleOrders'));
+      }
+
+      // Sync stock maintenance
+      if (Hive.isBoxOpen('stockMaintenance')) {
+        await syncToFirestore('stockMaintenance', Hive.box<StockMaintenance>('stockMaintenance'));
+      }
+
+      // Sync purchase requests
+      if (Hive.isBoxOpen('purchaseRequests')) {
+        await syncToFirestore('purchaseRequests', Hive.box<PurchaseRequest>('purchaseRequests'));
+      }
+
+      // Sync purchase orders
+      if (Hive.isBoxOpen('purchaseOrders')) {
+        await syncToFirestore('purchaseOrders', Hive.box<PurchaseOrder>('purchaseOrders'));
+      }
+
+      // Sync store inwards
+      if (Hive.isBoxOpen('storeInwards')) {
+        await syncToFirestore('storeInwards', Hive.box<StoreInward>('storeInwards'));
+      }
+
+      // Sync quality inspections
+      if (Hive.isBoxOpen('qualityInspections')) {
+        await syncToFirestore('qualityInspections', Hive.box<QualityInspection>('qualityInspections'));
+      }
+
+      // Sync material requests
+      if (Hive.isBoxOpen('materialRequests')) {
+        await syncToFirestore('materialRequests', Hive.box<MaterialRequest>('materialRequests'));
+      }
+
+      // Sync material issues
+      if (Hive.isBoxOpen('materialIssues')) {
+        await syncToFirestore('materialIssues', Hive.box<MaterialIssue>('materialIssues'));
+      }
+
+      print('\n=== SYNC COMPLETED SUCCESSFULLY ===');
+      _ref.read(syncStatusProvider.notifier).state = 'Sync completed successfully';
+      _ref.read(syncErrorProvider.notifier).state = null;
+
+      // Clear status after 3 seconds
+      Future.delayed(const Duration(seconds: 3), () {
+        _ref.read(syncStatusProvider.notifier).state = null;
+      });
+    } catch (e) {
+      final errorMsg = 'Error during full sync: $e';
+      print('\n=== SYNC ERROR ===');
+      print(errorMsg);
+      print('=== END SYNC ERROR ===\n');
+      _ref.read(syncErrorProvider.notifier).state = errorMsg;
+      
+      // Clear error after 5 seconds
+      Future.delayed(const Duration(seconds: 5), () {
+        _ref.read(syncErrorProvider.notifier).state = null;
+      });
+      rethrow;
+    }
+  }
+
+  Future<void> syncFromAllData() async {
+    try {
+      _ref.read(syncStatusProvider.notifier).state = 'Starting full sync from Firestore...';
+      _ref.read(syncErrorProvider.notifier).state = null;
+
+      print('\n=== STARTING FULL SYNC FROM FIRESTORE ===');
+
+      // Sync suppliers
+      if (Hive.isBoxOpen('suppliers')) {
+        await syncFromFirestore('suppliers', Hive.box<Supplier>('suppliers'), supplierFromMap);
+      }
+
+      // Sync customers
+      if (Hive.isBoxOpen('customers')) {
+        await syncFromFirestore('customers', Hive.box<Customer>('customers'), customerFromMap);
+      }
+
+      // Sync categories
+      if (Hive.isBoxOpen('categories')) {
+        await syncFromFirestore('categories', Hive.box<Category>('categories'), categoryFromMap);
+      }
+
+      // Sync sub-categories
+      if (Hive.isBoxOpen('subCategories')) {
+        await syncFromFirestore('subCategories', Hive.box<SubCategory>('subCategories'), subCategoryFromMap);
+      }
+
+      // Sync universal parameters
+      if (Hive.isBoxOpen('universalParameters')) {
+        await syncFromFirestore('universalParameters', Hive.box<UniversalParameter>('universalParameters'), universalParameterFromMap);
+      }
+
+      // Sync category parameter mappings
+      if (Hive.isBoxOpen('categoryParameterMappings')) {
+        await syncFromFirestore('categoryParameterMappings', Hive.box<CategoryParameterMapping>('categoryParameterMappings'), categoryParameterMappingFromMap);
+      }
+
+      // Sync materials
+      if (Hive.isBoxOpen('materials')) {
+        await syncFromFirestore('materials', Hive.box<MaterialItem>('materials'), materialFromMap);
+      }
+
+      // Sync sale orders
+      if (Hive.isBoxOpen('saleOrders')) {
+        await syncFromFirestore('saleOrders', Hive.box<SaleOrder>('saleOrders'), saleOrderFromMap);
+      }
+
+      // Sync stock maintenance
+      if (Hive.isBoxOpen('stockMaintenance')) {
+        await syncFromFirestore('stockMaintenance', Hive.box<StockMaintenance>('stockMaintenance'), stockMaintenanceFromMap);
+      }
+
+      // Sync purchase requests
+      if (Hive.isBoxOpen('purchaseRequests')) {
+        await syncFromFirestore('purchaseRequests', Hive.box<PurchaseRequest>('purchaseRequests'), purchaseRequestFromMap);
+      }
+
+      // Sync purchase orders
+      if (Hive.isBoxOpen('purchaseOrders')) {
+        await syncFromFirestore('purchaseOrders', Hive.box<PurchaseOrder>('purchaseOrders'), purchaseOrderFromMap);
+      }
+
+      // Sync store inwards
+      if (Hive.isBoxOpen('storeInwards')) {
+        await syncFromFirestore('storeInwards', Hive.box<StoreInward>('storeInwards'), storeInwardFromMap);
+      }
+
+      // Sync quality inspections
+      if (Hive.isBoxOpen('qualityInspections')) {
+        await syncFromFirestore('qualityInspections', Hive.box<QualityInspection>('qualityInspections'), qualityInspectionFromMap);
+      }
+
+      // Sync material requests
+      if (Hive.isBoxOpen('materialRequests')) {
+        await syncFromFirestore('materialRequests', Hive.box<MaterialRequest>('materialRequests'), materialRequestFromMap);
+      }
+
+      // Sync material issues
+      if (Hive.isBoxOpen('materialIssues')) {
+        await syncFromFirestore('materialIssues', Hive.box<MaterialIssue>('materialIssues'), materialIssueFromMap);
+      }
+
+      print('\n=== SYNC FROM FIRESTORE COMPLETED SUCCESSFULLY ===');
+      _ref.read(syncStatusProvider.notifier).state = 'Sync from Firestore completed successfully';
+      _ref.read(syncErrorProvider.notifier).state = null;
+
+      // Clear status after 3 seconds
+      Future.delayed(const Duration(seconds: 3), () {
+        _ref.read(syncStatusProvider.notifier).state = null;
+      });
+    } catch (e) {
+      final errorMsg = 'Error during full sync from Firestore: $e';
+      print('\n=== SYNC ERROR ===');
+      print(errorMsg);
+      print('=== END SYNC ERROR ===\n');
+      _ref.read(syncErrorProvider.notifier).state = errorMsg;
+      
+      // Clear error after 5 seconds
+      Future.delayed(const Duration(seconds: 5), () {
+        _ref.read(syncErrorProvider.notifier).state = null;
+      });
+      rethrow;
+    }
   }
 } 

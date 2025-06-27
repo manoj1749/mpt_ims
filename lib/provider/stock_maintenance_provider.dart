@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_print, unnecessary_null_comparison
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:math' as math;
 import '../models/stock_maintenance.dart';
 import '../models/store_inward.dart';
@@ -15,23 +15,46 @@ import '../provider/category_provider.dart';
 import '../provider/quality_inspection_provider.dart';
 import '../provider/store_inward_provider.dart';
 import '../models/po_item.dart';
+import '../services/sync_service.dart';
 
 final stockMaintenanceBoxProvider = Provider<Box<StockMaintenance>>((ref) {
   throw UnimplementedError();
 });
 
 final stockMaintenanceProvider =
-    NotifierProvider<StockMaintenanceNotifier, List<StockMaintenance>>(
-  () => StockMaintenanceNotifier(),
+    StateNotifierProvider<StockMaintenanceNotifier, List<StockMaintenance>>(
+  (ref) => StockMaintenanceNotifier(
+    ref.watch(stockMaintenanceBoxProvider),
+    ref.watch(syncServiceProvider),
+    ref,
+  ),
 );
 
-class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
-  late Box<StockMaintenance> _stockBox;
+class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
+  final Box<StockMaintenance> _stockBox;
+  final SyncService _syncService;
+  final Ref _ref;
+
+  StockMaintenanceNotifier(this._stockBox, this._syncService, this._ref) : super([]) {
+    _loadStock();
+    // Listen to box changes
+    _stockBox.listenable().addListener(_updateState);
+  }
 
   @override
-  List<StockMaintenance> build() {
-    _stockBox = ref.watch(stockMaintenanceBoxProvider);
-    return _stockBox.values.toList();
+  void dispose() {
+    _stockBox.listenable().removeListener(_updateState);
+    super.dispose();
+  }
+
+  void _loadStock() {
+    state = _stockBox.values.toList();
+  }
+
+  void _updateState() {
+    if (mounted) {
+      state = _stockBox.values.toList();
+    }
   }
 
   // Initialize stock for a material
@@ -49,7 +72,40 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
 
     if (!_stockBox.values.contains(existingStock)) {
       await _stockBox.add(existingStock);
-      state = [...state, existingStock];
+      state = _stockBox.values.toList();
+      await _syncToFirebase();
+    }
+  }
+
+  Future<void> _syncToFirebase() async {
+    try {
+      await _syncService.syncToFirestore('stockMaintenance', _stockBox);
+    } catch (e) {
+      print('Error syncing stock maintenance to Firebase: $e');
+    }
+  }
+
+  Future<void> _syncFromFirebase() async {
+    try {
+      await _syncService.syncFromFirestore(
+        'stockMaintenance',
+        _stockBox,
+        _syncService.stockMaintenanceFromMap,
+      );
+    } catch (e) {
+      print('Error syncing stock maintenance from Firebase: $e');
+    }
+  }
+
+  Future<void> refresh() async {
+    try {
+      await _syncFromFirebase();
+      if (mounted) {
+        state = _stockBox.values.toList();
+      }
+    } catch (e) {
+      print('Error refreshing stock maintenance: $e');
+      rethrow;
     }
   }
 
@@ -58,9 +114,9 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
     print('\n=== Debug: Updating Stock from GRN ${grn.grnNo} ===');
 
     // Get required boxes from providers
-    final materialsBox = ref.read(materialBoxProvider);
-    final categoriesBox = ref.read(categoryBoxProvider);
-    final inspectionsBox = ref.read(qualityInspectionBoxProvider);
+    final materialsBox = _ref.read(materialBoxProvider);
+    final categoriesBox = _ref.read(categoryBoxProvider);
+    final inspectionsBox = _ref.read(qualityInspectionBoxProvider);
 
     try {
       for (var item in grn.items) {
@@ -113,7 +169,7 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
         );
 
         // Get PO list to find rates
-        final poList = ref.read(purchaseOrderListProvider);
+        final poList = _ref.read(purchaseOrderListProvider);
 
         // Add or update GRN details
         stock.grnDetails[grn.grnNo] = StockGRNDetails(
@@ -363,7 +419,7 @@ class StockMaintenanceNotifier extends Notifier<List<StockMaintenance>> {
     print('GRN Number: ${inspection.grnNo}');
 
     // Get required boxes from providers
-    final inwardBox = ref.read(storeInwardBoxProvider);
+    final inwardBox = _ref.read(storeInwardBoxProvider);
 
     try {
       // Get the GRN

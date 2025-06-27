@@ -107,6 +107,9 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
         ref.read(saleOrderProvider.notifier).addOrder(order);
       }
 
+      // Manually trigger a sync
+      ref.read(saleOrderProvider.notifier).refresh();
+
       Navigator.pop(context, true); // Return true to indicate success
     }
   }

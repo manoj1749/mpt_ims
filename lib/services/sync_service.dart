@@ -36,7 +36,10 @@ class SyncService {
   // Generic method to sync data from Hive to Firestore
   Future<void> syncToFirestore<T>(String collection, Box<T> box) async {
     try {
-      _ref.read(syncStatusProvider.notifier).state = 'Syncing $collection to Firestore...';
+      final status = 'Syncing $collection to Firestore...';
+      print('\n=== FIREBASE SYNC STATUS ===');
+      print(status);
+      _ref.read(syncStatusProvider.notifier).state = status;
       _ref.read(syncErrorProvider.notifier).state = null;
 
       final batch = _firestore.batch();
@@ -44,11 +47,13 @@ class SyncService {
 
       // First, mark all existing documents for deletion
       final existingDocs = await collectionRef.get();
+      print('Found ${existingDocs.docs.length} existing documents in $collection');
       for (var doc in existingDocs.docs) {
         batch.delete(doc.reference);
       }
 
       // Then add all current documents
+      print('Preparing to sync ${box.values.length} items from Hive');
       for (var item in box.values) {
         final docRef = collectionRef.doc();
         final data = _convertToMap(item);
@@ -58,15 +63,20 @@ class SyncService {
       }
 
       await batch.commit();
-      print('Successfully synced $collection to Firestore');
-      _ref.read(syncStatusProvider.notifier).state = 'Successfully synced $collection to Firestore';
+      final successStatus = 'Successfully synced $collection to Firestore';
+      print(successStatus);
+      print('=== END SYNC STATUS ===\n');
+      _ref.read(syncStatusProvider.notifier).state = successStatus;
       
       // Clear status after 3 seconds
       Future.delayed(const Duration(seconds: 3), () {
         _ref.read(syncStatusProvider.notifier).state = null;
       });
     } catch (e) {
-      print('Error syncing $collection to Firestore: $e');
+      final errorMsg = 'Error syncing $collection to Firestore: $e';
+      print('\n=== FIREBASE SYNC ERROR ===');
+      print(errorMsg);
+      print('=== END SYNC ERROR ===\n');
       _ref.read(syncErrorProvider.notifier).state = 'Error syncing $collection: $e';
       
       // Clear error after 5 seconds
@@ -80,28 +90,39 @@ class SyncService {
   // Generic method to sync data from Firestore to Hive
   Future<void> syncFromFirestore<T>(String collection, Box<T> box, T Function(Map<String, dynamic>) fromMap) async {
     try {
-      _ref.read(syncStatusProvider.notifier).state = 'Syncing $collection from Firestore...';
+      final status = 'Syncing $collection from Firestore...';
+      print('\n=== FIREBASE SYNC STATUS ===');
+      print(status);
+      _ref.read(syncStatusProvider.notifier).state = status;
       _ref.read(syncErrorProvider.notifier).state = null;
 
       final querySnapshot = await _firestore.collection(collection).get();
+      print('Found ${querySnapshot.docs.length} documents in Firestore');
 
-      await box.clear(); // Clear existing data
+      print('Clearing existing data from Hive box: $collection');
+      await box.clear();
       
+      print('Starting to sync items to Hive');
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
         final item = fromMap(data);
         await box.add(item);
       }
 
-      print('Successfully synced $collection from Firestore');
-      _ref.read(syncStatusProvider.notifier).state = 'Successfully synced $collection from Firestore';
+      final successStatus = 'Successfully synced $collection from Firestore';
+      print(successStatus);
+      print('=== END SYNC STATUS ===\n');
+      _ref.read(syncStatusProvider.notifier).state = successStatus;
       
       // Clear status after 3 seconds
       Future.delayed(const Duration(seconds: 3), () {
         _ref.read(syncStatusProvider.notifier).state = null;
       });
     } catch (e) {
-      print('Error syncing $collection from Firestore: $e');
+      final errorMsg = 'Error syncing $collection from Firestore: $e';
+      print('\n=== FIREBASE SYNC ERROR ===');
+      print(errorMsg);
+      print('=== END SYNC ERROR ===\n');
       _ref.read(syncErrorProvider.notifier).state = 'Error syncing $collection: $e';
       
       // Clear error after 5 seconds

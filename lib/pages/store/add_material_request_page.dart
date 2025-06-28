@@ -39,6 +39,19 @@ class _AddMaterialRequestPageState
   @override
   void initState() {
     super.initState();
+    // Load sale orders when page is opened
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await ref.read(saleOrderProvider.notifier).loadSaleOrders();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error loading job numbers: $e')),
+          );
+        }
+      }
+    });
+
     if (widget.existingIssue != null) {
       _issuedByController.text = widget.existingIssue!.issuedBy;
       _selectedJobNo = widget.existingIssue!.jobNo;

@@ -22,6 +22,7 @@ import '../models/material_request_item.dart';
 import '../models/material_issue.dart';
 import '../models/material_issue_item.dart';
 import '../models/stock_maintenance.dart';
+import '../models/delivery_challan.dart';
 
 final syncServiceProvider = Provider<SyncService>((ref) => SyncService(ref));
 
@@ -477,6 +478,14 @@ class SyncService {
               'vendorId': value.vendorId,
               'rate': value.rate,
             })),
+      };
+    } else if (item is DeliveryChallan) {
+      return {
+        'dcNo': item.dcNo,
+        'dcDate': item.dcDate,
+        'vendorName': item.vendorName,
+        'isReturnable': item.isReturnable,
+        'items': item.items.map((i) => _convertToMap(i)).toList(),
       };
     } else {
       throw Exception('Unsupported type for conversion: ${item.runtimeType}');
@@ -1011,6 +1020,25 @@ class SyncService {
                 prMapping: (i['prMapping'] as Map<String, dynamic>?)?.map(
                   (key, value) => MapEntry(key, value.toString()),
                 ) ?? {},
+              ))
+          .toList() ?? [],
+    );
+  }
+
+  DeliveryChallan deliveryChallanFromMap(Map<String, dynamic> map) {
+    return DeliveryChallan(
+      dcNo: map['dcNo'] ?? '',
+      dcDate: map['dcDate'] ?? '',
+      vendorName: map['vendorName'] ?? '',
+      isReturnable: map['isReturnable'] ?? false,
+      items: (map['items'] as List<dynamic>?)
+          ?.map((i) => DeliveryChallanItem(
+                materialCode: i['materialCode'] ?? '',
+                materialDescription: i['materialDescription'] ?? '',
+                unit: i['unit'] ?? '',
+                quantity: (i['quantity'] as num?)?.toDouble() ?? 0.0,
+                jobNo: i['jobNo'],
+                prNo: i['prNo'],
               ))
           .toList() ?? [],
     );

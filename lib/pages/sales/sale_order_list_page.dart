@@ -16,6 +16,15 @@ class SaleOrderListPage extends ConsumerStatefulWidget {
 class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
   PlutoGridStateManager? stateManager;
 
+  @override
+  void initState() {
+    super.initState();
+    // Load sale orders when page is opened
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(saleOrderProvider.notifier).loadSaleOrders();
+    });
+  }
+
   List<PlutoColumn> _getColumns() {
     return [
       PlutoColumn(

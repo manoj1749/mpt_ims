@@ -3,8 +3,11 @@
 import 'dart:math' show max;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/delivery_challan.dart';
 import '../models/stock_maintenance.dart';
+import '../services/sync_service.dart';
 
 final deliveryChallanBoxProvider = Provider<Box<DeliveryChallan>>((ref) {
   return Hive.box<DeliveryChallan>('delivery_challans');
@@ -18,9 +21,40 @@ final deliveryChallanListProvider = Provider<List<DeliveryChallan>>((ref) {
 class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
   final Box<DeliveryChallan> _dcBox;
   final Box<StockMaintenance> _stockBox;
+  final SyncService _syncService;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  DeliveryChallanNotifier(this._dcBox, this._stockBox)
-      : super(_dcBox.values.toList());
+  DeliveryChallanNotifier(this._dcBox, this._stockBox, this._syncService)
+      : super([]) {
+    // Load delivery challans when initialized
+    loadDeliveryChallans();
+  }
+
+  Future<void> loadDeliveryChallans() async {
+    try {
+      print('Loading delivery challan data from Firestore...');
+      final querySnapshot = await _firestore.collection('delivery_challans').get();
+      print('Found ${querySnapshot.docs.length} delivery challans in Firestore');
+
+      // Clear existing delivery challans from Hive
+      await _dcBox.clear();
+
+      // Add new delivery challans to Hive
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        final challan = _syncService.deliveryChallanFromMap(data);
+        await _dcBox.add(challan);
+      }
+
+      // Update state
+      state = _dcBox.values.toList();
+      print('Successfully loaded delivery challan data');
+    } catch (e) {
+      print('Error loading delivery challan data: $e');
+      rethrow;
+    }
+  }
 
   // Create a new delivery challan
   Future<void> createDeliveryChallan(DeliveryChallan dc) async {
@@ -34,8 +68,17 @@ class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
       // First update stock quantities
       await _updateStockQuantities(dc);
 
-      // Then save the delivery challan
+      // Add to Firestore first
+      final docRef = _firestore.collection('delivery_challans').doc(dc.dcNo);
+      final data = _convertToMap(dc);
+      data['lastUpdated'] = FieldValue.serverTimestamp();
+      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+      await docRef.set(data);
+
+      // Then save to Hive
       await _dcBox.add(dc);
+
+      // Update state
       state = [...state, dc];
       print('Delivery Challan created successfully');
     } catch (e) {
@@ -58,7 +101,18 @@ class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
       try {
         // Then update with new quantities
         await _updateStockQuantities(dc);
+
+        // Update in Firestore first
+        final docRef = _firestore.collection('delivery_challans').doc(dc.dcNo);
+        final data = _convertToMap(dc);
+        data['lastUpdated'] = FieldValue.serverTimestamp();
+        data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+        await docRef.update(data);
+
+        // Then update in Hive
         await _dcBox.putAt(index, dc);
+
+        // Update state
         state = [...state.where((d) => d.dcNo != dc.dcNo), dc];
       } catch (e) {
         print('Error updating delivery challan: $e');
@@ -77,8 +131,18 @@ class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
       print('DC No: $dcNo');
 
       final dc = _dcBox.values.firstWhere((d) => d.dcNo == dcNo);
+
+      // Delete from Firestore first
+      final docRef = _firestore.collection('delivery_challans').doc(dcNo);
+      await docRef.delete();
+
+      // Then revert stock quantities
       await _revertStockQuantities(dc);
+
+      // Then delete from Hive
       await _dcBox.delete(dc.key);
+
+      // Update state
       state = state.where((d) => d.dcNo != dcNo).toList();
       print('Delivery Challan deleted successfully');
     } catch (e) {
@@ -195,4 +259,39 @@ class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
     final nextNo = existingNos.isEmpty ? 1 : (existingNos.reduce(max) + 1);
     return '$prefix${nextNo.toString().padLeft(4, '0')}';
   }
+
+  // Helper method to convert DeliveryChallan to Map
+  Map<String, dynamic> _convertToMap(DeliveryChallan dc) {
+    return {
+      'dcNo': dc.dcNo,
+      'dcDate': dc.dcDate,
+      'vendorName': dc.vendorName,
+      'isReturnable': dc.isReturnable,
+      'items': dc.items.map((item) => {
+        'materialCode': item.materialCode,
+        'materialDescription': item.materialDescription,
+        'quantity': item.quantity,
+        'unit': item.unit,
+        'jobNo': item.jobNo,
+        'prNo': item.prNo,
+      }).toList(),
+    };
+  }
+
+  Future<void> refresh() async {
+    try {
+      await loadDeliveryChallans();
+    } catch (e) {
+      print('Error refreshing delivery challans: $e');
+      rethrow;
+    }
+  }
 }
+
+final deliveryChallanProvider =
+    StateNotifierProvider<DeliveryChallanNotifier, List<DeliveryChallan>>((ref) {
+  final dcBox = ref.watch(deliveryChallanBoxProvider);
+  final stockBox = Hive.box<StockMaintenance>('stock_maintenance');
+  final syncService = ref.watch(syncServiceProvider);
+  return DeliveryChallanNotifier(dcBox, stockBox, syncService);
+});

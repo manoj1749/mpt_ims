@@ -2,6 +2,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/material_request.dart';
 import '../models/material_issue.dart';
 import '../models/stock_maintenance.dart';
@@ -25,30 +27,38 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
   final Box<StockMaintenance> _stockBox;
   final SyncService _syncService;
   final Ref ref;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   MaterialIssueNotifier(
       this._issueBox, this._requestBox, this._stockBox, this._syncService, this.ref)
       : super([]) {
-    state = _issueBox.values.toList();
+    // Load material issues when initialized
+    loadMaterialIssues();
+  }
 
-    // Print debug info
-    print('\n=== Material Issues Debug ===');
-    for (var issue in state) {
-      print('\nMaterial Issue: ${issue.issueNo}');
-      print('Issue Date: ${issue.issueDate}');
-      print('Issued To: ${issue.issuedTo}');
-      print('Job Numbers: ${issue.formattedJobNo}');
+  Future<void> loadMaterialIssues() async {
+    try {
+      print('Loading material issue data from Firestore...');
+      final querySnapshot = await _firestore.collection('material_issues').get();
+      print('Found ${querySnapshot.docs.length} material issues in Firestore');
 
-      for (var item in issue.items) {
-        print('\n  Item: ${item.materialCode} - ${item.materialDescription}');
-        print('  Quantity: ${item.quantity} ${item.unit}');
+      // Clear existing material issues from Hive
+      await _issueBox.clear();
 
-        for (var mrDetail in item.mrDetails.entries) {
-          print('\n    MR No: ${mrDetail.key}');
-          print('    Job No: ${mrDetail.value.jobNo}');
-          print('    Quantity: ${mrDetail.value.quantity}');
-        }
+      // Add new material issues to Hive
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        final issue = _syncService.materialIssueFromMap(data);
+        await _issueBox.add(issue);
       }
+
+      // Update state
+      state = _issueBox.values.toList();
+      print('Successfully loaded material issue data');
+    } catch (e) {
+      print('Error loading material issue data: $e');
+      rethrow;
     }
   }
 
@@ -138,13 +148,19 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
       // First update stock and MR status
       await _updateStockAndMRStatus(issue);
 
-      // Then add the issue to the box
+      // Add to Firestore first
+      final docRef = _firestore.collection('material_issues').doc(issue.issueNo);
+      final data = _convertToMap(issue);
+      data['lastUpdated'] = FieldValue.serverTimestamp();
+      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+      await docRef.set(data);
+
+      // Then add to Hive
       await _issueBox.add(issue);
 
-      // Update state only after everything succeeds
+      // Update state
       state = [...state, issue];
       print('\nMaterial Issue created successfully');
-      await _syncToFirebase();
     } catch (e) {
       print('Error creating material issue: $e');
       // If there's an error, revert any changes made to stock and MR status
@@ -166,13 +182,21 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
       try {
         // Then validate and apply the new issue
         await _updateStockAndMRStatus(issue);
+
+        // Update in Firestore first
+        final docRef = _firestore.collection('material_issues').doc(issue.issueNo);
+        final data = _convertToMap(issue);
+        data['lastUpdated'] = FieldValue.serverTimestamp();
+        data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+        await docRef.update(data);
+
+        // Then update in Hive
         await _issueBox.putAt(index, issue);
+
+        // Update state
         state = [...state.where((i) => i.issueNo != issue.issueNo), issue];
-        await _syncToFirebase();
       } catch (e) {
         // If there's an error, try to restore the old state
-        // We don't need to call _updateStockAndMRStatus here since we're using the same issue number
-        // Just put back the old issue in the box
         await _issueBox.putAt(index, oldIssue);
         state = [
           ...state.where((i) => i.issueNo != oldIssue.issueNo),
@@ -185,15 +209,49 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
 
   // Delete a material issue
   Future<void> deleteMaterialIssue(String issueNo) async {
-    final index =
-        _issueBox.values.toList().indexWhere((i) => i.issueNo == issueNo);
-    if (index != -1) {
-      final issue = _issueBox.values.elementAt(index);
-      await _revertStockAndMRStatus(issue);
-      await _issueBox.deleteAt(index);
-      state = state.where((i) => i.issueNo != issueNo).toList();
-      await _syncToFirebase();
+    try {
+      final index =
+          _issueBox.values.toList().indexWhere((i) => i.issueNo == issueNo);
+      if (index != -1) {
+        final issue = _issueBox.values.elementAt(index);
+
+        // Delete from Firestore first
+        final docRef = _firestore.collection('material_issues').doc(issueNo);
+        await docRef.delete();
+
+        // Then revert stock and MR status
+        await _revertStockAndMRStatus(issue);
+
+        // Then delete from Hive
+        await _issueBox.deleteAt(index);
+
+        // Update state
+        state = state.where((i) => i.issueNo != issueNo).toList();
+      }
+    } catch (e) {
+      print('Error deleting material issue: $e');
+      rethrow;
     }
+  }
+
+  // Helper method to convert MaterialIssue to Map
+  Map<String, dynamic> _convertToMap(MaterialIssue issue) {
+    return {
+      'issueNo': issue.issueNo,
+      'issueDate': issue.issueDate,
+      'issuedTo': issue.issuedTo,
+      'formattedJobNo': issue.formattedJobNo,
+      'items': issue.items.map((item) => {
+        'materialCode': item.materialCode,
+        'materialDescription': item.materialDescription,
+        'quantity': item.quantity,
+        'unit': item.unit,
+        'mrDetails': item.mrDetails.map((key, value) => MapEntry(key, {
+          'jobNo': value.jobNo,
+          'quantity': value.quantity,
+        })),
+      }).toList(),
+    };
   }
 
   // Helper method to update stock and MR status
@@ -360,33 +418,10 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
 
   Future<void> refresh() async {
     try {
-      await _syncFromFirebase();
-      state = _issueBox.values.toList();
+      await loadMaterialIssues();
     } catch (e) {
       print('Error refreshing material issues: $e');
       rethrow;
-    }
-  }
-
-  Future<void> _syncToFirebase() async {
-    try {
-      await _syncService.syncToFirestore('material_issues', _issueBox);
-    } catch (e) {
-      print('Error syncing material issues to Firebase: $e');
-      // You might want to show a snackbar or some other UI feedback here
-    }
-  }
-
-  Future<void> _syncFromFirebase() async {
-    try {
-      await _syncService.syncFromFirestore(
-        'material_issues',
-        _issueBox,
-        _syncService.materialIssueFromMap,
-      );
-    } catch (e) {
-      print('Error syncing material issues from Firebase: $e');
-      // You might want to show a snackbar or some other UI feedback here
     }
   }
 }

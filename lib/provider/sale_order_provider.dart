@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/sale_order.dart';
 import '../services/sync_service.dart';
 import 'supplier_provider.dart';  // Import for syncServiceProvider
@@ -21,23 +23,23 @@ final saleOrderProvider =
 class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
   final Box<SaleOrder> box;
   final SyncService _syncService;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   SaleOrderNotifier(this.box, this._syncService) : super(box.values.toList()) {
     // Listen to box changes
-    box.listenable().addListener(() async {
+    box.listenable().addListener(() {
       if (mounted) {
         state = box.values.toList();
-        await _syncToFirebase();
       }
     });
   }
 
   @override
   void dispose() {
-    box.listenable().removeListener(() async {
+    box.listenable().removeListener(() {
       if (mounted) {
         state = box.values.toList();
-        await _syncToFirebase();
       }
     });
     super.dispose();
@@ -63,16 +65,52 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
     return '$currentYearStr$nextYearStr$randomDigits';
   }
 
+  // Load sale orders when entering the sale orders page
+  Future<void> loadSaleOrders() async {
+    try {
+      print('Loading sale orders from Firestore...');
+      final querySnapshot = await _firestore.collection('saleOrders').get();
+      print('Found ${querySnapshot.docs.length} sale orders in Firestore');
+
+      // Clear existing sale orders from Hive
+      await box.clear();
+
+      // Add new sale orders to Hive
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        final saleOrder = _syncService.saleOrderFromMap(data);
+        await box.add(saleOrder);
+      }
+
+      // Update state
+      if (mounted) {
+        state = box.values.toList();
+      }
+      print('Successfully loaded sale orders');
+    } catch (e) {
+      print('Error loading sale orders: $e');
+      rethrow;
+    }
+  }
+
   Future<void> addOrder(SaleOrder order) async {
     try {
       print('Adding sale order: ${order.orderNo}');
+      
+      // Add to Firestore first
+      final docRef = _firestore.collection('saleOrders').doc();
+      final data = _convertToMap(order);
+      data['lastUpdated'] = FieldValue.serverTimestamp();
+      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+      await docRef.set(data);
+
+      // Then add to Hive
       await box.add(order);
+      
       if (mounted) {
         state = box.values.toList();
-        print('Sale order added successfully, syncing to Firebase...');
-        await _syncToFirebase();
-        print('Sync completed');
       }
+      print('Sale order added successfully');
     } catch (e) {
       print('Error adding sale order: $e');
       rethrow;
@@ -82,17 +120,30 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
   Future<void> updateOrder(SaleOrder order) async {
     try {
       print('Updating sale order: ${order.orderNo}');
-      final index =
-          box.values.toList().indexWhere((o) => o.orderNo == order.orderNo);
+
+      // Update in Firestore first
+      final querySnapshot = await _firestore
+          .collection('saleOrders')
+          .where('orderNo', isEqualTo: order.orderNo)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final docRef = querySnapshot.docs.first.reference;
+        final data = _convertToMap(order);
+        data['lastUpdated'] = FieldValue.serverTimestamp();
+        data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+        await docRef.update(data);
+      }
+
+      // Then update in Hive
+      final index = box.values.toList().indexWhere((o) => o.orderNo == order.orderNo);
       if (index != -1) {
         await box.putAt(index, order);
         if (mounted) {
           state = box.values.toList();
-          print('Sale order updated successfully, syncing to Firebase...');
-          await _syncToFirebase();
-          print('Sync completed');
         }
       }
+      print('Sale order updated successfully');
     } catch (e) {
       print('Error updating sale order: $e');
       rethrow;
@@ -100,11 +151,43 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
   }
 
   Future<void> deleteOrder(SaleOrder order) async {
-    await order.delete();
-    if (mounted) {
-      state = box.values.toList();
-      await _syncToFirebase();
+    try {
+      print('Deleting sale order: ${order.orderNo}');
+
+      // Delete from Firestore first
+      final querySnapshot = await _firestore
+          .collection('saleOrders')
+          .where('orderNo', isEqualTo: order.orderNo)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        await querySnapshot.docs.first.reference.delete();
+      }
+
+      // Then delete from Hive
+      await order.delete();
+      
+      if (mounted) {
+        state = box.values.toList();
+      }
+      print('Sale order deleted successfully');
+    } catch (e) {
+      print('Error deleting sale order: $e');
+      rethrow;
     }
+  }
+
+  // Helper method to convert SaleOrder to Map
+  Map<String, dynamic> _convertToMap(SaleOrder order) {
+    return {
+      'orderNo': order.orderNo,
+      'orderDate': order.orderDate,
+      'customerName': order.customerName,
+      'boardNo': order.boardNo,
+      'jobStartDate': order.jobStartDate,
+      'targetDate': order.targetDate,
+      'endDate': order.endDate,
+    };
   }
 
   // Get orders by customer
@@ -119,46 +202,5 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
       return orderDate.isAfter(start.subtract(const Duration(days: 1))) &&
           orderDate.isBefore(end.add(const Duration(days: 1)));
     }).toList();
-  }
-
-  Future<void> refresh() async {
-    try {
-      print('Refreshing sale orders...');
-      await _syncFromFirebase();
-      if (mounted) {
-        state = box.values.toList();
-        print('Refresh completed, current sale orders: ${state.length}');
-      }
-    } catch (e) {
-      print('Error refreshing sale orders: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> _syncToFirebase() async {
-    try {
-      print('Starting sync to Firebase...');
-      print('Current sale orders in box: ${box.values.length}');
-      await _syncService.syncToFirestore('saleOrders', box);
-      print('Sync to Firebase completed successfully');
-    } catch (e) {
-      print('Error syncing sale orders to Firebase: $e');
-      // You might want to show a snackbar or some other UI feedback here
-    }
-  }
-
-  Future<void> _syncFromFirebase() async {
-    try {
-      print('Starting sync from Firebase...');
-      await _syncService.syncFromFirestore(
-        'saleOrders',
-        box,
-        _syncService.saleOrderFromMap,
-      );
-      print('Sync from Firebase completed successfully');
-    } catch (e) {
-      print('Error syncing sale orders from Firebase: $e');
-      // You might want to show a snackbar or some other UI feedback here
-    }
   }
 }

@@ -2,10 +2,13 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/store_inward.dart';
 import '../models/material_item.dart';
 import '../models/purchase_order.dart';
 import '../models/po_item.dart';
+import '../models/quality_inspection.dart';
 import '../provider/stock_maintenance_provider.dart';
 import '../provider/purchase_order.dart';
 import '../provider/quality_inspection_provider.dart';
@@ -28,14 +31,44 @@ final storeInwardMaterialBoxProvider = Provider<Box<MaterialItem>>((ref) {
 class StoreInwardNotifier extends Notifier<List<StoreInward>> {
   late Box<StoreInward> _inwardBox;
   late SyncService _syncService;
+  late FirebaseFirestore _firestore;
+  late FirebaseAuth _auth;
   int _lastGRNNumber = 0;
 
   @override
   List<StoreInward> build() {
     _inwardBox = ref.watch(storeInwardBoxProvider);
     _syncService = ref.watch(syncServiceProvider);
+    _firestore = FirebaseFirestore.instance;
+    _auth = FirebaseAuth.instance;
     _initializeLastGRNNumber();
+    loadInwards();
     return _inwardBox.values.toList();
+  }
+
+  Future<void> loadInwards() async {
+    try {
+      print('Loading store inward data from Firestore...');
+      final querySnapshot = await _firestore.collection('storeInwards').get();
+      print('Found ${querySnapshot.docs.length} inwards in Firestore');
+
+      // Clear existing inwards from Hive
+      await _inwardBox.clear();
+
+      // Add new inwards to Hive
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        final inward = _syncService.storeInwardFromMap(data);
+        await _inwardBox.add(inward);
+      }
+
+      // Update state
+      state = _inwardBox.values.toList();
+      print('Successfully loaded store inward data');
+    } catch (e) {
+      print('Error loading store inward data: $e');
+      rethrow;
+    }
   }
 
   void _initializeLastGRNNumber() {
@@ -113,9 +146,6 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
             ),
           );
 
-          print(
-              'DEBUG: poItem.prDetails for ${item.materialCode}/${po.poNo}: ${poItem.prDetails}');
-
           if (poItem.prDetails.isNotEmpty) {
             print('Found PR details in PO:');
             // Calculate total PR quantity
@@ -132,29 +162,15 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
               double proportion = prQty / totalPRQty;
               double allocatedQty = item.receivedQty * proportion;
 
-              print('\nAdding PR quantity:');
-              print('PO: $poNo, PR: $prNo, Quantity: $allocatedQty');
-
               if (!item.prQuantities.containsKey(poNo)) {
                 item.prQuantities[poNo] = {};
               }
               item.prQuantities[poNo]![prNo] = allocatedQty;
 
-              print('Updated PR quantities for $poNo:');
-              item.prQuantities[poNo]!
-                  .forEach((pr, qty) => print('PR: $pr, Quantity: $qty'));
-
-              print('\nAdding job number:');
-              print('PO: $poNo, PR: $prNo, Job: $jobNo');
-
               if (!item.prJobNumbers.containsKey(poNo)) {
                 item.prJobNumbers[poNo] = {};
               }
               item.prJobNumbers[poNo]![prNo] = jobNo;
-
-              print('Updated job numbers for $poNo:');
-              item.prJobNumbers[poNo]!
-                  .forEach((pr, job) => print('PR: $pr, Job: $job'));
             }
           } else {
             // If no PR details found, assign to General PR
@@ -169,64 +185,124 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
             }
             item.prJobNumbers[poNo]!['General'] = 'General';
           }
-        } else {
-          print('Using manually set PR quantities for PO $poNo:');
-          prQuantities.forEach((pr, qty) => print('PR: $pr, Quantity: $qty'));
         }
       }
     }
 
-    // Add to Hive
-    await _inwardBox.add(inward);
+    try {
+      // Add to Firestore first
+      final docRef = _firestore.collection('storeInwards').doc(inward.grnNo);
+      final data = _convertToMap(inward);
+      data['lastUpdated'] = FieldValue.serverTimestamp();
+      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+      await docRef.set(data);
 
-    // Update stock maintenance
-    await ref
-        .read(stockMaintenanceProvider.notifier)
-        .updateStockFromGRN(inward);
+      // Then add to Hive
+      await _inwardBox.add(inward);
 
-    state = [..._inwardBox.values];
-    await _syncToFirebase();
+      // Update stock maintenance
+      await ref
+          .read(stockMaintenanceProvider.notifier)
+          .updateStockFromGRN(inward);
+
+      state = [..._inwardBox.values];
+      print('Successfully added inward ${inward.grnNo}');
+    } catch (e) {
+      print('Error adding inward: $e');
+      rethrow;
+    }
   }
 
   Future<void> updateInward(int index, StoreInward inward) async {
-    print('\nUpdating inward: ${inward.grnNo}');
+    try {
+      // Update in Firestore first
+      final docRef = _firestore.collection('storeInwards').doc(inward.grnNo);
+      final data = _convertToMap(inward);
+      data['lastUpdated'] = FieldValue.serverTimestamp();
+      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+      await docRef.update(data);
 
-    // Process each item
-    for (var item in inward.items) {
-      print('\nProcessing item: ${item.materialCode}');
+      // Then update in Hive
+      await _inwardBox.putAt(index, inward);
 
-      // For each PO in the item
-      for (var poNo in item.prQuantities.keys.toList()) {
-        print('\nChecking PO: $poNo');
-        final prQuantities = item.prQuantities[poNo];
+      // Update stock maintenance
+      await ref
+          .read(stockMaintenanceProvider.notifier)
+          .updateStockFromGRN(inward);
 
-        // If there are no PR quantities but we have a PO quantity
-        if ((prQuantities?.isEmpty ?? true) && item.receivedQty > 0) {
-          print('No PR quantities found for PO, distributing automatically');
-          item.distributePOQuantityToPRs(poNo, item.receivedQty);
-        }
+      state = [..._inwardBox.values];
+      print('Successfully updated inward ${inward.grnNo}');
+    } catch (e) {
+      print('Error updating inward: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateFromInspection(QualityInspection inspection) async {
+    try {
+      // Find the GRN
+      final inward = _inwardBox.values.firstWhere(
+        (grn) => grn.grnNo == inspection.grnNo,
+        orElse: () => throw Exception('GRN not found: ${inspection.grnNo}'),
+      );
+
+      // Update GRN status based on inspection
+      inward.status = inspection.status;
+
+      // Update quantities for each item
+      for (var inspectionItem in inspection.items) {
+        final grnItem = inward.items.firstWhere(
+          (item) => item.materialCode == inspectionItem.materialCode,
+          orElse: () => throw Exception(
+              'Material ${inspectionItem.materialCode} not found in GRN ${inward.grnNo}'),
+        );
+
+        grnItem.acceptedQty = inspectionItem.acceptedQty;
+        grnItem.rejectedQty = inspectionItem.rejectedQty;
       }
+
+      // Update in Firestore
+      final docRef = _firestore.collection('storeInwards').doc(inward.grnNo);
+      final data = _convertToMap(inward);
+      data['lastUpdated'] = FieldValue.serverTimestamp();
+      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+      await docRef.update(data);
+
+      // Update in Hive
+      final index = _inwardBox.values.toList().indexWhere(
+            (grn) => grn.grnNo == inward.grnNo,
+          );
+      if (index != -1) {
+        await _inwardBox.putAt(index, inward);
+      }
+
+      state = [..._inwardBox.values];
+      print('Successfully updated GRN ${inward.grnNo} from inspection');
+    } catch (e) {
+      print('Error updating GRN from inspection: $e');
+      rethrow;
     }
+  }
 
-    // Get old inward for comparison
-    final oldInward = _inwardBox.getAt(index);
-
-    // Update in Hive
-    await _inwardBox.putAt(index, inward);
-
-    // Update stock maintenance
-    if (oldInward != null) {
-      // First reverse the old GRN's effect on stock
-      await _reverseStockUpdate(oldInward);
-    }
-    // Then apply the new GRN's effect
-    await ref
-        .read(stockMaintenanceProvider.notifier)
-        .updateStockFromGRN(inward);
-
-    // Update state
-    state = [..._inwardBox.values];
-    await _syncToFirebase();
+  // Helper method to convert StoreInward to Map
+  Map<String, dynamic> _convertToMap(StoreInward inward) {
+    return {
+      'grnNo': inward.grnNo,
+      'grnDate': inward.grnDate,
+      'supplierName': inward.supplierName,
+      'status': inward.status,
+      'items': inward.items.map((item) => {
+        'materialCode': item.materialCode,
+        'materialDescription': item.materialDescription,
+        'unit': item.unit,
+        'receivedQty': item.receivedQty,
+        'acceptedQty': item.acceptedQty,
+        'rejectedQty': item.rejectedQty,
+        'costPerUnit': item.costPerUnit,
+        'prQuantities': item.prQuantities,
+        'prJobNumbers': item.prJobNumbers,
+      }).toList(),
+    };
   }
 
   Future<void> deleteInward(StoreInward inward) async {
@@ -243,8 +319,7 @@ class StoreInwardNotifier extends Notifier<List<StoreInward>> {
 
   Future<void> refresh() async {
     try {
-      await _syncFromFirebase();
-      state = _inwardBox.values.toList();
+      await loadInwards();
     } catch (e) {
       print('Error refreshing store inwards: $e');
       rethrow;

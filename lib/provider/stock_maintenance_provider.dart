@@ -2,6 +2,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math' as math;
 import '../models/stock_maintenance.dart';
 import '../models/store_inward.dart';
@@ -34,77 +36,74 @@ class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
   final Box<StockMaintenance> _stockBox;
   final SyncService _syncService;
   final Ref _ref;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   StockMaintenanceNotifier(this._stockBox, this._syncService, this._ref) : super([]) {
-    _loadStock();
-    // Listen to box changes
-    _stockBox.listenable().addListener(_updateState);
+    // Load stock when initialized
+    loadStock();
   }
 
-  @override
-  void dispose() {
-    _stockBox.listenable().removeListener(_updateState);
-    super.dispose();
-  }
+  Future<void> loadStock() async {
+    try {
+      print('Loading stock maintenance data from Firestore...');
+      final querySnapshot = await _firestore.collection('stockMaintenance').get();
+      print('Found ${querySnapshot.docs.length} stock items in Firestore');
 
-  void _loadStock() {
-    state = _stockBox.values.toList();
-  }
+      // Clear existing stock from Hive
+      await _stockBox.clear();
 
-  void _updateState() {
-    if (mounted) {
-      state = _stockBox.values.toList();
+      // Add new stock to Hive
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        final stock = _syncService.stockMaintenanceFromMap(data);
+        await _stockBox.add(stock);
+      }
+
+      // Update state
+      if (mounted) {
+        state = _stockBox.values.toList();
+      }
+      print('Successfully loaded stock maintenance data');
+    } catch (e) {
+      print('Error loading stock maintenance data: $e');
+      rethrow;
     }
   }
 
   // Initialize stock for a material
   Future<void> initializeStock(MaterialItem material) async {
-    final existingStock = _stockBox.values.firstWhere(
-      (stock) => stock.materialCode == material.partNo,
-      orElse: () => StockMaintenance(
-        materialCode: material.partNo,
-        materialDescription: material.description,
-        unit: material.unit,
-        storageLocation: material.storageLocation ?? '',
-        rackNumber: material.rackNumber ?? '',
-      ),
-    );
-
-    if (!_stockBox.values.contains(existingStock)) {
-      await _stockBox.add(existingStock);
-      state = _stockBox.values.toList();
-      await _syncToFirebase();
-    }
-  }
-
-  Future<void> _syncToFirebase() async {
     try {
-      await _syncService.syncToFirestore('stockMaintenance', _stockBox);
-    } catch (e) {
-      print('Error syncing stock maintenance to Firebase: $e');
-    }
-  }
-
-  Future<void> _syncFromFirebase() async {
-    try {
-      await _syncService.syncFromFirestore(
-        'stockMaintenance',
-        _stockBox,
-        _syncService.stockMaintenanceFromMap,
+      print('Initializing stock for material: ${material.partNo}');
+      final existingStock = _stockBox.values.firstWhere(
+        (stock) => stock.materialCode == material.partNo,
+        orElse: () => StockMaintenance(
+          materialCode: material.partNo,
+          materialDescription: material.description,
+          unit: material.unit,
+          storageLocation: material.storageLocation ?? '',
+          rackNumber: material.rackNumber ?? '',
+        ),
       );
-    } catch (e) {
-      print('Error syncing stock maintenance from Firebase: $e');
-    }
-  }
 
-  Future<void> refresh() async {
-    try {
-      await _syncFromFirebase();
-      if (mounted) {
-        state = _stockBox.values.toList();
+      if (!_stockBox.values.contains(existingStock)) {
+        // Add to Firestore first
+        final docRef = _firestore.collection('stockMaintenance').doc();
+        final data = _convertToMap(existingStock);
+        data['lastUpdated'] = FieldValue.serverTimestamp();
+        data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+        await docRef.set(data);
+
+        // Then add to Hive
+        await _stockBox.add(existingStock);
+        
+        if (mounted) {
+          state = _stockBox.values.toList();
+        }
+        print('Stock initialized successfully');
       }
     } catch (e) {
-      print('Error refreshing stock maintenance: $e');
+      print('Error initializing stock: $e');
       rethrow;
     }
   }
@@ -140,10 +139,19 @@ class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
         // If stock doesn't exist in box, add it first
         if (!_stockBox.values.contains(stock)) {
           print('Adding new stock for ${item.materialCode}');
+          
+          // Add to Firestore first
+          final docRef = _firestore.collection('stockMaintenance').doc();
+          final data = _convertToMap(stock);
+          data['lastUpdated'] = FieldValue.serverTimestamp();
+          data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+          await docRef.set(data);
+
+          // Then add to Hive
           await _stockBox.add(stock);
+          
           // Get the newly added stock from the box
-          stock = _stockBox.values
-              .firstWhere((s) => s.materialCode == item.materialCode);
+          stock = _stockBox.values.firstWhere((s) => s.materialCode == item.materialCode);
         }
 
         print('Current Stock before update: ${stock.currentStock}');
@@ -400,16 +408,64 @@ class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
         stock.updateCurrentStock(totalCurrentStock);
         stock.updateStockUnderInspection(totalUnderInspection);
 
-        // Save to Hive
-        await stock.save();
+        // After updating the stock object, update both Firestore and Hive
+        final querySnapshot = await _firestore
+            .collection('stockMaintenance')
+            .where('materialCode', isEqualTo: stock.materialCode)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          final docRef = querySnapshot.docs.first.reference;
+          final data = _convertToMap(stock);
+          data['lastUpdated'] = FieldValue.serverTimestamp();
+          data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+          await docRef.update(data);
+        }
+
+        // Update in Hive
+        final index = _stockBox.values.toList().indexWhere((s) => s.materialCode == stock.materialCode);
+        if (index != -1) {
+          await _stockBox.putAt(index, stock);
+        }
       }
 
-      // Update state
-      state = [..._stockBox.values];
+      if (mounted) {
+        state = _stockBox.values.toList();
+      }
     } catch (e) {
       print('Error updating stock from GRN: $e');
       rethrow;
     }
+  }
+
+  // Helper method to convert StockMaintenance to Map
+  Map<String, dynamic> _convertToMap(StockMaintenance stock) {
+    return {
+      'materialCode': stock.materialCode,
+      'materialDescription': stock.materialDescription,
+      'unit': stock.unit,
+      'currentStock': stock.currentStock,
+      'stockUnderInspection': stock.stockUnderInspection,
+      'storageLocation': stock.storageLocation,
+      'rackNumber': stock.rackNumber,
+      'grnDetails': stock.grnDetails.map((key, value) => MapEntry(key, {
+        'grnNo': value.grnNo,
+        'grnDate': value.grnDate,
+        'receivedQuantity': value.receivedQuantity,
+        'acceptedQuantity': value.acceptedQuantity,
+        'rejectedQuantity': value.rejectedQuantity,
+        'vendorId': value.vendorId,
+        'rate': value.rate,
+      })),
+      'poDetails': stock.poDetails.map((key, value) => MapEntry(key, {
+        'poNo': value.poNo,
+        'poDate': value.poDate,
+        'orderedQuantity': value.orderedQuantity,
+        'receivedQuantity': value.receivedQuantity,
+        'vendorId': value.vendorId,
+        'rate': value.rate,
+      })),
+    };
   }
 
   // Update stock based on inspection status change
@@ -749,6 +805,15 @@ class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
       }
 
       state = [..._stockBox.values];
+    }
+  }
+
+  Future<void> refresh() async {
+    try {
+      await loadStock();
+    } catch (e) {
+      print('Error refreshing stock: $e');
+      rethrow;
     }
   }
 }

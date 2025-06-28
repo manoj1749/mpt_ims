@@ -56,18 +56,10 @@ class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
     }
   }
 
-  // Create a new delivery challan
-  Future<void> createDeliveryChallan(DeliveryChallan dc) async {
+  Future<void> addDeliveryChallan(DeliveryChallan dc) async {
     try {
-      print('\n=== Creating Delivery Challan ===');
-      print('DC No: ${dc.dcNo}');
-      print('Date: ${dc.dcDate}');
-      print('Vendor: ${dc.vendorName}');
-      print('Returnable: ${dc.isReturnable}');
-
-      // First update stock quantities
-      await _updateStockQuantities(dc);
-
+      print('Adding delivery challan: ${dc.dcNo}');
+      
       // Add to Firestore first
       final docRef = _firestore.collection('delivery_challans').doc(dc.dcNo);
       final data = _convertToMap(dc);
@@ -75,177 +67,72 @@ class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
       data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
       await docRef.set(data);
 
-      // Then save to Hive
+      // Then add to Hive
       await _dcBox.add(dc);
 
       // Update state
-      state = [...state, dc];
-      print('Delivery Challan created successfully');
+      state = _dcBox.values.toList();
+      print('Delivery challan added successfully');
+
+      // Keep existing sync for backward compatibility
+      await _syncService.syncToFirestore('delivery_challans', _dcBox);
     } catch (e) {
-      print('Error creating delivery challan: $e');
-      // If there's an error, revert any stock changes
-      await _revertStockQuantities(dc);
+      print('Error adding delivery challan: $e');
       rethrow;
     }
   }
 
-  // Update an existing delivery challan
-  Future<void> updateDeliveryChallan(DeliveryChallan dc) async {
-    final index = _dcBox.values.toList().indexWhere((d) => d.dcNo == dc.dcNo);
-    if (index != -1) {
-      final oldDc = _dcBox.values.elementAt(index);
+  Future<void> updateDeliveryChallan(int index, DeliveryChallan dc) async {
+    try {
+      print('Updating delivery challan: ${dc.dcNo}');
+      
+      // Update in Firestore first
+      final docRef = _firestore.collection('delivery_challans').doc(dc.dcNo);
+      final data = _convertToMap(dc);
+      data['lastUpdated'] = FieldValue.serverTimestamp();
+      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
+      await docRef.update(data);
 
-      // First revert old stock quantities
-      await _revertStockQuantities(oldDc);
+      // Then update in Hive
+      await _dcBox.putAt(index, dc);
 
-      try {
-        // Then update with new quantities
-        await _updateStockQuantities(dc);
+      // Update state
+      state = _dcBox.values.toList();
+      print('Delivery challan updated successfully');
 
-        // Update in Firestore first
-        final docRef = _firestore.collection('delivery_challans').doc(dc.dcNo);
-        final data = _convertToMap(dc);
-        data['lastUpdated'] = FieldValue.serverTimestamp();
-        data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-        await docRef.update(data);
-
-        // Then update in Hive
-        await _dcBox.putAt(index, dc);
-
-        // Update state
-        state = [...state.where((d) => d.dcNo != dc.dcNo), dc];
-      } catch (e) {
-        print('Error updating delivery challan: $e');
-        // If there's an error, restore the old state
-        await _updateStockQuantities(oldDc);
-        await _dcBox.putAt(index, oldDc);
-        rethrow;
-      }
+      // Keep existing sync for backward compatibility
+      await _syncService.syncToFirestore('delivery_challans', _dcBox);
+    } catch (e) {
+      print('Error updating delivery challan: $e');
+      rethrow;
     }
   }
 
-  // Delete a delivery challan
-  Future<void> deleteDeliveryChallan(String dcNo) async {
+  Future<void> deleteDeliveryChallan(DeliveryChallan dc) async {
     try {
-      print('\n=== Deleting Delivery Challan ===');
-      print('DC No: $dcNo');
+      print('Deleting delivery challan: ${dc.dcNo}');
+      final index = _dcBox.values.toList().indexWhere((d) => d.dcNo == dc.dcNo);
+      if (index != -1) {
+        // Delete from Firestore first
+        final docRef = _firestore.collection('delivery_challans').doc(dc.dcNo);
+        await docRef.delete();
 
-      final dc = _dcBox.values.firstWhere((d) => d.dcNo == dcNo);
+        // Then delete from Hive
+        await _dcBox.deleteAt(index);
 
-      // Delete from Firestore first
-      final docRef = _firestore.collection('delivery_challans').doc(dcNo);
-      await docRef.delete();
+        // Update state
+        state = _dcBox.values.toList();
+        print('Delivery challan deleted successfully');
 
-      // Then revert stock quantities
-      await _revertStockQuantities(dc);
-
-      // Then delete from Hive
-      await _dcBox.delete(dc.key);
-
-      // Update state
-      state = state.where((d) => d.dcNo != dcNo).toList();
-      print('Delivery Challan deleted successfully');
+        // Keep existing sync for backward compatibility
+        await _syncService.syncToFirestore('delivery_challans', _dcBox);
+      }
     } catch (e) {
       print('Error deleting delivery challan: $e');
       rethrow;
     }
   }
 
-  // Helper method to update stock quantities
-  Future<void> _updateStockQuantities(DeliveryChallan dc) async {
-    print('\n=== Updating Stock Quantities ===');
-    for (var item in dc.items) {
-      print('\nProcessing Item: ${item.materialCode} - ${item.materialDescription}');
-      print('Quantity: ${item.quantity} ${item.unit}');
-      print('Job No: ${item.jobNo ?? "General"}');
-
-      final stockItem = _stockBox.values
-          .firstWhere((stock) => stock.materialCode == item.materialCode);
-
-      final jobNo = item.jobNo ?? 'General';
-      print('Stock Item Found: ${stockItem.materialCode}');
-
-      // Find available PR for this job
-      final prInfo = stockItem.findAvailablePRForJob(jobNo, item.quantity);
-      if (prInfo == null) {
-        throw Exception(
-            'No available PR found for material ${item.materialCode} in job $jobNo');
-      }
-
-      final (prNo, availableQty) = prInfo;
-      print('Found PR: $prNo with available quantity: $availableQty ${item.unit}');
-
-      if (availableQty < item.quantity) {
-        throw Exception(
-            'Insufficient stock for material ${item.materialCode} in job $jobNo. Available: $availableQty ${item.unit}, Requested: ${item.quantity} ${item.unit}');
-      }
-
-      // Update PR details
-      final prDetails = stockItem.prDetails[prNo]!;
-      prDetails.issuedQuantity += item.quantity;
-
-      // Update job details
-      if (!stockItem.jobDetails.containsKey(jobNo)) {
-        stockItem.jobDetails[jobNo] = StockJobDetails(
-          jobNo: jobNo,
-          allocatedQuantity: item.quantity,
-          consumedQuantity: item.quantity,
-          prNo: prNo,
-        );
-      } else {
-        final jobDetails = stockItem.jobDetails[jobNo]!;
-        jobDetails.consumedQuantity += item.quantity;
-        if (jobDetails.allocatedQuantity < jobDetails.consumedQuantity) {
-          jobDetails.allocatedQuantity = jobDetails.consumedQuantity;
-        }
-      }
-
-      // Update item with PR number for tracking
-      item.prNo = prNo;
-
-      // Save stock changes
-      await _stockBox.put(stockItem.key, stockItem);
-      print('Stock updated successfully');
-    }
-    print('\nStock quantities update completed');
-  }
-
-  // Helper method to revert stock quantities
-  Future<void> _revertStockQuantities(DeliveryChallan dc) async {
-    print('\n=== Reverting Stock Quantities ===');
-    for (var item in dc.items) {
-      print('\nProcessing Item: ${item.materialCode} - ${item.materialDescription}');
-      print('Quantity to revert: ${item.quantity} ${item.unit}');
-      print('Job No: ${item.jobNo ?? "General"}');
-
-      final stockItem = _stockBox.values
-          .firstWhere((stock) => stock.materialCode == item.materialCode);
-
-      final jobNo = item.jobNo ?? 'General';
-      print('Stock Item Found: ${stockItem.materialCode}');
-
-      if (item.prNo != null && stockItem.prDetails.containsKey(item.prNo)) {
-        // Revert PR details
-        final prDetails = stockItem.prDetails[item.prNo]!;
-        prDetails.issuedQuantity = (prDetails.issuedQuantity - item.quantity).clamp(0.0, double.infinity);
-        print('Reverted PR issued quantity: ${prDetails.issuedQuantity}');
-
-        // Revert job details
-        if (stockItem.jobDetails.containsKey(jobNo)) {
-          final jobDetails = stockItem.jobDetails[jobNo]!;
-          jobDetails.consumedQuantity = (jobDetails.consumedQuantity - item.quantity).clamp(0.0, double.infinity);
-          print('Reverted consumed quantity: ${jobDetails.consumedQuantity}');
-        }
-
-        // Save stock changes
-        await _stockBox.put(stockItem.key, stockItem);
-        print('Stock reverted successfully');
-      }
-    }
-    print('\nStock quantities revert completed');
-  }
-
-  // Generate a new DC number
   String generateDcNo() {
     final currentYear = DateTime.now().year.toString().substring(2);
     final prefix = 'DC$currentYear';

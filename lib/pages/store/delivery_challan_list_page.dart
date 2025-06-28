@@ -4,23 +4,23 @@ import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/delivery_challan.dart';
 import '../../provider/delivery_challan_provider.dart';
 import '../../provider/stock_maintenance_provider.dart';
+import '../../services/sync_service.dart';
 import '../../widgets/pluto_grid_configuration.dart';
 import 'add_delivery_challan_page.dart';
 
-final deliveryChallanNotifierProvider =
-    StateNotifierProvider<DeliveryChallanNotifier, List<DeliveryChallan>>(
-  (ref) => DeliveryChallanNotifier(
-    ref.watch(deliveryChallanBoxProvider),
-    ref.watch(stockMaintenanceBoxProvider),
-  ),
-);
+final deliveryChallanProvider = StateNotifierProvider<DeliveryChallanNotifier, List<DeliveryChallan>>((ref) {
+  final dcBox = ref.watch(deliveryChallanBoxProvider);
+  final stockBox = ref.watch(stockMaintenanceBoxProvider);
+  final syncService = ref.watch(syncServiceProvider);
+  return DeliveryChallanNotifier(dcBox, stockBox, syncService);
+});
 
 class DeliveryChallanListPage extends ConsumerWidget {
   const DeliveryChallanListPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final deliveryChallans = ref.watch(deliveryChallanNotifierProvider);
+    final deliveryChallans = ref.watch(deliveryChallanProvider);
 
     final columns = [
       PlutoColumn(
@@ -135,7 +135,7 @@ class DeliveryChallanListPage extends ConsumerWidget {
                         TextButton(
                           onPressed: () {
                             final notifier = ref.read(
-                              deliveryChallanNotifierProvider.notifier,
+                              deliveryChallanProvider.notifier,
                             );
                             notifier.deleteDeliveryChallan(
                               rendererContext.cell.value,

@@ -9,14 +9,14 @@ import '../../provider/stock_maintenance_provider.dart';
 import '../../provider/supplier_provider.dart';
 import '../../provider/sale_order_provider.dart';
 import '../../provider/material_provider.dart';
+import '../../services/sync_service.dart';
 
-final deliveryChallanNotifierProvider =
-    StateNotifierProvider<DeliveryChallanNotifier, List<DeliveryChallan>>(
-  (ref) => DeliveryChallanNotifier(
-    ref.watch(deliveryChallanBoxProvider),
-    ref.watch(stockMaintenanceBoxProvider),
-  ),
-);
+final deliveryChallanProvider = StateNotifierProvider<DeliveryChallanNotifier, List<DeliveryChallan>>((ref) {
+  final dcBox = ref.watch(deliveryChallanBoxProvider);
+  final stockBox = ref.watch(stockMaintenanceBoxProvider);
+  final syncService = ref.watch(syncServiceProvider);
+  return DeliveryChallanNotifier(dcBox, stockBox, syncService);
+});
 
 class AddDeliveryChallanPage extends ConsumerStatefulWidget {
   final DeliveryChallan? deliveryChallan;
@@ -40,6 +40,8 @@ class _AddDeliveryChallanPageState
   Supplier? _selectedSupplier;
   final _materialCodesController = TextEditingController();
   final _quantitiesController = TextEditingController();
+  late String _selectedDate;
+  String? _selectedVendor;
 
   @override
   void initState() {
@@ -59,6 +61,7 @@ class _AddDeliveryChallanPageState
     _isReturnable = widget.deliveryChallan?.isReturnable ?? false;
     _items =
         widget.deliveryChallan?.items.map((i) => i.copyWith()).toList() ?? [];
+    _selectedDate = widget.deliveryChallan?.dcDate ?? DateTime.now().toString().split(' ')[0];
 
     // Initialize selected supplier if editing
     if (widget.deliveryChallan != null) {
@@ -286,89 +289,103 @@ class _AddDeliveryChallanPageState
     );
   }
 
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _saveDeliveryChallan() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
 
-    if (_items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one item')),
-      );
-      return;
-    }
-
-    if (_selectedSupplier == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a vendor')),
-      );
-      return;
-    }
-
-    // Check stock availability
-    final stockBox = ref.read(stockMaintenanceBoxProvider);
-    for (var item in _items) {
-      final stockItem = stockBox.values
-          .firstWhere((stock) => stock.materialCode == item.materialCode);
-
-      final jobNo = item.jobNo ?? 'General';
-      
-      // Calculate available quantity based on job number
-      double availableQty = 0.0;
-      if (jobNo == 'General') {
-        // For general stock, we need to look at the current total stock
-        availableQty = stockItem.currentStock;
-        
-        // Subtract any quantities allocated to specific jobs
-        for (var jobDetail in stockItem.jobDetails.entries) {
-          if (jobDetail.key != 'General') {
-            availableQty -= jobDetail.value.allocatedQuantity;
-          }
-        }
-      } else {
-        // For specific job numbers, check the allocated quantity for that job
-        availableQty = stockItem.jobDetails[jobNo]?.allocatedQuantity ?? 0.0;
-      }
-
-      // Subtract consumed quantities
-      final consumedQty = stockItem.jobDetails[jobNo]?.consumedQuantity ?? 0.0;
-      final remainingQty = availableQty - consumedQty;
-
-      if (item.quantity > remainingQty) {
+      if (_items.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Insufficient stock for ${item.materialDescription} in ${jobNo == 'General' ? 'general stock' : 'job $jobNo'}. Available: $remainingQty, Requested: ${item.quantity}',
-            ),
+          const SnackBar(
+            content: Text('Please add at least one item'),
+            backgroundColor: Colors.red,
           ),
         );
         return;
       }
-    }
 
-    final notifier = ref.read(deliveryChallanNotifierProvider.notifier);
-    final dc = DeliveryChallan(
-      dcNo: widget.deliveryChallan?.dcNo ?? notifier.generateDcNo(),
-      dcDate: widget.deliveryChallan?.dcDate ??
-          DateTime.now().toString().split(' ')[0],
-      vendorName: _selectedSupplier!.name,
-      vendorEmail: _selectedSupplier!.email,
-      vendorGstin: _selectedSupplier!.gstNo,
-      items: _items,
-      isReturnable: _isReturnable,
-      note: _noteController.text,
-    );
-
-    try {
-      if (widget.deliveryChallan != null) {
-        await notifier.updateDeliveryChallan(dc);
-      } else {
-        await notifier.createDeliveryChallan(dc);
-      }
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
+      if (_selectedSupplier == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          const SnackBar(content: Text('Please select a vendor')),
         );
+        return;
+      }
+
+      // Check stock availability
+      final stockBox = ref.read(stockMaintenanceBoxProvider);
+      for (var item in _items) {
+        final stockItem = stockBox.values
+            .firstWhere((stock) => stock.materialCode == item.materialCode);
+
+        final jobNo = item.jobNo ?? 'General';
+        
+        // Calculate available quantity based on job number
+        double availableQty = 0.0;
+        if (jobNo == 'General') {
+          // For general stock, we need to look at the current total stock
+          availableQty = stockItem.currentStock;
+          
+          // Subtract any quantities allocated to specific jobs
+          for (var jobDetail in stockItem.jobDetails.entries) {
+            if (jobDetail.key != 'General') {
+              availableQty -= jobDetail.value.allocatedQuantity;
+            }
+          }
+        } else {
+          // For specific job numbers, check the allocated quantity for that job
+          availableQty = stockItem.jobDetails[jobNo]?.allocatedQuantity ?? 0.0;
+        }
+
+        // Subtract consumed quantities
+        final consumedQty = stockItem.jobDetails[jobNo]?.consumedQuantity ?? 0.0;
+        final remainingQty = availableQty - consumedQty;
+
+        if (item.quantity > remainingQty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Insufficient stock for ${item.materialDescription} in ${jobNo == 'General' ? 'general stock' : 'job $jobNo'}. Available: $remainingQty, Requested: ${item.quantity}',
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
+      final notifier = ref.read(deliveryChallanProvider.notifier);
+      final dc = DeliveryChallan(
+        dcNo: widget.deliveryChallan?.dcNo ?? notifier.generateDcNo(),
+        dcDate: _selectedDate,
+        vendorName: _selectedSupplier!.name,
+        vendorEmail: _selectedSupplier!.email,
+        vendorGstin: _selectedSupplier!.gstNo,
+        items: _items,
+        isReturnable: _isReturnable,
+        note: _noteController.text,
+      );
+
+      try {
+        if (widget.deliveryChallan != null) {
+          // Find the index of the existing DC
+          final index = notifier.state.indexWhere((d) => d.dcNo == widget.deliveryChallan!.dcNo);
+          if (index != -1) {
+            await notifier.updateDeliveryChallan(index, dc);
+          }
+        } else {
+          await notifier.addDeliveryChallan(dc);
+        }
+
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -779,7 +796,7 @@ class _AddDeliveryChallanPageState
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _save,
+        onPressed: _saveDeliveryChallan,
         icon: const Icon(Icons.save),
         label: const Text('Save'),
       ),

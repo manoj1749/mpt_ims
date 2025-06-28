@@ -203,4 +203,9 @@ class SaleOrderNotifier extends StateNotifier<List<SaleOrder>> {
           orderDate.isBefore(end.add(const Duration(days: 1)));
     }).toList();
   }
+
+  // Public alias for loadSaleOrders to maintain consistency with other providers
+  Future<void> refresh() async {
+    await loadSaleOrders();
+  }
 }

@@ -18,6 +18,13 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
   final double nameWidth = 300.0;
   final double codeWidth = 200.0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Load customers when page is opened
+    Future.microtask(() => ref.read(customerListProvider.notifier).loadCustomers());
+  }
+
   Widget _buildExcelCell(String text,
       {double width = 150, bool center = false}) {
     return Container(

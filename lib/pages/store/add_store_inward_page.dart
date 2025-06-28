@@ -54,6 +54,19 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
   @override
   void initState() {
     super.initState();
+    // Load supplier data
+    Future.microtask(() async {
+      try {
+        await ref.read(supplierListProvider.notifier).loadSuppliers();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error loading suppliers: $e')),
+          );
+        }
+      }
+    });
+
     if (widget.existingGR != null) {
       selectedSupplier = ref
           .read(supplierListProvider)

@@ -484,8 +484,20 @@ class SyncService {
         'dcNo': item.dcNo,
         'dcDate': item.dcDate,
         'vendorName': item.vendorName,
-        'isReturnable': item.isReturnable,
+        'vendorEmail': item.vendorEmail,
+        'vendorGstin': item.vendorGstin,
         'items': item.items.map((i) => _convertToMap(i)).toList(),
+        'isReturnable': item.isReturnable,
+        'note': item.note,
+      };
+    } else if (item is DeliveryChallanItem) {
+      return {
+        'materialCode': item.materialCode,
+        'materialDescription': item.materialDescription,
+        'unit': item.unit,
+        'quantity': item.quantity,
+        'jobNo': item.jobNo,
+        'prNo': item.prNo,
       };
     } else {
       throw Exception('Unsupported type for conversion: ${item.runtimeType}');
@@ -1030,17 +1042,18 @@ class SyncService {
       dcNo: map['dcNo'] ?? '',
       dcDate: map['dcDate'] ?? '',
       vendorName: map['vendorName'] ?? '',
+      vendorEmail: map['vendorEmail'],
+      vendorGstin: map['vendorGstin'],
+      items: (map['items'] as List<dynamic>?)?.map((item) => DeliveryChallanItem(
+        materialCode: item['materialCode'] ?? '',
+        materialDescription: item['materialDescription'] ?? '',
+        unit: item['unit'] ?? '',
+        quantity: (item['quantity'] as num?)?.toDouble() ?? 0.0,
+        jobNo: item['jobNo'],
+        prNo: item['prNo'],
+      )).toList() ?? [],
       isReturnable: map['isReturnable'] ?? false,
-      items: (map['items'] as List<dynamic>?)
-          ?.map((i) => DeliveryChallanItem(
-                materialCode: i['materialCode'] ?? '',
-                materialDescription: i['materialDescription'] ?? '',
-                unit: i['unit'] ?? '',
-                quantity: (i['quantity'] as num?)?.toDouble() ?? 0.0,
-                jobNo: i['jobNo'],
-                prNo: i['prNo'],
-              ))
-          .toList() ?? [],
+      note: map['note'],
     );
   }
 

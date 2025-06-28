@@ -234,21 +234,23 @@ class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
     return '$prefix${nextNo.toString().padLeft(4, '0')}';
   }
 
-  // Helper method to convert DeliveryChallan to Map
   Map<String, dynamic> _convertToMap(DeliveryChallan dc) {
     return {
       'dcNo': dc.dcNo,
       'dcDate': dc.dcDate,
       'vendorName': dc.vendorName,
-      'isReturnable': dc.isReturnable,
+      'vendorEmail': dc.vendorEmail,
+      'vendorGstin': dc.vendorGstin,
       'items': dc.items.map((item) => {
         'materialCode': item.materialCode,
         'materialDescription': item.materialDescription,
-        'quantity': item.quantity,
         'unit': item.unit,
+        'quantity': item.quantity,
         'jobNo': item.jobNo,
         'prNo': item.prNo,
       }).toList(),
+      'isReturnable': dc.isReturnable,
+      'note': dc.note,
     };
   }
 

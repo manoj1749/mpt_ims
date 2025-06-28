@@ -29,9 +29,23 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshData();
-      _printBoxContents();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        // Load all required data
+        await ref.read(categoryListProvider.notifier).loadCategories();
+        await ref.read(subCategoryListProvider.notifier).loadSubCategories();
+        await ref.read(categoryParameterProvider.notifier).loadMappings();
+        await ref.read(universalParameterProvider.notifier).loadParameters();
+        
+        // Print debug info
+        _printBoxContents();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error loading data: $e')),
+          );
+        }
+      }
     });
   }
 

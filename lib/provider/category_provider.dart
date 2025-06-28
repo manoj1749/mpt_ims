@@ -169,6 +169,13 @@ class CategoryListNotifier extends StateNotifier<List<Category>> {
     return {
       'name': category.name,
       'requiresQualityCheck': category.requiresQualityCheck,
+      'sampleSizeLessThan100': category.sampleSizeLessThan100,
+      'sampleSize100To500': category.sampleSize100To500,
+      'sampleSizeGreaterThan500': category.sampleSizeGreaterThan500,
+      'hasExpiryDate': category.hasExpiryDate,
+      'hasShelfLife': category.hasShelfLife,
+      'shelfLifeValue': category.shelfLifeValue,
+      'shelfLifeUnit': category.shelfLifeUnit,
     };
   }
 
@@ -177,6 +184,13 @@ class CategoryListNotifier extends StateNotifier<List<Category>> {
     return Category(
       name: map['name'] ?? '',
       requiresQualityCheck: map['requiresQualityCheck'] ?? true,
+      sampleSizeLessThan100: map['sampleSizeLessThan100'],
+      sampleSize100To500: map['sampleSize100To500'],
+      sampleSizeGreaterThan500: map['sampleSizeGreaterThan500'],
+      hasExpiryDate: map['hasExpiryDate'],
+      hasShelfLife: map['hasShelfLife'],
+      shelfLifeValue: map['shelfLifeValue'],
+      shelfLifeUnit: map['shelfLifeUnit'],
     );
   }
 }

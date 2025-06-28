@@ -450,4 +450,44 @@ class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
             inspection.capaStatus == 'In Progress')
         .toList();
   }
+
+  // Calculate pending quantity for an inspection item
+  double _calculatePendingQuantity(InspectionItem item) {
+    double totalReceived = 0.0;
+    double totalProcessed = 0.0;
+
+    // Sum up quantities from all GRNs
+    for (var grnQty in item.grnQuantities.values) {
+      totalReceived += grnQty.receivedQty;
+      totalProcessed += grnQty.acceptedQty + grnQty.rejectedQty;
+    }
+
+    // Pending is what's received but not yet processed
+    return totalReceived - totalProcessed;
+  }
+
+  // Update inspection status based on quantities
+  void _updateInspectionStatus(QualityInspection inspection) {
+    bool allItemsInspected = inspection.items.every((item) {
+      double pendingQty = _calculatePendingQuantity(item);
+      return pendingQty <= 0.001; // Using small epsilon for floating point comparison
+    });
+
+    bool hasAcceptedItems = inspection.items.any((item) => 
+      item.grnQuantities.values.any((grnQty) => grnQty.acceptedQty > 0));
+    bool hasRejectedItems = inspection.items.any((item) => 
+      item.grnQuantities.values.any((grnQty) => grnQty.rejectedQty > 0));
+
+    if (allItemsInspected) {
+      if (hasRejectedItems && !hasAcceptedItems) {
+        inspection.status = 'Completed - Rejected';
+      } else if (hasRejectedItems && hasAcceptedItems) {
+        inspection.status = 'Completed - Partially Accepted';
+      } else {
+        inspection.status = 'Completed - Accepted';
+      }
+    } else {
+      inspection.status = 'Pending';
+    }
+  }
 }

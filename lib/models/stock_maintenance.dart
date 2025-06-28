@@ -151,47 +151,45 @@ class StockMaintenance extends HiveObject {
     }
   }
 
-  // Private method to update total stock value
+  // Update stock quantities based on GRN details
+  void _updateStockQuantities() {
+    double totalCurrentStock = 0.0;
+    double totalUnderInspection = 0.0;
+
+    // Calculate from GRN details
+    for (var grnDetail in grnDetails.values) {
+      totalCurrentStock += grnDetail.acceptedQuantity - grnDetail.issuedQuantity;
+      totalUnderInspection += grnDetail.receivedQuantity - 
+        (grnDetail.acceptedQuantity + grnDetail.rejectedQuantity);
+    }
+
+    // Update the stock quantities
+    currentStock = totalCurrentStock;
+    stockUnderInspection = totalUnderInspection;
+
+    // Update total stock value
+    _updateTotalStockValue();
+  }
+
+  // Update total stock value based on GRN details
   void _updateTotalStockValue() {
-    // Calculate current stock based on GRN details
-    double totalAccepted = 0.0;
-    double totalIssued = 0.0;
-    double totalValue = 0.0;
-
-    for (var grn in grnDetails.values) {
-      totalAccepted += grn.acceptedQuantity;
-      totalIssued += grn.issuedQuantity;
-
-      // Calculate value based on remaining quantity in this GRN
-      final remainingQty = grn.acceptedQuantity - grn.issuedQuantity;
-      if (remainingQty > 0) {
-        totalValue += remainingQty * grn.rate;
-      }
+    double total = 0.0;
+    for (var grnDetail in grnDetails.values) {
+      total += (grnDetail.acceptedQuantity - grnDetail.issuedQuantity) * grnDetail.rate;
     }
+    totalStockValue = total;
+  }
 
-    currentStock = totalAccepted - totalIssued;
-    totalStockValue = totalValue;
-
-    // Update PR and PO quantities based on accepted stock
-    for (var poDetail in poDetails.values) {
-      double poAcceptedQty = 0.0;
-      for (var grnQtys in poDetail.receivedQuantities.values) {
-        for (var prQty in grnQtys.values) {
-          poAcceptedQty += prQty;
-        }
-      }
-      poDetail.receivedQuantity = poAcceptedQty;
-    }
-
-    // Update PR received quantities
+  // Update PR quantities based on PO details
+  void _updatePRQuantities() {
     for (var prDetail in prDetails.values) {
-      double prAcceptedQty = 0.0;
+      double prReceivedQty = 0.0;
       for (var poDetail in poDetails.values) {
         for (var grnQtys in poDetail.receivedQuantities.values) {
-          prAcceptedQty += grnQtys[prDetail.prNo] ?? 0.0;
+          prReceivedQty += grnQtys[prDetail.prNo] ?? 0.0;
         }
       }
-      prDetail.receivedQuantity = prAcceptedQty;
+      prDetail.receivedQuantity = prReceivedQty;
     }
   }
 
@@ -359,6 +357,22 @@ class StockMaintenance extends HiveObject {
     // Update current stock and total stock value
     _updateTotalStockValue();
     save();
+  }
+
+  // Get available quantity for a specific PR
+  double getAvailableQuantityForPR(String prNo) {
+    if (!prDetails.containsKey(prNo)) return 0.0;
+    
+    final prDetail = prDetails[prNo]!;
+    return prDetail.receivedQuantity - prDetail.issuedQuantity;
+  }
+
+  // Get available quantity for a specific job
+  double getAvailableQuantityForJob(String jobNo) {
+    if (!jobDetails.containsKey(jobNo)) return 0.0;
+    
+    final jobDetail = jobDetails[jobNo]!;
+    return jobDetail.allocatedQuantity - jobDetail.consumedQuantity;
   }
 }
 

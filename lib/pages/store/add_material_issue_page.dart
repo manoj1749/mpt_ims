@@ -83,28 +83,49 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
   @override
   void initState() {
     super.initState();
-    if (widget.existingIssue != null) {
-      // Initialize MR quantities and selected MRs from existing issue items
-      for (var item in widget.existingIssue!.items) {
-        for (var mrDetail in item.mrDetails.entries) {
-          final key = '${item.materialCode}_${mrDetail.key}';
-          selectedMRs[key] = true;
-          qtyControllers[key] = TextEditingController(
-              text: item.issuedQuantities[mrDetail.key]?.toString() ?? '0');
+    // Load material requests and stock maintenance when page is opened
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        // Load stock maintenance first to get PR data
+        await ref.read(stockMaintenanceProvider.notifier).loadStock();
+        // Then load material requests
+        await ref.read(materialRequestProvider.notifier).loadMaterialRequests();
+        
+        if (widget.existingIssue != null) {
+          // Initialize MR quantities and selected MRs from existing issue items
+          for (var item in widget.existingIssue!.items) {
+            for (var mrDetail in item.mrDetails.entries) {
+              final key = '${item.materialCode}_${mrDetail.key}';
+              selectedMRs[key] = true;
+              qtyControllers[key] = TextEditingController(
+                  text: item.issuedQuantities[mrDetail.key]?.toString() ?? '0');
+              // Also restore PR selection
+              final prNo = item.prMapping[mrDetail.key];
+              if (prNo != null && prNo.isNotEmpty) {
+                selectedPRs[key] = prNo;
+              }
+            }
+          }
+
+          setState(() {
+            issueItems = List<MaterialIssueItem>.from(widget.existingIssue!.items);
+          });
+        }
+
+        // Initialize material MR items
+        final materialRequests = ref
+            .read(materialRequestListProvider)
+            .where((mr) => mr.status != 'Completed')
+            .toList();
+        _updateMaterialMRItems(materialRequests);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error loading data: $e')),
+          );
         }
       }
-
-      setState(() {
-        issueItems = List<MaterialIssueItem>.from(widget.existingIssue!.items);
-      });
-    }
-
-    // Initialize material MR items
-    final materialRequests = ref
-        .read(materialRequestListProvider)
-        .where((mr) => mr.status != 'Completed')
-        .toList();
-    _updateMaterialMRItems(materialRequests);
+    });
   }
 
   @override

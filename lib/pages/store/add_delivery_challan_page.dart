@@ -321,8 +321,8 @@ class _AddDeliveryChallanPageState
         // Calculate available quantity based on job number
         double availableQty = 0.0;
         if (jobNo == 'General') {
-          // For general stock, we need to look at the current total stock
-          availableQty = stockItem.currentStock;
+          // For general stock, use calculatedCurrentStock which is more accurate
+          availableQty = stockItem.calculatedCurrentStock;
           
           // Subtract any quantities allocated to specific jobs
           for (var jobDetail in stockItem.jobDetails.entries) {
@@ -330,21 +330,26 @@ class _AddDeliveryChallanPageState
               availableQty -= jobDetail.value.allocatedQuantity;
             }
           }
+
+          // Subtract any pending deliveries from general stock
+          for (var jobDetail in stockItem.jobDetails.values) {
+            availableQty -= jobDetail.pendingDeliveryQuantity;
+          }
         } else {
           // For specific job numbers, check the allocated quantity for that job
-          availableQty = stockItem.jobDetails[jobNo]?.allocatedQuantity ?? 0.0;
+          final jobDetail = stockItem.jobDetails[jobNo];
+          if (jobDetail != null) {
+            availableQty = jobDetail.allocatedQuantity - jobDetail.consumedQuantity - jobDetail.pendingDeliveryQuantity;
+          }
         }
 
-        // Subtract consumed quantities
-        final consumedQty = stockItem.jobDetails[jobNo]?.consumedQuantity ?? 0.0;
-        final remainingQty = availableQty - consumedQty;
-
-        if (item.quantity > remainingQty) {
+        if (item.quantity > availableQty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Insufficient stock for ${item.materialDescription} in ${jobNo == 'General' ? 'general stock' : 'job $jobNo'}. Available: $remainingQty, Requested: ${item.quantity}',
+                'Insufficient stock for ${item.materialDescription} in ${jobNo == 'General' ? 'general stock' : 'job $jobNo'}. Available: $availableQty, Requested: ${item.quantity}',
               ),
+              backgroundColor: Colors.red,
             ),
           );
           return;

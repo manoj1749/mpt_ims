@@ -164,7 +164,7 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
     } catch (e) {
       print('Error creating material issue: $e');
       // If there's an error, revert any changes made to stock and MR status
-      await _revertStockAndMRStatus(issue);
+        await _revertStockAndMRStatus(issue);
       rethrow;
     }
   }
@@ -180,7 +180,7 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
       await _revertStockAndMRStatus(oldIssue);
 
       try {
-        // Then validate and apply the new issue
+      // Then validate and apply the new issue
         await _updateStockAndMRStatus(issue);
 
         // Update in Firestore first
@@ -191,10 +191,10 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
         await docRef.update(data);
 
         // Then update in Hive
-        await _issueBox.putAt(index, issue);
+      await _issueBox.putAt(index, issue);
 
         // Update state
-        state = [...state.where((i) => i.issueNo != issue.issueNo), issue];
+      state = [...state.where((i) => i.issueNo != issue.issueNo), issue];
       } catch (e) {
         // If there's an error, try to restore the old state
         await _issueBox.putAt(index, oldIssue);
@@ -210,24 +210,24 @@ class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
   // Delete a material issue
   Future<void> deleteMaterialIssue(String issueNo) async {
     try {
-      final index =
-          _issueBox.values.toList().indexWhere((i) => i.issueNo == issueNo);
-      if (index != -1) {
-        final issue = _issueBox.values.elementAt(index);
+    final index =
+        _issueBox.values.toList().indexWhere((i) => i.issueNo == issueNo);
+    if (index != -1) {
+      final issue = _issueBox.values.elementAt(index);
 
         // Delete from Firestore first
         final docRef = _firestore.collection('material_issues').doc(issueNo);
         await docRef.delete();
 
         // Then revert stock and MR status
-        await _revertStockAndMRStatus(issue);
+      await _revertStockAndMRStatus(issue);
 
         // Then delete from Hive
-        await _issueBox.deleteAt(index);
+      await _issueBox.deleteAt(index);
 
         // Update state
-        state = state.where((i) => i.issueNo != issueNo).toList();
-      }
+      state = state.where((i) => i.issueNo != issueNo).toList();
+    }
     } catch (e) {
       print('Error deleting material issue: $e');
       rethrow;

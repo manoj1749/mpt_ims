@@ -374,6 +374,14 @@ class StockMaintenance extends HiveObject {
     final jobDetail = jobDetails[jobNo]!;
     return jobDetail.allocatedQuantity - jobDetail.consumedQuantity;
   }
+
+  // Update pending delivery quantity for a job
+  void updatePendingDeliveryQuantity(String jobNo, double quantity) {
+    if (jobDetails.containsKey(jobNo)) {
+      jobDetails[jobNo]!.pendingDeliveryQuantity = quantity;
+      save();
+    }
+  }
 }
 
 @HiveType(typeId: 25)
@@ -558,7 +566,7 @@ class StockPRDetails {
 }
 
 @HiveType(typeId: 28)
-class StockJobDetails {
+class StockJobDetails extends HiveObject {
   @HiveField(0)
   String jobNo;
 
@@ -569,18 +577,36 @@ class StockJobDetails {
   double consumedQuantity;
 
   @HiveField(3)
+  double pendingDeliveryQuantity;
+
+  @HiveField(4)
   String prNo;
+
+  double get availableQuantity => allocatedQuantity - consumedQuantity - pendingDeliveryQuantity;
 
   StockJobDetails({
     required this.jobNo,
-    required this.allocatedQuantity,
-    required this.consumedQuantity,
+    this.allocatedQuantity = 0.0,
+    this.consumedQuantity = 0.0,
+    this.pendingDeliveryQuantity = 0.0,
     required this.prNo,
   });
 
+  void addPendingDelivery(double quantity) {
+    pendingDeliveryQuantity += quantity;
+  }
+
+  void removePendingDelivery(double quantity) {
+    pendingDeliveryQuantity = (pendingDeliveryQuantity - quantity).clamp(0.0, double.infinity);
+  }
+
+  void addConsumedQuantity(double quantity) {
+    consumedQuantity += quantity;
+  }
+
   @override
   String toString() {
-    return 'StockJobDetails(jobNo: $jobNo, allocatedQuantity: $allocatedQuantity, consumedQuantity: $consumedQuantity, prNo: $prNo)';
+    return 'StockJobDetails(jobNo: $jobNo, allocatedQuantity: $allocatedQuantity, consumedQuantity: $consumedQuantity, pendingDeliveryQuantity: $pendingDeliveryQuantity, prNo: $prNo)';
   }
 }
 

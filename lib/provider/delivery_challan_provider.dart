@@ -58,8 +58,39 @@ class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
 
   Future<void> addDeliveryChallan(DeliveryChallan dc) async {
     try {
-      print('Adding delivery challan: ${dc.dcNo}');
-      
+      // Update stock maintenance first
+      for (var item in dc.items) {
+        final stockItem = _stockBox.values
+            .firstWhere((stock) => stock.materialCode == item.materialCode);
+
+        final jobNo = item.jobNo ?? 'General';
+        
+        // Update job details
+        if (!stockItem.jobDetails.containsKey(jobNo)) {
+          stockItem.jobDetails[jobNo] = StockJobDetails(
+            jobNo: jobNo,
+            allocatedQuantity: 0.0,
+            consumedQuantity: 0.0,
+            pendingDeliveryQuantity: item.quantity,
+            prNo: item.prNo ?? '',
+          );
+        } else {
+          // Update pending delivery quantity
+          stockItem.jobDetails[jobNo]!.pendingDeliveryQuantity += item.quantity;
+          
+          // If this is a PR-based delivery, update consumed quantity
+          if (item.prNo != null && item.prNo!.isNotEmpty) {
+            stockItem.jobDetails[jobNo]!.consumedQuantity += item.quantity;
+            
+            // Also update PR issued quantity
+            if (stockItem.prDetails.containsKey(item.prNo)) {
+              stockItem.prDetails[item.prNo]!.issuedQuantity += item.quantity;
+            }
+          }
+        }
+        await stockItem.save();
+      }
+
       // Add to Firestore first
       final docRef = _firestore.collection('delivery_challans').doc(dc.dcNo);
       final data = _convertToMap(dc);
@@ -72,7 +103,6 @@ class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
 
       // Update state
       state = _dcBox.values.toList();
-      print('Delivery challan added successfully');
 
       // Keep existing sync for backward compatibility
       await _syncService.syncToFirestore('delivery_challans', _dcBox);
@@ -84,8 +114,66 @@ class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
 
   Future<void> updateDeliveryChallan(int index, DeliveryChallan dc) async {
     try {
-      print('Updating delivery challan: ${dc.dcNo}');
-      
+      // Get the old DC to revert quantities
+      final oldDc = _dcBox.getAt(index);
+      if (oldDc != null) {
+        for (var item in oldDc.items) {
+          final stockItem = _stockBox.values
+              .firstWhere((stock) => stock.materialCode == item.materialCode);
+
+          final jobNo = item.jobNo ?? 'General';
+          
+          // Revert old quantities
+          if (stockItem.jobDetails.containsKey(jobNo)) {
+            stockItem.jobDetails[jobNo]!.pendingDeliveryQuantity -= item.quantity;
+            
+            // If this was a PR-based delivery, revert consumed quantity
+            if (item.prNo != null && item.prNo!.isNotEmpty) {
+              stockItem.jobDetails[jobNo]!.consumedQuantity -= item.quantity;
+              
+              // Also revert PR issued quantity
+              if (stockItem.prDetails.containsKey(item.prNo)) {
+                stockItem.prDetails[item.prNo]!.issuedQuantity -= item.quantity;
+              }
+            }
+          }
+          await stockItem.save();
+        }
+      }
+
+      // Update with new quantities
+      for (var item in dc.items) {
+        final stockItem = _stockBox.values
+            .firstWhere((stock) => stock.materialCode == item.materialCode);
+
+        final jobNo = item.jobNo ?? 'General';
+        
+        // Update job details
+        if (!stockItem.jobDetails.containsKey(jobNo)) {
+          stockItem.jobDetails[jobNo] = StockJobDetails(
+            jobNo: jobNo,
+            allocatedQuantity: 0.0,
+            consumedQuantity: item.prNo != null && item.prNo!.isNotEmpty ? item.quantity : 0.0,
+            pendingDeliveryQuantity: item.quantity,
+            prNo: item.prNo ?? '',
+          );
+        } else {
+          // Update pending delivery quantity
+          stockItem.jobDetails[jobNo]!.pendingDeliveryQuantity += item.quantity;
+          
+          // If this is a PR-based delivery, update consumed quantity
+          if (item.prNo != null && item.prNo!.isNotEmpty) {
+            stockItem.jobDetails[jobNo]!.consumedQuantity += item.quantity;
+            
+            // Also update PR issued quantity
+            if (stockItem.prDetails.containsKey(item.prNo)) {
+              stockItem.prDetails[item.prNo]!.issuedQuantity += item.quantity;
+            }
+          }
+        }
+        await stockItem.save();
+      }
+
       // Update in Firestore first
       final docRef = _firestore.collection('delivery_challans').doc(dc.dcNo);
       final data = _convertToMap(dc);
@@ -98,7 +186,6 @@ class DeliveryChallanNotifier extends StateNotifier<List<DeliveryChallan>> {
 
       // Update state
       state = _dcBox.values.toList();
-      print('Delivery challan updated successfully');
 
       // Keep existing sync for backward compatibility
       await _syncService.syncToFirestore('delivery_challans', _dcBox);

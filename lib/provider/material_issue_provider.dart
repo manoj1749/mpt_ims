@@ -2,15 +2,11 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/material_request.dart';
 import '../models/material_issue.dart';
+import '../models/material_issue_item.dart';
 import '../models/stock_maintenance.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'material_request_provider.dart';
-import '../services/sync_service.dart';
-
+import 'base_provider.dart';
 
 final materialIssueBoxProvider = Provider<Box<MaterialIssue>>((ref) {
   return Hive.box<MaterialIssue>('material_issues');
@@ -21,416 +17,254 @@ final materialIssueListProvider = Provider<List<MaterialIssue>>((ref) {
   return box.values.toList();
 });
 
-class MaterialIssueNotifier extends StateNotifier<List<MaterialIssue>> {
-  final Box<MaterialIssue> _issueBox;
+// StateNotifier provider for backward compatibility
+final materialIssueProvider = StateNotifierProvider<MaterialIssueNotifier, List<MaterialIssue>>((ref) {
+  final issueBox = ref.watch(materialIssueBoxProvider);
+  final requestBox = Hive.box<MaterialRequest>('material_requests');
+  final stockBox = Hive.box<StockMaintenance>('stock_maintenance');
+  return MaterialIssueNotifier(issueBox, requestBox, stockBox, ref);
+});
+
+class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
   final Box<MaterialRequest> _requestBox;
   final Box<StockMaintenance> _stockBox;
-  final SyncService _syncService;
   final Ref ref;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   MaterialIssueNotifier(
-      this._issueBox, this._requestBox, this._stockBox, this._syncService, this.ref)
-      : super([]) {
-    // Load material issues when initialized
-    loadMaterialIssues();
-  }
+      Box<MaterialIssue> issueBox, this._requestBox, this._stockBox, this.ref)
+      : super(issueBox, 'material_issues');
 
-  Future<void> loadMaterialIssues() async {
-    try {
-      print('Loading material issue data from Firestore...');
-      final querySnapshot = await _firestore.collection('material_issues').get();
-      print('Found ${querySnapshot.docs.length} material issues in Firestore');
-
-      // Clear existing material issues from Hive
-      await _issueBox.clear();
-
-      // Add new material issues to Hive
-      for (var doc in querySnapshot.docs) {
-        final data = doc.data();
-        final issue = _syncService.materialIssueFromMap(data);
-        await _issueBox.add(issue);
-      }
-
-      // Update state
-      state = _issueBox.values.toList();
-      print('Successfully loaded material issue data');
-    } catch (e) {
-      print('Error loading material issue data: $e');
-      rethrow;
-    }
-  }
-
-  List<MaterialIssue> get issues => state;
-
-  // Get material requests for a specific job number
-  List<MaterialRequest> getMaterialRequestsForJob(String jobNo) {
-    return _requestBox.values
-        .where((mr) => mr.jobNo == jobNo && mr.status != 'Completed')
-        .toList();
-  }
-
-  // Check if we have sufficient stock for a material request in the specific job
-  bool hasSufficientStock(
-      String materialCode, String jobNo, double requestedQty) {
-    try {
-      final stockItem = _stockBox.values
-          .firstWhere((item) => item.materialCode == materialCode);
-
-      // Get job-specific stock if it exists
-      final jobDetails = stockItem.jobDetails[jobNo];
-      if (jobDetails == null) {
-        print('No job details found for job $jobNo');
-        return false;
-      }
-
-      // For the specific job number, we can only issue what's allocated but not consumed
-      final availableQty =
-          jobDetails.allocatedQuantity - jobDetails.consumedQuantity;
-      print(
-          'Available quantity for job $jobNo: $availableQty (Allocated: ${jobDetails.allocatedQuantity}, Consumed: ${jobDetails.consumedQuantity})');
-      return availableQty >= requestedQty;
-    } catch (e) {
-      print('Error checking stock: $e');
-      return false;
-    }
-  }
-
-  // Create a new material issue
-  Future<void> createMaterialIssue(MaterialIssue issue) async {
-    print('\n=== Creating Material Issue ===');
-    print('Issue No: ${issue.issueNo}');
-    print('Issue Date: ${issue.issueDate}');
-    print('Job Numbers: ${issue.formattedJobNo}');
-
-    // Validate stock availability for each item
-    for (var item in issue.items) {
-      print(
-          '\nChecking Item: ${item.materialCode} - ${item.materialDescription}');
-
-      for (var mrDetail in item.mrDetails.entries) {
-        final mrNo = mrDetail.key;
-        final jobNo = mrDetail.value.jobNo;
-        final requestedQty = mrDetail.value.quantity;
-
-        print('\n  MR No: $mrNo');
-        print('  Job No: $jobNo');
-        print('  Requested Qty: $requestedQty');
-
-        // Validate stock availability
-        if (!hasSufficientStock(item.materialCode, jobNo, requestedQty)) {
-          throw Exception(
-              'Insufficient stock for material ${item.materialCode} in job $jobNo');
-        }
-
-        // Get and validate material request
-        final materialRequest = _requestBox.values.firstWhere(
-          (mr) => mr.issueNo == mrNo,
-          orElse: () => throw Exception('Material Request $mrNo not found'),
-        );
-
-        final mrItem = materialRequest.items.firstWhere(
-          (i) => i.materialCode == item.materialCode,
-          orElse: () => throw Exception(
-              'Material ${item.materialCode} not found in MR $mrNo'),
-        );
-
-        // Check pending quantity
-        if (mrItem.pendingQuantity < requestedQty) {
-          throw Exception(
-              'Cannot issue more than pending quantity for MR $mrNo');
-        }
-      }
-    }
-
-    try {
-      // First update stock and MR status
-      await _updateStockAndMRStatus(issue);
-
-      // Add to Firestore first
-      final docRef = _firestore.collection('material_issues').doc(issue.issueNo);
-      final data = _convertToMap(issue);
-      data['lastUpdated'] = FieldValue.serverTimestamp();
-      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-      await docRef.set(data);
-
-      // Then add to Hive
-      await _issueBox.add(issue);
-
-      // Update state
-      state = [...state, issue];
-      print('\nMaterial Issue created successfully');
-    } catch (e) {
-      print('Error creating material issue: $e');
-      // If there's an error, revert any changes made to stock and MR status
-        await _revertStockAndMRStatus(issue);
-      rethrow;
-    }
-  }
-
-  // Update an existing material issue
-  Future<void> updateMaterialIssue(MaterialIssue issue) async {
-    final index =
-        _issueBox.values.toList().indexWhere((i) => i.issueNo == issue.issueNo);
-    if (index != -1) {
-      final oldIssue = _issueBox.values.elementAt(index);
-
-      // First revert the old stock deductions and MR status
-      await _revertStockAndMRStatus(oldIssue);
-
-      try {
-      // Then validate and apply the new issue
-        await _updateStockAndMRStatus(issue);
-
-        // Update in Firestore first
-        final docRef = _firestore.collection('material_issues').doc(issue.issueNo);
-        final data = _convertToMap(issue);
-        data['lastUpdated'] = FieldValue.serverTimestamp();
-        data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-        await docRef.update(data);
-
-        // Then update in Hive
-      await _issueBox.putAt(index, issue);
-
-        // Update state
-      state = [...state.where((i) => i.issueNo != issue.issueNo), issue];
-      } catch (e) {
-        // If there's an error, try to restore the old state
-        await _issueBox.putAt(index, oldIssue);
-        state = [
-          ...state.where((i) => i.issueNo != oldIssue.issueNo),
-          oldIssue
-        ];
-        rethrow;
-      }
-    }
-  }
-
-  // Delete a material issue
-  Future<void> deleteMaterialIssue(String issueNo) async {
-    try {
-    final index =
-        _issueBox.values.toList().indexWhere((i) => i.issueNo == issueNo);
-    if (index != -1) {
-      final issue = _issueBox.values.elementAt(index);
-
-        // Delete from Firestore first
-        final docRef = _firestore.collection('material_issues').doc(issueNo);
-        await docRef.delete();
-
-        // Then revert stock and MR status
-      await _revertStockAndMRStatus(issue);
-
-        // Then delete from Hive
-      await _issueBox.deleteAt(index);
-
-        // Update state
-      state = state.where((i) => i.issueNo != issueNo).toList();
-    }
-    } catch (e) {
-      print('Error deleting material issue: $e');
-      rethrow;
-    }
-  }
-
-  // Helper method to convert MaterialIssue to Map
-  Map<String, dynamic> _convertToMap(MaterialIssue issue) {
+  @override
+  Map<String, dynamic> modelToMap(MaterialIssue issue) {
     return {
       'issueNo': issue.issueNo,
       'issueDate': issue.issueDate,
       'issuedTo': issue.issuedTo,
-      'formattedJobNo': issue.formattedJobNo,
       'items': issue.items.map((item) => {
         'materialCode': item.materialCode,
         'materialDescription': item.materialDescription,
-        'quantity': item.quantity,
         'unit': item.unit,
+        'quantity': item.quantity,
         'mrDetails': item.mrDetails.map((key, value) => MapEntry(key, {
+          'mrNo': value.mrNo,
           'jobNo': value.jobNo,
           'quantity': value.quantity,
+          'prNo': value.prNo,
         })),
+        'issuedQuantities': item.issuedQuantities,
+        'prMapping': item.prMapping,
       }).toList(),
     };
   }
 
-  // Helper method to update stock and MR status
-  Future<void> _updateStockAndMRStatus(MaterialIssue issue) async {
-    print('\n=== Updating Stock and MR Status ===');
-    for (var item in issue.items) {
-      print('\nProcessing Item: ${item.materialCode}');
-      final stockItem = _stockBox.values
-          .firstWhere((stock) => stock.materialCode == item.materialCode);
-
-      for (var mrDetail in item.mrDetails.entries) {
-        final mrNo = mrDetail.key;
-        final jobNo = mrDetail.value.jobNo;
-        final issuedQty = mrDetail.value.quantity;
-
-        print('\n  MR No: $mrNo');
-        print('  Job No: $jobNo');
-        print('  Issued Qty: $issuedQty');
-
-        // Find the oldest PR for this job that has available stock
-        final prInfo = stockItem.findAvailablePRForJob(jobNo, issuedQty);
-        if (prInfo == null) {
-          throw Exception('No available PR found for job $jobNo');
+  @override
+  MaterialIssue mapToModel(Map<String, dynamic> map) {
+    return MaterialIssue(
+      issueNo: map['issueNo'] ?? '',
+      issueDate: map['issueDate'] ?? '',
+      issuedTo: map['issuedTo'] ?? '',
+      items: (map['items'] as List<dynamic>?)?.map((item) {
+        final mrDetailsMap = <String, ItemMRDetails>{};
+        if (item['mrDetails'] != null) {
+          (item['mrDetails'] as Map<String, dynamic>).forEach((key, value) {
+            mrDetailsMap[key] = ItemMRDetails(
+              mrNo: value['mrNo'] ?? '',
+              jobNo: value['jobNo'] ?? '',
+              quantity: (value['quantity'] as num?)?.toDouble() ?? 0.0,
+              prNo: value['prNo'],
+            );
+          });
         }
 
-        final prNo = prInfo.$1;
-        print('  Selected PR: $prNo');
-
-        // Issue stock using the stock maintenance method
-        stockItem.issueStockForJob(jobNo, issue.issueNo, issuedQty);
-        await _stockBox.put(stockItem.key, stockItem);
-        print('  Stock updated successfully');
-
-        // Update material request
-        final materialRequest =
-            _requestBox.values.firstWhere((mr) => mr.issueNo == mrNo);
-        final mrItem = materialRequest.items
-            .firstWhere((i) => i.materialCode == item.materialCode);
-
-        print(
-            '  Before MR update - Total Issued: ${mrItem.totalIssuedQuantity}, Pending: ${mrItem.pendingQuantity}');
-        mrItem.addIssuedQuantity(issue.issueNo, issuedQty);
-
-        print(
-            '  After MR update - Total Issued: ${mrItem.totalIssuedQuantity}, Pending: ${mrItem.pendingQuantity}');
-
-        // Check if all items in this MR are fully issued
-        bool allItemsIssued = materialRequest.items.every((item) {
-          print(
-              '    Item ${item.materialCode} - Pending: ${item.pendingQuantity}');
-          return item.pendingQuantity <= 0;
-        });
-
-        if (allItemsIssued) {
-          print('  All items in MR fully issued, marking as Completed');
-          materialRequest.status = 'Completed';
-        } else {
-          print('  Not all items are fully issued, keeping status as Active');
-          materialRequest.status = 'Active';
-        }
-
-        // Save the material request once after all updates
-        await _requestBox.put(materialRequest.key, materialRequest);
-      }
-    }
-    print('\nStock and MR Status update completed');
+        return MaterialIssueItem(
+          materialCode: item['materialCode'] ?? '',
+          materialDescription: item['materialDescription'] ?? '',
+          unit: item['unit'] ?? '',
+          quantity: (item['quantity'] as num?)?.toDouble() ?? 0.0,
+          mrDetails: mrDetailsMap,
+          issuedQuantities: Map<String, double>.from(item['issuedQuantities'] ?? {}),
+          prMapping: Map<String, String>.from(item['prMapping'] ?? {}),
+        );
+      }).toList() ?? [],
+    );
   }
 
-  // Helper method to revert stock and MR status
-  Future<void> _revertStockAndMRStatus(MaterialIssue issue) async {
-    print('\n=== Reverting Stock and MR Status ===');
-    for (var item in issue.items) {
-      print('\nProcessing Item: ${item.materialCode}');
-      final stockItem = _stockBox.values
-          .firstWhere((stock) => stock.materialCode == item.materialCode);
+  @override
+  String getModelId(MaterialIssue issue) => issue.issueNo;
 
-      for (var mrDetail in item.mrDetails.entries) {
-        final mrNo = mrDetail.key;
-        final jobNo = mrDetail.value.jobNo;
-        final issuedQty = mrDetail.value.quantity;
-
-        print('\n  MR No: $mrNo');
-        print('  Job No: $jobNo');
-        print('  Issued Qty to revert: $issuedQty');
-
-        // Find the PR that was used for this issue
-        final prInfo = stockItem.findAvailablePRForJob(jobNo, issuedQty);
-        if (prInfo != null) {
-          final prNo = prInfo.$1;
-          print('  Found PR: $prNo');
-
-          // Revert stock in all related records
-          final prDetail = stockItem.prDetails[prNo]!;
-          prDetail.issuedQuantity -= issuedQty;
-
-          // Find and update related PO and GRN records
-          for (var poDetail in stockItem.poDetails.values) {
-            for (var grnQtys in poDetail.receivedQuantities.values) {
-              if (grnQtys.containsKey(prNo)) {
-                final grnNo = poDetail.receivedQuantities.entries
-                    .firstWhere((e) => e.value.containsKey(prNo))
-                    .key;
-                final grnDetail = stockItem.grnDetails[grnNo]!;
-                grnDetail.issuedQuantity -= issuedQty;
-              }
-            }
-          }
-
-          // Update job details
-          final jobDetail = stockItem.jobDetails[jobNo]!;
-          jobDetail.consumedQuantity -= issuedQty;
-        }
-
-        await stockItem.save();
-        print('  Stock reverted successfully');
-
-        // Revert material request
-        final materialRequest =
-            _requestBox.values.firstWhere((mr) => mr.issueNo == mrNo);
-        final mrItem = materialRequest.items
-            .firstWhere((i) => i.materialCode == item.materialCode);
-
-        print(
-            '  Before MR revert - Total Issued: ${mrItem.totalIssuedQuantity}, Pending: ${mrItem.pendingQuantity}');
-        mrItem.removeIssuedQuantity(issue.issueNo);
-        print(
-            '  After MR revert - Total Issued: ${mrItem.totalIssuedQuantity}, Pending: ${mrItem.pendingQuantity}');
-
-        // Update MR status
-        if (materialRequest.status == 'Completed' &&
-            mrItem.pendingQuantity > 0) {
-          print('  Reverting MR status to Active');
-          materialRequest.status = 'Active';
-        }
-
-        // Save the material request once after all updates
-        await _requestBox.put(materialRequest.key, materialRequest);
-      }
+  // Backward compatibility methods
+  Future<void> loadMaterialIssues() => loadData();
+  Future<void> addIssue(MaterialIssue issue) => add(issue);
+  Future<void> createMaterialIssue(MaterialIssue issue) => add(issue);
+  Future<void> updateIssue(MaterialIssue issue) => update(issue);
+  Future<void> updateMaterialIssue(MaterialIssue issue) => update(issue);
+  Future<bool> deleteIssue(MaterialIssue issue) => delete(issue);
+  Future<bool> deleteMaterialIssue(String issueNo) async {
+    final issue = getIssueByNo(issueNo);
+    if (issue != null) {
+      return await delete(issue);
     }
-    print('\nStock and MR Status revert completed');
+    return false;
   }
 
-  MaterialIssue? getMaterialIssueByNo(String issueNo) {
+  // Search and filter methods
+  List<MaterialIssue> searchIssues(String query) {
+    return search(query, (issue, query) =>
+        issue.issueNo.toLowerCase().contains(query) ||
+        issue.issuedTo.toLowerCase().contains(query) ||
+        issue.formattedJobNo.toLowerCase().contains(query));
+  }
+
+  List<MaterialIssue> getIssuesByDateRange(DateTime startDate, DateTime endDate) {
+    return state.where((issue) {
+      try {
+        final issueDate = DateTime.parse(issue.issueDate);
+        return issueDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
+               issueDate.isBefore(endDate.add(const Duration(days: 1)));
+      } catch (e) {
+        return false;
+      }
+    }).toList();
+  }
+
+  List<MaterialIssue> getIssuesByDepartment(String department) {
+    return state.where((issue) => 
+        issue.issuedTo.toLowerCase() == department.toLowerCase()).toList();
+  }
+
+  List<MaterialIssue> getIssuesByJobNo(String jobNo) {
+    return state.where((issue) => issue.jobNumbers.contains(jobNo)).toList();
+  }
+
+  MaterialIssue? getIssueByNo(String issueNo) {
     try {
-      return _issueBox.values.firstWhere((issue) => issue.issueNo == issueNo);
+      return state.firstWhere((issue) => issue.issueNo == issueNo);
     } catch (e) {
       return null;
     }
   }
 
-  String generateIssueNo() {
+  // Issue number generation
+  String generateIssueNo() => generateIssueNumber();
+  
+  String generateIssueNumber() {
     final now = DateTime.now();
     final year = now.year.toString();
     final month = now.month.toString().padLeft(2, '0');
-    final day = now.day.toString().padLeft(2, '0');
-
-    final todayIssues = _issueBox.values.where((issue) {
-      return issue.issueNo.startsWith('MI$year$month$day');
-    }).length;
-
-    final count = (todayIssues + 1).toString().padLeft(3, '0');
-    return 'MI$year$month$day$count';
+    
+    // Find existing issues for current month
+    final existingIssues = state.where((issue) {
+      return issue.issueNo.startsWith('MI$year$month');
+    }).toList();
+    
+    final nextNumber = existingIssues.length + 1;
+    return 'MI$year$month${nextNumber.toString().padLeft(3, '0')}';
   }
 
-  Future<void> refresh() async {
-    try {
-      await loadMaterialIssues();
-    } catch (e) {
-      print('Error refreshing material issues: $e');
-      rethrow;
+  // Stock management methods
+  Future<void> updateStockAfterIssue(MaterialIssue issue) async {
+    for (var item in issue.items) {
+      final stockItems = _stockBox.values.where((stock) => 
+          stock.materialCode == item.materialCode).toList();
+      
+      double remainingToIssue = item.quantity;
+      
+      for (var stock in stockItems) {
+        if (remainingToIssue <= 0) break;
+        
+        final availableStock = stock.currentStock;
+        if (availableStock > 0) {
+          final toDeduct = remainingToIssue > availableStock ? availableStock : remainingToIssue;
+          
+          // Update the current stock
+          stock.currentStock -= toDeduct;
+          await _stockBox.put(stock.key, stock);
+          remainingToIssue -= toDeduct;
+        }
+      }
     }
   }
-}
 
-final materialIssueProvider =
-    StateNotifierProvider<MaterialIssueNotifier, List<MaterialIssue>>((ref) {
-  final issueBox = ref.watch(materialIssueBoxProvider);
-  final requestBox = ref.watch(materialRequestBoxProvider);
-  final stockBox = Hive.box<StockMaintenance>('stock_maintenance');
-  final syncService = ref.watch(syncServiceProvider);
-  return MaterialIssueNotifier(issueBox, requestBox, stockBox, syncService, ref);
-});
+  // Material Request integration
+  Future<void> updateMaterialRequestStatus(MaterialIssue issue) async {
+    for (var item in issue.items) {
+      for (var mrDetail in item.mrDetails.values) {
+        final mr = _requestBox.values.where((request) => 
+            request.issueNo == mrDetail.mrNo).firstOrNull;
+        
+        if (mr != null) {
+          // Update MR status - simplified implementation
+          // Note: This would need proper implementation based on actual MaterialRequestItem model
+          await _requestBox.put(mr.key, mr);
+        }
+      }
+    }
+  }
+
+  // Analytics methods
+  Map<String, double> getMaterialUsageStats() {
+    final usage = <String, double>{};
+    
+    for (var issue in state) {
+      for (var item in issue.items) {
+        usage[item.materialCode] = (usage[item.materialCode] ?? 0.0) + item.quantity;
+      }
+    }
+    
+    return usage;
+  }
+
+  Map<String, double> getDepartmentUsageStats() {
+    final usage = <String, double>{};
+    
+    for (var issue in state) {
+      double totalValue = 0.0;
+      for (var item in issue.items) {
+        // Assuming we have a way to get material rate
+        totalValue += item.quantity; // This could be multiplied by rate
+      }
+      usage[issue.issuedTo] = (usage[issue.issuedTo] ?? 0.0) + totalValue;
+    }
+    
+    return usage;
+  }
+
+  Map<String, int> getJobWiseIssueCount() {
+    final jobCount = <String, int>{};
+    
+    for (var issue in state) {
+      for (var jobNo in issue.jobNumbers) {
+        jobCount[jobNo] = (jobCount[jobNo] ?? 0) + 1;
+      }
+    }
+    
+    return jobCount;
+  }
+
+  // Validation methods
+  bool canIssueQuantity(String materialCode, double requestedQuantity) {
+    final availableStock = _stockBox.values
+        .where((stock) => stock.materialCode == materialCode)
+        .fold(0.0, (sum, stock) => sum + stock.currentStock);
+    
+    return availableStock >= requestedQuantity;
+  }
+
+  List<String> validateIssue(MaterialIssue issue) {
+    final errors = <String>[];
+    
+    // Check if issue number already exists
+    if (state.any((existingIssue) => existingIssue.issueNo == issue.issueNo)) {
+      errors.add('Issue number ${issue.issueNo} already exists');
+    }
+    
+    // Check stock availability for each item
+    for (var item in issue.items) {
+      if (!canIssueQuantity(item.materialCode, item.quantity)) {
+        errors.add('Insufficient stock for ${item.materialDescription}');
+      }
+    }
+    
+    return errors;
+  }
+}

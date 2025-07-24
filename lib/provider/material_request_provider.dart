@@ -2,10 +2,9 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/material_request.dart';
-import '../services/sync_service.dart';
+import '../models/material_request_item.dart';
+import 'base_provider.dart';
 
 final materialRequestBoxProvider = Provider<Box<MaterialRequest>>((ref) {
   return Hive.box<MaterialRequest>('material_requests');
@@ -16,261 +15,221 @@ final materialRequestListProvider = Provider<List<MaterialRequest>>((ref) {
   return box.values.toList();
 });
 
-class MaterialRequestProvider extends StateNotifier<List<MaterialRequest>> {
-  final Box<MaterialRequest> _box;
-  final SyncService _syncService;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+// StateNotifier provider for backward compatibility
+final materialRequestProvider = StateNotifierProvider<MaterialRequestProvider, List<MaterialRequest>>((ref) {
+  final box = ref.watch(materialRequestBoxProvider);
+  return MaterialRequestProvider(box);
+});
 
-  MaterialRequestProvider(this._box, this._syncService) : super([]) {
-    // Load material requests when initialized
-    loadMaterialRequests();
-  }
+class MaterialRequestProvider extends BaseProvider<MaterialRequest> {
+  MaterialRequestProvider(Box<MaterialRequest> box) : super(box, 'material_requests');
 
-  Future<void> loadMaterialRequests() async {
-    try {
-      print('Loading material request data from Firestore...');
-      final querySnapshot = await _firestore.collection('material_requests').get();
-      print('Found ${querySnapshot.docs.length} material requests in Firestore');
-
-      // Clear existing material requests from Hive
-      await _box.clear();
-
-      // Add new material requests to Hive
-      for (var doc in querySnapshot.docs) {
-        final data = doc.data();
-        final request = _syncService.materialRequestFromMap(data);
-        await _box.add(request);
-      }
-
-      // Update state
-      state = _box.values.toList();
-      print('Successfully loaded material request data');
-
-      // Print all material requests when provider is initialized
-      print('\n=== Material Requests Debug ===');
-      for (var mr in _box.values) {
-        print('\nMaterial Request: ${mr.issueNo}');
-        print('Date: ${mr.date}');
-        print('Job No: ${mr.jobNo}');
-        print('Issued By: ${mr.issuedBy}');
-        print('Status: ${mr.status}');
-
-        for (var item in mr.items) {
-          print('\n  Item: ${item.materialCode} - ${item.materialDescription}');
-          print('  Quantity: ${item.quantity} ${item.unit}');
-          print('  Total Issued: ${item.totalIssuedQuantity}');
-          print('  Pending: ${item.pendingQuantity}');
-
-          if (item.issuedQuantities.isNotEmpty) {
-            print('\n  Issued Quantities:');
-            for (var entry in item.issuedQuantities.entries) {
-              print('    MI ${entry.key}: ${entry.value}');
-            }
-          }
-        }
-      }
-    } catch (e) {
-      print('Error loading material request data: $e');
-      rethrow;
-    }
-  }
-
-  List<MaterialRequest> get requests => state;
-
-  // Get active requests for a specific job
-  List<MaterialRequest> getActiveRequestsForJob(String jobNo) {
-    return state
-        .where((mr) =>
-            mr.jobNo == jobNo &&
-            mr.status != 'Completed' &&
-            mr.items.any((item) => item.pendingQuantity > 0))
-        .toList();
-  }
-
-  Future<void> addMaterialRequest(MaterialRequest request) async {
-    try {
-      print('\n=== Adding Material Request ===');
-      print('Issue No: ${request.issueNo}');
-      print('Date: ${request.date}');
-      print('Job No: ${request.jobNo}');
-      print('Status: ${request.status}');
-
-      for (var item in request.items) {
-        print('\n  Item: ${item.materialCode} - ${item.materialDescription}');
-        print('  Quantity: ${item.quantity} ${item.unit}');
-      }
-
-      // Add to Firestore first
-      final docRef = _firestore.collection('material_requests').doc(request.issueNo);
-      final data = _convertToMap(request);
-      data['lastUpdated'] = FieldValue.serverTimestamp();
-      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-      await docRef.set(data);
-
-      // Then add to Hive
-      await _box.add(request);
-
-      // Update state
-      state = _box.values.toList();
-      print('Material Request added successfully');
-    } catch (e) {
-      print('Error adding material request: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> updateMaterialRequest(MaterialRequest request) async {
-    try {
-      print('\n=== Updating Material Request ===');
-      print('Issue No: ${request.issueNo}');
-      print('Date: ${request.date}');
-      print('Job No: ${request.jobNo}');
-      print('Status: ${request.status}');
-
-      for (var item in request.items) {
-        print('\n  Item: ${item.materialCode} - ${item.materialDescription}');
-        print('  Quantity: ${item.quantity} ${item.unit}');
-        print('  Total Issued: ${item.totalIssuedQuantity}');
-        print('  Pending: ${item.pendingQuantity}');
-
-        if (item.issuedQuantities.isNotEmpty) {
-          print('\n  Issued Quantities:');
-          for (var entry in item.issuedQuantities.entries) {
-            print('    MI ${entry.key}: ${entry.value}');
-          }
-        }
-      }
-
-      final index =
-          _box.values.toList().indexWhere((r) => r.issueNo == request.issueNo);
-      if (index != -1) {
-        // Update in Firestore first
-        final docRef = _firestore.collection('material_requests').doc(request.issueNo);
-        final data = _convertToMap(request);
-        data['lastUpdated'] = FieldValue.serverTimestamp();
-        data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-        await docRef.update(data);
-
-        // Then update in Hive
-        await _box.putAt(index, request);
-
-        // Update state
-        state = _box.values.toList();
-        print('Material Request updated successfully');
-      } else {
-        print('Error: Material Request not found');
-      }
-    } catch (e) {
-      print('Error updating material request: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> updateMaterialRequestStatus(String issueNo,
-      {bool checkCompletion = true}) async {
-    final request = getMaterialRequestByNo(issueNo);
-    if (request != null) {
-      if (checkCompletion) {
-        // Check if all items are fully issued
-        bool allItemsIssued =
-            request.items.every((item) => item.pendingQuantity <= 0);
-        request.status = allItemsIssued ? 'Completed' : 'Active';
-      }
-      await updateMaterialRequest(request);
-    }
-  }
-
-  Future<void> deleteMaterialRequest(String issueNo) async {
-    try {
-      print('\n=== Deleting Material Request ===');
-      print('Issue No: $issueNo');
-
-      final index = _box.values.toList().indexWhere((r) => r.issueNo == issueNo);
-      if (index != -1) {
-        // Delete from Firestore first
-        final docRef = _firestore.collection('material_requests').doc(issueNo);
-        await docRef.delete();
-
-        // Then delete from Hive
-        await _box.deleteAt(index);
-
-        // Update state
-        state = _box.values.toList();
-        print('Material Request deleted successfully');
-      } else {
-        print('Error: Material Request not found');
-      }
-    } catch (e) {
-      print('Error deleting material request: $e');
-      rethrow;
-    }
-  }
-
-  MaterialRequest? getMaterialRequestByNo(String issueNo) {
-    try {
-      final request =
-          _box.values.firstWhere((request) => request.issueNo == issueNo);
-      print('\n=== Getting Material Request ===');
-      print('Issue No: ${request.issueNo}');
-      print('Date: ${request.date}');
-      print('Job No: ${request.jobNo}');
-      print('Status: ${request.status}');
-      return request;
-    } catch (e) {
-      print('Error: Material Request not found');
-      return null;
-    }
-  }
-
-  String generateIssueNo() {
-    final now = DateTime.now();
-    final year = now.year.toString();
-    final month = now.month.toString().padLeft(2, '0');
-    final day = now.day.toString().padLeft(2, '0');
-
-    // Get count of issues for today
-    final todayIssues = _box.values.where((issue) {
-      return issue.issueNo.startsWith('MR$year$month$day');
-    }).length;
-
-    final count = (todayIssues + 1).toString().padLeft(3, '0');
-    return 'MR$year$month$day$count';
-  }
-
-  Future<void> refresh() async {
-    try {
-      await loadMaterialRequests();
-    } catch (e) {
-      print('Error refreshing material requests: $e');
-      rethrow;
-    }
-  }
-
-  // Helper method to convert MaterialRequest to Map
-  Map<String, dynamic> _convertToMap(MaterialRequest request) {
+  @override
+  Map<String, dynamic> modelToMap(MaterialRequest request) {
     return {
       'issueNo': request.issueNo,
       'date': request.date,
-      'jobNo': request.jobNo,
       'issuedBy': request.issuedBy,
       'status': request.status,
+      'jobNo': request.jobNo,
       'items': request.items.map((item) => {
         'materialCode': item.materialCode,
         'materialDescription': item.materialDescription,
         'unit': item.unit,
         'quantity': item.quantity,
-        'totalIssuedQuantity': item.totalIssuedQuantity,
+        'issueNo': item.issueNo,
         'issuedQuantities': item.issuedQuantities,
       }).toList(),
     };
   }
-}
 
-final materialRequestProvider =
-    StateNotifierProvider<MaterialRequestProvider, List<MaterialRequest>>(
-        (ref) {
-  final box = ref.watch(materialRequestBoxProvider);
-  final syncService = ref.watch(syncServiceProvider);
-  return MaterialRequestProvider(box, syncService);
-});
+  @override
+  MaterialRequest mapToModel(Map<String, dynamic> map) {
+    return MaterialRequest(
+      issueNo: map['issueNo'] ?? '',
+      date: map['date'] ?? '',
+      issuedBy: map['issuedBy'] ?? '',
+      status: map['status'] ?? 'Draft',
+      jobNo: map['jobNo'],
+      items: (map['items'] as List<dynamic>?)?.map((item) => MaterialRequestItem(
+        materialCode: item['materialCode'] ?? '',
+        materialDescription: item['materialDescription'] ?? '',
+        unit: item['unit'] ?? '',
+        quantity: item['quantity'] ?? '',
+        issueNo: item['issueNo'] ?? '',
+        issuedQuantities: Map<String, double>.from(item['issuedQuantities'] ?? {}),
+      )).toList() ?? [],
+    );
+  }
+
+  @override
+  String getModelId(MaterialRequest request) => request.issueNo;
+
+  // Backward compatibility methods
+  Future<void> loadMaterialRequests() => loadData();
+  Future<void> addRequest(MaterialRequest request) => add(request);
+  Future<void> addMaterialRequest(MaterialRequest request) => add(request);
+  Future<void> updateRequest(MaterialRequest request) => update(request);
+  Future<void> updateMaterialRequest(MaterialRequest request) => update(request);
+  Future<bool> deleteRequest(MaterialRequest request) => delete(request);
+  Future<bool> deleteMaterialRequest(String issueNo) async {
+    final request = getRequestByIssueNo(issueNo);
+    if (request != null) {
+      return await delete(request);
+    }
+    return false;
+  }
+
+  // Getter for backward compatibility
+  List<MaterialRequest> get requests => state;
+
+  // Search and filter methods
+  List<MaterialRequest> searchRequests(String query) {
+    return search(query, (request, query) =>
+        request.issueNo.toLowerCase().contains(query) ||
+        request.issuedBy.toLowerCase().contains(query) ||
+        (request.jobNo?.toLowerCase().contains(query) ?? false));
+  }
+
+  List<MaterialRequest> getRequestsByStatus(String status) {
+    return state.where((request) => request.status == status).toList();
+  }
+
+  List<MaterialRequest> getRequestsByJobNo(String jobNo) {
+    return state.where((request) => request.jobNo == jobNo).toList();
+  }
+
+  List<MaterialRequest> getRequestsByDateRange(DateTime startDate, DateTime endDate) {
+    return state.where((request) {
+      try {
+        final requestDate = DateTime.parse(request.date);
+        return requestDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
+               requestDate.isBefore(endDate.add(const Duration(days: 1)));
+      } catch (e) {
+        return false;
+      }
+    }).toList();
+  }
+
+  MaterialRequest? getRequestByIssueNo(String issueNo) {
+    try {
+      return state.firstWhere((request) => request.issueNo == issueNo);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Request number generation  
+  String generateIssueNo() => generateRequestNumber();
+  
+  String generateRequestNumber() {
+    final now = DateTime.now();
+    final year = now.year.toString();
+    final month = now.month.toString().padLeft(2, '0');
+    
+    // Find existing requests for current month
+    final existingRequests = state.where((request) {
+      return request.issueNo.startsWith('MR$year$month');
+    }).toList();
+    
+    final nextNumber = existingRequests.length + 1;
+    return 'MR$year$month${nextNumber.toString().padLeft(3, '0')}';
+  }
+
+  // Status management
+  List<MaterialRequest> getPendingRequests() {
+    return state.where((request) => 
+        request.status == 'Active' || request.status == 'Draft').toList();
+  }
+
+  List<MaterialRequest> getCompletedRequests() {
+    return state.where((request) => request.status == 'Completed').toList();
+  }
+
+  // Analytics methods
+  Map<String, double> getMaterialDemandStats() {
+    final demand = <String, double>{};
+    
+    for (var request in state) {
+      for (var item in request.items) {
+        final quantity = double.tryParse(item.quantity) ?? 0.0;
+        demand[item.materialCode] = (demand[item.materialCode] ?? 0.0) + quantity;
+      }
+    }
+    
+    return demand;
+  }
+
+  Map<String, int> getJobWiseRequestCount() {
+    final jobCount = <String, int>{};
+    
+    for (var request in state) {
+      if (request.jobNo != null) {
+        jobCount[request.jobNo!] = (jobCount[request.jobNo!] ?? 0) + 1;
+      }
+    }
+    
+    return jobCount;
+  }
+
+  Map<String, double> getPendingQuantitiesByMaterial() {
+    final pending = <String, double>{};
+    
+    for (var request in state) {
+      if (request.status != 'Completed') {
+        for (var item in request.items) {
+          pending[item.materialCode] = (pending[item.materialCode] ?? 0.0) + item.pendingQuantity;
+        }
+      }
+    }
+    
+    return pending;
+  }
+
+  // Validation methods
+  bool canDeleteRequest(MaterialRequest request) {
+    // Can't delete if any items have been partially or fully issued
+    return request.items.every((item) => item.totalIssuedQuantity == 0);
+  }
+
+  List<String> validateRequest(MaterialRequest request) {
+    final errors = <String>[];
+    
+    // Check if request number already exists
+    if (state.any((existingRequest) => existingRequest.issueNo == request.issueNo)) {
+      errors.add('Request number ${request.issueNo} already exists');
+    }
+    
+    // Check if all items have valid quantities
+    for (var item in request.items) {
+      final quantity = double.tryParse(item.quantity);
+      if (quantity == null || quantity <= 0) {
+        errors.add('Invalid quantity for ${item.materialDescription}');
+      }
+    }
+    
+    return errors;
+  }
+
+  // Issue tracking
+  void updateIssuedQuantity(String requestIssueNo, String materialCode, String materialIssueNo, double quantity) {
+    final request = getRequestByIssueNo(requestIssueNo);
+    if (request != null) {
+      final item = request.items.where((item) => item.materialCode == materialCode).firstOrNull;
+      if (item != null) {
+        item.addIssuedQuantity(materialIssueNo, quantity);
+        
+        // Update request status if all items are fully issued
+        final allItemsIssued = request.items.every((item) => item.pendingQuantity <= 0);
+        if (allItemsIssued) {
+          request.status = 'Completed';
+        } else if (request.items.any((item) => item.totalIssuedQuantity > 0)) {
+          request.status = 'Active';
+        }
+        
+        // Save the updated request
+        update(request);
+      }
+    }
+  }
+}

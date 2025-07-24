@@ -3,17 +3,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/quality_inspection.dart';
 import '../models/store_inward.dart';
 import '../models/purchase_order.dart';
 import '../models/quality.dart';
 import '../models/category_parameter_mapping.dart';
-import '../services/sync_service.dart';
+import 'base_provider.dart';
 import 'stock_maintenance_provider.dart';
 import 'store_inward_provider.dart';
-
 
 final qualityInspectionBoxProvider = Provider<Box<QualityInspection>>((ref) {
   throw UnimplementedError();
@@ -25,469 +22,302 @@ final qualityInspectionProvider =
     final box = ref.watch(qualityInspectionBoxProvider);
     final stockMaintenance = ref.watch(stockMaintenanceProvider.notifier);
     final storeInward = ref.watch(storeInwardProvider.notifier);
-    final syncService = ref.watch(syncServiceProvider);
-    return QualityInspectionNotifier(box, stockMaintenance, storeInward, syncService);
+    return QualityInspectionNotifier(box, stockMaintenance, storeInward);
   },
 );
 
-class QualityInspectionNotifier extends StateNotifier<List<QualityInspection>> {
-  final Box<QualityInspection> box;
+class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
   final StockMaintenanceNotifier stockMaintenance;
   final StoreInwardNotifier storeInward;
-  final SyncService _syncService;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  QualityInspectionNotifier(this.box, this.stockMaintenance, this.storeInward, this._syncService)
-      : super([]) {
-    // Load inspections when initialized
-    loadInspections();
-  }
+  QualityInspectionNotifier(Box<QualityInspection> box, this.stockMaintenance, this.storeInward)
+      : super(box, 'qualityInspections');
 
-  Future<void> loadInspections() async {
-    try {
-      print('Loading quality inspection data from Firestore...');
-      final querySnapshot = await _firestore.collection('qualityInspections').get();
-      print('Found ${querySnapshot.docs.length} inspections in Firestore');
-
-      // Clear existing inspections from Hive
-      await box.clear();
-
-      // Add new inspections to Hive
-      for (var doc in querySnapshot.docs) {
-        final data = doc.data();
-        final inspection = _syncService.qualityInspectionFromMap(data);
-        await box.add(inspection);
-      }
-
-      // Update state
-      if (mounted) {
-        state = box.values.toList();
-      }
-      print('Successfully loaded quality inspection data');
-    } catch (e) {
-      print('Error loading quality inspection data: $e');
-      rethrow;
-    }
-  }
-
-  String generateInspectionNumber() {
-    final now = DateTime.now();
-    final year = now.year.toString().substring(2);
-    final month = now.month.toString().padLeft(2, '0');
-    final day = now.day.toString().padLeft(2, '0');
-
-    final yearInspections = state
-        .where((inspection) => inspection.inspectionNo.startsWith('QI$year'))
-        .toList();
-
-    int maxSeq = 0;
-    for (var inspection in yearInspections) {
-      try {
-        final seq = int.parse(inspection.inspectionNo.substring(8));
-        if (seq > maxSeq) maxSeq = seq;
-      } catch (e) {
-        print('Error parsing sequence number: $e');
-      }
-    }
-
-    final seq = (maxSeq + 1).toString().padLeft(4, '0');
-    return 'QI$year$month$day$seq';
-  }
-
-  Future<void> addInspection(QualityInspection inspection) async {
-    try {
-      // Generate inspection number if not provided
-      if (inspection.inspectionNo.isEmpty) {
-        inspection.inspectionNo = generateInspectionNumber();
-      }
-
-      // Add to Firestore first
-      final docRef = _firestore.collection('qualityInspections').doc(inspection.inspectionNo);
-      final data = _convertToMap(inspection);
-      data['lastUpdated'] = FieldValue.serverTimestamp();
-      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-      await docRef.set(data);
-
-      // Then add to Hive
-      await box.add(inspection);
-
-      // Update state
-      if (mounted) {
-        state = [...state, inspection];
-      }
-      print('Successfully added inspection ${inspection.inspectionNo}');
-    } catch (e) {
-      print('Error adding inspection: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> updateInspection(QualityInspection inspection) async {
-    print('\n=== Debug: Starting Inspection Update ${inspection.inspectionNo} ===');
-    try {
-      // Find the index of the inspection to update
-      final index = box.values.toList().indexWhere(
-            (insp) => insp.inspectionNo == inspection.inspectionNo,
-          );
-
-      if (index != -1) {
-        // Validate all required fields are filled
-        bool allParametersFilled = inspection.items.every((item) {
-          return item.parameters.every((param) {
-            return param.observation.isNotEmpty && param.result != null;
-          });
-        });
-
-        if (!allParametersFilled) {
-          print('Warning: Not all parameters have observations filled');
-        }
-
-        // Update inspection status and quantities
-        for (var item in inspection.items) {
-          print('\n--- Processing item: ${item.materialCode} ---');
-          try {
-            // Process inspection item (existing logic)
-            // ... (keep your existing business logic for processing items)
-
-            // After processing each item, update both Firestore and Hive
-            final docRef = _firestore.collection('qualityInspections').doc(inspection.inspectionNo);
-            final data = _convertToMap(inspection);
-            data['lastUpdated'] = FieldValue.serverTimestamp();
-            data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-            await docRef.update(data);
-
-            // Update in Hive
-            await box.putAt(index, inspection);
-
-            // Update stock maintenance
-            await stockMaintenance.updateStockFromInspection(inspection);
-
-            // Update store inward
-            await storeInward.updateFromInspection(inspection);
-          } catch (e) {
-            print('Error processing item ${item.materialCode}: $e');
-            rethrow;
-          }
-        }
-
-        // Update state
-        if (mounted) {
-          state = box.values.toList();
-        }
-      } else {
-        throw Exception('Inspection not found: ${inspection.inspectionNo}');
-      }
-    } catch (e) {
-      print('Error updating inspection: $e');
-      rethrow;
-    }
-  }
-
-  // Helper method to convert QualityInspection to Map
-  Map<String, dynamic> _convertToMap(QualityInspection inspection) {
+  @override
+  Map<String, dynamic> modelToMap(QualityInspection inspection) {
     return {
       'inspectionNo': inspection.inspectionNo,
       'inspectionDate': inspection.inspectionDate,
+      'grnNo': inspection.grnNo,
+      'supplierName': inspection.supplierName,
+      'poNo': inspection.poNo,
+      'billNo': inspection.billNo,
+      'billDate': inspection.billDate,
+      'receivedDate': inspection.receivedDate,
+      'grnDate': inspection.grnDate,
+      'inspectedBy': inspection.inspectedBy,
+      'approvedBy': inspection.approvedBy,
       'status': inspection.status,
-      'requiresCapa': inspection.requiresCapa,
+      'prNumbers': inspection.prNumbers,
+      'jobNumbers': inspection.jobNumbers,
       'capaNo': inspection.capaNo,
       'capaStatus': inspection.capaStatus,
+      'capaDescription': inspection.capaDescription,
+      'capaAssignedTo': inspection.capaAssignedTo,
+      'capaTargetDate': inspection.capaTargetDate,
+      'capaCompletionDate': inspection.capaCompletionDate,
+      'capaActions': inspection.capaActions,
       'items': inspection.items.map((item) => {
         'materialCode': item.materialCode,
         'materialDescription': item.materialDescription,
+        'unit': item.unit,
+        'category': item.category,
+        'receivedQty': item.receivedQty,
+        'costPerUnit': item.costPerUnit,
+        'totalCost': item.totalCost,
+        'sampleSize': item.sampleSize,
+        'inspectedQty': item.inspectedQty,
         'acceptedQty': item.acceptedQty,
         'rejectedQty': item.rejectedQty,
+        'pendingQty': item.pendingQty,
         'usageDecision': item.usageDecision,
+        'receivedDate': item.receivedDate,
+        'expirationDate': item.expirationDate,
+        'capaRequired': item.capaRequired,
+        'inspectionRemark': item.inspectionRemark,
         'parameters': item.parameters.map((param) => {
           'parameter': param.parameter,
           'isAcceptable': param.isAcceptable,
           'observation': param.observation,
           'result': param.result,
         }).toList(),
-        'grnQuantities': item.grnQuantities.map((key, value) => MapEntry(key, {
-          'receivedQty': value.receivedQty,
-          'acceptedQty': value.acceptedQty,
-          'rejectedQty': value.rejectedQty,
-          'isSelected': value.isSelected,
-          'usageDecision': value.usageDecision,
-          'recheckType': value.recheckType,
-          'poNo': value.poNo,
-          'poDate': value.poDate,
-        })),
       }).toList(),
     };
   }
 
-  Future<void> deleteInspection(QualityInspection inspection) async {
-    try {
-      // Find the index of the inspection to delete
-      final index = box.values.toList().indexWhere(
-            (insp) => insp.inspectionNo == inspection.inspectionNo,
-          );
+  @override
+  QualityInspection mapToModel(Map<String, dynamic> map) {
+    return QualityInspection(
+      inspectionNo: map['inspectionNo'] ?? '',
+      inspectionDate: map['inspectionDate'] ?? '',
+      grnNo: map['grnNo'] ?? '',
+      supplierName: map['supplierName'] ?? '',
+      poNo: map['poNo'] ?? '',
+      billNo: map['billNo'] ?? '',
+      billDate: map['billDate'] ?? '',
+      receivedDate: map['receivedDate'] ?? '',
+      grnDate: map['grnDate'] ?? '',
+      inspectedBy: map['inspectedBy'] ?? '',
+      approvedBy: map['approvedBy'] ?? '',
+      status: map['status'] ?? 'Pending',
+      prNumbers: Map<String, String>.from(map['prNumbers'] ?? {}),
+      jobNumbers: Map<String, String>.from(map['jobNumbers'] ?? {}),
+      capaNo: map['capaNo'],
+      capaStatus: map['capaStatus'] ?? 'Not Required',
+      capaDescription: map['capaDescription'],
+      capaAssignedTo: map['capaAssignedTo'],
+      capaTargetDate: map['capaTargetDate'],
+      capaCompletionDate: map['capaCompletionDate'],
+      capaActions: List<String>.from(map['capaActions'] ?? []),
+      items: (map['items'] as List<dynamic>?)?.map((item) => InspectionItem(
+        materialCode: item['materialCode'] ?? '',
+        materialDescription: item['materialDescription'] ?? '',
+        unit: item['unit'] ?? '',
+        category: item['category'] ?? '',
+        receivedQty: (item['receivedQty'] as num?)?.toDouble() ?? 0.0,
+        costPerUnit: (item['costPerUnit'] as num?)?.toDouble() ?? 0.0,
+        totalCost: (item['totalCost'] as num?)?.toDouble() ?? 0.0,
+        sampleSize: (item['sampleSize'] as num?)?.toDouble() ?? 0.0,
+        inspectedQty: (item['inspectedQty'] as num?)?.toDouble() ?? 0.0,
+        acceptedQty: (item['acceptedQty'] as num?)?.toDouble() ?? 0.0,
+        rejectedQty: (item['rejectedQty'] as num?)?.toDouble() ?? 0.0,
+        pendingQty: (item['pendingQty'] as num?)?.toDouble() ?? 0.0,
+        usageDecision: item['usageDecision'] ?? 'Lot Accepted',
+        receivedDate: item['receivedDate'] ?? '',
+        expirationDate: item['expirationDate'] ?? '',
+        capaRequired: item['capaRequired'] ?? false,
+        inspectionRemark: item['inspectionRemark'],
+        parameters: (item['parameters'] as List<dynamic>?)?.map((param) => QualityParameter(
+          parameter: param['parameter'] ?? '',
+          isAcceptable: param['isAcceptable'] ?? true,
+          observation: param['observation'] ?? '',
+          result: param['result'] ?? 'OK',
+        )).toList() ?? [],
+      )).toList() ?? [],
+    );
+  }
 
-      if (index != -1) {
-        // Delete from Firestore first
-        final docRef = _firestore.collection('qualityInspections').doc(inspection.inspectionNo);
-        await docRef.delete();
+  @override
+  String getModelId(QualityInspection inspection) => inspection.inspectionNo;
 
-        // Then delete from Hive
-        await box.deleteAt(index);
+  // Backward compatibility methods
+  Future<void> loadInspections() => loadData();
+  Future<void> addInspection(QualityInspection inspection) => add(inspection);
+  Future<void> updateInspection(QualityInspection inspection) => update(inspection);
+  Future<bool> deleteInspection(QualityInspection inspection) => delete(inspection);
 
-        // Update state
-        state = box.values.toList();
+  // Search and filter methods
+  List<QualityInspection> searchInspections(String query) {
+    return search(query, (inspection, query) =>
+        inspection.inspectionNo.toLowerCase().contains(query) ||
+        inspection.supplierName.toLowerCase().contains(query) ||
+        inspection.poNo.toLowerCase().contains(query) ||
+        inspection.grnNo.toLowerCase().contains(query));
+  }
+
+  List<QualityInspection> getInspectionsByStatus(String status) {
+    return state.where((inspection) => inspection.status == status).toList();
+  }
+
+  List<QualityInspection> getInspectionsBySupplier(String supplierName) {
+    return state.where((inspection) => 
+        inspection.supplierName.toLowerCase() == supplierName.toLowerCase()).toList();
+  }
+
+  List<QualityInspection> getInspectionsByDateRange(DateTime startDate, DateTime endDate) {
+    return state.where((inspection) {
+      try {
+        final inspectionDate = DateFormat('dd/MM/yyyy').parse(inspection.inspectionDate);
+        return inspectionDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
+               inspectionDate.isBefore(endDate.add(const Duration(days: 1)));
+      } catch (e) {
+        return false;
       }
-    } catch (e) {
-      print('Error deleting inspection: $e');
-      rethrow;
-    }
+    }).toList();
   }
 
-  Future<void> updateInspectionStatus(
-      String inspectionNo, String newStatus) async {
-    print(
-        '\n=== Debug: Updating Inspection Status for $inspectionNo to $newStatus ===');
-
+  QualityInspection? getInspectionByNo(String inspectionNo) {
     try {
-      // Find the index of the inspection to update
-      final index = box.values.toList().indexWhere(
-            (insp) => insp.inspectionNo == inspectionNo,
-          );
-
-      if (index != -1) {
-        final inspection = box.getAt(index);
-        if (inspection != null) {
-          inspection.status = newStatus;
-
-          // For recheck cases, update the usage decision of items too
-          if (newStatus == 'Completed - Accepted After 100% Recheck') {
-            for (var item in inspection.items) {
-              for (var grnQty in item.grnQuantities.values) {
-                if (grnQty.isSelected == true) {
-                  // Explicitly check for true
-                  grnQty.usageDecision = 'Accepted After 100% Recheck';
-                  item.usageDecision = 'Accepted After 100% Recheck';
-                }
-              }
-            }
-          }
-
-          // Update in Firestore first
-          final docRef = _firestore.collection('qualityInspections').doc(inspectionNo);
-          final data = _convertToMap(inspection);
-          data['lastUpdated'] = FieldValue.serverTimestamp();
-          data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-          await docRef.update(data);
-
-          // Then update in Hive
-          await box.putAt(index, inspection);
-
-          // Update state
-          state = box.values.toList();
-        }
-      }
+      return state.firstWhere((inspection) => inspection.inspectionNo == inspectionNo);
     } catch (e) {
-      print('Error updating inspection status: $e');
-      rethrow;
+      return null;
     }
   }
 
-  Future<void> updateCapaDetails(
-    String inspectionNo, {
-    String? description,
-    String? assignedTo,
-    String? targetDate,
-    String? completionDate,
-    List<String>? actions,
-  }) async {
-    try {
-      final index = box.values.toList().indexWhere(
-            (insp) => insp.inspectionNo == inspectionNo,
-          );
-
-      if (index != -1) {
-        final inspection = box.values.elementAt(index);
-
-        if (description != null) inspection.capaDescription = description;
-        if (assignedTo != null) inspection.capaAssignedTo = assignedTo;
-        if (targetDate != null) inspection.capaTargetDate = targetDate;
-        if (completionDate != null) {
-          inspection.capaCompletionDate = completionDate;
-        }
-        if (actions != null) inspection.capaActions = actions;
-
-        inspection.updateCapaStatus();
-
-        // Update in Firestore first
-        final docRef = _firestore.collection('qualityInspections').doc(inspectionNo);
-        final data = _convertToMap(inspection);
-        data['lastUpdated'] = FieldValue.serverTimestamp();
-        data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-        await docRef.update(data);
-
-        // Then update in Hive
-        await box.putAt(index, inspection);
-
-        // Update state
-        state = box.values.toList();
-      }
-    } catch (e) {
-      print('Error updating CAPA details: $e');
-      rethrow;
-    }
+  // Inspection number generation
+  String generateInspectionNumber() {
+    final now = DateTime.now();
+    final year = now.year.toString().substring(2);
+    final month = now.month.toString().padLeft(2, '0');
+    
+    // Find existing inspections for current month
+    final existingInspections = state.where((inspection) {
+      return inspection.inspectionNo.startsWith('QI$year$month');
+    }).toList();
+    
+    final nextNumber = existingInspections.length + 1;
+    return 'QI$year$month${nextNumber.toString().padLeft(3, '0')}';
   }
 
-  Future<void> refresh() async {
-    try {
-      await loadInspections();
-    } catch (e) {
-      print('Error refreshing quality inspections: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> _syncToFirebase() async {
-    try {
-      await _syncService.syncToFirestore('quality_inspections', box);
-    } catch (e) {
-      print('Error syncing quality inspections to Firebase: $e');
-      // You might want to show a snackbar or some other UI feedback here
-    }
-  }
-
-  Future<void> _syncFromFirebase() async {
-    try {
-      await _syncService.syncFromFirestore(
-        'quality_inspections',
-        box,
-        _syncService.qualityInspectionFromMap,
-      );
-    } catch (e) {
-      print('Error syncing quality inspections from Firebase: $e');
-      // You might want to show a snackbar or some other UI feedback here
-    }
-  }
-
-  // Get pending inspections
+  // Status management
   List<QualityInspection> getPendingInspections() {
     return state.where((inspection) => inspection.status == 'Pending').toList();
   }
 
-  // Get completed inspections (both approved and rejected)
-  List<QualityInspection> getCompletedInspections() {
-    return state.where((inspection) => inspection.status != 'Pending').toList();
+  List<QualityInspection> getApprovedInspections() {
+    return state.where((inspection) => inspection.status == 'Approved').toList();
   }
 
-  // Get inspections by GRN
-  List<QualityInspection> getInspectionsByGRN(String grnNo) {
-    return state.where((inspection) => inspection.grnNo == grnNo).toList();
+  List<QualityInspection> getRejectedInspections() {
+    return state.where((inspection) => inspection.status == 'Rejected').toList();
   }
 
-  // Get inspections by supplier
-  List<QualityInspection> getInspectionsBySupplier(String supplierName) {
-    return state
-        .where((inspection) => inspection.supplierName == supplierName)
-        .toList();
+  // CAPA management
+  List<QualityInspection> getInspectionsRequiringCapa() {
+    return state.where((inspection) => inspection.requiresCapa).toList();
   }
 
-  // Get inspections by date range
-  List<QualityInspection> getInspectionsByDateRange(
-      DateTime start, DateTime end) {
-    return state.where((inspection) {
-      final inspectionDate =
-          DateFormat('yyyy-MM-dd').parse(inspection.inspectionDate);
-      return inspectionDate.isAfter(start.subtract(const Duration(days: 1))) &&
-          inspectionDate.isBefore(end.add(const Duration(days: 1)));
-    }).toList();
+  List<QualityInspection> getCapaByStatus(String capaStatus) {
+    return state.where((inspection) => inspection.capaStatus == capaStatus).toList();
   }
 
-  // Get inspections by material code
-  List<QualityInspection> getInspectionsByMaterial(String materialCode) {
-    return state
-        .where((inspection) =>
-            inspection.items.any((item) => item.materialCode == materialCode))
-        .toList();
-  }
-
-  // Get total accepted quantity for a material from a specific GRN
-  double getAcceptedQuantityForGRN(String materialCode, String grnNo) {
-    return state.where((inspection) => inspection.grnNo == grnNo).fold(0.0,
-        (sum, inspection) {
-      return sum +
-          inspection.items
-              .where((item) => item.materialCode == materialCode)
-              .fold(0.0, (itemSum, item) => itemSum + item.acceptedQty);
-    });
-  }
-
-  // Get total rejected quantity for a material from a specific GRN
-  double getRejectedQuantityForGRN(String materialCode, String grnNo) {
-    return state.where((inspection) => inspection.grnNo == grnNo).fold(0.0,
-        (sum, inspection) {
-      return sum +
-          inspection.items
-              .where((item) => item.materialCode == materialCode)
-              .fold(0.0, (itemSum, item) => itemSum + item.rejectedQty);
-    });
-  }
-
-  // Get total pending quantity for a material from a specific GRN
-  double getPendingQuantityForGRN(String materialCode, String grnNo) {
-    return state.where((inspection) => inspection.grnNo == grnNo).fold(0.0,
-        (sum, inspection) {
-      return sum +
-          inspection.items
-              .where((item) => item.materialCode == materialCode)
-              .fold(0.0, (itemSum, item) => itemSum + item.pendingQty);
-    });
-  }
-
-  // Get inspections requiring CAPA
-  List<QualityInspection> getInspectionsRequiringCAPA() {
-    return state
-        .where((inspection) =>
-            inspection.capaStatus == 'Pending' ||
-            inspection.capaStatus == 'In Progress')
-        .toList();
-  }
-
-  // Calculate pending quantity for an inspection item
-  double _calculatePendingQuantity(InspectionItem item) {
-    double totalReceived = 0.0;
-    double totalProcessed = 0.0;
-
-    // Sum up quantities from all GRNs
-    for (var grnQty in item.grnQuantities.values) {
-      totalReceived += grnQty.receivedQty;
-      totalProcessed += grnQty.acceptedQty + grnQty.rejectedQty;
+  // Analytics methods
+  Map<String, int> getInspectionStatusStats() {
+    final stats = <String, int>{};
+    for (var inspection in state) {
+      stats[inspection.status] = (stats[inspection.status] ?? 0) + 1;
     }
-
-    // Pending is what's received but not yet processed
-    return totalReceived - totalProcessed;
+    return stats;
   }
 
-  // Update inspection status based on quantities
-  void _updateInspectionStatus(QualityInspection inspection) {
-    bool allItemsInspected = inspection.items.every((item) {
-      double pendingQty = _calculatePendingQuantity(item);
-      return pendingQty <= 0.001; // Using small epsilon for floating point comparison
-    });
-
-    bool hasAcceptedItems = inspection.items.any((item) => 
-      item.grnQuantities.values.any((grnQty) => grnQty.acceptedQty > 0));
-    bool hasRejectedItems = inspection.items.any((item) => 
-      item.grnQuantities.values.any((grnQty) => grnQty.rejectedQty > 0));
-
-    if (allItemsInspected) {
-      if (hasRejectedItems && !hasAcceptedItems) {
-        inspection.status = 'Completed - Rejected';
-      } else if (hasRejectedItems && hasAcceptedItems) {
-        inspection.status = 'Completed - Partially Accepted';
-      } else {
-        inspection.status = 'Completed - Accepted';
+  Map<String, int> getSupplierRejectionStats() {
+    final stats = <String, int>{};
+    for (var inspection in state) {
+      if (inspection.status == 'Rejected') {
+        stats[inspection.supplierName] = (stats[inspection.supplierName] ?? 0) + 1;
       }
-    } else {
-      inspection.status = 'Pending';
+    }
+    return stats;
+  }
+
+  Map<String, double> getMaterialRejectionRates() {
+    final totalInspections = <String, int>{};
+    final rejectedInspections = <String, int>{};
+    
+    for (var inspection in state) {
+      for (var item in inspection.items) {
+        totalInspections[item.materialCode] = (totalInspections[item.materialCode] ?? 0) + 1;
+        if (item.usageDecision == 'Rejected') {
+          rejectedInspections[item.materialCode] = (rejectedInspections[item.materialCode] ?? 0) + 1;
+        }
+      }
+    }
+    
+    final rejectionRates = <String, double>{};
+    for (var materialCode in totalInspections.keys) {
+      final total = totalInspections[materialCode]!;
+      final rejected = rejectedInspections[materialCode] ?? 0;
+      rejectionRates[materialCode] = (rejected / total) * 100;
+    }
+    
+    return rejectionRates;
+  }
+
+  // Validation methods
+  List<String> validateInspection(QualityInspection inspection) {
+    final errors = <String>[];
+    
+    // Check if inspection number already exists
+    if (state.any((existingInspection) => existingInspection.inspectionNo == inspection.inspectionNo)) {
+      errors.add('Inspection number ${inspection.inspectionNo} already exists');
+    }
+    
+    // Check if all items have valid quantities
+    for (var item in inspection.items) {
+      if (item.receivedQty <= 0) {
+        errors.add('Invalid received quantity for ${item.materialDescription}');
+      }
+      if (item.acceptedQty + item.rejectedQty > item.receivedQty) {
+        errors.add('Total inspected quantity exceeds received quantity for ${item.materialDescription}');
+      }
+    }
+    
+    return errors;
+  }
+
+  // Stock integration methods
+  Future<void> updateStockAfterInspection(QualityInspection inspection) async {
+    // This would integrate with stock maintenance
+    // Implementation depends on the actual stock management requirements
+    print('Updating stock after inspection: ${inspection.inspectionNo}');
+  }
+
+  // Update inspection status method for backward compatibility
+  Future<void> updateInspectionStatus(String inspectionNo, String newStatus) async {
+    final inspection = getInspectionByNo(inspectionNo);
+    if (inspection != null) {
+      inspection.status = newStatus;
+      await update(inspection);
+    }
+  }
+
+  Future<void> processInspectionApproval(String inspectionNo) async {
+    final inspection = getInspectionByNo(inspectionNo);
+    if (inspection != null) {
+      final updatedInspection = inspection.copyWith(status: 'Approved');
+      await update(updatedInspection);
+      await updateStockAfterInspection(updatedInspection);
+    }
+  }
+
+  Future<void> processInspectionRejection(String inspectionNo, String reason) async {
+    final inspection = getInspectionByNo(inspectionNo);
+    if (inspection != null) {
+      final updatedInspection = inspection.copyWith(
+        status: 'Rejected',
+        capaStatus: inspection.requiresCapa ? 'Pending' : 'Not Required',
+      );
+      await update(updatedInspection);
     }
   }
 }

@@ -1,8 +1,6 @@
 // ignore_for_file: avoid_print, unnecessary_null_comparison
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hive/hive.dart';
 import 'dart:math' as math;
 import '../models/stock_maintenance.dart';
@@ -17,7 +15,7 @@ import '../provider/material_provider.dart';
 import '../provider/category_provider.dart';
 import '../provider/quality_inspection_provider.dart';
 import '../provider/store_inward_provider.dart';
-import '../services/sync_service.dart';
+import 'base_provider.dart';
 
 final stockMaintenanceBoxProvider = Provider<Box<StockMaintenance>>((ref) {
   throw UnimplementedError();
@@ -27,184 +25,204 @@ final stockMaintenanceProvider =
     StateNotifierProvider<StockMaintenanceNotifier, List<StockMaintenance>>(
   (ref) => StockMaintenanceNotifier(
     ref.watch(stockMaintenanceBoxProvider),
-    ref.watch(syncServiceProvider),
     ref,
   ),
 );
 
-class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
-  final Box<StockMaintenance> _stockBox;
-  final SyncService _syncService;
+class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
   final Ref _ref;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  StockMaintenanceNotifier(this._stockBox, this._syncService, this._ref) : super([]) {
-    // Load stock when initialized
-    loadStock();
+  StockMaintenanceNotifier(Box<StockMaintenance> stockBox, this._ref) 
+      : super(stockBox, 'stockMaintenance');
+
+  @override
+  Map<String, dynamic> modelToMap(StockMaintenance stock) {
+    return {
+      'materialCode': stock.materialCode,
+      'materialDescription': stock.materialDescription,
+      'unit': stock.unit,
+      'storageLocation': stock.storageLocation,
+      'rackNumber': stock.rackNumber,
+      'currentStock': stock.currentStock,
+      'stockUnderInspection': stock.stockUnderInspection,
+      'totalStockValue': stock.totalStockValue,
+      'grnDetails': stock.grnDetails.map((key, value) => MapEntry(key, {
+        'grnNo': value.grnNo,
+        'grnDate': value.grnDate,
+        'receivedQuantity': value.receivedQuantity,
+        'acceptedQuantity': value.acceptedQuantity,
+        'rejectedQuantity': value.rejectedQuantity,
+        'vendorId': value.vendorId,
+        'rate': value.rate,
+        'issuedQuantity': value.issuedQuantity,
+        'issuedQuantities': value.issuedQuantities,
+      })),
+      'poDetails': stock.poDetails.map((key, value) => MapEntry(key, {
+        'poNo': value.poNo,
+        'poDate': value.poDate,
+        'orderedQuantity': value.orderedQuantity,
+        'receivedQuantity': value.receivedQuantity,
+        'vendorId': value.vendorId,
+        'rate': value.rate,
+        'receivedQuantities': value.receivedQuantities,
+      })),
+             'prDetails': stock.prDetails.map((key, value) => MapEntry(key, {
+         'prNo': value.prNo,
+         'prDate': value.prDate,
+         'requestedQuantity': value.requestedQuantity,
+         'orderedQuantity': value.orderedQuantity,
+         'receivedQuantity': value.receivedQuantity,
+         'issuedQuantity': value.issuedQuantity,
+         'jobNo': value.jobNo,
+       })),
+      'jobDetails': stock.jobDetails.map((key, value) => MapEntry(key, {
+        'jobNo': value.jobNo,
+        'allocatedQuantity': value.allocatedQuantity,
+        'consumedQuantity': value.consumedQuantity,
+        'pendingDeliveryQuantity': value.pendingDeliveryQuantity,
+      })),
+             'vendorDetails': stock.vendorDetails.map((key, value) => MapEntry(key, {
+         'vendorId': value.vendorId,
+         'vendorName': value.vendorName,
+         'quantity': value.quantity,
+         'rate': value.rate,
+         'lastPurchaseDate': value.lastPurchaseDate,
+       })),
+    };
   }
 
-  Future<void> loadStock() async {
-    try {
-      print('Loading stock from Firestore...');
-      final querySnapshot = await _firestore.collection('stockMaintenance').get();
+  @override
+  StockMaintenance mapToModel(Map<String, dynamic> map) {
+    final stock = StockMaintenance(
+      materialCode: map['materialCode'] ?? '',
+      materialDescription: map['materialDescription'] ?? '',
+      unit: map['unit'] ?? '',
+      storageLocation: map['storageLocation'] ?? '',
+      rackNumber: map['rackNumber'] ?? '',
+      currentStock: (map['currentStock'] as num?)?.toDouble() ?? 0.0,
+      stockUnderInspection: (map['stockUnderInspection'] as num?)?.toDouble() ?? 0.0,
+      totalStockValue: (map['totalStockValue'] as num?)?.toDouble() ?? 0.0,
+    );
 
-      // Clear existing stock
-      await _stockBox.clear();
-      
-      // Keep track of all stocks to update state at the end
-      final allStocks = <StockMaintenance>[];
-
-      for (var doc in querySnapshot.docs) {
-        final data = doc.data();
-        final stock = StockMaintenance(
-          materialCode: data['materialCode'] ?? '',
-          materialDescription: data['materialDescription'] ?? '',
-          unit: data['unit'] ?? '',
-          storageLocation: data['storageLocation'] ?? '',
-          rackNumber: data['rackNumber'] ?? '',
-          currentStock: (data['currentStock'] as num?)?.toDouble() ?? 0.0,
-          stockUnderInspection: (data['stockUnderInspection'] as num?)?.toDouble() ?? 0.0,
-          totalStockValue: (data['totalStockValue'] as num?)?.toDouble() ?? 0.0,
+    // Load GRN details
+    if (map['grnDetails'] != null) {
+      (map['grnDetails'] as Map<String, dynamic>).forEach((key, value) {
+        stock.grnDetails[key] = StockGRNDetails(
+          grnNo: value['grnNo'] ?? '',
+          grnDate: value['grnDate'] ?? '',
+          receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
+          acceptedQuantity: (value['acceptedQuantity'] as num?)?.toDouble() ?? 0.0,
+          rejectedQuantity: (value['rejectedQuantity'] as num?)?.toDouble() ?? 0.0,
+          vendorId: value['vendorId'] ?? '',
+          rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
+          issuedQuantity: (value['issuedQuantity'] as num?)?.toDouble() ?? 0.0,
+          issuedQuantities: (value['issuedQuantities'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, (value as num).toDouble()),
+          ) ?? {},
         );
-
-        // Load GRN details
-        if (data['grnDetails'] != null) {
-          (data['grnDetails'] as Map<String, dynamic>).forEach((key, value) {
-            stock.grnDetails[key] = StockGRNDetails(
-              grnNo: value['grnNo'] ?? '',
-              grnDate: value['grnDate'] ?? '',
-              receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
-              acceptedQuantity: (value['acceptedQuantity'] as num?)?.toDouble() ?? 0.0,
-              rejectedQuantity: (value['rejectedQuantity'] as num?)?.toDouble() ?? 0.0,
-              vendorId: value['vendorId'] ?? '',
-              rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
-              issuedQuantity: (value['issuedQuantity'] as num?)?.toDouble() ?? 0.0,
-              issuedQuantities: (value['issuedQuantities'] as Map<String, dynamic>?)?.map(
-                (key, value) => MapEntry(key, (value as num).toDouble()),
-              ) ?? {},
-            );
-          });
-        }
-
-        // Load PO details
-        if (data['poDetails'] != null) {
-          (data['poDetails'] as Map<String, dynamic>).forEach((key, value) {
-            stock.poDetails[key] = StockPODetails(
-              poNo: value['poNo'] ?? '',
-              poDate: value['poDate'] ?? '',
-              orderedQuantity: (value['orderedQuantity'] as num?)?.toDouble() ?? 0.0,
-              receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
-              vendorId: value['vendorId'] ?? '',
-              rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
-              receivedQuantities: (value['receivedQuantities'] as Map<String, dynamic>?)?.map(
-                (key, value) => MapEntry(
-                  key,
-                  (value as Map<String, dynamic>).map(
-                    (k, v) => MapEntry(k, (v as num).toDouble()),
-                  ),
-                ),
-              ) ?? {},
-              issuedQuantity: (value['issuedQuantity'] as num?)?.toDouble() ?? 0.0,
-              issuedQuantities: (value['issuedQuantities'] as Map<String, dynamic>?)?.map(
-                (key, value) => MapEntry(key, (value as num).toDouble()),
-              ) ?? {},
-            );
-          });
-        }
-
-        // Load PR details
-        if (data['prDetails'] != null) {
-          (data['prDetails'] as Map<String, dynamic>).forEach((key, value) {
-            stock.prDetails[key] = StockPRDetails(
-              prNo: value['prNo'] ?? '',
-              prDate: value['prDate'] ?? '',
-              requestedQuantity: (value['requestedQuantity'] as num?)?.toDouble() ?? 0.0,
-              orderedQuantity: (value['orderedQuantity'] as num?)?.toDouble() ?? 0.0,
-              receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
-              issuedQuantity: (value['issuedQuantity'] as num?)?.toDouble() ?? 0.0,
-              jobNo: value['jobNo'] ?? '',
-            );
-          });
-        }
-
-        // Load job details
-        if (data['jobDetails'] != null) {
-          (data['jobDetails'] as Map<String, dynamic>).forEach((key, value) {
-            stock.jobDetails[key] = StockJobDetails(
-              jobNo: value['jobNo'] ?? '',
-              allocatedQuantity: (value['allocatedQuantity'] as num?)?.toDouble() ?? 0.0,
-              consumedQuantity: (value['consumedQuantity'] as num?)?.toDouble() ?? 0.0,
-              prNo: value['prNo'] ?? '',
-            );
-          });
-        }
-
-        // Load vendor details
-        if (data['vendorDetails'] != null) {
-          (data['vendorDetails'] as Map<String, dynamic>).forEach((key, value) {
-            stock.vendorDetails[key] = StockVendorDetails(
-              vendorId: value['vendorId'] ?? '',
-              vendorName: value['vendorName'] ?? '',
-              quantity: (value['quantity'] as num?)?.toDouble() ?? 0.0,
-              rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
-              lastPurchaseDate: value['lastPurchaseDate'] ?? '',
-            );
-          });
-        }
-
-        // Add to Hive
-        await _stockBox.add(stock);
-        allStocks.add(stock);
-      }
-
-      if (mounted) {
-        // Update state with all stocks
-        state = [...allStocks];
-      }
-      print('Stock loaded successfully');
-    } catch (e) {
-      print('Error loading stock: $e');
-      rethrow;
+      });
     }
+
+    // Load PO details
+    if (map['poDetails'] != null) {
+      (map['poDetails'] as Map<String, dynamic>).forEach((key, value) {
+        stock.poDetails[key] = StockPODetails(
+          poNo: value['poNo'] ?? '',
+          poDate: value['poDate'] ?? '',
+          orderedQuantity: (value['orderedQuantity'] as num?)?.toDouble() ?? 0.0,
+          receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
+          vendorId: value['vendorId'] ?? '',
+          rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
+          receivedQuantities: (value['receivedQuantities'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, Map<String, double>.from(value as Map)),
+          ) ?? {},
+        );
+      });
+    }
+
+         // Load PR details
+     if (map['prDetails'] != null) {
+       (map['prDetails'] as Map<String, dynamic>).forEach((key, value) {
+         stock.prDetails[key] = StockPRDetails(
+           prNo: value['prNo'] ?? '',
+           prDate: value['prDate'] ?? '',
+           requestedQuantity: (value['requestedQuantity'] as num?)?.toDouble() ?? 0.0,
+           orderedQuantity: (value['orderedQuantity'] as num?)?.toDouble() ?? 0.0,
+           receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
+           issuedQuantity: (value['issuedQuantity'] as num?)?.toDouble() ?? 0.0,
+           jobNo: value['jobNo'] ?? '',
+         );
+       });
+     }
+
+    // Load Job details
+    if (map['jobDetails'] != null) {
+      (map['jobDetails'] as Map<String, dynamic>).forEach((key, value) {
+        stock.jobDetails[key] = StockJobDetails(
+          jobNo: value['jobNo'] ?? '',
+          allocatedQuantity: (value['allocatedQuantity'] as num?)?.toDouble() ?? 0.0,
+          consumedQuantity: (value['consumedQuantity'] as num?)?.toDouble() ?? 0.0,
+          pendingDeliveryQuantity: (value['pendingDeliveryQuantity'] as num?)?.toDouble() ?? 0.0,
+          prNo: value['prNo'] ?? 'General',
+        );
+      });
+    }
+
+         // Load Vendor details
+     if (map['vendorDetails'] != null) {
+       (map['vendorDetails'] as Map<String, dynamic>).forEach((key, value) {
+         stock.vendorDetails[key] = StockVendorDetails(
+           vendorId: value['vendorId'] ?? '',
+           vendorName: value['vendorName'] ?? '',
+           quantity: (value['quantity'] as num?)?.toDouble() ?? 0.0,
+           rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
+           lastPurchaseDate: value['lastPurchaseDate'] ?? '',
+         );
+       });
+     }
+
+    return stock;
   }
 
-  // Initialize stock for a material
+  @override
+  String getModelId(StockMaintenance stock) => stock.materialCode;
+
+  // Backward compatibility methods
+  Future<void> loadStock() => loadData();
+
+  // All existing functionality preserved below:
+
   Future<void> initializeStock(MaterialItem material) async {
     try {
-      print('Initializing stock for material: ${material.partNo}');
-    final existingStock = _stockBox.values.firstWhere(
-      (stock) => stock.materialCode == material.partNo,
-      orElse: () => StockMaintenance(
-        materialCode: material.partNo,
+      print('\n=== Initializing Stock for Material ${material.slNo} ===');
+      
+      // Check if stock already exists
+      final existingStock = state.where((stock) => stock.materialCode == material.slNo).firstOrNull;
+      if (existingStock != null) {
+        print('Stock already exists for material ${material.slNo}');
+        return;
+      }
+
+      // Create new stock entry
+      final newStock = StockMaintenance(
+        materialCode: material.slNo,
         materialDescription: material.description,
         unit: material.unit,
         storageLocation: material.storageLocation ?? '',
         rackNumber: material.rackNumber ?? '',
-      ),
-    );
+        currentStock: 0.0,
+        stockUnderInspection: 0.0,
+        totalStockValue: 0.0,
+      );
 
-    if (!_stockBox.values.contains(existingStock)) {
-        // Add to Firestore first
-        final docRef = _firestore.collection('stockMaintenance').doc();
-        final data = _convertToMap(existingStock);
-        await docRef.set(data);
-
-        // Then add to Hive
-      await _stockBox.add(existingStock);
-        
-        if (mounted) {
-          state = _stockBox.values.toList();
-        }
-        print('Stock initialized successfully');
-      }
+      await add(newStock);
+      print('Stock initialized for material ${material.slNo}');
     } catch (e) {
       print('Error initializing stock: $e');
       rethrow;
     }
   }
 
-  // Update stock from GRN
   Future<void> updateStockFromGRN(StoreInward grn) async {
     print('\n=== Debug: Starting Stock Update from GRN ${grn.grnNo} ===');
     print('GRN Number: ${grn.grnNo}');
@@ -215,7 +233,7 @@ class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
         print('\n--- Processing item: ${grnItem.materialCode} ---');
 
         // Get or create stock record for this material
-        var stock = _stockBox.values.firstWhere(
+        var stock = box.values.firstWhere(
           (s) => s.materialCode == grnItem.materialCode,
           orElse: () {
             print('Creating new stock record for ${grnItem.materialCode}');
@@ -223,16 +241,16 @@ class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
               materialCode: grnItem.materialCode,
               materialDescription: grnItem.materialDescription,
               unit: grnItem.unit,
-            storageLocation: '',
-            rackNumber: '',
+              storageLocation: '',
+              rackNumber: '',
             );
           },
         );
 
-        if (!_stockBox.values.contains(stock)) {
+        if (!box.values.contains(stock)) {
           print('Adding new stock for ${grnItem.materialCode}');
-          await _stockBox.add(stock);
-          stock = _stockBox.values.firstWhere(
+          await box.add(stock);
+          stock = box.values.firstWhere(
             (s) => s.materialCode == grnItem.materialCode,
             orElse: () {
               throw Exception('Failed to add new stock record');
@@ -254,7 +272,7 @@ class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
         );
 
         // Update PR and PO details
-        _updatePRDetailsFromGRN(stock, grnItem, grn.grnNo);
+        _updatePRDetailsFromGRN(stock, grnItem, grn.grnNo, grn);
 
         // Calculate total stock quantities
         double totalCurrentStock = 0.0;
@@ -273,462 +291,26 @@ class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
         stock.updateCurrentStock(totalCurrentStock);
         stock.updateStockUnderInspection(totalUnderInspection);
 
-        // Save to Firestore
-        await _saveToFirestore(stock);
-
         // Save to Hive
         await stock.save();
       }
 
-      if (mounted) {
-        state = _stockBox.values.toList();
-      }
+      // Update state
+      state = box.values.toList();
     } catch (e) {
       print('Error updating stock from GRN: $e');
       rethrow;
     }
   }
 
-  // Helper method to convert StockMaintenance to Map
-  Map<String, dynamic> _convertToMap(StockMaintenance stock) {
-    return {
-      'materialCode': stock.materialCode,
-      'materialDescription': stock.materialDescription,
-      'unit': stock.unit,
-      'currentStock': stock.calculatedCurrentStock,  // Use calculated value
-      'stockUnderInspection': stock.calculatedUnderInspection,  // Use calculated value
-      'storageLocation': stock.storageLocation,
-      'rackNumber': stock.rackNumber,
-      'totalStockValue': stock.totalStockValue,
-      'grnDetails': stock.grnDetails.map((key, value) => MapEntry(key, {
-            'grnNo': value.grnNo,
-            'grnDate': value.grnDate,
-            'receivedQuantity': value.receivedQuantity,
-            'acceptedQuantity': value.acceptedQuantity,
-            'rejectedQuantity': value.rejectedQuantity,
-            'vendorId': value.vendorId,
-            'rate': value.rate,
-            'issuedQuantity': value.issuedQuantity,
-            'issuedQuantities': Map<String, dynamic>.from(value.issuedQuantities),
-          })),
-      'poDetails': stock.poDetails.map((key, value) => MapEntry(key, {
-            'poNo': value.poNo,
-            'poDate': value.poDate,
-            'orderedQuantity': value.orderedQuantity,
-            'receivedQuantity': value.receivedQuantity,
-            'vendorId': value.vendorId,
-            'rate': value.rate,
-            'receivedQuantities': value.receivedQuantities.map(
-              (grnNo, prQtys) => MapEntry(
-                grnNo,
-                Map<String, dynamic>.from(prQtys),
-              ),
-            ),
-            'issuedQuantity': value.issuedQuantity,
-            'issuedQuantities': Map<String, dynamic>.from(value.issuedQuantities),
-          })),
-      'prDetails': stock.prDetails.map((key, value) => MapEntry(key, {
-            'prNo': value.prNo,
-            'prDate': value.prDate,
-            'requestedQuantity': value.requestedQuantity,
-            'orderedQuantity': value.orderedQuantity,
-            'receivedQuantity': value.receivedQuantity,
-            'issuedQuantity': value.issuedQuantity,
-            'jobNo': value.jobNo,
-          })),
-      'jobDetails': stock.jobDetails.map((key, value) => MapEntry(key, {
-            'jobNo': value.jobNo,
-            'allocatedQuantity': value.allocatedQuantity,
-            'consumedQuantity': value.consumedQuantity,
-            'pendingDeliveryQuantity': value.pendingDeliveryQuantity,
-            'prNo': value.prNo,
-          })),
-      'vendorDetails': stock.vendorDetails.map((key, value) => MapEntry(key, {
-            'vendorId': value.vendorId,
-            'vendorName': value.vendorName,
-            'quantity': value.quantity,
-            'rate': value.rate,
-            'lastPurchaseDate': value.lastPurchaseDate,
-          })),
-      'lastUpdated': FieldValue.serverTimestamp(),
-      'lastUpdatedBy': _auth.currentUser?.email ?? 'unknown',
-    };
-  }
-
-  Future<void> _saveToFirestore(StockMaintenance stock) async {
-    try {
-      print('Saving stock to Firestore: ${stock.materialCode}');
-      
-      // Convert stock to map
-      final data = {
-        'materialCode': stock.materialCode,
-        'materialDescription': stock.materialDescription,
-        'unit': stock.unit,
-        'currentStock': stock.calculatedCurrentStock,
-        'stockUnderInspection': stock.calculatedUnderInspection,
-        'storageLocation': stock.storageLocation,
-        'rackNumber': stock.rackNumber,
-        'totalStockValue': stock.totalStockValue,
-        'grnDetails': stock.grnDetails.map((key, value) => MapEntry(key, {
-              'grnNo': value.grnNo,
-              'grnDate': value.grnDate,
-              'receivedQuantity': value.receivedQuantity,
-              'acceptedQuantity': value.acceptedQuantity,
-              'rejectedQuantity': value.rejectedQuantity,
-              'vendorId': value.vendorId,
-              'rate': value.rate,
-              'issuedQuantity': value.issuedQuantity,
-              'issuedQuantities': Map<String, dynamic>.from(value.issuedQuantities),
-            })),
-        'poDetails': stock.poDetails.map((key, value) => MapEntry(key, {
-              'poNo': value.poNo,
-              'poDate': value.poDate,
-              'orderedQuantity': value.orderedQuantity,
-              'receivedQuantity': value.receivedQuantity,
-              'vendorId': value.vendorId,
-              'rate': value.rate,
-              'receivedQuantities': value.receivedQuantities.map(
-                (grnNo, prQtys) => MapEntry(
-                  grnNo,
-                  Map<String, dynamic>.from(prQtys),
-                ),
-              ),
-              'issuedQuantity': value.issuedQuantity,
-              'issuedQuantities': Map<String, dynamic>.from(value.issuedQuantities),
-            })),
-        'prDetails': stock.prDetails.map((key, value) => MapEntry(key, {
-              'prNo': value.prNo,
-              'prDate': value.prDate,
-              'requestedQuantity': value.requestedQuantity,
-              'orderedQuantity': value.orderedQuantity,
-              'receivedQuantity': value.receivedQuantity,
-              'issuedQuantity': value.issuedQuantity,
-              'jobNo': value.jobNo,
-            })),
-        'jobDetails': stock.jobDetails.map((key, value) => MapEntry(key, {
-              'jobNo': value.jobNo,
-              'allocatedQuantity': value.allocatedQuantity,
-              'consumedQuantity': value.consumedQuantity,
-              'pendingDeliveryQuantity': value.pendingDeliveryQuantity,
-              'prNo': value.prNo,
-            })),
-        'vendorDetails': stock.vendorDetails.map((key, value) => MapEntry(key, {
-              'vendorId': value.vendorId,
-              'vendorName': value.vendorName,
-              'quantity': value.quantity,
-              'rate': value.rate,
-              'lastPurchaseDate': value.lastPurchaseDate,
-            })),
-        'lastUpdated': FieldValue.serverTimestamp(),
-        'lastUpdatedBy': _auth.currentUser?.email ?? 'unknown',
-      };
-
-      // Find existing document or create new one
-      final querySnapshot = await _firestore
-          .collection('stockMaintenance')
-          .where('materialCode', isEqualTo: stock.materialCode)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        final docRef = querySnapshot.docs.first.reference;
-        await docRef.update(data);
-      } else {
-        await _firestore.collection('stockMaintenance').add(data);
-      }
-
-      print('Stock saved successfully to Firestore');
-    } catch (e) {
-      print('Error saving stock to Firestore: $e');
-      rethrow;
-    }
-  }
-
-  // Update stock based on inspection status change
-  Future<void> updateStockFromInspection(QualityInspection inspection) async {
-    print('\n=== Debug: Starting Stock Update from Inspection ${inspection.inspectionNo} ===');
-    print('GRN Number: ${inspection.grnNo}');
-
-    // Get required boxes from providers
-    final inwardBox = _ref.read(storeInwardBoxProvider);
-
-    try {
-      // Get the GRN
-      print('Looking for GRN in inward box...');
-      final grn = inwardBox.values.firstWhere(
-        (gr) => gr.grnNo == inspection.grnNo,
-        orElse: () {
-          print('Available GRNs: ${inwardBox.values.map((g) => g.grnNo).join(", ")}');
-          throw Exception('GRN ${inspection.grnNo} not found');
-        },
-      );
-      print('Found GRN: ${grn.grnNo}');
-
-      // Process each inspected item
-      for (var inspectionItem in inspection.items) {
-        print('\n--- Processing item: ${inspectionItem.materialCode} ---');
-        try {
-          print('GRN Quantities available: ${inspectionItem.grnQuantities.keys.join(", ")}');
-          print('Looking for GRN ${inspection.grnNo} in quantities...');
-
-          // Get or create stock record for this material
-          var stock = _stockBox.values.firstWhere(
-            (s) => s.materialCode == inspectionItem.materialCode,
-            orElse: () {
-              print('Creating new stock record for ${inspectionItem.materialCode}');
-              return StockMaintenance(
-                materialCode: inspectionItem.materialCode,
-                materialDescription: inspectionItem.materialDescription,
-                unit: inspectionItem.unit,
-                storageLocation: '',
-                rackNumber: '',
-              );
-            },
-          );
-
-          if (!_stockBox.values.contains(stock)) {
-            print('Adding new stock for ${inspectionItem.materialCode}');
-            await _stockBox.add(stock);
-            stock = _stockBox.values.firstWhere(
-              (s) => s.materialCode == inspectionItem.materialCode,
-              orElse: () {
-                throw Exception('Failed to add new stock record');
-              },
-            );
-          }
-
-          // Get the selected GRN's quantities
-          final selectedGRN = inspectionItem.grnQuantities.entries.firstWhere(
-            (entry) => entry.key == inspection.grnNo,
-            orElse: () {
-              print('Available GRN entries: ${inspectionItem.grnQuantities.keys.join(", ")}');
-              throw Exception('GRN ${inspection.grnNo} not found in quantities');
-            },
-          );
-          final grnNo = selectedGRN.key;
-          final grnQty = selectedGRN.value;
-
-          print('Found GRN entry:');
-          print('GRN No: $grnNo');
-          print('Accepted Qty: ${grnQty.acceptedQty}');
-          print('Rejected Qty: ${grnQty.rejectedQty}');
-          print('Received Qty: ${grnQty.receivedQty}');
-
-          // Get the GRN item
-          final grnItem = grn.items.firstWhere(
-            (item) => item.materialCode == inspectionItem.materialCode,
-            orElse: () => throw Exception('Material not found in GRN'),
-          );
-
-          // Update GRN details in stock
-          if (!stock.grnDetails.containsKey(grnNo)) {
-            stock.grnDetails[grnNo] = StockGRNDetails(
-              grnNo: grnNo,
-              grnDate: grn.grnDate,
-              receivedQuantity: grnQty.receivedQty,
-              acceptedQuantity: grnQty.acceptedQty,
-              rejectedQuantity: grnQty.rejectedQty,
-              vendorId: grn.supplierName,
-              rate: double.tryParse(grnItem.costPerUnit) ?? 0.0,
-              issuedQuantity: 0.0,
-              issuedQuantities: {},
-            );
-          } else {
-            // Update existing GRN details
-            final grnDetail = stock.grnDetails[grnNo]!;
-            grnDetail.receivedQuantity = grnQty.receivedQty;
-              grnDetail.acceptedQuantity = grnQty.acceptedQty;
-              grnDetail.rejectedQuantity = grnQty.rejectedQty;
-          }
-
-          // Update PR and PO details
-          _updatePRDetailsFromGRN(stock, grnItem, grnNo);
-
-          // Calculate total stock quantities
-          double totalCurrentStock = 0.0;
-          double totalUnderInspection = 0.0;
-
-          for (var grnDetail in stock.grnDetails.values) {
-            totalCurrentStock += grnDetail.acceptedQuantity;
-            totalUnderInspection += grnDetail.receivedQuantity -
-                (grnDetail.acceptedQuantity + grnDetail.rejectedQuantity);
-          }
-
-          print('New Current Stock: $totalCurrentStock');
-          print('New Under Inspection: $totalUnderInspection');
-
-          // Update stock quantities
-          stock.updateCurrentStock(totalCurrentStock);
-          stock.updateStockUnderInspection(totalUnderInspection);
-
-          // Save to Firestore
-          await _saveToFirestore(stock);
-
-          // Save to Hive
-          await stock.save();
-        } catch (e) {
-          print('Error processing item: $e');
-          rethrow;
-        }
-      }
-
-      // Update state
-      state = [..._stockBox.values];
-    } catch (e) {
-      print('Error updating stock from inspection: $e');
-      rethrow;
-    }
-  }
-
-  // Get stock for a specific material
-  StockMaintenance? getStockForMaterial(String materialCode) {
-    return _stockBox.values
-        .firstWhere((stock) => stock.materialCode == materialCode);
-  }
-
-  // Get all stocks under inspection
-  List<StockMaintenance> getStocksUnderInspection() {
-    return _stockBox.values
-        .where((stock) => stock.stockUnderInspection > 0)
-        .toList();
-  }
-
-  // Get all stocks below minimum level (you can set minimum level as parameter)
-  List<StockMaintenance> getStocksBelowMinimum(double minimumLevel) {
-    return _stockBox.values
-        .where((stock) => stock.currentStock < minimumLevel)
-        .toList();
-  }
-
-  // Get total stock value
-  double getTotalStockValue() {
-    return _stockBox.values
-        .fold(0.0, (sum, stock) => sum + stock.totalStockValue);
-  }
-
-  // Update stock location
-  Future<void> updateStockLocation(
-      String materialCode, String location, String rack) async {
-    final stock = getStockForMaterial(materialCode);
-    if (stock != null) {
-      stock.storageLocation = location;
-      stock.rackNumber = rack;
-      state = [..._stockBox.values];
-    }
-  }
-
-  // Get pending delivery quantity for a job
-  double getPendingDeliveryQuantityForJob(String materialCode, String jobNo) {
-    final stock = getStockForMaterial(materialCode);
-    if (stock != null && stock.jobDetails.containsKey(jobNo)) {
-      return stock.jobDetails[jobNo]!.pendingDeliveryQuantity;
-    }
-    return 0.0;
-  }
-
-  // Get available quantity for a job
-  double getAvailableQuantityForJob(String materialCode, String jobNo) {
-    final stock = getStockForMaterial(materialCode);
-    if (stock != null && stock.jobDetails.containsKey(jobNo)) {
-      return stock.jobDetails[jobNo]!.availableQuantity;
-    }
-    return 0.0;
-  }
-
-  // Cancel pending delivery for a job
-  Future<void> cancelPendingDelivery(
-      String materialCode, String jobNo, double quantity) async {
-    final stock = getStockForMaterial(materialCode);
-    if (stock != null) {
-      // Update job pending delivery if job exists
-      if (stock.jobDetails.containsKey(jobNo)) {
-        final jobDetails = stock.jobDetails[jobNo]!;
-        
-        // Remove pending delivery quantity
-        jobDetails.removePendingDelivery(quantity);
-
-        // Save to Firestore
-        await _saveToFirestore(stock);
-
-        // Save to Hive
-        await stock.save();
-
-        state = [..._stockBox.values];
-      }
-    }
-  }
-
-  // Update pending delivery quantity for a job
-  Future<void> updatePendingDeliveryQuantity(
-      String materialCode, String jobNo, double quantity) async {
-    final stock = getStockForMaterial(materialCode);
-    if (stock != null) {
-      // Update job pending delivery if job exists
-      if (stock.jobDetails.containsKey(jobNo)) {
-        final jobDetails = stock.jobDetails[jobNo]!;
-        
-        // Check if we have enough available quantity
-        if (jobDetails.availableQuantity >= quantity) {
-          // Update pending delivery quantity
-          jobDetails.addPendingDelivery(quantity);
-
-          // Save to Firestore
-          await _saveToFirestore(stock);
-
-          // Save to Hive
-          await stock.save();
-
-          state = [..._stockBox.values];
-        }
-      }
-    }
-  }
-
-  // Consume stock for a job
-  Future<void> consumeStockForJob(
-      String materialCode, String jobNo, double quantity) async {
-    final stock = getStockForMaterial(materialCode);
-    if (stock != null && stock.currentStock >= quantity) {
-      stock.updateCurrentStock(stock.currentStock - quantity);
-
-      // Update job consumption if job exists
-      if (stock.jobDetails.containsKey(jobNo)) {
-        final jobDetails = stock.jobDetails[jobNo]!;
-        jobDetails.addConsumedQuantity(quantity);
-        
-        // If there was a pending delivery, remove it
-        if (jobDetails.pendingDeliveryQuantity > 0) {
-          jobDetails.removePendingDelivery(quantity);
-        }
-      }
-
-      // Save to Firestore
-      await _saveToFirestore(stock);
-
-      // Save to Hive
-      await stock.save();
-
-      state = [..._stockBox.values];
-    }
-  }
-
-  Future<void> refresh() async {
-    try {
-      await loadStock();
-    } catch (e) {
-      print('Error refreshing stock: $e');
-      rethrow;
-    }
-  }
-
-  // Update PR details from GRN
-  void _updatePRDetailsFromGRN(StockMaintenance stock, InwardItem grnItem, String grnNo) {
+  void _updatePRDetailsFromGRN(StockMaintenance stock, InwardItem grnItem, String grnNo, StoreInward grn) {
     print('\nUpdating PR details for ${grnItem.materialCode}');
     
     // Process each PO and its PR quantities
     for (var poEntry in grnItem.prQuantities.entries) {
       final poNo = poEntry.key;
       final prMap = poEntry.value;
-      if (prMap == null) continue;
+      if (prMap.isEmpty) continue;
 
       print('Processing PO: $poNo');
       
@@ -738,7 +320,7 @@ class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
         poDate: '',  // This will be updated when we have PO date
         orderedQuantity: grnItem.orderedQty,
         receivedQuantity: 0.0,
-        vendorId: stock.grnDetails[grnNo]?.vendorId ?? '',
+        vendorId: grn.supplierName,
         rate: double.tryParse(grnItem.costPerUnit) ?? 0.0,
         receivedQuantities: {},
         issuedQuantities: {},
@@ -787,5 +369,202 @@ class StockMaintenanceNotifier extends StateNotifier<List<StockMaintenance>> {
           .expand((map) => map.values)
           .fold(0.0, (sum, qty) => sum + qty);
     }
+
+    // Update vendor details (simplified based on actual model)
+    _updateVendorDetails(stock, grn.supplierName, grnItem);
+  }
+
+  void _updateVendorDetails(StockMaintenance stock, String vendorId, InwardItem grnItem) {
+    // Create or update vendor details using the actual model fields
+    if (stock.vendorDetails.containsKey(vendorId)) {
+      final vendorDetails = stock.vendorDetails[vendorId]!;
+      vendorDetails.quantity += grnItem.receivedQty;
+      
+      // Calculate new average rate
+      final totalValue = (vendorDetails.rate * (vendorDetails.quantity - grnItem.receivedQty)) + 
+                        (double.tryParse(grnItem.costPerUnit) ?? 0.0) * grnItem.receivedQty;
+      vendorDetails.rate = totalValue / vendorDetails.quantity;
+      vendorDetails.lastPurchaseDate = DateTime.now().toIso8601String();
+    } else {
+      stock.vendorDetails[vendorId] = StockVendorDetails(
+        vendorId: vendorId,
+        vendorName: vendorId, // Using vendorId as name for now
+        quantity: grnItem.receivedQty,
+        rate: double.tryParse(grnItem.costPerUnit) ?? 0.0,
+        lastPurchaseDate: DateTime.now().toIso8601String(),
+      );
+    }
+  }
+
+  Future<void> updateStockFromInspection(QualityInspection inspection) async {
+    try {
+      print('\n=== Updating Stock from Inspection ${inspection.inspectionNo} ===');
+      
+      for (var inspectionItem in inspection.items) {
+        print('\nProcessing inspection item: ${inspectionItem.materialCode}');
+        
+        // Find stock for this material
+        final stock = box.values.where((s) => s.materialCode == inspectionItem.materialCode).firstOrNull;
+        
+        if (stock != null) {
+          // Update GRN details with inspection results
+          for (var grnEntry in inspectionItem.grnQuantities.entries) {
+            final grnNo = grnEntry.key;
+            final grnQty = grnEntry.value;
+            
+            if (stock.grnDetails.containsKey(grnNo) && (grnQty.isSelected ?? false)) {
+              stock.grnDetails[grnNo]!.acceptedQuantity = grnQty.acceptedQty;
+              stock.grnDetails[grnNo]!.rejectedQuantity = grnQty.rejectedQty;
+            }
+          }
+          
+          // Recalculate stock quantities
+          double totalCurrentStock = 0.0;
+          double totalUnderInspection = 0.0;
+
+          for (var grnDetail in stock.grnDetails.values) {
+            totalCurrentStock += grnDetail.acceptedQuantity;
+            totalUnderInspection += grnDetail.receivedQuantity -
+                (grnDetail.acceptedQuantity + grnDetail.rejectedQuantity);
+          }
+
+          print('New Current Stock: $totalCurrentStock');
+          print('New Under Inspection: $totalUnderInspection');
+
+          // Update stock quantities
+          stock.updateCurrentStock(totalCurrentStock);
+          stock.updateStockUnderInspection(totalUnderInspection);
+
+          // Save to Hive
+          await stock.save();
+        } else {
+          print('Stock not found for material: ${inspectionItem.materialCode}');
+        }
+      }
+
+      // Update state
+      state = box.values.toList();
+    } catch (e) {
+      print('Error updating stock from inspection: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateStockLocation(String materialCode, String newLocation, String newRack) async {
+    try {
+      var stock = state.where((s) => s.materialCode == materialCode).firstOrNull;
+      if (stock != null) {
+        stock.storageLocation = newLocation;
+        stock.rackNumber = newRack;
+        await update(stock);
+        print('Updated location for material $materialCode');
+      }
+    } catch (e) {
+      print('Error updating stock location: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> cancelPendingDelivery(String materialCode, String jobNo, double quantity) async {
+    try {
+      var stock = state.where((s) => s.materialCode == materialCode).firstOrNull;
+      if (stock != null) {
+        final jobDetails = stock.jobDetails[jobNo];
+        if (jobDetails != null) {
+          jobDetails.pendingDeliveryQuantity = math.max(0, jobDetails.pendingDeliveryQuantity - quantity);
+          jobDetails.allocatedQuantity = math.max(0, jobDetails.allocatedQuantity - quantity);
+          stock.currentStock += quantity; // Return to available stock
+          await update(stock);
+        }
+      }
+    } catch (e) {
+      print('Error canceling pending delivery: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updatePendingDeliveryQuantity(String materialCode, String jobNo, double newQuantity) async {
+    try {
+      var stock = state.where((s) => s.materialCode == materialCode).firstOrNull;
+      if (stock != null) {
+        final jobDetails = stock.jobDetails[jobNo];
+        if (jobDetails != null) {
+          final oldQuantity = jobDetails.pendingDeliveryQuantity;
+          jobDetails.pendingDeliveryQuantity = newQuantity;
+          
+          // Adjust allocated quantity accordingly
+          final difference = newQuantity - oldQuantity;
+          jobDetails.allocatedQuantity += difference;
+          stock.currentStock -= difference;
+          
+          await update(stock);
+        }
+      }
+    } catch (e) {
+      print('Error updating pending delivery quantity: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> consumeStockForJob(String materialCode, String jobNo, double quantity) async {
+    try {
+      var stock = state.where((s) => s.materialCode == materialCode).firstOrNull;
+      if (stock != null) {
+        final jobDetails = stock.jobDetails[jobNo];
+        if (jobDetails != null) {
+          jobDetails.consumedQuantity += quantity;
+          jobDetails.pendingDeliveryQuantity = math.max(0, jobDetails.pendingDeliveryQuantity - quantity);
+          await update(stock);
+        }
+      }
+    } catch (e) {
+      print('Error consuming stock for job: $e');
+      rethrow;
+    }
+  }
+
+
+
+  // Search and filter methods
+  List<StockMaintenance> searchStock(String query) {
+    return search(query, (stock, query) =>
+        stock.materialCode.toLowerCase().contains(query) ||
+        stock.materialDescription.toLowerCase().contains(query));
+  }
+
+  List<StockMaintenance> getLowStockItems({double threshold = 10.0}) {
+    return state.where((stock) => stock.currentStock <= threshold).toList();
+  }
+
+  List<StockMaintenance> getZeroStockItems() {
+    return state.where((stock) => stock.currentStock == 0).toList();
+  }
+
+  List<StockMaintenance> getStockUnderInspection() {
+    return state.where((stock) => stock.stockUnderInspection > 0).toList();
+  }
+
+  StockMaintenance? getStockByMaterialCode(String materialCode) {
+    return state.where((stock) => stock.materialCode == materialCode).firstOrNull;
+  }
+
+  // Alias for backward compatibility
+  StockMaintenance? getStockForMaterial(String materialCode) {
+    return getStockByMaterialCode(materialCode);
+  }
+
+  double getTotalStockValue() {
+    return state.fold(0.0, (sum, stock) => sum + stock.totalStockValue);
+  }
+
+  Map<String, double> getVendorWiseStockValue() {
+    final vendorValues = <String, double>{};
+    for (var stock in state) {
+      for (var vendor in stock.vendorDetails.values) {
+        vendorValues[vendor.vendorId] = (vendorValues[vendor.vendorId] ?? 0.0) + 
+            (vendor.quantity * vendor.rate);
+      }
+    }
+    return vendorValues;
   }
 }

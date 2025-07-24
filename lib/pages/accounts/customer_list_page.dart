@@ -13,6 +13,8 @@ class CustomerListPage extends ConsumerStatefulWidget {
 
 class _CustomerListPageState extends ConsumerState<CustomerListPage> {
   Set<int> expandedRows = {};
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   final double slNoWidth = 80.0;
   final double nameWidth = 300.0;
@@ -22,7 +24,13 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
   void initState() {
     super.initState();
     // Load customers when page is opened
-    Future.microtask(() => ref.read(customerListProvider.notifier).loadCustomers());
+    Future.microtask(() => ref.read(customerListProvider.notifier).loadData());
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Widget _buildExcelCell(String text,
@@ -199,7 +207,7 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
           ),
           TextButton(
             onPressed: () {
-              ref.read(customerListProvider.notifier).deleteCustomer(customer);
+              ref.read(customerListProvider.notifier).delete(customer);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Customer deleted')),
@@ -216,11 +224,19 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
   @override
   Widget build(BuildContext context) {
     final customers = ref.watch(customerListProvider);
+    final filteredCustomers = _searchQuery.isEmpty
+        ? customers
+        : ref.read(customerListProvider.notifier).searchCustomers(_searchQuery);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Customer Master'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => ref.read(customerListProvider.notifier).refresh(),
+            tooltip: 'Refresh',
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => Navigator.push(
@@ -231,60 +247,84 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
           ),
         ],
       ),
-      body: customers.isEmpty
-          ? Center(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                labelText: 'Search Customers',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) => setState(() => _searchQuery = value),
+            ),
+          ),
+          if (filteredCustomers.isEmpty)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _searchQuery.isEmpty
+                          ? 'No customers yet'
+                          : 'No customers found',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    if (_searchQuery.isEmpty) ...[
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const AddCustomerPage()),
+                        ),
+                        child: const Text('Add New Customer'),
+                      ),
+                    ]
+                  ],
+                ),
+              ),
+            )
+          else
+            Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'No customers yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
+                  Container(
+                    color: Colors.black,
+                    child: Row(
+                      children: [
+                        _buildExcelCell('Sl No', width: slNoWidth, center: true),
+                        _buildExcelCell('Customer Name', width: nameWidth),
+                        _buildExcelCell('Customer Code', width: codeWidth),
+                        Container(
+                          width: 40,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade700),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AddCustomerPage()),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: filteredCustomers.length,
+                      itemBuilder: (context, index) => _buildExpandableRow(
+                        filteredCustomers[index],
+                        index,
+                      ),
                     ),
-                    child: const Text('Add New Customer'),
                   ),
                 ],
               ),
-            )
-          : Column(
-              children: [
-                Container(
-                  color: Colors.black,
-                  child: Row(
-                    children: [
-                      _buildExcelCell('Sl No', width: slNoWidth, center: true),
-                      _buildExcelCell('Customer Name', width: nameWidth),
-                      _buildExcelCell('Customer Code', width: codeWidth),
-                      Container(
-                        width: 40,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade700),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: customers.length,
-                    itemBuilder: (context, index) => _buildExpandableRow(
-                      customers[index],
-                      index,
-                    ),
-                  ),
-                ),
-              ],
             ),
+        ],
+      ),
     );
   }
 }

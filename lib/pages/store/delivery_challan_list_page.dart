@@ -3,16 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/delivery_challan.dart';
 import '../../provider/delivery_challan_provider.dart';
-import '../../provider/stock_maintenance_provider.dart';
-import '../../services/sync_service.dart';
+import '../../provider/stock_maintenance_provider.dart' as stock;
 import '../../widgets/pluto_grid_configuration.dart';
 import 'add_delivery_challan_page.dart';
 
 final deliveryChallanProvider = StateNotifierProvider<DeliveryChallanNotifier, List<DeliveryChallan>>((ref) {
   final dcBox = ref.watch(deliveryChallanBoxProvider);
-  final stockBox = ref.watch(stockMaintenanceBoxProvider);
-  final syncService = ref.watch(syncServiceProvider);
-  return DeliveryChallanNotifier(dcBox, stockBox, syncService);
+  final stockBox = ref.watch(stock.stockMaintenanceBoxProvider);
+  return DeliveryChallanNotifier(dcBox, stockBox);
 });
 
 class DeliveryChallanListPage extends ConsumerWidget {

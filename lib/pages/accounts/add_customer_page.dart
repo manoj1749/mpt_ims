@@ -72,7 +72,7 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
     email1 = c?.email1 ?? '';
   }
 
-  void _saveCustomer() {
+  Future<void> _saveCustomer() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
@@ -102,13 +102,31 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
         email1: email1,
       );
 
-      final notifier = ref.read(customerListProvider.notifier);
-      if (widget.index != null) {
-        notifier.updateCustomer(widget.index!, customer);
-      } else {
-        notifier.addCustomer(customer);
+      try {
+        final notifier = ref.read(customerListProvider.notifier);
+        if (widget.customerToEdit != null) {
+          await notifier.update(customer);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Customer updated successfully')),
+            );
+          }
+        } else {
+          await notifier.add(customer);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Customer added successfully')),
+            );
+          }
+        }
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
       }
-      Navigator.pop(context);
     }
   }
 
@@ -127,7 +145,7 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
             child: Column(
               children: [
                 _buildTextField('Customer Name', (v) => name = v,
-                    initial: name),
+                    initial: name, required: true),
                 _buildTextField('Contact Person', (v) => contact = v,
                     initial: contact),
                 _buildTextField('Phone', (v) => phone = v,
@@ -135,7 +153,7 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
                 _buildTextField('Email', (v) => email = v,
                     initial: email, keyboardType: TextInputType.emailAddress),
                 _buildTextField('Customer Code', (v) => customerCode = v,
-                    initial: customerCode),
+                    initial: customerCode, required: true),
                 _buildTextField('Address Line 1', (v) => address1 = v,
                     initial: address1),
                 _buildTextField('Address Line 2', (v) => address2 = v,
@@ -184,18 +202,19 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
     Function(String) onSaved, {
     TextInputType keyboardType = TextInputType.text,
     String? initial,
+    bool required = false,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
         initialValue: initial,
         decoration: InputDecoration(
-          labelText: label,
+          labelText: required ? '$label *' : label,
           border: const OutlineInputBorder(),
         ),
         keyboardType: keyboardType,
         validator: (value) =>
-            (value == null || value.isEmpty) ? 'Required' : null,
+            (required && (value == null || value.isEmpty)) ? 'Required' : null,
         onSaved: (value) => onSaved(value ?? ''),
       ),
     );

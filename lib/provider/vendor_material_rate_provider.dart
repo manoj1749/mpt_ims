@@ -2,9 +2,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/vendor_material_rate.dart';
+import 'base_provider.dart';
 
 // Box provider
 final vendorMaterialRateBoxProvider = Provider<Box<VendorMaterialRate>>((ref) {
@@ -19,140 +18,12 @@ final vendorMaterialRateProvider =
   },
 );
 
-class VendorMaterialRateNotifier
-    extends StateNotifier<List<VendorMaterialRate>> {
-  final Box<VendorMaterialRate> box;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+class VendorMaterialRateNotifier extends BaseProvider<VendorMaterialRate> {
+  VendorMaterialRateNotifier(Box<VendorMaterialRate> box) 
+      : super(box, 'vendor_material_rates');
 
-  VendorMaterialRateNotifier(this.box) : super([]) {
-    // Load rates when initialized
-    loadRates();
-  }
-
-  Future<void> loadRates() async {
-    try {
-      print('Loading vendor material rates from Firestore...');
-      final querySnapshot = await _firestore.collection('vendor_material_rates').get();
-      print('Found ${querySnapshot.docs.length} rates in Firestore');
-
-      // Clear existing rates from Hive
-      await box.clear();
-
-      // Add new rates to Hive
-      for (var doc in querySnapshot.docs) {
-        final data = doc.data();
-        final rate = _rateFromMap(data);
-        await box.put(rate.uniqueKey, rate);
-      }
-
-      // Update state
-      if (mounted) {
-        state = box.values.toList();
-      }
-      print('Successfully loaded vendor material rates');
-    } catch (e) {
-      print('Error loading vendor material rates: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> addRate(VendorMaterialRate rate) async {
-    try {
-      print('Adding rate for material ${rate.materialId} and vendor ${rate.vendorId}');
-      
-      // Add to Firestore first
-      final docRef = _firestore.collection('vendor_material_rates').doc(rate.uniqueKey);
-      final data = _rateToMap(rate);
-      data['lastUpdated'] = FieldValue.serverTimestamp();
-      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-      await docRef.set(data);
-
-      // Then add to Hive
-      await box.put(rate.uniqueKey, rate);
-      
-      if (mounted) {
-        state = box.values.toList();
-      }
-      print('Rate added successfully');
-    } catch (e) {
-      print('Error adding rate: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> updateRate(VendorMaterialRate rate) async {
-    try {
-      print('Updating rate for material ${rate.materialId} and vendor ${rate.vendorId}');
-
-      // Update in Firestore first
-      final docRef = _firestore.collection('vendor_material_rates').doc(rate.uniqueKey);
-      final data = _rateToMap(rate);
-      data['lastUpdated'] = FieldValue.serverTimestamp();
-      data['lastUpdatedBy'] = _auth.currentUser?.email ?? 'unknown';
-      await docRef.update(data);
-
-      // Then update in Hive
-      await box.put(rate.uniqueKey, rate);
-      
-      if (mounted) {
-        state = box.values.toList();
-      }
-      print('Rate updated successfully');
-    } catch (e) {
-      print('Error updating rate: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> deleteRate(String materialId, String vendorId) async {
-    try {
-      final key = "$materialId-$vendorId";
-      print('Deleting rate with key: $key');
-
-      // Delete from Firestore first
-      final docRef = _firestore.collection('vendor_material_rates').doc(key);
-      await docRef.delete();
-
-      // Then delete from Hive
-      await box.delete(key);
-      
-      if (mounted) {
-        state = box.values.toList();
-      }
-      print('Rate deleted successfully');
-    } catch (e) {
-      print('Error deleting rate: $e');
-      rethrow;
-    }
-  }
-
-  List<VendorMaterialRate> getRatesForMaterial(String materialId) {
-    return state.where((rate) => rate.materialId == materialId).toList();
-  }
-
-  List<VendorMaterialRate> getRatesForVendor(String vendorId) {
-    return state.where((rate) => rate.vendorId == vendorId).toList();
-  }
-
-  // Get specific rate
-  VendorMaterialRate? getRate(String materialId, String vendorId) {
-    try {
-      return state.firstWhere(
-        (rate) => rate.materialId == materialId && rate.vendorId == vendorId
-      );
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // Public alias for loadRates to maintain consistency with other providers
-  Future<void> refresh() async {
-    await loadRates();
-  }
-
-  // Helper method to convert VendorMaterialRate to Map
-  Map<String, dynamic> _rateToMap(VendorMaterialRate rate) {
+  @override
+  Map<String, dynamic> modelToMap(VendorMaterialRate rate) {
     return {
       'materialId': rate.materialId,
       'vendorId': rate.vendorId,
@@ -173,8 +44,8 @@ class VendorMaterialRateNotifier
     };
   }
 
-  // Helper method to convert Map to VendorMaterialRate
-  VendorMaterialRate _rateFromMap(Map<String, dynamic> map) {
+  @override
+  VendorMaterialRate mapToModel(Map<String, dynamic> map) {
     return VendorMaterialRate(
       materialId: map['materialId'] ?? '',
       vendorId: map['vendorId'] ?? '',
@@ -195,155 +66,134 @@ class VendorMaterialRateNotifier
     );
   }
 
-  // Add received quantity to inspection stock
-  Future<void> addToInspectionStock(
-    String materialId,
-    String vendorId,
-    double quantity,
-  ) async {
-    final rate = state.firstWhere(
-      (r) => r.materialId == materialId && r.vendorId == vendorId,
-    );
+  @override
+  String getModelId(VendorMaterialRate rate) => rate.uniqueKey;
 
-    final currentInspectionStock = double.tryParse(rate.inspectionStock) ?? 0;
-    final updatedRate = rate.copyWith(
-      inspectionStock: (currentInspectionStock + quantity).toString(),
-      receivedQty: (double.tryParse(rate.receivedQty)! + quantity).toString(),
-      totalReceivedQty:
-          (double.tryParse(rate.totalReceivedQty)! + quantity).toString(),
-    );
-
-    await updateRate(updatedRate);
+  // Backward compatibility methods
+  Future<void> loadRates() => loadData();
+  Future<void> addRate(VendorMaterialRate rate) => add(rate);
+  Future<void> updateRate(VendorMaterialRate rate) => update(rate);
+  Future<bool> deleteRate(dynamic rateOrMaterialId, [String? vendorId]) async {
+    if (rateOrMaterialId is VendorMaterialRate) {
+      return await delete(rateOrMaterialId);
+    } else if (rateOrMaterialId is String && vendorId != null) {
+      final rate = getRateByMaterialAndVendor(rateOrMaterialId, vendorId);
+      if (rate != null) {
+        return await delete(rate);
+      }
+      return false;
+    }
+    return false;
   }
 
-  // Accept quantity from inspection stock to available stock
-  Future<void> acceptFromInspectionStock(
-    String materialId,
-    String vendorId,
-    double quantity,
-  ) async {
-    print('\nAccepting from inspection stock:');
-    print('Material ID: $materialId');
-    print('Vendor ID: $vendorId');
-    print('Quantity: $quantity');
-    print('Current state length: ${state.length}');
-    print(
-        'Available rates: ${state.map((r) => '${r.materialId}-${r.vendorId}').join(', ')}');
+  // Search and filter methods
+  List<VendorMaterialRate> searchRates(String query) {
+    return search(query, (rate, query) =>
+        rate.materialId.toLowerCase().contains(query) ||
+        rate.vendorId.toLowerCase().contains(query) ||
+        rate.remarks.toLowerCase().contains(query));
+  }
 
-    // Try to find existing rate
-    final existingRate = state.firstWhere(
-      (r) => r.materialId == materialId && r.vendorId == vendorId,
-      orElse: () {
-        print('Creating new vendor material rate record');
-        // Create a new rate record if none exists
-        final newRate = VendorMaterialRate(
-          materialId: materialId,
-          vendorId: vendorId,
-          saleRate: '0',
-          lastPurchaseDate: DateTime.now().toString().split(' ')[0],
-          remarks: '',
-          totalReceivedQty: '0',
-          issuedQty: '0',
-          receivedQty: '0',
-          avlStock: '0',
-          avlStockValue: '0',
-          billingQtyDiff: '0',
-          totalReceivedCost: '0',
-          totalBilledCost: '0',
-          costDiff: '0',
-          inspectionStock: quantity.toString(),
-        );
-        return newRate;
-      },
-    );
+  List<VendorMaterialRate> getRatesByMaterial(String materialId) {
+    return state.where((rate) => rate.materialId == materialId).toList();
+  }
 
-    print(
-        'Found/Created rate record: ${existingRate.materialId}-${existingRate.vendorId}');
-    print('Current inspection stock: ${existingRate.inspectionStock}');
-    print('Current available stock: ${existingRate.avlStock}');
+  // Alias for backward compatibility
+  List<VendorMaterialRate> getRatesForMaterial(String materialId) {
+    return getRatesByMaterial(materialId);
+  }
 
-    final currentInspectionStock =
-        double.tryParse(existingRate.inspectionStock) ?? 0;
-    final currentAvailableStock = double.tryParse(existingRate.avlStock) ?? 0;
+  List<VendorMaterialRate> getRatesByVendor(String vendorId) {
+    return state.where((rate) => rate.vendorId == vendorId).toList();
+  }
 
-    if (currentInspectionStock >= quantity) {
-      final updatedRate = existingRate.copyWith(
-        inspectionStock: (currentInspectionStock - quantity).toString(),
-        avlStock: (currentAvailableStock + quantity).toString(),
-        avlStockValue: ((currentAvailableStock + quantity) *
-                (double.tryParse(existingRate.saleRate) ?? 0))
-            .toString(),
-      );
+  List<VendorMaterialRate> getPreferredRates() {
+    return state.where((rate) => rate.isPreferred).toList();
+  }
 
-      print('Updated inspection stock: ${updatedRate.inspectionStock}');
-      print('Updated available stock: ${updatedRate.avlStock}');
-
-      await updateRate(updatedRate);
-    } else {
-      print(
-          'Error: Not enough inspection stock (have: $currentInspectionStock, need: $quantity)');
+  VendorMaterialRate? getRateByMaterialAndVendor(String materialId, String vendorId) {
+    try {
+      return state.firstWhere((rate) => 
+          rate.materialId == materialId && rate.vendorId == vendorId);
+    } catch (e) {
+      return null;
     }
   }
 
-  // Reject quantity from inspection stock
-  Future<void> rejectFromInspectionStock(
-    String materialId,
-    String vendorId,
-    double quantity,
-  ) async {
-    print('\nRejecting from inspection stock:');
-    print('Material ID: $materialId');
-    print('Vendor ID: $vendorId');
-    print('Quantity: $quantity');
-    print('Current state length: ${state.length}');
-    print(
-        'Available rates: ${state.map((r) => '${r.materialId}-${r.vendorId}').join(', ')}');
+  // Stock-related methods
+  List<VendorMaterialRate> getLowStockRates({double threshold = 10.0}) {
+    return state.where((rate) {
+      final stock = double.tryParse(rate.avlStock) ?? 0;
+      return stock <= threshold;
+    }).toList();
+  }
 
-    // Try to find existing rate
-    final existingRate = state.firstWhere(
-      (r) => r.materialId == materialId && r.vendorId == vendorId,
-      orElse: () {
-        print('Creating new vendor material rate record');
-        // Create a new rate record if none exists
-        final newRate = VendorMaterialRate(
-          materialId: materialId,
-          vendorId: vendorId,
-          saleRate: '0',
-          lastPurchaseDate: DateTime.now().toString().split(' ')[0],
-          remarks: '',
-          totalReceivedQty: '0',
-          issuedQty: '0',
-          receivedQty: '0',
-          avlStock: '0',
-          avlStockValue: '0',
-          billingQtyDiff: '0',
-          totalReceivedCost: '0',
-          totalBilledCost: '0',
-          costDiff: '0',
-          inspectionStock: quantity.toString(),
-        );
-        return newRate;
-      },
-    );
+  List<VendorMaterialRate> getZeroStockRates() {
+    return state.where((rate) {
+      final stock = double.tryParse(rate.avlStock) ?? 0;
+      return stock == 0;
+    }).toList();
+  }
 
-    print(
-        'Found/Created rate record: ${existingRate.materialId}-${existingRate.vendorId}');
-    print('Current inspection stock: ${existingRate.inspectionStock}');
+  List<VendorMaterialRate> getRatesWithInspectionStock() {
+    return state.where((rate) {
+      final inspectionStock = double.tryParse(rate.inspectionStock) ?? 0;
+      return inspectionStock > 0;
+    }).toList();
+  }
 
-    final currentInspectionStock =
-        double.tryParse(existingRate.inspectionStock) ?? 0;
+  // Value calculation methods
+  double getTotalStockValue() {
+    return state.fold(0.0, (sum, rate) => sum + rate.stockValue);
+  }
 
-    if (currentInspectionStock >= quantity) {
-      final updatedRate = existingRate.copyWith(
-        inspectionStock: (currentInspectionStock - quantity).toString(),
-      );
+  double getTotalInspectionStockValue() {
+    return state.fold(0.0, (sum, rate) => sum + rate.inspectionStockValue);
+  }
 
-      print('Updated inspection stock: ${updatedRate.inspectionStock}');
+  double getVendorTotalValue(String vendorId) {
+    return getRatesByVendor(vendorId)
+        .fold(0.0, (sum, rate) => sum + rate.stockValue);
+  }
 
-      await updateRate(updatedRate);
-    } else {
-      print(
-          'Error: Not enough inspection stock (have: $currentInspectionStock, need: $quantity)');
+  double getMaterialTotalValue(String materialId) {
+    return getRatesByMaterial(materialId)
+        .fold(0.0, (sum, rate) => sum + rate.stockValue);
+  }
+
+  // Preference management
+  Future<void> setPreferredVendor(String materialId, String vendorId) async {
+    // First, remove preferred status from all vendors for this material
+    final materialRates = getRatesByMaterial(materialId);
+    for (var rate in materialRates) {
+      if (rate.isPreferred) {
+        final updatedRate = rate.copyWith(isPreferred: false);
+        await update(updatedRate);
+      }
+    }
+
+    // Then set the new preferred vendor
+    final targetRate = getRateByMaterialAndVendor(materialId, vendorId);
+    if (targetRate != null) {
+      final updatedRate = targetRate.copyWith(isPreferred: true);
+      await update(updatedRate);
+    }
+  }
+
+  // Bulk operations
+  Future<void> updateStockForMaterial(String materialId, String newStock) async {
+    final materialRates = getRatesByMaterial(materialId);
+    for (var rate in materialRates) {
+      final updatedRate = rate.copyWith(avlStock: newStock);
+      await update(updatedRate);
+    }
+  }
+
+  Future<void> updateRateForVendor(String vendorId, String newRate) async {
+    final vendorRates = getRatesByVendor(vendorId);
+    for (var rate in vendorRates) {
+      final updatedRate = rate.copyWith(saleRate: newRate);
+      await update(updatedRate);
     }
   }
 }

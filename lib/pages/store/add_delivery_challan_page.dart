@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
+import 'package:responsive_sizer/responsive_sizer.dart';
 import '../../models/delivery_challan.dart';
+
 import '../../models/material_item.dart';
 import '../../models/supplier.dart';
+import '../../models/stock_maintenance.dart';
 import '../../provider/delivery_challan_provider.dart';
-import '../../provider/stock_maintenance_provider.dart';
+import '../../provider/material_provider.dart';
+import '../../provider/stock_maintenance_provider.dart' as stock;
 import '../../provider/supplier_provider.dart';
 import '../../provider/sale_order_provider.dart';
-import '../../provider/material_provider.dart';
-import '../../services/sync_service.dart';
 
 final deliveryChallanProvider = StateNotifierProvider<DeliveryChallanNotifier, List<DeliveryChallan>>((ref) {
   final dcBox = ref.watch(deliveryChallanBoxProvider);
-  final stockBox = ref.watch(stockMaintenanceBoxProvider);
-  final syncService = ref.watch(syncServiceProvider);
-  return DeliveryChallanNotifier(dcBox, stockBox, syncService);
+  final stockBox = ref.watch(stock.stockMaintenanceBoxProvider);
+  return DeliveryChallanNotifier(dcBox, stockBox);
 });
 
 class AddDeliveryChallanPage extends ConsumerStatefulWidget {
@@ -311,7 +312,7 @@ class _AddDeliveryChallanPageState
       }
 
       // Check stock availability
-      final stockBox = ref.read(stockMaintenanceBoxProvider);
+      final stockBox = ref.read(stock.stockMaintenanceBoxProvider);
       for (var item in _items) {
         final stockItem = stockBox.values
             .firstWhere((stock) => stock.materialCode == item.materialCode);

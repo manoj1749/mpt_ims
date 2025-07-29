@@ -120,11 +120,12 @@ abstract class BaseProvider<T> extends StateNotifier<List<T>> {
 
   Future<void> update(T model) async {
     try {
-      // 1. Update in local state immediately
-      final index = state.indexWhere((item) => getModelId(item) == getModelId(model));
-      if (index != -1) {
+      // 1. Update local state immediately (optimistic update)
+      final modelId = getModelId(model);
+      final currentIndex = state.indexWhere((item) => getModelId(item) == modelId);
+      if (currentIndex != -1) {
         final newState = [...state];
-        newState[index] = model;
+        newState[currentIndex] = model;
         state = newState;
       }
       
@@ -141,7 +142,8 @@ abstract class BaseProvider<T> extends StateNotifier<List<T>> {
       data['updatedAt'] = FieldValue.serverTimestamp();
       data['updatedBy'] = _auth.currentUser?.email ?? 'unknown';
       
-      await _firestore.collection(collectionName).doc(getModelId(model)).update(data);
+      // Use .set() instead of .update() to handle cases where document might not exist
+      await _firestore.collection(collectionName).doc(getModelId(model)).set(data);
       
       print('Successfully updated ${getModelId(model)} in $collectionName');
     } catch (e) {

@@ -91,7 +91,9 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
         acceptedQty: (item['acceptedQty'] as num?)?.toDouble() ?? 0.0,
         rejectedQty: (item['rejectedQty'] as num?)?.toDouble() ?? 0.0,
         costPerUnit: item['costPerUnit'] ?? '0',
-        prQuantities: Map<String, Map<String, double>>.from(item['prQuantities'] ?? {}),
+        prQuantities: (item['prQuantities'] as Map<String, dynamic>?)?.map((key, value) => 
+          MapEntry(key, (value as Map<String, dynamic>).map((k, v) => 
+            MapEntry(k, (v as num).toDouble())))) ?? {},
         inspectionStatus: (item['inspectionStatus'] as Map<String, dynamic>?)?.map((key, value) => 
           MapEntry(key, InspectionQuantityStatus(
             inspectedQty: (value['inspectedQty'] as num?)?.toDouble() ?? 0.0,
@@ -99,7 +101,9 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
             rejectedQty: (value['rejectedQty'] as num?)?.toDouble() ?? 0.0,
             status: value['status'] ?? 'Pending',
           ))) ?? {},
-        prJobNumbers: Map<String, Map<String, String>>.from(item['prJobNumbers'] ?? {}),
+        prJobNumbers: (item['prJobNumbers'] as Map<String, dynamic>?)?.map((key, value) => 
+          MapEntry(key, (value as Map<String, dynamic>).map((k, v) => 
+            MapEntry(k, v.toString())))) ?? {},
       )).toList() ?? [],
     );
   }

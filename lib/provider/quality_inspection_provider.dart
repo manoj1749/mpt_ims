@@ -170,9 +170,9 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
         final inspectionDate = DateFormat('dd/MM/yyyy').parse(inspection.inspectionDate);
         return inspectionDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
                inspectionDate.isBefore(endDate.add(const Duration(days: 1)));
-      } catch (e) {
+    } catch (e) {
         return false;
-      }
+    }
     }).toList();
   }
 

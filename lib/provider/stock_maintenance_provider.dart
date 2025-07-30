@@ -93,7 +93,7 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
 
   @override
   StockMaintenance mapToModel(Map<String, dynamic> map) {
-    final stock = StockMaintenance(
+        final stock = StockMaintenance(
       materialCode: map['materialCode'] ?? '',
       materialDescription: map['materialDescription'] ?? '',
       unit: map['unit'] ?? '',
@@ -102,84 +102,84 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
       currentStock: (map['currentStock'] as num?)?.toDouble() ?? 0.0,
       stockUnderInspection: (map['stockUnderInspection'] as num?)?.toDouble() ?? 0.0,
       totalStockValue: (map['totalStockValue'] as num?)?.toDouble() ?? 0.0,
-    );
+        );
 
-    // Load GRN details
+        // Load GRN details
     if (map['grnDetails'] != null) {
       (map['grnDetails'] as Map<String, dynamic>).forEach((key, value) {
-        stock.grnDetails[key] = StockGRNDetails(
-          grnNo: value['grnNo'] ?? '',
-          grnDate: value['grnDate'] ?? '',
-          receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
-          acceptedQuantity: (value['acceptedQuantity'] as num?)?.toDouble() ?? 0.0,
-          rejectedQuantity: (value['rejectedQuantity'] as num?)?.toDouble() ?? 0.0,
-          vendorId: value['vendorId'] ?? '',
-          rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
-          issuedQuantity: (value['issuedQuantity'] as num?)?.toDouble() ?? 0.0,
-          issuedQuantities: (value['issuedQuantities'] as Map<String, dynamic>?)?.map(
-            (key, value) => MapEntry(key, (value as num).toDouble()),
-          ) ?? {},
-        );
-      });
-    }
+            stock.grnDetails[key] = StockGRNDetails(
+              grnNo: value['grnNo'] ?? '',
+              grnDate: value['grnDate'] ?? '',
+              receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
+              acceptedQuantity: (value['acceptedQuantity'] as num?)?.toDouble() ?? 0.0,
+              rejectedQuantity: (value['rejectedQuantity'] as num?)?.toDouble() ?? 0.0,
+              vendorId: value['vendorId'] ?? '',
+              rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
+              issuedQuantity: (value['issuedQuantity'] as num?)?.toDouble() ?? 0.0,
+              issuedQuantities: (value['issuedQuantities'] as Map<String, dynamic>?)?.map(
+                (key, value) => MapEntry(key, (value as num).toDouble()),
+              ) ?? {},
+            );
+          });
+        }
 
-    // Load PO details
+        // Load PO details
     if (map['poDetails'] != null) {
       (map['poDetails'] as Map<String, dynamic>).forEach((key, value) {
-        stock.poDetails[key] = StockPODetails(
-          poNo: value['poNo'] ?? '',
-          poDate: value['poDate'] ?? '',
-          orderedQuantity: (value['orderedQuantity'] as num?)?.toDouble() ?? 0.0,
-          receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
-          vendorId: value['vendorId'] ?? '',
-          rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
-          receivedQuantities: (value['receivedQuantities'] as Map<String, dynamic>?)?.map(
+            stock.poDetails[key] = StockPODetails(
+              poNo: value['poNo'] ?? '',
+              poDate: value['poDate'] ?? '',
+              orderedQuantity: (value['orderedQuantity'] as num?)?.toDouble() ?? 0.0,
+              receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
+              vendorId: value['vendorId'] ?? '',
+              rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
+              receivedQuantities: (value['receivedQuantities'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, Map<String, double>.from(value as Map)),
-          ) ?? {},
-        );
-      });
-    }
+              ) ?? {},
+            );
+          });
+        }
 
-         // Load PR details
+        // Load PR details
      if (map['prDetails'] != null) {
        (map['prDetails'] as Map<String, dynamic>).forEach((key, value) {
-         stock.prDetails[key] = StockPRDetails(
-           prNo: value['prNo'] ?? '',
-           prDate: value['prDate'] ?? '',
-           requestedQuantity: (value['requestedQuantity'] as num?)?.toDouble() ?? 0.0,
-           orderedQuantity: (value['orderedQuantity'] as num?)?.toDouble() ?? 0.0,
-           receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
-           issuedQuantity: (value['issuedQuantity'] as num?)?.toDouble() ?? 0.0,
-           jobNo: value['jobNo'] ?? '',
-         );
-       });
-     }
+            stock.prDetails[key] = StockPRDetails(
+              prNo: value['prNo'] ?? '',
+              prDate: value['prDate'] ?? '',
+              requestedQuantity: (value['requestedQuantity'] as num?)?.toDouble() ?? 0.0,
+              orderedQuantity: (value['orderedQuantity'] as num?)?.toDouble() ?? 0.0,
+              receivedQuantity: (value['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
+              issuedQuantity: (value['issuedQuantity'] as num?)?.toDouble() ?? 0.0,
+              jobNo: value['jobNo'] ?? '',
+            );
+          });
+        }
 
     // Load Job details
     if (map['jobDetails'] != null) {
       (map['jobDetails'] as Map<String, dynamic>).forEach((key, value) {
-        stock.jobDetails[key] = StockJobDetails(
-          jobNo: value['jobNo'] ?? '',
-          allocatedQuantity: (value['allocatedQuantity'] as num?)?.toDouble() ?? 0.0,
-          consumedQuantity: (value['consumedQuantity'] as num?)?.toDouble() ?? 0.0,
+            stock.jobDetails[key] = StockJobDetails(
+              jobNo: value['jobNo'] ?? '',
+              allocatedQuantity: (value['allocatedQuantity'] as num?)?.toDouble() ?? 0.0,
+              consumedQuantity: (value['consumedQuantity'] as num?)?.toDouble() ?? 0.0,
           pendingDeliveryQuantity: (value['pendingDeliveryQuantity'] as num?)?.toDouble() ?? 0.0,
           prNo: value['prNo'] ?? 'General',
-        );
-      });
-    }
+            );
+          });
+        }
 
          // Load Vendor details
      if (map['vendorDetails'] != null) {
        (map['vendorDetails'] as Map<String, dynamic>).forEach((key, value) {
-         stock.vendorDetails[key] = StockVendorDetails(
-           vendorId: value['vendorId'] ?? '',
-           vendorName: value['vendorName'] ?? '',
-           quantity: (value['quantity'] as num?)?.toDouble() ?? 0.0,
-           rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
-           lastPurchaseDate: value['lastPurchaseDate'] ?? '',
-         );
-       });
-     }
+            stock.vendorDetails[key] = StockVendorDetails(
+              vendorId: value['vendorId'] ?? '',
+              vendorName: value['vendorName'] ?? '',
+              quantity: (value['quantity'] as num?)?.toDouble() ?? 0.0,
+              rate: (value['rate'] as num?)?.toDouble() ?? 0.0,
+              lastPurchaseDate: value['lastPurchaseDate'] ?? '',
+            );
+          });
+        }
 
     return stock;
   }
@@ -241,8 +241,8 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
               materialCode: grnItem.materialCode,
               materialDescription: grnItem.materialDescription,
               unit: grnItem.unit,
-              storageLocation: '',
-              rackNumber: '',
+            storageLocation: '',
+            rackNumber: '',
             );
           },
         );

@@ -31,6 +31,12 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
   @override
   void initState() {
     super.initState();
+    
+    // Add listener to end date controller to rebuild UI when text changes
+    _endDateController.addListener(() {
+      setState(() {});
+    });
+    
     if (widget.order != null) {
       // Edit mode - populate fields
       _orderNo = widget.order!.orderNo;
@@ -290,10 +296,21 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _endDateController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'End Date (Optional)',
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                           helperText: 'Leave empty if job is not completed',
+                          suffixIcon: _endDateController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    setState(() {
+                                      _endDateController.clear();
+                                    });
+                                  },
+                                  tooltip: 'Clear date',
+                                )
+                              : null,
                         ),
                         readOnly: true,
                         onTap: () {

@@ -31,57 +31,68 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
         title: 'Order No',
         field: 'orderNo',
         type: PlutoColumnType.text(),
-        width: 120,
         enableEditingMode: false,
+        minWidth: 100,
+        width: 120,
       ),
       PlutoColumn(
         title: 'Date',
         field: 'orderDate',
         type: PlutoColumnType.text(),
-        width: 120,
         enableEditingMode: false,
+        minWidth: 100,
+        width: 120,
       ),
       PlutoColumn(
         title: 'Customer',
         field: 'customerName',
         type: PlutoColumnType.text(),
-        width: 200,
         enableEditingMode: false,
+        minWidth: 150,
+        width: 200,
       ),
       PlutoColumn(
         title: 'Job No',
         field: 'boardNo',
         type: PlutoColumnType.text(),
-        width: 120,
         enableEditingMode: false,
+        minWidth: 100,
+        width: 120,
       ),
       PlutoColumn(
         title: 'Start Date',
         field: 'jobStartDate',
         type: PlutoColumnType.text(),
-        width: 120,
         enableEditingMode: false,
+        minWidth: 100,
+        width: 120,
       ),
       PlutoColumn(
         title: 'Target Date',
         field: 'targetDate',
         type: PlutoColumnType.text(),
-        width: 120,
         enableEditingMode: false,
+        minWidth: 100,
+        width: 120,
       ),
       PlutoColumn(
         title: 'End Date',
         field: 'endDate',
         type: PlutoColumnType.text(),
-        width: 120,
         enableEditingMode: false,
+        minWidth: 100,
+        width: 120,
         renderer: (rendererContext) {
           final endDate = rendererContext.cell.value?.toString() ?? '';
-          return Text(
-            endDate,
-            style: TextStyle(
-              color: endDate.isEmpty ? Colors.grey : Colors.green,
-              fontWeight: endDate.isEmpty ? FontWeight.normal : FontWeight.bold,
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              endDate.isEmpty ? 'Not completed' : endDate,
+              style: TextStyle(
+                color: endDate.isEmpty ? Colors.grey : Colors.green,
+                fontWeight: endDate.isEmpty ? FontWeight.normal : FontWeight.bold,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           );
         },
@@ -90,55 +101,65 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
         title: 'Actions',
         field: 'actions',
         type: PlutoColumnType.text(),
-        width: 100,
         enableEditingMode: false,
+        minWidth: 80,
+        width: 80,
         renderer: (rendererContext) {
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                onPressed: () async {
-                  final order =
-                      rendererContext.row.cells['order']?.value as SaleOrder?;
-                  if (order != null) {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            AddEditSaleOrderPage(order: order),
-                      ),
-                    );
-                    if (result == true) {
-                      // Force refresh the state
-                      ref.invalidate(saleOrderProvider);
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InkWell(
+                  onTap: () async {
+                    final order =
+                        rendererContext.row.cells['order']?.value as SaleOrder?;
+                    if (order != null) {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              AddEditSaleOrderPage(order: order),
+                        ),
+                      );
+                      if (result == true) {
+                        // Force refresh the state
+                        ref.invalidate(saleOrderProvider);
+                      }
                     }
-                  }
-                },
-                color: Colors.blue[400],
-                tooltip: 'Edit',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
+                  },
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.edit_outlined,
+                      size: 16,
+                      color: Colors.blue[400],
+                    ),
+                  ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () {
-                  final order =
-                      rendererContext.row.cells['order']?.value as SaleOrder?;
-                  if (order != null) {
-                    _confirmDelete(context, order);
-                  }
-                },
-                color: Colors.red[400],
-                tooltip: 'Delete',
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
+                const SizedBox(width: 4),
+                InkWell(
+                  onTap: () {
+                    final order =
+                        rendererContext.row.cells['order']?.value as SaleOrder?;
+                    if (order != null) {
+                      _confirmDelete(context, order);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.delete_outline,
+                      size: 16,
+                      color: Colors.red[400],
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -310,7 +331,12 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
                               stateManager?.setShowColumnFilter(true);
                             });
                           },
-                          configuration: PlutoGridConfigurations.darkMode(),
+                          configuration: PlutoGridConfigurations.darkMode().copyWith(
+                            columnSize: const PlutoGridColumnSizeConfig(
+                              autoSizeMode: PlutoAutoSizeMode.equal,
+                              resizeMode: PlutoResizeMode.normal,
+                            ),
+                          ),
                         ),
                       ),
                     ),

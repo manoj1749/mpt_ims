@@ -71,7 +71,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     final materials = ref.read(materialListProvider);
 
     for (var material in materials) {
-      final vendorName = material.getPreferredVendorName(ref);
+      final vendorName = material.getPreferredVendorName();
       if (vendorName.isNotEmpty) {
         vendors.add(vendorName);
       }
@@ -543,7 +543,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
 
                     // Filter by vendor if selected
                     if (selectedVendor != null && selectedVendor != 'All') {
-                      final vendorName = material.getPreferredVendorName(ref);
+                      final vendorName = material.getPreferredVendorName();
                       if (vendorName != selectedVendor) {
                         return const SizedBox.shrink();
                       }

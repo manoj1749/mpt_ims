@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/material_item.dart';
+import '../models/vendor_material_rate.dart';
 import 'base_provider.dart';
 
 final materialBoxProvider = Provider<Box<MaterialItem>>((ref) {
@@ -27,11 +28,31 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
       'storageLocation': material.storageLocation,
       'rackNumber': material.rackNumber,
       'actualWeight': material.actualWeight,
+      'saleRate': material.saleRate,
+      'vendorRates': material.vendorRates.map((rate) => {
+        'vendorId': rate.vendorId,
+        'baseRate': rate.baseRate,
+        'purchaseRate': rate.purchaseRate,
+        'lastPurchaseDate': rate.lastPurchaseDate,
+        'remarks': rate.remarks,
+        'isPreferred': rate.isPreferred,
+      }).toList(),
     };
   }
 
   @override
   MaterialItem mapToModel(Map<String, dynamic> map) {
+    final vendorRatesList = (map['vendorRates'] as List<dynamic>?)?.map((rateMap) => 
+      VendorMaterialRate(
+        vendorId: rateMap['vendorId'] ?? '',
+        baseRate: rateMap['baseRate'] ?? '',
+        purchaseRate: rateMap['purchaseRate'] ?? '',
+        lastPurchaseDate: rateMap['lastPurchaseDate'] ?? '',
+        remarks: rateMap['remarks'] ?? '',
+        isPreferred: rateMap['isPreferred'] ?? false,
+      )
+    ).toList() ?? <VendorMaterialRate>[];
+
     return MaterialItem(
       slNo: map['slNo'] ?? '',
       description: map['description'] ?? '',
@@ -42,11 +63,13 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
       storageLocation: map['storageLocation'],
       rackNumber: map['rackNumber'],
       actualWeight: map['actualWeight'],
+      saleRate: map['saleRate'] ?? '0',
+      vendorRates: vendorRatesList,
     );
   }
 
   @override
-  String getModelId(MaterialItem material) => material.slNo;
+  String getModelId(MaterialItem material) => material.partNo;
 
   // Map old method names to new base provider methods
   Future<void> loadMaterials() => loadData();

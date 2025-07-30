@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mpt_ims/pages/design/add_material_page.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
 import 'package:mpt_ims/models/material_item.dart';
-import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
+
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:collection/collection.dart';
 import '../../widgets/pluto_grid_configuration.dart';
@@ -271,18 +271,6 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
 
   List<PlutoRow> _getRows(List<MaterialItem> materials, WidgetRef ref) {
     return materials.map((m) {
-      final stockValue = double.tryParse(m.getTotalStockValue(ref)) ?? 0;
-      final costDiff = double.tryParse(m.getTotalCostDiff(ref)) ?? 0;
-
-      // Get total inspection stock across all vendors
-      final inspectionStock = ref
-          .read(vendorMaterialRateProvider.notifier)
-          .getRatesForMaterial(m.slNo)
-          .fold(
-              0.0,
-              (sum, rate) =>
-                  sum + (double.tryParse(rate.inspectionStock) ?? 0));
-
       return PlutoRow(
         cells: {
           'slNo': PlutoCell(value: m.slNo),
@@ -294,29 +282,24 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           'actualWeight': PlutoCell(value: m.actualWeight),
           'storageLocation': PlutoCell(value: m.storageLocation),
           'rackNumber': PlutoCell(value: m.rackNumber),
-          'preferredVendor': PlutoCell(value: m.getPreferredVendorName(ref)),
+          'preferredVendor': PlutoCell(value: m.getPreferredVendorName()),
           'bestRate': PlutoCell(
-              value: m.getLowestRate(ref).isEmpty
+              value: m.getLowestPurchaseRate().isEmpty
                   ? '-'
-                  : '₹${m.getLowestRate(ref)}'),
-          'vendorCount': PlutoCell(value: m.getVendorCount(ref)),
+                  : '₹${m.getLowestPurchaseRate()}'),
+          'vendorCount': PlutoCell(value: m.getVendorCount()),
           'saleRate': PlutoCell(
-              value: m.getPreferredVendorSaleRate(ref).isEmpty
+              value: m.saleRate.isEmpty
                   ? '-'
-                  : '₹${m.getPreferredVendorSaleRate(ref)}'),
-          'stock':
-              PlutoCell(value: '${m.getTotalAvailableStock(ref)} ${m.unit}'),
-          'inspectionStock': PlutoCell(value: '$inspectionStock ${m.unit}'),
-          'stockValue': PlutoCell(value: '₹${stockValue.toStringAsFixed(2)}'),
-          'totalReceived':
-              PlutoCell(value: '${m.getTotalReceivedQty(ref)} ${m.unit}'),
-          'vendorIssued':
-              PlutoCell(value: '${m.getTotalIssuedQty(ref)} ${m.unit}'),
-          'vendorReceived':
-              PlutoCell(value: '${m.getTotalReceivedQty(ref)} ${m.unit}'),
-          'boardIssue':
-              PlutoCell(value: '${m.getTotalIssuedQty(ref)} ${m.unit}'),
-          'costDiff': PlutoCell(value: '₹${costDiff.toStringAsFixed(2)}'),
+                  : '₹${m.saleRate}'),
+          'stock': PlutoCell(value: '-'), // Stock info moved to stock maintenance
+          'inspectionStock': PlutoCell(value: '-'), // Inspection stock moved to quality
+          'stockValue': PlutoCell(value: '-'), // Stock value moved to stock maintenance
+          'totalReceived': PlutoCell(value: '-'), // Moved to stock maintenance
+          'vendorIssued': PlutoCell(value: '-'), // Moved to stock maintenance
+          'vendorReceived': PlutoCell(value: '-'), // Moved to stock maintenance
+          'boardIssue': PlutoCell(value: '-'), // Moved to stock maintenance
+          'costDiff': PlutoCell(value: '-'), // Simplified structure
           'actions': PlutoCell(value: ''),
         },
       );
@@ -325,10 +308,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Watch both the materials list and vendor rates to ensure UI updates
+    // Watch the materials list to ensure UI updates
     final materials = ref.watch(materialListProvider);
-    // Watch the vendor rates state to trigger rebuilds when it changes
-    ref.watch(vendorMaterialRateProvider);
 
     // Rebuild the grid rows when either materials or vendor rates change
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -455,17 +436,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
               try {
                 Navigator.pop(context); // Close dialog first
 
-                // Delete all vendor rates for this material first
-                final vendorRateNotifier =
-                    ref.read(vendorMaterialRateProvider.notifier);
-                final rates =
-                    vendorRateNotifier.getRatesForMaterial(material.slNo);
-                for (final rate in rates) {
-                  await vendorRateNotifier.deleteRate(
-                      material.slNo, rate.vendorId);
-                }
-
-                // Then delete the material
+                // Delete the material (vendor rates are included)
                 await ref
                     .read(materialListProvider.notifier)
                     .deleteMaterial(material);
@@ -494,9 +465,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
 
   void _showVendorDetails(
       BuildContext context, MaterialItem material, WidgetRef ref) {
-    final rates = ref
-        .read(vendorMaterialRateProvider.notifier)
-        .getRatesForMaterial(material.slNo);
+    final rates = material.vendorRates;
 
     showDialog(
       context: context,
@@ -511,11 +480,10 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                 title: Row(
                   children: [
                     Expanded(child: Text('Vendor')),
-                    Expanded(child: Text('Supplier Rate')),
-                    Expanded(child: Text('Sale Rate')),
-                    Expanded(child: Text('Stock')),
-                    Expanded(child: Text('Stock Value')),
+                    Expanded(child: Text('Base Rate')),
+                    Expanded(child: Text('Purchase Rate')),
                     Expanded(child: Text('Last Purchase')),
+                    Expanded(child: Text('Preferred')),
                     Expanded(child: Text('Remarks')),
                   ],
                 ),
@@ -526,13 +494,13 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                   title: Row(
                     children: [
                       Expanded(child: Text(rate.vendorId)),
-                      Expanded(child: Text('₹${rate.saleRate}')),
-                      Expanded(
-                          child: Text('${rate.avlStock} ${material.unit}')),
-                      Expanded(
-                          child:
-                              Text('₹${rate.stockValue.toStringAsFixed(2)}')),
+                      Expanded(child: Text('₹${rate.baseRate}')),
+                      Expanded(child: Text('₹${rate.purchaseRate}')),
                       Expanded(child: Text(rate.lastPurchaseDate)),
+                      Expanded(child: Icon(
+                        rate.isPreferred ? Icons.star : Icons.star_border,
+                        color: rate.isPreferred ? Colors.amber : Colors.grey,
+                      )),
                       Expanded(child: Text(rate.remarks)),
                     ],
                   ),

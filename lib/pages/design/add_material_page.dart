@@ -6,7 +6,7 @@ import 'package:mpt_ims/models/material_item.dart';
 import 'package:mpt_ims/models/supplier.dart';
 import 'package:mpt_ims/models/vendor_material_rate.dart';
 import 'package:mpt_ims/provider/material_provider.dart';
-import 'package:mpt_ims/provider/vendor_material_rate_provider.dart';
+
 import 'package:mpt_ims/provider/category_provider.dart';
 import 'package:mpt_ims/provider/sub_category_provider.dart';
 import 'package:mpt_ims/models/category.dart';
@@ -31,6 +31,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   final _formKey = GlobalKey<FormState>();
   late MaterialItem item;
   final _supplierRateController = TextEditingController();
+  final _baseRateController = TextEditingController();
   final _saleRateController = TextEditingController();
   final _remarksController = TextEditingController();
   final _receivedQtyController = TextEditingController();
@@ -72,6 +73,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _controllers['rackNumber'] = TextEditingController(text: item.rackNumber);
     _controllers['actualWeight'] =
         TextEditingController(text: item.actualWeight);
+    _controllers['saleRate'] = TextEditingController(text: item.saleRate);
     _inspectionStockController = TextEditingController(text: '0');
 
     // Set initial category and subcategory if editing
@@ -80,24 +82,23 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         final categories = ref.read(categoryListProvider);
         final subCategories = ref.read(subCategoryListProvider);
 
-        // Get existing vendor rates
-        final rates = ref
-            .read(vendorMaterialRateProvider.notifier)
-            .getRatesForMaterial(item.slNo);
-        selectedVendors = rates.map((r) => r.vendorId).toList();
+        // Get existing vendor rates from the material
+        selectedVendors = item.vendorRates.map((r) => r.vendorId).toList();
 
         setState(() {
-          _selectedCategory = categories.firstWhere(
-            (c) => c.name == item.category,
-            orElse: () => Category(name: ''),
+          // Find the actual category object from the list, or null if not found
+          _selectedCategory = categories.cast<Category?>().firstWhere(
+            (c) => c?.name == item.category,
+            orElse: () => null,
           );
 
           if (_selectedCategory != null && _selectedCategory!.name.isNotEmpty) {
-            _selectedSubCategory = subCategories.firstWhere(
+            // Find the actual subcategory object from the list, or null if not found
+            _selectedSubCategory = subCategories.cast<SubCategory?>().firstWhere(
               (sc) =>
-                  sc.name == item.subCategory &&
-                  sc.categoryName == item.category,
-              orElse: () => SubCategory(name: '', categoryName: ''),
+                  sc?.name == item.subCategory &&
+                  sc?.categoryName == item.category,
+              orElse: () => null,
             );
           }
         });
@@ -124,9 +125,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   void _saveMaterial() async {
     if (_formKey.currentState!.validate()) {
       // Check if all selected vendors have rates
-      final rates = ref
-          .read(vendorMaterialRateProvider.notifier)
-          .getRatesForMaterial(item.slNo);
+      final rates = item.vendorRates;
 
       final vendorsWithoutRates = selectedVendors
           .where((vendor) => !rates.any((r) => r.vendorId == vendor))
@@ -159,6 +158,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         item.actualWeight = _controllers['actualWeight']!.text;
         item.category = _selectedCategory?.name ?? '';
         item.subCategory = _selectedSubCategory?.name ?? '';
+        item.saleRate = _controllers['saleRate']?.text ?? '';
 
         if (widget.index != null) {
           // Update existing material
@@ -271,20 +271,12 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   }
 
   Future<void> _addVendorRate(Supplier vendor) async {
-    // Get rates if editing an existing material
-    final rates = widget.materialToEdit != null
-        ? ref
-            .read(vendorMaterialRateProvider.notifier)
-            .getRatesForMaterial(item.slNo)
-        : [];
-    final existingRate =
-        rates.where((r) => r.vendorId == vendor.name).firstOrNull;
+    // Get existing rate from material's vendor rates
+    final existingRate = item.getRateForVendor(vendor.name);
 
     // Reset all controllers for new rate
-    _saleRateController.text = existingRate?.saleRate ?? '';
-    _receivedQtyController.text = existingRate?.totalReceivedQty ?? '0';
-    _issuedQtyController.text = existingRate?.issuedQty ?? '0';
-    _stockController.text = existingRate?.avlStock ?? '0';
+    _baseRateController.text = existingRate?.baseRate ?? '';
+    _saleRateController.text = existingRate?.purchaseRate ?? '';
     _remarksController.text = existingRate?.remarks ?? '';
 
     final result = await showDialog<bool>(
@@ -297,49 +289,24 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextFormField(
+                controller: _baseRateController,
+                decoration: const InputDecoration(
+                  labelText: 'Base Rate (Vendor\'s Standard Rate)',
+                  border: OutlineInputBorder(),
+                  helperText: 'Vendor\'s catalog/standard rate',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: _saleRateController,
                 decoration: const InputDecoration(
-                  labelText: 'Sale Rate *',
+                  labelText: 'Purchase Rate * (Actual Purchase Rate)',
                   border: OutlineInputBorder(),
+                  helperText: 'Negotiated/actual purchase rate',
                 ),
                 keyboardType: TextInputType.number,
                 validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _receivedQtyController,
-                decoration: const InputDecoration(
-                  labelText: 'Received Quantity',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _issuedQtyController,
-                decoration: const InputDecoration(
-                  labelText: 'Issued Quantity',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _stockController,
-                decoration: const InputDecoration(
-                  labelText: 'Available Stock',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _inspectionStockController,
-                decoration: const InputDecoration(
-                  labelText: 'Inspection Stock',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -347,6 +314,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                 decoration: const InputDecoration(
                   labelText: 'Remarks',
                   border: OutlineInputBorder(),
+                  helperText: 'Additional notes about this vendor rate',
                 ),
                 maxLines: 3,
               ),
@@ -367,42 +335,28 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     );
 
     if (result == true && _saleRateController.text.isNotEmpty) {
-      final receivedQty = double.tryParse(_receivedQtyController.text) ?? 0;
-      final saleRate = double.tryParse(_saleRateController.text) ?? 0;
 
       final newRate = VendorMaterialRate(
-        materialId: item.slNo,
         vendorId: vendor.name,
-        saleRate: _saleRateController.text,
+        baseRate: _baseRateController.text,
+        purchaseRate: _saleRateController.text, // This is actually the purchase rate
         lastPurchaseDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
         remarks: _remarksController.text,
-        totalReceivedQty: _receivedQtyController.text,
-        issuedQty: _issuedQtyController.text,
-        receivedQty: _receivedQtyController.text,
-        avlStock: _stockController.text,
-        avlStockValue:
-            (double.tryParse(_stockController.text) ?? 0 * saleRate).toString(),
-        billingQtyDiff: '0',
-        totalReceivedCost: (receivedQty * saleRate).toString(),
-        totalBilledCost: (receivedQty * saleRate).toString(),
-        costDiff: '0',
-        inspectionStock: _inspectionStockController.text,
         isPreferred: false,
       );
 
+      // Add/update the vendor rate directly in the material
       if (existingRate != null) {
-        ref.read(vendorMaterialRateProvider.notifier).updateRate(newRate);
+        item.updateVendorRate(newRate);
       } else {
-        ref.read(vendorMaterialRateProvider.notifier).addRate(newRate);
+        item.addVendorRate(newRate);
       }
       setState(() {}); // Refresh the UI
     }
   }
 
   Widget _buildVendorRatesSection() {
-    final rates = ref
-        .read(vendorMaterialRateProvider.notifier)
-        .getRatesForMaterial(item.slNo);
+    final rates = item.vendorRates;
 
     return Card(
       child: Padding(
@@ -454,21 +408,12 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                   final rate = rates.firstWhere(
                     (r) => r.vendorId == vendorName,
                     orElse: () => VendorMaterialRate(
-                      materialId: item.slNo,
                       vendorId: vendorName,
-                      saleRate: '',
+                      baseRate: '',
+                      purchaseRate: '',
                       lastPurchaseDate:
                           DateFormat('yyyy-MM-dd').format(DateTime.now()),
                       remarks: '',
-                      totalReceivedQty: '0',
-                      issuedQty: '0',
-                      receivedQty: '0',
-                      avlStock: '0',
-                      avlStockValue: '0',
-                      billingQtyDiff: '0',
-                      totalReceivedCost: '0',
-                      totalBilledCost: '0',
-                      costDiff: '0',
                       isPreferred: false,
                     ),
                   );
@@ -481,36 +426,25 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                           color: rate.isPreferred ? Colors.amber : null,
                         ),
                         onPressed: () {
-                          // Update preferred vendor
-                          final rateProvider =
-                              ref.read(vendorMaterialRateProvider.notifier);
-
-                          // First, remove preferred status from all vendors for this material
-                          for (final r in rates) {
-                            if (r.isPreferred) {
-                              rateProvider
-                                  .updateRate(r.copyWith(isPreferred: false));
-                            }
+                          // Set preferred vendor using material's method
+                          if (rate.isPreferred) {
+                            // Remove preferred status
+                            item.setPreferredVendor('');
+                          } else {
+                            // Set as preferred vendor
+                            item.setPreferredVendor(rate.vendorId);
                           }
-
-                          // Then set the new preferred vendor
-                          rateProvider.updateRate(
-                              rate.copyWith(isPreferred: !rate.isPreferred));
                           setState(() {}); // Refresh UI
                         },
                         tooltip: 'Set as preferred vendor',
                       ),
                       title: Text(vendorName),
-                      subtitle: rate.saleRate.isNotEmpty
+                      subtitle: rate.purchaseRate.isNotEmpty
                           ? Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Sale Rate: ₹${rate.saleRate}'),
-                                Text('Stock: ${rate.avlStock} ${item.unit}'),
-                                Text(
-                                    'Inspection Stock: ${rate.inspectionStock} ${item.unit}'),
-                                Text(
-                                    'Stock Value: ₹${rate.stockValue.toStringAsFixed(2)}'),
+                                Text('Base Rate: ₹${rate.baseRate}'),
+                                Text('Purchase Rate: ₹${rate.purchaseRate}'),
                                 Text('Last Purchase: ${rate.lastPurchaseDate}'),
                                 if (rate.remarks.isNotEmpty)
                                   Text('Remarks: ${rate.remarks}'),
@@ -555,9 +489,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                             onPressed: () {
                               setState(() {
                                 selectedVendors.remove(vendorName);
-                                ref
-                                    .read(vendorMaterialRateProvider.notifier)
-                                    .deleteRate(item.slNo, vendorName);
+                                item.removeVendorRate(vendorName);
                               });
                             },
                           ),
@@ -623,6 +555,23 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                     _buildTextField('Unit', 'unit'),
                     _buildTextField('Storage Location', 'storageLocation'),
                     _buildTextField('Rack Number', 'rackNumber'),
+                    _buildTextField(
+                      'Material Sale Rate',
+                      'saleRate',
+                      type: const TextInputType.numberWithOptions(decimal: true),
+                      hint: 'Enter material\'s own sale rate',
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty) {
+                          if (double.tryParse(value) == null) {
+                            return 'Please enter a valid number';
+                          }
+                          if (double.parse(value) < 0) {
+                            return 'Sale rate cannot be negative';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
                     _buildCategoryDropdown(),
                     _buildSubCategoryDropdown(),
                   ],

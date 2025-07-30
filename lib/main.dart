@@ -31,7 +31,6 @@ import 'provider/customer_provider.dart';
 import 'provider/purchase_order.dart';
 import 'provider/store_inward_provider.dart';
 import 'provider/purchase_request_provider.dart';
-import 'provider/vendor_material_rate_provider.dart';
 import 'provider/quality_inspection_provider.dart';
 import 'provider/category_parameter_provider.dart';
 import 'provider/category_provider.dart';
@@ -80,8 +79,6 @@ void main() async {
   final employeeBox = Hive.box<Employee>('employees');
   final customerBox = Hive.box<Customer>('customers');
   final storeInwardBox = Hive.box<StoreInward>('store_inwards');
-  final vendorMaterialRateBox =
-      Hive.box<VendorMaterialRate>('vendorMaterialRates');
   final qualityInspectionBox =
       Hive.box<QualityInspection>('qualityInspections');
   final saleOrderBox = Hive.box<SaleOrder>('saleOrders');
@@ -109,7 +106,6 @@ void main() async {
         prPurchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
         storeInwardBoxProvider.overrideWithValue(storeInwardBox),
         storeInwardMaterialBoxProvider.overrideWithValue(materialBox),
-        vendorMaterialRateBoxProvider.overrideWithValue(vendorMaterialRateBox),
         qualityInspectionBoxProvider.overrideWithValue(qualityInspectionBox),
         saleOrderBoxProvider.overrideWithValue(saleOrderBox),
         categoryParameterBoxProvider.overrideWithValue(categoryParameterBox),

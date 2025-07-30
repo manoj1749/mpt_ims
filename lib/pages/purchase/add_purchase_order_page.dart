@@ -13,7 +13,7 @@ import '../../provider/supplier_provider.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/purchase_request_provider.dart';
 import '../../provider/purchase_order.dart';
-import '../../provider/vendor_material_rate_provider.dart';
+
 import 'package:collection/collection.dart';
 import '../store/select_jobs_dialog.dart';
 
@@ -150,11 +150,10 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               throw Exception('Material not found: ${item.materialCode}'),
         );
 
-        final rates = ref
-            .read(vendorMaterialRateProvider.notifier)
-            .getRatesForMaterial(material.slNo);
+        // Check if the material has a rate for the selected supplier
+        final vendorRate = material.getRateForVendor(selectedSupplier!.name);
 
-        if (rates.any((r) => r.vendorId == selectedSupplier!.name)) {
+        if (vendorRate != null) {
           materialPRItems.putIfAbsent(item.materialCode, () => []).add(item);
         }
       }
@@ -162,19 +161,16 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   }
 
   POItem _createPOItem(MaterialItem material, List<PRItem> prItems) {
-    final rates = ref
-        .read(vendorMaterialRateProvider.notifier)
-        .getRatesForMaterial(material.slNo);
+    // Get the vendor rate for the selected supplier
+    final vendorRate = material.getRateForVendor(selectedSupplier!.name);
+    
+    if (vendorRate == null) {
+      throw Exception('Rate not found for ${selectedSupplier!.name}');
+    }
 
-    // Check if the supplier has a rate for this material
-    final vendorRate = rates.firstWhere(
-      (r) => r.vendorId == selectedSupplier!.name,
-      orElse: () => throw Exception('Rate not found'),
-    );
-
-    // Default values if no rate is found
-    final costPerUnit = double.parse(vendorRate.saleRate);
-    final saleRate = double.parse(vendorRate.saleRate);
+    // Use purchase rate for PO calculations (as per user requirement)
+    final costPerUnit = double.parse(vendorRate.purchaseRate);
+    final saleRate = material.saleRateAsDouble; // Material's own sale rate
     final marginPerUnit = saleRate - costPerUnit;
 
     // Calculate total quantity from PR-wise quantities and general stock
@@ -305,15 +301,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     }
 
     // Get all vendor rates for this material
-    final rates = ref
-        .read(vendorMaterialRateProvider.notifier)
-        .getRatesForMaterial(material.slNo)
-        .where((r) => double.tryParse(r.saleRate) != null)
+    final rates = material.vendorRates
+        .where((r) => double.tryParse(r.purchaseRate) != null)
         .toList();
 
-    // Sort rates by price
+    // Sort rates by purchase price (lowest first)
     rates.sort(
-        (a, b) => double.parse(a.saleRate).compareTo(double.parse(b.saleRate)));
+        (a, b) => double.parse(a.purchaseRate).compareTo(double.parse(b.purchaseRate)));
 
     // Find selected supplier's rate
     final selectedRate = rates.firstWhere(
@@ -322,9 +316,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     );
 
     // Get lowest and highest prices
-    final lowestPrice = double.parse(rates.first.saleRate);
-    final highestPrice = double.parse(rates.last.saleRate);
-    final selectedPrice = double.parse(selectedRate.saleRate);
+    final lowestPrice = rates.isNotEmpty ? double.parse(rates.first.purchaseRate) : 0.0;
+    final highestPrice = rates.isNotEmpty ? double.parse(rates.last.purchaseRate) : 0.0;
+    final selectedPrice = double.parse(selectedRate.purchaseRate);
 
     // Determine color based on rate comparison
     Color priceColor;
@@ -382,7 +376,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       Row(
                         children: [
                           Text(
-                            'Rate: ₹${selectedRate.saleRate}',
+                            'Rate: ₹${selectedRate.purchaseRate}',
                             style: TextStyle(
                               fontSize: 12,
                               color: textColor,
@@ -392,7 +386,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           const SizedBox(width: 16),
                           if (selectedPrice > lowestPrice)
                             Text(
-                              'Best Rate: ₹${rates.first.saleRate} (${rates.first.vendorId})',
+                              'Best Rate: ₹${rates.first.purchaseRate} (${rates.first.vendorId})',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: textColor,
@@ -1116,14 +1110,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         );
 
                         // Get the vendor rate for this material
-                        final rates = ref
-                            .read(vendorMaterialRateProvider.notifier)
-                            .getRatesForMaterial(material.slNo);
-                        final vendorRate = rates.firstWhere(
-                          (r) => r.vendorId == selectedSupplier!.name,
-                          orElse: () => throw Exception('Rate not found'),
-                        );
-                        final costPerUnit = double.parse(vendorRate.saleRate);
+                        final vendorRate = material.getRateForVendor(selectedSupplier!.name);
+                        if (vendorRate == null) {
+                          throw Exception('Rate not found for ${selectedSupplier!.name}');
+                        }
+                        final costPerUnit = double.parse(vendorRate.purchaseRate);
 
                         // Calculate total for general stock
                         if (entry.value['General'] == true) {
@@ -1272,11 +1263,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     // Only show materials that:
                     // 1. Have rates for the selected supplier
                     // 2. Are not already in the PR list
-                    final rates = ref
-                        .read(vendorMaterialRateProvider.notifier)
-                        .getRatesForMaterial(m.slNo);
-                    final hasRate =
-                        rates.any((r) => r.vendorId == selectedSupplier!.name);
+                    final hasRate = m.getRateForVendor(selectedSupplier!.name) != null;
                     final notInPRs = !materialPRItems.containsKey(m.partNo);
                     return hasRate && notInPRs;
                   })
@@ -1413,12 +1400,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         continue;
                       }
 
-                      final rates = ref
-                          .read(vendorMaterialRateProvider.notifier)
-                          .getRatesForMaterial(material.slNo);
-
-                      if (!rates
-                          .any((r) => r.vendorId == selectedSupplier!.name)) {
+                      if (material.getRateForVendor(selectedSupplier!.name) == null) {
                         noRateCodes.add(code);
                       }
                     }

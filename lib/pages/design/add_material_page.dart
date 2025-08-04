@@ -33,6 +33,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   final _supplierRateController = TextEditingController();
   final _baseRateController = TextEditingController();
   final _saleRateController = TextEditingController();
+  final _discountController = TextEditingController();
   final _remarksController = TextEditingController();
   final _receivedQtyController = TextEditingController();
   final _issuedQtyController = TextEditingController();
@@ -48,6 +49,27 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
 
   // Track selected vendors
   List<String> selectedVendors = [];
+
+  // Helper methods for discount calculations
+  void _calculateDiscountFromRates() {
+    final baseRate = double.tryParse(_baseRateController.text);
+    final purchaseRate = double.tryParse(_saleRateController.text);
+    
+    if (baseRate != null && purchaseRate != null && baseRate > 0) {
+      final discount = ((baseRate - purchaseRate) / baseRate) * 100;
+      _discountController.text = discount.toStringAsFixed(2);
+    }
+  }
+
+  void _calculatePurchaseRateFromDiscount() {
+    final baseRate = double.tryParse(_baseRateController.text);
+    final discount = double.tryParse(_discountController.text);
+    
+    if (baseRate != null && discount != null && baseRate > 0) {
+      final purchaseRate = baseRate - (baseRate * discount / 100);
+      _saleRateController.text = purchaseRate.toStringAsFixed(2);
+    }
+  }
 
   @override
   void initState() {
@@ -110,6 +132,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   void dispose() {
     _supplierRateController.dispose();
     _saleRateController.dispose();
+    _discountController.dispose();
     _remarksController.dispose();
     _receivedQtyController.dispose();
     _issuedQtyController.dispose();
@@ -277,7 +300,15 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     // Reset all controllers for new rate
     _baseRateController.text = existingRate?.baseRate ?? '';
     _saleRateController.text = existingRate?.purchaseRate ?? '';
+    _discountController.text = '';
     _remarksController.text = existingRate?.remarks ?? '';
+
+    // Calculate initial discount if both rates exist
+    if (existingRate != null && 
+        existingRate.baseRate.isNotEmpty && 
+        existingRate.purchaseRate.isNotEmpty) {
+      _calculateDiscountFromRates();
+    }
 
     final result = await showDialog<bool>(
       context: context,
@@ -296,6 +327,12 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                   helperText: 'Vendor\'s catalog/standard rate',
                 ),
                 keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  // Auto-calculate purchase rate if discount is entered
+                  if (_discountController.text.isNotEmpty) {
+                    _calculatePurchaseRateFromDiscount();
+                  }
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -307,6 +344,25 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                 ),
                 keyboardType: TextInputType.number,
                 validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                onChanged: (value) {
+                  // Auto-calculate discount when purchase rate changes
+                  _calculateDiscountFromRates();
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _discountController,
+                decoration: const InputDecoration(
+                  labelText: 'Discount %',
+                  border: OutlineInputBorder(),
+                  helperText: 'Discount percentage (auto-calculated or enter manually)',
+                  suffixText: '%',
+                ),
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  // Auto-calculate purchase rate when discount changes
+                  _calculatePurchaseRateFromDiscount();
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(

@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:collection/collection.dart';
+import 'package:csv/csv.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../../provider/purchase_request_provider.dart';
 import '../../provider/purchase_order.dart';
 import '../../provider/store_inward_provider.dart';
@@ -26,6 +29,12 @@ class _PurchaseRequestListPageState
   late final List<PlutoColumn> columns;
   PlutoGridStateManager? stateManager;
   String _selectedStatus = 'Active'; // Default to Active view
+  bool _showFilters = false;
+  DateTime? _startDate;
+  DateTime? _endDate;
+  String _jobNumberFilter = '';
+  String _partNumberFilter = '';
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -280,22 +289,334 @@ class _PurchaseRequestListPageState
     ];
   }
 
+  Future<void> _exportToExcel(
+    List<PurchaseRequest> requests,
+    List<PurchaseOrder> purchaseOrders,
+    List<StoreInward> storeInwards,
+  ) async {
+    try {
+      final headers = [
+        'Sl.No',
+        'Sale Order No',
+        'Job No',
+        'PR No',
+        'PR Date',
+        'Part No',
+        'Description',
+        'PR Qty',
+        'Unit',
+        'Requested By',
+        'Stock Transfer Qty & Date',
+        'PO No & Date',
+        'PO Qty',
+        'Pending PR Qty',
+        'Status'
+      ];
+
+      final rows = _getRows(requests, purchaseOrders, storeInwards);
+      final csvData = [headers];
+
+      for (var row in rows) {
+        final rowData = <String>[];
+        
+        // Extract data in the order of headers
+        rowData.add(row.cells['serialNo']?.value.toString() ?? '');
+        rowData.add(''); // Sale Order No - not available in current model
+        rowData.add(row.cells['jobNo']?.value.toString() ?? '');
+        rowData.add(row.cells['prNo']?.value.toString() ?? '');
+        rowData.add(row.cells['prDate']?.value.toString() ?? '');
+        rowData.add(row.cells['partNo']?.value.toString() ?? '');
+        rowData.add(row.cells['description']?.value.toString() ?? '');
+        rowData.add(row.cells['prQty']?.value.toString() ?? '');
+        rowData.add(row.cells['unit']?.value.toString() ?? '');
+        rowData.add(row.cells['requestedBy']?.value.toString() ?? '');
+        rowData.add(row.cells['stockTransfer']?.value.toString().replaceAll('\n', '; ') ?? '');
+        rowData.add(row.cells['poDetails']?.value.toString().replaceAll('\n', '; ') ?? '');
+        rowData.add(row.cells['orderedQty']?.value.toString() ?? '');
+        rowData.add(row.cells['pendingQty']?.value.toString() ?? '');
+        rowData.add(row.cells['status']?.value.toString() ?? '');
+        
+        csvData.add(rowData);
+      }
+
+      final csvString = const ListToCsvConverter().convert(csvData);
+
+      // Get the documents directory
+      final directory = await getApplicationDocumentsDirectory();
+      final now = DateTime.now();
+      final fileName =
+          'purchase_requests_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}.csv';
+      final filePath = '${directory.path}/$fileName';
+
+      // Save the file
+      final file = File(filePath);
+      await file.writeAsString(csvString);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PR Report exported successfully to $filePath'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export PR report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildSearchAndFilters() {
+    return Card(
+      color: Colors.grey[850],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search PRs...',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      fillColor: Colors.grey[800],
+                      filled: true,
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
+                FilledButton.tonal(
+                  onPressed: () {
+                    setState(() {
+                      _showFilters = !_showFilters;
+                    });
+                  },
+                  child: Row(
+                    children: [
+                      Icon(
+                        _showFilters
+                            ? Icons.filter_list_off
+                            : Icons.filter_list,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Filters'),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                FilledButton.icon(
+                  onPressed: () => _exportToExcel(
+                    ref.read(purchaseRequestListProvider),
+                    ref.read(purchaseOrderListProvider),
+                    ref.read(storeInwardProvider),
+                  ),
+                  icon: const Icon(Icons.download),
+                  label: const Text('Export Report'),
+                ),
+              ],
+            ),
+            if (_showFilters) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Job Number',
+                        labelStyle: TextStyle(color: Colors.grey[300]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        fillColor: Colors.grey[800],
+                        filled: true,
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      onChanged: (value) {
+                        setState(() {
+                          _jobNumberFilter = value;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Part Number/Description',
+                        labelStyle: TextStyle(color: Colors.grey[300]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        fillColor: Colors.grey[800],
+                        filled: true,
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      onChanged: (value) {
+                        setState(() {
+                          _partNumberFilter = value;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Start Date',
+                        labelStyle: TextStyle(color: Colors.grey[300]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        fillColor: Colors.grey[800],
+                        filled: true,
+                        suffixIcon: const Icon(Icons.calendar_today),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      readOnly: true,
+                      controller: TextEditingController(
+                        text: _startDate?.toString().split(' ')[0] ?? '',
+                      ),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _startDate ?? DateTime.now(),
+                          firstDate: DateTime.now()
+                              .subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            _startDate = date;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'End Date',
+                        labelStyle: TextStyle(color: Colors.grey[300]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        fillColor: Colors.grey[800],
+                        filled: true,
+                        suffixIcon: const Icon(Icons.calendar_today),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      readOnly: true,
+                      controller: TextEditingController(
+                        text: _endDate?.toString().split(' ')[0] ?? '',
+                      ),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _endDate ?? DateTime.now(),
+                          firstDate: DateTime.now()
+                              .subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            _endDate = date;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   List<PlutoRow> _getRows(
     List<PurchaseRequest> requests,
     List<PurchaseOrder> purchaseOrders,
     List<StoreInward> storeInwards,
   ) {
-    // Filter based on selected status
-    if (_selectedStatus == 'Active') {
-      requests = requests.where((pr) => pr.status != 'Completed').toList();
-    } else if (_selectedStatus != 'All') {
-      requests = requests.where((pr) => pr.status == _selectedStatus).toList();
+    // Apply filters
+    var filteredRequests = requests.where((pr) {
+      // Status filter
+      if (_selectedStatus == 'Active' && pr.status == 'Completed') return false;
+      if (_selectedStatus != 'All' && _selectedStatus != 'Active' && pr.status != _selectedStatus) return false;
+      
+      // Date filter
+      if (_startDate != null || _endDate != null) {
+        try {
+          final prDate = DateTime.parse(pr.date);
+          if (_startDate != null && prDate.isBefore(_startDate!)) return false;
+          if (_endDate != null && prDate.isAfter(_endDate!.add(const Duration(days: 1)))) return false;
+        } catch (e) {
+          // Skip invalid dates
+          return false;
+        }
+      }
+      
+      // Job number filter
+      if (_jobNumberFilter.isNotEmpty) {
+        final jobNo = pr.jobNo ?? '';
+        if (!jobNo.toLowerCase().contains(_jobNumberFilter.toLowerCase())) return false;
+      }
+      
+      // Search query filter
+      if (_searchQuery.isNotEmpty) {
+        final searchLower = _searchQuery.toLowerCase();
+        if (!pr.prNo.toLowerCase().contains(searchLower) &&
+            !pr.requiredBy.toLowerCase().contains(searchLower) &&
+            !(pr.jobNo ?? '').toLowerCase().contains(searchLower)) {
+          // Check if any item matches
+          bool itemMatches = pr.items.any((item) =>
+              item.materialCode.toLowerCase().contains(searchLower) ||
+              item.materialDescription.toLowerCase().contains(searchLower));
+          if (!itemMatches) return false;
+        }
+      }
+      
+      return true;
+    }).toList();
+    
+    // Apply part number filter on items level
+    if (_partNumberFilter.isNotEmpty) {
+      filteredRequests = filteredRequests.where((pr) {
+        return pr.items.any((item) =>
+            item.materialCode.toLowerCase().contains(_partNumberFilter.toLowerCase()) ||
+            item.materialDescription.toLowerCase().contains(_partNumberFilter.toLowerCase()));
+      }).toList();
     }
 
     final rows = <PlutoRow>[];
     var serialNo = 1;
 
-    for (var request in requests) {
+    for (var request in filteredRequests) {
       for (var item in request.items) {
         // Calculate total ordered quantity for this PR item
         final totalOrderedQty = item.totalOrderedQuantity;
@@ -554,6 +875,8 @@ class _PurchaseRequestListPageState
                     '${requests.length} Purchase Requests',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
+                  const SizedBox(height: 16),
+                  _buildSearchAndFilters(),
                   const SizedBox(height: 16),
                   Expanded(
                     child: PlutoGrid(

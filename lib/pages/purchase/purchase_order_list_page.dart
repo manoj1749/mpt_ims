@@ -3,6 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:csv/csv.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/purchase_order.dart';
 import '../../provider/purchase_order.dart';
 import '../../provider/purchase_request_provider.dart';
@@ -21,40 +25,72 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
   String _selectedStatus = 'Active';
   final Set<String> _expandedPOs = {};
   final Set<String> _fullyExpandedPOs = {};
+  bool _showFilters = false;
+  DateTime? _startDate;
+  DateTime? _endDate;
+  String _supplierFilter = '';
+  String _partNumberFilter = '';
+  PlutoGridStateManager? stateManager;
 
   List<PurchaseOrder> _filterOrders(List<PurchaseOrder> orders) {
-    if (_searchQuery.isEmpty) {
-      return orders.where((order) => _matchesStatus(order)).toList();
-    }
-
-    final searchLower = _searchQuery.toLowerCase();
     return orders.where((order) {
-      // Check if matches status filter first
+      // Status filter
       if (!_matchesStatus(order)) return false;
-
-      // Search in PO details
-      if (order.poNo.toLowerCase().contains(searchLower)) return true;
-      if (order.supplierName.toLowerCase().contains(searchLower)) return true;
-
-      // Search in items
-      for (var item in order.items) {
-        // Check material description
-        if (item.materialDescription.toLowerCase().contains(searchLower)) {
-          return true;
-        }
-        // Check material code
-        if (item.materialCode.toLowerCase().contains(searchLower)) return true;
-
-        // Check PR details for job numbers
-        for (var prDetail in item.prDetails.values) {
-          // Check PR number
-          if (prDetail.prNo.toLowerCase().contains(searchLower)) return true;
-          // Check job number if it exists
-          if (prDetail.jobNo.toLowerCase().contains(searchLower)) return true;
+      
+      // Date filter
+      if (_startDate != null || _endDate != null) {
+        try {
+          final poDate = DateTime.parse(order.poDate);
+          if (_startDate != null && poDate.isBefore(_startDate!)) return false;
+          if (_endDate != null && poDate.isAfter(_endDate!.add(const Duration(days: 1)))) return false;
+        } catch (e) {
+          return false;
         }
       }
+      
+      // Supplier filter
+      if (_supplierFilter.isNotEmpty) {
+        if (!order.supplierName.toLowerCase().contains(_supplierFilter.toLowerCase())) return false;
+      }
+      
+      // Part number filter
+      if (_partNumberFilter.isNotEmpty) {
+        bool itemMatches = order.items.any((item) =>
+            item.materialCode.toLowerCase().contains(_partNumberFilter.toLowerCase()) ||
+            item.materialDescription.toLowerCase().contains(_partNumberFilter.toLowerCase()));
+        if (!itemMatches) return false;
+      }
+      
+      // Search query filter
+      if (_searchQuery.isNotEmpty) {
+        final searchLower = _searchQuery.toLowerCase();
+        
+        // Search in PO details
+        if (order.poNo.toLowerCase().contains(searchLower)) return true;
+        if (order.supplierName.toLowerCase().contains(searchLower)) return true;
 
-      return false;
+        // Search in items
+        for (var item in order.items) {
+          // Check material description
+          if (item.materialDescription.toLowerCase().contains(searchLower)) {
+            return true;
+          }
+          // Check material code
+          if (item.materialCode.toLowerCase().contains(searchLower)) return true;
+
+          // Check PR details for job numbers
+          for (var prDetail in item.prDetails.values) {
+            // Check PR number
+            if (prDetail.prNo.toLowerCase().contains(searchLower)) return true;
+            // Check job number if it exists
+            if (prDetail.jobNo.toLowerCase().contains(searchLower)) return true;
+          }
+        }
+        
+        return false;
+      }
+
+      return true;
     }).toList();
   }
 
@@ -95,6 +131,310 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
           color: color,
           fontSize: 11,
           fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportToExcel(List<PurchaseOrder> orders) async {
+    try {
+      final headers = [
+        'Sl No',
+        'PO No',
+        'PO Date',
+        'Supplier',
+        'Part No',
+        'Description',
+        'Qty',
+        'Unit',
+        'Cost/Unit',
+        'Total Cost',
+        'Pending Qty',
+        'Status'
+      ];
+
+      final csvData = [headers];
+      var serialNo = 1;
+
+      for (var order in orders) {
+        for (var item in order.items) {
+          final rowData = <String>[];
+          
+          // Calculate pending quantity
+          final orderedQty = double.tryParse(item.quantity) ?? 0.0;
+          final receivedQty = item.totalReceivedQuantity;
+          final pendingQty = orderedQty - receivedQty;
+          
+          rowData.add(serialNo.toString());
+          rowData.add(order.poNo);
+          rowData.add(order.poDate);
+          rowData.add(order.supplierName);
+          rowData.add(item.materialCode);
+          rowData.add(item.materialDescription);
+          rowData.add(item.quantity);
+          rowData.add(item.unit);
+          rowData.add(item.costPerUnit);
+          rowData.add(item.totalCost);
+          rowData.add(pendingQty.toString());
+          rowData.add(order.status);
+          
+          csvData.add(rowData);
+          serialNo++;
+        }
+      }
+
+      final csvString = const ListToCsvConverter().convert(csvData);
+
+      // Get the documents directory
+      final directory = await getApplicationDocumentsDirectory();
+      final now = DateTime.now();
+      final fileName =
+          'purchase_orders_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}.csv';
+      final filePath = '${directory.path}/$fileName';
+
+      // Save the file
+      final file = File(filePath);
+      await file.writeAsString(csvString);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PO Report exported successfully to $filePath'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export PO report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildSearchAndFilters() {
+    return Card(
+      color: Colors.grey[850],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search POs...',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      fillColor: Colors.grey[800],
+                      filled: true,
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
+                FilledButton.tonal(
+                  onPressed: () {
+                    setState(() {
+                      _showFilters = !_showFilters;
+                    });
+                  },
+                  child: Row(
+                    children: [
+                      Icon(
+                        _showFilters
+                            ? Icons.filter_list_off
+                            : Icons.filter_list,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Filters'),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                FilledButton.icon(
+                  onPressed: () => _exportToExcel(
+                    _filterOrders(ref.read(purchaseOrderListProvider)),
+                  ),
+                  icon: const Icon(Icons.download),
+                  label: const Text('Export Report'),
+                ),
+              ],
+            ),
+            if (_showFilters) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        labelText: 'Status',
+                        labelStyle: TextStyle(color: Colors.grey[300]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        fillColor: Colors.grey[800],
+                        filled: true,
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      dropdownColor: Colors.grey[800],
+                      value: _selectedStatus,
+                      items: [
+                        'Active',
+                        'Placed',
+                        'Partially Received',
+                        'Completed',
+                        'All'
+                      ].map((status) => DropdownMenuItem(
+                            value: status,
+                            child: Text(status, style: const TextStyle(color: Colors.white)),
+                          )).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedStatus = value;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Supplier',
+                        labelStyle: TextStyle(color: Colors.grey[300]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        fillColor: Colors.grey[800],
+                        filled: true,
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      onChanged: (value) {
+                        setState(() {
+                          _supplierFilter = value;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Part Number/Description',
+                        labelStyle: TextStyle(color: Colors.grey[300]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        fillColor: Colors.grey[800],
+                        filled: true,
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      onChanged: (value) {
+                        setState(() {
+                          _partNumberFilter = value;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(child: Container()), // Empty space for alignment
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Start Date',
+                        labelStyle: TextStyle(color: Colors.grey[300]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        fillColor: Colors.grey[800],
+                        filled: true,
+                        suffixIcon: const Icon(Icons.calendar_today),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      readOnly: true,
+                      controller: TextEditingController(
+                        text: _startDate?.toString().split(' ')[0] ?? '',
+                      ),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _startDate ?? DateTime.now(),
+                          firstDate: DateTime.now()
+                              .subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            _startDate = date;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'End Date',
+                        labelStyle: TextStyle(color: Colors.grey[300]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        fillColor: Colors.grey[800],
+                        filled: true,
+                        suffixIcon: const Icon(Icons.calendar_today),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      readOnly: true,
+                      controller: TextEditingController(
+                        text: _endDate?.toString().split(' ')[0] ?? '',
+                      ),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _endDate ?? DateTime.now(),
+                          firstDate: DateTime.now()
+                              .subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            _endDate = date;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -431,68 +771,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search POs...',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      fillColor: Colors.grey[850],
-                      filled: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      isDense: true,
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Theme(
-                  data: Theme.of(context).copyWith(
-                    canvasColor: Colors.grey[850],
-                  ),
-                  child: DropdownButton<String>(
-                    value: _selectedStatus,
-                    dropdownColor: Colors.grey[850],
-                    style: const TextStyle(color: Colors.white),
-                    isDense: true,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    items: [
-                      'Active',
-                      'Placed',
-                      'Partially Received',
-                      'Completed',
-                      'All'
-                    ]
-                        .map((status) => DropdownMenuItem(
-                              value: status,
-                              child: Text(status),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedStatus = value;
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.all(16),
+            child: _buildSearchAndFilters(),
           ),
           Expanded(
             child: filteredOrders.isEmpty

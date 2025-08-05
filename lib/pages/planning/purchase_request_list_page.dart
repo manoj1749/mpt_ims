@@ -400,6 +400,15 @@ class _PurchaseRequestListPageState
                 setState(() {
                   _selectedStatus = value;
                 });
+                // Refresh grid when filter changes
+                if (stateManager != null) {
+                  final requests = ref.read(purchaseRequestListProvider);
+                  final purchaseOrders = ref.read(purchaseOrderListProvider);
+                  final storeInwards = ref.read(storeInwardProvider);
+                  stateManager!.removeAllRows();
+                  stateManager!.appendRows(
+                      _getRows(requests, purchaseOrders, storeInwards));
+                }
               }
             },
           ),

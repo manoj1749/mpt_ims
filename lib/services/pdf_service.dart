@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -11,13 +12,13 @@ import '../models/supplier.dart';
 class PDFService {
   // Company configuration - can be modified as needed
   static const _companyConfig = {
-    'name': 'Magnet Power Tech Solutions',
-    'address': '''No 11, Madhukarai To Eachanari Road,
-Madhukarai (Post),
-Coimbatore - 641105''',
-    'gstn': '33CQPPS6566128',
-    'mobile': '9500787968',
-    'email': 'mptspurchases@gmail.com',
+    'name': 'Aimant Industries',
+    'address': '''SF.NO.215, ORATTUKUPPAI,
+ORATTUKUPPAI, Chettipalayam,
+Coimbatore, Tamil Nadu - 641201''',
+    'gstn': '33ACKFA4542P1Z3',
+    'mobile': '+91 97913 66775',
+    'email': 'info@aimantindustries.com',
   };
 
   static Future<Uint8List> generatePurchaseOrderPDF(
@@ -29,6 +30,10 @@ Coimbatore - 641105''',
     // Load font that supports Unicode characters
     final font = await PdfGoogleFonts.notoSansRegular();
     final fontBold = await PdfGoogleFonts.notoSansBold();
+
+    // Load company logo
+    final logoData = await rootBundle.load('assets/logo.jpeg');
+    final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
 
     // Company information (configurable)
     final companyName = _companyConfig['name']!;
@@ -46,7 +51,7 @@ Coimbatore - 641105''',
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               // Header with company details
-              _buildHeader(companyName, companyAddress, companyGSTN, companyMobile, companyEmail, font, fontBold),
+              _buildHeader(companyName, companyAddress, companyGSTN, companyMobile, companyEmail, logoImage, font, fontBold),
               
               pw.SizedBox(height: 20),
               
@@ -82,7 +87,7 @@ Coimbatore - 641105''',
   }
 
   static pw.Widget _buildHeader(String companyName, String companyAddress, 
-      String gstNo, String mobile, String email, pw.Font font, pw.Font fontBold) {
+      String gstNo, String mobile, String email, pw.MemoryImage logoImage, pw.Font font, pw.Font fontBold) {
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.black, width: 1),
@@ -128,17 +133,11 @@ Coimbatore - 641105''',
             flex: 1,
             child: pw.Container(
               height: 80,
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.grey, width: 1),
-              ),
               child: pw.Center(
-                child: pw.Text(
-                  'LOGO',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    font: fontBold,
-                    color: PdfColors.grey,
-                  ),
+                child: pw.Image(
+                  logoImage,
+                  height: 70,
+                  fit: pw.BoxFit.contain,
                 ),
               ),
             ),

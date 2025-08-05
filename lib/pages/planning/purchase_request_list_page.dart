@@ -29,12 +29,6 @@ class _PurchaseRequestListPageState
   late final List<PlutoColumn> columns;
   PlutoGridStateManager? stateManager;
   String _selectedStatus = 'Active'; // Default to Active view
-  bool _showFilters = false;
-  DateTime? _startDate;
-  DateTime? _endDate;
-  String _jobNumberFilter = '';
-  String _partNumberFilter = '';
-  String _searchQuery = '';
 
   @override
   void initState() {
@@ -372,190 +366,253 @@ class _PurchaseRequestListPageState
     }
   }
 
-  Widget _buildSearchAndFilters() {
-    return Card(
-      color: Colors.grey[850],
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+  Widget _buildExportButton() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Status Filter Dropdown
+        SizedBox(
+          width: 200,
+          child: DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: 'Status Filter',
+              labelStyle: TextStyle(color: Colors.grey[300]),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              fillColor: Colors.grey[800],
+              filled: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            style: const TextStyle(color: Colors.white),
+            dropdownColor: Colors.grey[800],
+            value: _selectedStatus,
+            items: [
+              'Active',
+              'Completed',
+              'All'
+            ].map((status) => DropdownMenuItem(
+                  value: status,
+                  child: Text(status, style: const TextStyle(color: Colors.white)),
+                )).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedStatus = value;
+                });
+              }
+            },
+          ),
+        ),
+        // Export Button
+        FilledButton.icon(
+          onPressed: _showExportOptions,
+          icon: const Icon(Icons.download),
+          label: const Text('Export Report'),
+        ),
+      ],
+    );
+  }
+
+  void _showExportOptions() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[850],
+        title: Text(
+          'Export Purchase Request Report',
+          style: TextStyle(color: Colors.grey[200]),
+        ),
+        content: Text(
+          'Choose export option:',
+          style: TextStyle(color: Colors.grey[200]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[200])),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _quickExport();
+            },
+            child: Text('Quick Export', style: TextStyle(color: Colors.grey[200])),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showFilterDialog();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+            ),
+            child: const Text('Filter'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _quickExport() {
+    final requests = ref.read(purchaseRequestListProvider);
+    final purchaseOrders = ref.read(purchaseOrderListProvider);
+    final storeInwards = ref.read(storeInwardProvider);
+    _exportToExcel(requests, purchaseOrders, storeInwards);
+  }
+
+  void _showFilterDialog() {
+    DateTime? startDate;
+    DateTime? endDate;
+    String jobNumberFilter = '';
+    String partNumberFilter = '';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: Colors.grey[850],
+          title: Text(
+            'Filter Purchase Requests',
+            style: TextStyle(color: Colors.grey[200]),
+          ),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search PRs...',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      fillColor: Colors.grey[800],
-                      filled: true,
+                TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Job Number',
+                    labelStyle: TextStyle(color: Colors.grey[300]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    style: const TextStyle(color: Colors.white),
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
+                    fillColor: Colors.grey[800],
+                    filled: true,
                   ),
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (value) => jobNumberFilter = value,
                 ),
-                const SizedBox(width: 16),
-                FilledButton.tonal(
-                  onPressed: () {
-                    setState(() {
-                      _showFilters = !_showFilters;
-                    });
+                const SizedBox(height: 16),
+                TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Part Number/Description',
+                    labelStyle: TextStyle(color: Colors.grey[300]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    fillColor: Colors.grey[800],
+                    filled: true,
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (value) => partNumberFilter = value,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Start Date (YYYY-MM-DD)',
+                    labelStyle: TextStyle(color: Colors.grey[300]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    fillColor: Colors.grey[800],
+                    filled: true,
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (value) {
+                    try {
+                      startDate = DateTime.parse(value);
+                    } catch (e) {
+                      startDate = null;
+                    }
                   },
-                  child: Row(
-                    children: [
-                      Icon(
-                        _showFilters
-                            ? Icons.filter_list_off
-                            : Icons.filter_list,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('Filters'),
-                    ],
-                  ),
                 ),
-                const SizedBox(width: 16),
-                FilledButton.icon(
-                  onPressed: () => _exportToExcel(
-                    ref.read(purchaseRequestListProvider),
-                    ref.read(purchaseOrderListProvider),
-                    ref.read(storeInwardProvider),
+                const SizedBox(height: 16),
+                TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'End Date (YYYY-MM-DD)',
+                    labelStyle: TextStyle(color: Colors.grey[300]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    fillColor: Colors.grey[800],
+                    filled: true,
                   ),
-                  icon: const Icon(Icons.download),
-                  label: const Text('Export Report'),
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (value) {
+                    try {
+                      endDate = DateTime.parse(value);
+                    } catch (e) {
+                      endDate = null;
+                    }
+                  },
                 ),
               ],
             ),
-            if (_showFilters) ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      decoration: InputDecoration(
-                        labelText: 'Job Number',
-                        labelStyle: TextStyle(color: Colors.grey[300]),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        fillColor: Colors.grey[800],
-                        filled: true,
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      onChanged: (value) {
-                        setState(() {
-                          _jobNumberFilter = value;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      decoration: InputDecoration(
-                        labelText: 'Part Number/Description',
-                        labelStyle: TextStyle(color: Colors.grey[300]),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        fillColor: Colors.grey[800],
-                        filled: true,
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      onChanged: (value) {
-                        setState(() {
-                          _partNumberFilter = value;
-                        });
-                      },
-                    ),
-                  ),
-                ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey[200])),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _exportWithFilters(startDate, endDate, jobNumberFilter, partNumberFilter);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      decoration: InputDecoration(
-                        labelText: 'Start Date',
-                        labelStyle: TextStyle(color: Colors.grey[300]),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        fillColor: Colors.grey[800],
-                        filled: true,
-                        suffixIcon: const Icon(Icons.calendar_today),
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      readOnly: true,
-                      controller: TextEditingController(
-                        text: _startDate?.toString().split(' ')[0] ?? '',
-                      ),
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _startDate ?? DateTime.now(),
-                          firstDate: DateTime.now()
-                              .subtract(const Duration(days: 365)),
-                          lastDate: DateTime.now(),
-                        );
-                        if (date != null) {
-                          setState(() {
-                            _startDate = date;
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      decoration: InputDecoration(
-                        labelText: 'End Date',
-                        labelStyle: TextStyle(color: Colors.grey[300]),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        fillColor: Colors.grey[800],
-                        filled: true,
-                        suffixIcon: const Icon(Icons.calendar_today),
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      readOnly: true,
-                      controller: TextEditingController(
-                        text: _endDate?.toString().split(' ')[0] ?? '',
-                      ),
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _endDate ?? DateTime.now(),
-                          firstDate: DateTime.now()
-                              .subtract(const Duration(days: 365)),
-                          lastDate: DateTime.now(),
-                        );
-                        if (date != null) {
-                          setState(() {
-                            _endDate = date;
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              child: const Text('Export'),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  void _exportWithFilters(DateTime? startDate, DateTime? endDate, String jobNumberFilter, String partNumberFilter) {
+    final allRequests = ref.read(purchaseRequestListProvider);
+    final purchaseOrders = ref.read(purchaseOrderListProvider);
+    final storeInwards = ref.read(storeInwardProvider);
+
+    // Apply filters
+    final filteredRequests = allRequests.where((request) {
+      // Date filter
+      if (startDate != null) {
+        final requestDate = DateTime.parse(request.date);
+        if (requestDate.isBefore(startDate)) return false;
+      }
+      if (endDate != null) {
+        final requestDate = DateTime.parse(request.date);
+        if (requestDate.isAfter(endDate)) return false;
+      }
+
+      // Job number filter
+      if (jobNumberFilter.isNotEmpty) {
+        if (!(request.jobNo?.toLowerCase().contains(jobNumberFilter.toLowerCase()) ?? false)) {
+          return false;
+        }
+      }
+
+      // Part number/description filter
+      if (partNumberFilter.isNotEmpty) {
+        bool hasMatch = false;
+        for (var item in request.items) {
+          if (item.materialCode.toLowerCase().contains(partNumberFilter.toLowerCase()) ||
+              item.materialDescription.toLowerCase().contains(partNumberFilter.toLowerCase())) {
+            hasMatch = true;
+            break;
+          }
+        }
+        if (!hasMatch) return false;
+      }
+
+      return true;
+    }).toList();
+
+    _exportToExcel(filteredRequests, purchaseOrders, storeInwards);
   }
 
   List<PlutoRow> _getRows(
@@ -563,55 +620,13 @@ class _PurchaseRequestListPageState
     List<PurchaseOrder> purchaseOrders,
     List<StoreInward> storeInwards,
   ) {
-    // Apply filters
+    // Apply status filter only
     var filteredRequests = requests.where((pr) {
-      // Status filter
       if (_selectedStatus == 'Active' && pr.status == 'Completed') return false;
       if (_selectedStatus != 'All' && _selectedStatus != 'Active' && pr.status != _selectedStatus) return false;
-      
-      // Date filter
-      if (_startDate != null || _endDate != null) {
-        try {
-          final prDate = DateTime.parse(pr.date);
-          if (_startDate != null && prDate.isBefore(_startDate!)) return false;
-          if (_endDate != null && prDate.isAfter(_endDate!.add(const Duration(days: 1)))) return false;
-        } catch (e) {
-          // Skip invalid dates
-          return false;
-        }
-      }
-      
-      // Job number filter
-      if (_jobNumberFilter.isNotEmpty) {
-        final jobNo = pr.jobNo ?? '';
-        if (!jobNo.toLowerCase().contains(_jobNumberFilter.toLowerCase())) return false;
-      }
-      
-      // Search query filter
-      if (_searchQuery.isNotEmpty) {
-        final searchLower = _searchQuery.toLowerCase();
-        if (!pr.prNo.toLowerCase().contains(searchLower) &&
-            !pr.requiredBy.toLowerCase().contains(searchLower) &&
-            !(pr.jobNo ?? '').toLowerCase().contains(searchLower)) {
-          // Check if any item matches
-          bool itemMatches = pr.items.any((item) =>
-              item.materialCode.toLowerCase().contains(searchLower) ||
-              item.materialDescription.toLowerCase().contains(searchLower));
-          if (!itemMatches) return false;
-        }
-      }
-      
       return true;
     }).toList();
-    
-    // Apply part number filter on items level
-    if (_partNumberFilter.isNotEmpty) {
-      filteredRequests = filteredRequests.where((pr) {
-        return pr.items.any((item) =>
-            item.materialCode.toLowerCase().contains(_partNumberFilter.toLowerCase()) ||
-            item.materialDescription.toLowerCase().contains(_partNumberFilter.toLowerCase()));
-      }).toList();
-    }
+
 
     final rows = <PlutoRow>[];
     var serialNo = 1;
@@ -764,47 +779,6 @@ class _PurchaseRequestListPageState
         title: const Text('Purchase Requests'),
         elevation: 0,
         actions: [
-          // Add filter dropdown in the app bar
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: DropdownButton<String>(
-              value: _selectedStatus,
-              dropdownColor: Colors.grey[850],
-              style: TextStyle(color: Colors.grey[200]),
-              icon: Icon(Icons.filter_list, color: Colors.grey[200]),
-              underline: Container(),
-              items: const [
-                DropdownMenuItem(
-                  value: 'Active',
-                  child: Text('Active'),
-                ),
-                DropdownMenuItem(
-                  value: 'Completed',
-                  child: Text('Completed'),
-                ),
-                DropdownMenuItem(
-                  value: 'All',
-                  child: Text('All'),
-                ),
-              ],
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  setState(() {
-                    _selectedStatus = newValue;
-                  });
-                  // Refresh grid when filter changes
-                  if (stateManager != null) {
-                    final requests = ref.read(purchaseRequestListProvider);
-                    final purchaseOrders = ref.read(purchaseOrderListProvider);
-                    final storeInwards = ref.read(storeInwardProvider);
-                    stateManager!.removeAllRows();
-                    stateManager!.appendRows(
-                        _getRows(requests, purchaseOrders, storeInwards));
-                  }
-                }
-              },
-            ),
-          ),
           // Add refresh button
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -876,7 +850,7 @@ class _PurchaseRequestListPageState
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 16),
-                  _buildSearchAndFilters(),
+                  _buildExportButton(),
                   const SizedBox(height: 16),
                   Expanded(
                     child: PlutoGrid(

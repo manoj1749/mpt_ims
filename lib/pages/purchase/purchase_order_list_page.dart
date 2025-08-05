@@ -23,76 +23,15 @@ class PurchaseOrderListPage extends ConsumerStatefulWidget {
 }
 
 class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
-  String _searchQuery = '';
   String _selectedStatus = 'Active';
   final Set<String> _expandedPOs = {};
   final Set<String> _fullyExpandedPOs = {};
-  bool _showFilters = false;
-  DateTime? _startDate;
-  DateTime? _endDate;
-  String _supplierFilter = '';
-  String _partNumberFilter = '';
   PlutoGridStateManager? stateManager;
 
   List<PurchaseOrder> _filterOrders(List<PurchaseOrder> orders) {
     return orders.where((order) {
-      // Status filter
-      if (!_matchesStatus(order)) return false;
-      
-      // Date filter
-      if (_startDate != null || _endDate != null) {
-        try {
-          final poDate = DateTime.parse(order.poDate);
-          if (_startDate != null && poDate.isBefore(_startDate!)) return false;
-          if (_endDate != null && poDate.isAfter(_endDate!.add(const Duration(days: 1)))) return false;
-        } catch (e) {
-          return false;
-        }
-      }
-      
-      // Supplier filter
-      if (_supplierFilter.isNotEmpty) {
-        if (!order.supplierName.toLowerCase().contains(_supplierFilter.toLowerCase())) return false;
-      }
-      
-      // Part number filter
-      if (_partNumberFilter.isNotEmpty) {
-        bool itemMatches = order.items.any((item) =>
-            item.materialCode.toLowerCase().contains(_partNumberFilter.toLowerCase()) ||
-            item.materialDescription.toLowerCase().contains(_partNumberFilter.toLowerCase()));
-        if (!itemMatches) return false;
-      }
-      
-      // Search query filter
-      if (_searchQuery.isNotEmpty) {
-        final searchLower = _searchQuery.toLowerCase();
-        
-        // Search in PO details
-        if (order.poNo.toLowerCase().contains(searchLower)) return true;
-        if (order.supplierName.toLowerCase().contains(searchLower)) return true;
-
-        // Search in items
-        for (var item in order.items) {
-          // Check material description
-          if (item.materialDescription.toLowerCase().contains(searchLower)) {
-            return true;
-          }
-          // Check material code
-          if (item.materialCode.toLowerCase().contains(searchLower)) return true;
-
-          // Check PR details for job numbers
-          for (var prDetail in item.prDetails.values) {
-            // Check PR number
-            if (prDetail.prNo.toLowerCase().contains(searchLower)) return true;
-            // Check job number if it exists
-            if (prDetail.jobNo.toLowerCase().contains(searchLower)) return true;
-          }
-        }
-        
-        return false;
-      }
-
-      return true;
+      // Status filter only
+      return _matchesStatus(order);
     }).toList();
   }
 
@@ -218,228 +157,279 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
     }
   }
 
-  Widget _buildSearchAndFilters() {
-    return Card(
-      color: Colors.grey[850],
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search POs...',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      fillColor: Colors.grey[800],
-                      filled: true,
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                FilledButton.tonal(
-                  onPressed: () {
-                    setState(() {
-                      _showFilters = !_showFilters;
-                    });
-                  },
-                  child: Row(
-                    children: [
-                      Icon(
-                        _showFilters
-                            ? Icons.filter_list_off
-                            : Icons.filter_list,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('Filters'),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                FilledButton.icon(
-                  onPressed: () => _exportToExcel(
-                    _filterOrders(ref.read(purchaseOrderListProvider)),
-                  ),
-                  icon: const Icon(Icons.download),
-                  label: const Text('Export Report'),
-                ),
-              ],
+  Widget _buildExportButton() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Status Filter Dropdown
+        SizedBox(
+          width: 200,
+          child: DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: 'Status Filter',
+              labelStyle: TextStyle(color: Colors.grey[300]),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              fillColor: Colors.grey[800],
+              filled: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
-            if (_showFilters) ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      decoration: InputDecoration(
-                        labelText: 'Status',
-                        labelStyle: TextStyle(color: Colors.grey[300]),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        fillColor: Colors.grey[800],
-                        filled: true,
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      dropdownColor: Colors.grey[800],
-                      value: _selectedStatus,
-                      items: [
-                        'Active',
-                        'Placed',
-                        'Partially Received',
-                        'Completed',
-                        'All'
-                      ].map((status) => DropdownMenuItem(
+            style: const TextStyle(color: Colors.white),
+            dropdownColor: Colors.grey[800],
+            value: _selectedStatus,
+            items: [
+              'Active',
+              'Placed', 
+              'Partially Received',
+              'Completed',
+              'All'
+            ].map((status) => DropdownMenuItem(
+                  value: status,
+                  child: Text(status, style: const TextStyle(color: Colors.white)),
+                )).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedStatus = value;
+                });
+              }
+            },
+          ),
+        ),
+        // Export Button
+        FilledButton.icon(
+          onPressed: _showExportOptions,
+          icon: const Icon(Icons.download),
+          label: const Text('Export Report'),
+        ),
+      ],
+    );
+  }
+
+  void _showExportOptions() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[850],
+        title: Text(
+          'Export Purchase Order Report',
+          style: TextStyle(color: Colors.grey[200]),
+        ),
+        content: Text(
+          'Choose export option:',
+          style: TextStyle(color: Colors.grey[200]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[200])),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _quickExport();
+            },
+            child: Text('Quick Export', style: TextStyle(color: Colors.grey[200])),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showFilterDialog();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+            ),
+            child: const Text('Filter'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _quickExport() {
+    final orders = ref.read(purchaseOrderListProvider);
+    _exportToExcel(orders);
+  }
+
+  void _showFilterDialog() {
+    DateTime? startDate;
+    DateTime? endDate;
+    String supplierFilter = '';
+    String partNumberFilter = '';
+    String statusFilter = 'All';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: Colors.grey[850],
+          title: Text(
+            'Filter Purchase Orders',
+            style: TextStyle(color: Colors.grey[200]),
+          ),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: 'Status',
+                    labelStyle: TextStyle(color: Colors.grey[300]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    fillColor: Colors.grey[800],
+                    filled: true,
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  dropdownColor: Colors.grey[800],
+                  value: statusFilter,
+                  items: ['All', 'Active', 'Placed', 'Partially Received', 'Completed']
+                      .map((status) => DropdownMenuItem(
                             value: status,
                             child: Text(status, style: const TextStyle(color: Colors.white)),
                           )).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedStatus = value;
-                          });
-                        }
-                      },
+                  onChanged: (value) => statusFilter = value ?? 'All',
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Supplier',
+                    labelStyle: TextStyle(color: Colors.grey[300]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    fillColor: Colors.grey[800],
+                    filled: true,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      decoration: InputDecoration(
-                        labelText: 'Supplier',
-                        labelStyle: TextStyle(color: Colors.grey[300]),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        fillColor: Colors.grey[800],
-                        filled: true,
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      onChanged: (value) {
-                        setState(() {
-                          _supplierFilter = value;
-                        });
-                      },
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (value) => supplierFilter = value,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Part Number/Description',
+                    labelStyle: TextStyle(color: Colors.grey[300]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    fillColor: Colors.grey[800],
+                    filled: true,
                   ),
-                ],
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (value) => partNumberFilter = value,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Start Date (YYYY-MM-DD)',
+                    labelStyle: TextStyle(color: Colors.grey[300]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    fillColor: Colors.grey[800],
+                    filled: true,
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (value) {
+                    try {
+                      startDate = DateTime.parse(value);
+                    } catch (e) {
+                      startDate = null;
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'End Date (YYYY-MM-DD)',
+                    labelStyle: TextStyle(color: Colors.grey[300]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    fillColor: Colors.grey[800],
+                    filled: true,
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (value) {
+                    try {
+                      endDate = DateTime.parse(value);
+                    } catch (e) {
+                      endDate = null;
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey[200])),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _exportWithFilters(startDate, endDate, supplierFilter, partNumberFilter, statusFilter);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      decoration: InputDecoration(
-                        labelText: 'Part Number/Description',
-                        labelStyle: TextStyle(color: Colors.grey[300]),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        fillColor: Colors.grey[800],
-                        filled: true,
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      onChanged: (value) {
-                        setState(() {
-                          _partNumberFilter = value;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(child: Container()), // Empty space for alignment
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      decoration: InputDecoration(
-                        labelText: 'Start Date',
-                        labelStyle: TextStyle(color: Colors.grey[300]),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        fillColor: Colors.grey[800],
-                        filled: true,
-                        suffixIcon: const Icon(Icons.calendar_today),
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      readOnly: true,
-                      controller: TextEditingController(
-                        text: _startDate?.toString().split(' ')[0] ?? '',
-                      ),
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _startDate ?? DateTime.now(),
-                          firstDate: DateTime.now()
-                              .subtract(const Duration(days: 365)),
-                          lastDate: DateTime.now(),
-                        );
-                        if (date != null) {
-                          setState(() {
-                            _startDate = date;
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      decoration: InputDecoration(
-                        labelText: 'End Date',
-                        labelStyle: TextStyle(color: Colors.grey[300]),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        fillColor: Colors.grey[800],
-                        filled: true,
-                        suffixIcon: const Icon(Icons.calendar_today),
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      readOnly: true,
-                      controller: TextEditingController(
-                        text: _endDate?.toString().split(' ')[0] ?? '',
-                      ),
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _endDate ?? DateTime.now(),
-                          firstDate: DateTime.now()
-                              .subtract(const Duration(days: 365)),
-                          lastDate: DateTime.now(),
-                        );
-                        if (date != null) {
-                          setState(() {
-                            _endDate = date;
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              child: const Text('Export'),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  void _exportWithFilters(DateTime? startDate, DateTime? endDate, String supplierFilter, String partNumberFilter, String statusFilter) {
+    final allOrders = ref.read(purchaseOrderListProvider);
+
+    // Apply filters
+    final filteredOrders = allOrders.where((order) {
+      // Status filter
+      if (statusFilter != 'All') {
+        if (statusFilter == 'Active' && order.status == 'Completed') return false;
+        if (statusFilter != 'Active' && order.status != statusFilter) return false;
+      }
+
+      // Date filter
+      if (startDate != null) {
+        final orderDate = DateTime.parse(order.poDate);
+        if (orderDate.isBefore(startDate)) return false;
+      }
+      if (endDate != null) {
+        final orderDate = DateTime.parse(order.poDate);
+        if (orderDate.isAfter(endDate)) return false;
+      }
+
+      // Supplier filter
+      if (supplierFilter.isNotEmpty) {
+        if (!order.supplierName.toLowerCase().contains(supplierFilter.toLowerCase())) {
+          return false;
+        }
+      }
+
+      // Part number/description filter
+      if (partNumberFilter.isNotEmpty) {
+        bool hasMatch = false;
+        for (var item in order.items) {
+          if (item.materialCode.toLowerCase().contains(partNumberFilter.toLowerCase()) ||
+              item.materialDescription.toLowerCase().contains(partNumberFilter.toLowerCase())) {
+            hasMatch = true;
+            break;
+          }
+        }
+        if (!hasMatch) return false;
+      }
+
+      return true;
+    }).toList();
+
+    _exportToExcel(filteredOrders);
   }
 
   Widget _buildPOCard(PurchaseOrder order, int index) {
@@ -955,7 +945,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: _buildSearchAndFilters(),
+            child: _buildExportButton(),
           ),
           Expanded(
             child: filteredOrders.isEmpty

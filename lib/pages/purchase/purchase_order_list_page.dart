@@ -10,6 +10,8 @@ import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/purchase_order.dart';
 import '../../provider/purchase_order.dart';
 import '../../provider/purchase_request_provider.dart';
+import '../../provider/supplier_provider.dart';
+import '../../services/pdf_service.dart';
 import 'add_purchase_order_page.dart';
 
 class PurchaseOrderListPage extends ConsumerStatefulWidget {
@@ -504,6 +506,17 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
+                  icon: Icon(Icons.picture_as_pdf, color: Colors.grey[300]),
+                  iconSize: 20,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  onPressed: () => _showPDFOptions(order),
+                  tooltip: 'Generate PDF',
+                ),
+                IconButton(
                   icon: Icon(Icons.delete, color: Colors.grey[300]),
                   iconSize: 20,
                   padding: EdgeInsets.zero,
@@ -755,6 +768,176 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
         ],
       ),
     );
+  }
+
+  void _showPDFOptions(PurchaseOrder order) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[850],
+        title: Text(
+          'Generate PDF for ${order.poNo}',
+          style: TextStyle(color: Colors.grey[200]),
+        ),
+        content: Text(
+          'Choose how to save the PDF:',
+          style: TextStyle(color: Colors.grey[200]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[200])),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _generateAndSaveToDownloads(order);
+            },
+            child: Text('Quick Save', style: TextStyle(color: Colors.grey[200])),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _generateAndSavePDF(order);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+            ),
+            child: const Text('Choose Location'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _generateAndSavePDF(PurchaseOrder order) async {
+    try {
+      final suppliers = ref.read(supplierListProvider);
+      final supplier = suppliers.firstWhere(
+        (s) => s.name == order.supplierName,
+        orElse: () => throw Exception('Supplier not found: ${order.supplierName}'),
+      );
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey[850],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Preparing PDF...',
+                  style: TextStyle(color: Colors.grey[200]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final success = await PDFService.savePurchaseOrder(order, supplier);
+      
+      Navigator.pop(context); // Close loading dialog
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Save cancelled by user'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _generateAndSaveToDownloads(PurchaseOrder order) async {
+    try {
+      final suppliers = ref.read(supplierListProvider);
+      final supplier = suppliers.firstWhere(
+        (s) => s.name == order.supplierName,
+        orElse: () => throw Exception('Supplier not found: ${order.supplierName}'),
+      );
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey[850],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Saving to Downloads...',
+                  style: TextStyle(color: Colors.grey[200]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final success = await PDFService.savePurchaseOrderToDownloads(order, supplier);
+      
+      Navigator.pop(context); // Close loading dialog
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(Platform.isMacOS || Platform.isIOS 
+              ? 'PDF saved to Documents folder successfully!' 
+              : 'PDF saved to Downloads folder successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save PDF to Downloads'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override

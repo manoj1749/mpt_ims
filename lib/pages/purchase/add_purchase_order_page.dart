@@ -1,5 +1,6 @@
 // ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member, unused_local_variable
 
+import 'dart:io';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,7 @@ import '../../provider/purchase_order.dart';
 
 import 'package:collection/collection.dart';
 import '../store/select_jobs_dialog.dart';
+import '../../services/pdf_service.dart';
 
 class AddPurchaseOrderPage extends ConsumerStatefulWidget {
   final PurchaseOrder? existingPO;
@@ -896,7 +898,154 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       poNotifier.addOrder(newPO);
     }
 
-    Navigator.pop(context);
+    // Show PDF generation options
+    _showPDFGenerationDialog(newPO);
+  }
+
+  void _showPDFGenerationDialog(PurchaseOrder purchaseOrder) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Purchase Order Created Successfully!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('PO No: ${purchaseOrder.poNo}'),
+            const SizedBox(height: 16),
+            const Text('Choose how to save the PDF:'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Go back to PO list
+            },
+            child: const Text('Skip'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              await _generateAndSaveToDownloads(purchaseOrder);
+              Navigator.pop(context); // Go back to PO list
+            },
+            child: const Text('Quick Save'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              await _generateAndSavePDF(purchaseOrder);
+              Navigator.pop(context); // Go back to PO list
+            },
+            child: const Text('Choose Location'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _generateAndSavePDF(PurchaseOrder purchaseOrder) async {
+    try {
+      if (selectedSupplier == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Supplier information not available'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final success = await PDFService.savePurchaseOrder(purchaseOrder, selectedSupplier!);
+      
+      Navigator.pop(context); // Close loading dialog
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Save cancelled by user'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _generateAndSaveToDownloads(PurchaseOrder purchaseOrder) async {
+    try {
+      if (selectedSupplier == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Supplier information not available'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final success = await PDFService.savePurchaseOrderToDownloads(purchaseOrder, selectedSupplier!);
+      
+      Navigator.pop(context); // Close loading dialog
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(Platform.isMacOS || Platform.isIOS 
+              ? 'PDF saved to Documents folder successfully!' 
+              : 'PDF saved to Downloads folder successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save PDF to Downloads'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override

@@ -153,7 +153,8 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
                 _buildTextField('Email', (v) => email = v,
                     initial: email, keyboardType: TextInputType.emailAddress),
                 _buildTextField('Customer Code', (v) => customerCode = v,
-                    initial: customerCode, required: true),
+                    initial: customerCode, required: true, 
+                    enabled: widget.customerToEdit == null),
                 _buildTextField('Address Line 1', (v) => address1 = v,
                     initial: address1),
                 _buildTextField('Address Line 2', (v) => address2 = v,
@@ -203,18 +204,41 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
     TextInputType keyboardType = TextInputType.text,
     String? initial,
     bool required = false,
+    bool enabled = true,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
         initialValue: initial,
+        enabled: enabled,
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           border: const OutlineInputBorder(),
+          filled: !enabled,
+          fillColor: !enabled ? Colors.grey[600] : null,
+        ),
+        style: TextStyle(
+          color: !enabled ? Colors.grey[400] : null,
         ),
         keyboardType: keyboardType,
-        validator: (value) =>
-            (required && (value == null || value.isEmpty)) ? 'Required' : null,
+        validator: (value) {
+          if (required && (value == null || value.isEmpty)) {
+            return 'Required';
+          }
+          
+          // Special validation for customer code
+          if (label.contains('Customer Code') && enabled && value != null && value.isNotEmpty) {
+            final customers = ref.read(customerListProvider);
+            final existingCustomer = customers.any((c) => 
+                c.customerCode.toLowerCase() == value.toLowerCase() && 
+                c.customerCode != (widget.customerToEdit?.customerCode ?? ''));
+            if (existingCustomer) {
+              return 'Customer code already exists';
+            }
+          }
+          
+          return null;
+        },
         onSaved: (value) => onSaved(value ?? ''),
       ),
     );

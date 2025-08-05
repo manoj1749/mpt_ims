@@ -131,7 +131,7 @@ class _AddSupplierPageState extends ConsumerState<AddSupplierPage> {
                 _buildTextField('Email', (v) => email = v,
                     initial: email, keyboardType: TextInputType.emailAddress),
                 _buildTextField('Vendor Code', (v) => vendorCode = v,
-                    initial: vendorCode),
+                    initial: vendorCode, enabled: widget.supplierToEdit == null),
                 _buildTextField('Address 1', (v) => address1 = v,
                     initial: address1),
                 _buildTextField('Address 2', (v) => address2 = v,
@@ -179,18 +179,41 @@ class _AddSupplierPageState extends ConsumerState<AddSupplierPage> {
     Function(String) onSaved, {
     TextInputType keyboardType = TextInputType.text,
     String? initial,
+    bool enabled = true,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
         initialValue: initial,
+        enabled: enabled,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
+          filled: !enabled,
+          fillColor: !enabled ? Colors.grey[600] : null,
+        ),
+        style: TextStyle(
+          color: !enabled ? Colors.grey[400] : null,
         ),
         keyboardType: keyboardType,
-        validator: (value) =>
-            (value == null || value.isEmpty) ? 'Required' : null,
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Required';
+          }
+          
+          // Special validation for vendor code
+          if (label.contains('Vendor Code') && enabled && value.isNotEmpty) {
+            final suppliers = ref.read(supplierListProvider);
+            final existingSupplier = suppliers.any((s) => 
+                s.vendorCode.toLowerCase() == value.toLowerCase() && 
+                s.vendorCode != (widget.supplierToEdit?.vendorCode ?? ''));
+            if (existingSupplier) {
+              return 'Vendor code already exists';
+            }
+          }
+          
+          return null;
+        },
         onSaved: (value) => onSaved(value ?? ''),
       ),
     );

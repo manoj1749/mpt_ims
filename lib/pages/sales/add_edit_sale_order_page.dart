@@ -211,12 +211,33 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _boardNoController,
-                        decoration: const InputDecoration(
+                        enabled: widget.order == null,
+                        decoration: InputDecoration(
                           labelText: 'Job No',
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
+                          filled: widget.order != null,
+                          fillColor: widget.order != null ? Colors.grey[600] : null,
                         ),
-                        validator: (value) =>
-                            value?.isEmpty == true ? 'Required' : null,
+                        style: TextStyle(
+                          color: widget.order != null ? Colors.grey[400] : null,
+                        ),
+                        validator: (value) {
+                          if (value?.isEmpty == true) {
+                            return 'Required';
+                          }
+                          
+                          // Check for duplicate job numbers (only when creating new order)
+                          if (widget.order == null && value != null && value.isNotEmpty) {
+                            final existingOrders = ref.read(saleOrderProvider);
+                            final duplicateExists = existingOrders.any((order) => 
+                                order.boardNo.toLowerCase() == value.toLowerCase());
+                            if (duplicateExists) {
+                              return 'Job number already exists';
+                            }
+                          }
+                          
+                          return null;
+                        },
                       ),
                     ],
                   ),

@@ -201,14 +201,49 @@ class _AddSupplierPageState extends ConsumerState<AddSupplierPage> {
             return 'Required';
           }
           
-          // Special validation for vendor code
-          if (label.contains('Vendor Code') && enabled && value.isNotEmpty) {
-            final suppliers = ref.read(supplierListProvider);
-            final existingSupplier = suppliers.any((s) => 
-                s.vendorCode.toLowerCase() == value.toLowerCase() && 
-                s.vendorCode != (widget.supplierToEdit?.vendorCode ?? ''));
-            if (existingSupplier) {
-              return 'Vendor code already exists';
+          final suppliers = ref.read(supplierListProvider);
+          final currentSupplier = widget.supplierToEdit;
+          
+          // Validation for various fields to prevent duplicates
+          if (enabled && value.isNotEmpty) {
+            // Vendor Code validation
+            if (label.contains('Vendor Code')) {
+              final existingSupplier = suppliers.any((s) => 
+                  s.vendorCode.toLowerCase() == value.toLowerCase() && 
+                  s.vendorCode != (currentSupplier?.vendorCode ?? ''));
+              if (existingSupplier) {
+                return 'Vendor code already exists';
+              }
+            }
+            
+            // Supplier Name validation
+            if (label.contains('Supplier Name')) {
+              final existingSupplier = suppliers.any((s) => 
+                  s.name.toLowerCase() == value.toLowerCase() && 
+                  s.name != (currentSupplier?.name ?? ''));
+              if (existingSupplier) {
+                return 'Supplier name already exists';
+              }
+            }
+            
+            // PAN validation
+            if (label.contains('PAN')) {
+              final existingSupplier = suppliers.any((s) => 
+                  s.pan.toLowerCase() == value.toLowerCase() && 
+                  s.pan != (currentSupplier?.pan ?? ''));
+              if (existingSupplier) {
+                return 'PAN number already exists';
+              }
+            }
+            
+            // GST validation
+            if (label.contains('GST No')) {
+              final existingSupplier = suppliers.any((s) => 
+                  s.gstNo.toLowerCase() == value.toLowerCase() && 
+                  s.gstNo != (currentSupplier?.gstNo ?? ''));
+              if (existingSupplier) {
+                return 'GST number already exists';
+              }
             }
           }
           

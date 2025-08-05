@@ -226,14 +226,49 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
             return 'Required';
           }
           
-          // Special validation for customer code
-          if (label.contains('Customer Code') && enabled && value != null && value.isNotEmpty) {
-            final customers = ref.read(customerListProvider);
-            final existingCustomer = customers.any((c) => 
-                c.customerCode.toLowerCase() == value.toLowerCase() && 
-                c.customerCode != (widget.customerToEdit?.customerCode ?? ''));
-            if (existingCustomer) {
-              return 'Customer code already exists';
+          final customers = ref.read(customerListProvider);
+          final currentCustomer = widget.customerToEdit;
+          
+          // Validation for various fields to prevent duplicates
+          if (enabled && value != null && value.isNotEmpty) {
+            // Customer Code validation
+            if (label.contains('Customer Code')) {
+              final existingCustomer = customers.any((c) => 
+                  c.customerCode.toLowerCase() == value.toLowerCase() && 
+                  c.customerCode != (currentCustomer?.customerCode ?? ''));
+              if (existingCustomer) {
+                return 'Customer code already exists';
+              }
+            }
+            
+            // Customer Name validation
+            if (label.contains('Customer Name')) {
+              final existingCustomer = customers.any((c) => 
+                  c.name.toLowerCase() == value.toLowerCase() && 
+                  c.name != (currentCustomer?.name ?? ''));
+              if (existingCustomer) {
+                return 'Customer name already exists';
+              }
+            }
+            
+            // PAN validation
+            if (label.contains('PAN')) {
+              final existingCustomer = customers.any((c) => 
+                  c.pan.toLowerCase() == value.toLowerCase() && 
+                  c.pan != (currentCustomer?.pan ?? ''));
+              if (existingCustomer) {
+                return 'PAN number already exists';
+              }
+            }
+            
+            // GST validation
+            if (label.contains('GST No')) {
+              final existingCustomer = customers.any((c) => 
+                  c.gstNo.toLowerCase() == value.toLowerCase() && 
+                  c.gstNo != (currentCustomer?.gstNo ?? ''));
+              if (existingCustomer) {
+                return 'GST number already exists';
+              }
             }
           }
           

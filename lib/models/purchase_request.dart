@@ -39,7 +39,7 @@ class PurchaseRequest extends HiveObject {
     } else {
       status = 'Draft';
     }
-    save();
+    // Note: save() is now handled by the provider, not the model
   }
 
   PurchaseRequest({

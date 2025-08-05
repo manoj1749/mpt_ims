@@ -879,8 +879,15 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               // Add the new ordered quantity
               prItem.addOrderedQuantity(poNo, prDetail.value.quantity);
 
-              // Update PR status
-              pr.updateStatus();
+              // Update PR status through provider (avoid direct model save)
+              if (pr.isFullyOrdered) {
+                pr.status = 'Completed';
+              } else if (pr.items.any((item) => item.totalOrderedQuantity > 0)) {
+                pr.status = 'Partially Ordered';
+              } else {
+                pr.status = 'Draft';
+              }
+              
               final index = purchaseRequests.indexOf(pr);
               prNotifier.updateRequest(index, pr);
             }
@@ -902,6 +909,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     _showPDFGenerationDialog(newPO);
   }
 
+  void _navigateBackToPOList() {
+    // Ensure we go back to the PO list page
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
   void _showPDFGenerationDialog(PurchaseOrder purchaseOrder) {
     showDialog(
       context: context,
@@ -919,7 +933,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
           TextButton(
             onPressed: () {
               Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Go back to PO list
+              _navigateBackToPOList();
             },
             child: const Text('Skip'),
           ),
@@ -927,7 +941,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
             onPressed: () async {
               Navigator.pop(context); // Close dialog
               await _generateAndSaveToDownloads(purchaseOrder);
-              Navigator.pop(context); // Go back to PO list
+              _navigateBackToPOList();
             },
             child: const Text('Quick Save'),
           ),
@@ -935,7 +949,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
             onPressed: () async {
               Navigator.pop(context); // Close dialog
               await _generateAndSavePDF(purchaseOrder);
-              Navigator.pop(context); // Go back to PO list
+              _navigateBackToPOList();
             },
             child: const Text('Choose Location'),
           ),
@@ -969,29 +983,33 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       
       Navigator.pop(context); // Close loading dialog
       
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF saved successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Save cancelled by user'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF saved successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Save cancelled by user'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
     } catch (e) {
       Navigator.pop(context); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error saving PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -1020,31 +1038,35 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       
       Navigator.pop(context); // Close loading dialog
       
-      if (success) {
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(Platform.isMacOS || Platform.isIOS 
+                ? 'PDF saved to Documents folder successfully!' 
+                : 'PDF saved to Downloads folder successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to save PDF to Downloads'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(Platform.isMacOS || Platform.isIOS 
-              ? 'PDF saved to Documents folder successfully!' 
-              : 'PDF saved to Downloads folder successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to save PDF to Downloads'),
+            content: Text('Error saving PDF: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      Navigator.pop(context); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error saving PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 

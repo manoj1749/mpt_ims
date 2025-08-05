@@ -100,45 +100,45 @@ class StockMaintenance extends HiveObject {
   void addGRNDetails(String grnNo, StockGRNDetails details) {
     grnDetails[grnNo] = details;
     _updateTotalStockValue();
-    save();
+    // Note: save() is now handled by the provider, not the model
   }
 
   // Helper method to add PO details
   void addPODetails(String poNo, StockPODetails details) {
     poDetails[poNo] = details;
-    save();
+    // Note: save() is now handled by the provider, not the model
   }
 
   // Helper method to add PR details
   void addPRDetails(String prNo, StockPRDetails details) {
     prDetails[prNo] = details;
-    save();
+    // Note: save() is now handled by the provider, not the model
   }
 
   // Helper method to add Job details
   void addJobDetails(String jobNo, StockJobDetails details) {
     jobDetails[jobNo] = details;
-    save();
+    // Note: save() is now handled by the provider, not the model
   }
 
   // Helper method to add Vendor details
   void addVendorDetails(String vendorId, StockVendorDetails details) {
     vendorDetails[vendorId] = details;
     _updateTotalStockValue();
-    save();
+    // Note: save() is now handled by the provider, not the model
   }
 
   // Helper method to update stock under inspection
   void updateStockUnderInspection(double quantity) {
     stockUnderInspection = quantity;
-    save();
+    // Note: save() is now handled by the provider, not the model
   }
 
   // Helper method to update current stock
   void updateCurrentStock(double quantity) {
     currentStock = quantity;
     _updateTotalStockValue();
-    save();
+    // Note: save() is now handled by the provider, not the model
   }
 
   // Helper method to move stock from inspection to current stock
@@ -147,7 +147,7 @@ class StockMaintenance extends HiveObject {
       stockUnderInspection -= acceptedQuantity;
       currentStock += acceptedQuantity;
       _updateTotalStockValue();
-      save();
+      // Note: save() is now handled by the provider, not the model
     }
   }
 
@@ -356,7 +356,7 @@ class StockMaintenance extends HiveObject {
 
     // Update current stock and total stock value
     _updateTotalStockValue();
-    save();
+    // Note: save() is now handled by the provider, not the model
   }
 
   // Get available quantity for a specific PR
@@ -379,7 +379,7 @@ class StockMaintenance extends HiveObject {
   void updatePendingDeliveryQuantity(String jobNo, double quantity) {
     if (jobDetails.containsKey(jobNo)) {
       jobDetails[jobNo]!.pendingDeliveryQuantity = quantity;
-      save();
+      // Note: save() is now handled by the provider, not the model
     }
   }
 }

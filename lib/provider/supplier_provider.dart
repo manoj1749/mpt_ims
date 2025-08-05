@@ -87,6 +87,28 @@ class SupplierNotifier extends BaseProvider<Supplier> {
   }
   Future<void> deleteSupplier(Supplier supplier) => delete(supplier);
 
+  // Generate next sequential supplier code
+  String generateNextSupplierCode() {
+    final suppliers = state;
+    int maxNumber = 0;
+    
+    // Find the highest existing number in AISM-xxxxx format
+    for (var supplier in suppliers) {
+      final code = supplier.vendorCode;
+      if (code.startsWith('AISM-') && code.length >= 10) {
+        final numberPart = code.substring(5); // Remove "AISM-" prefix
+        final number = int.tryParse(numberPart);
+        if (number != null && number > maxNumber) {
+          maxNumber = number;
+        }
+      }
+    }
+    
+    // Generate next sequential number with leading zeros
+    final nextNumber = maxNumber + 1;
+    return 'AISM-${nextNumber.toString().padLeft(5, '0')}';
+  }
+
   // Helper methods
   Supplier? getSupplierByCode(String code) {
     try {

@@ -51,7 +51,11 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
     contact = c?.contact ?? '';
     phone = c?.phone ?? '';
     email = c?.email ?? '';
-    customerCode = c?.customerCode ?? '';
+    // Auto-generate customer code for new customers
+    customerCode = c?.customerCode ?? 
+        (widget.customerToEdit == null 
+            ? ref.read(customerListProvider.notifier).generateNextCustomerCode()
+            : '');
     address1 = c?.address1 ?? '';
     address2 = c?.address2 ?? '';
     address3 = c?.address3 ?? '';

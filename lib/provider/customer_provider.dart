@@ -86,6 +86,28 @@ class CustomerNotifier extends BaseProvider<Customer> {
     );
   }
 
+  // Generate next sequential customer code
+  String generateNextCustomerCode() {
+    final customers = state;
+    int maxNumber = 0;
+    
+    // Find the highest existing number in AICM-xxxx format
+    for (var customer in customers) {
+      final code = customer.customerCode;
+      if (code.startsWith('AICM-') && code.length >= 9) {
+        final numberPart = code.substring(5); // Remove "AICM-" prefix
+        final number = int.tryParse(numberPart);
+        if (number != null && number > maxNumber) {
+          maxNumber = number;
+        }
+      }
+    }
+    
+    // Generate next sequential number with leading zeros
+    final nextNumber = maxNumber + 1;
+    return 'AICM-${nextNumber.toString().padLeft(4, '0')}';
+  }
+
   // Search customers with custom matcher
   List<Customer> searchCustomers(String query) {
     return search(query, (customer, query) {

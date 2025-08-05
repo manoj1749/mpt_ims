@@ -47,7 +47,11 @@ class _AddSupplierPageState extends ConsumerState<AddSupplierPage> {
     contact = s?.contact ?? '';
     phone = s?.phone ?? '';
     email = s?.email ?? '';
-    vendorCode = s?.vendorCode ?? '';
+    // Auto-generate vendor code for new suppliers
+    vendorCode = s?.vendorCode ?? 
+        (widget.supplierToEdit == null 
+            ? ref.read(supplierListProvider.notifier).generateNextSupplierCode()
+            : '');
     address1 = s?.address1 ?? '';
     address2 = s?.address2 ?? '';
     address3 = s?.address3 ?? '';

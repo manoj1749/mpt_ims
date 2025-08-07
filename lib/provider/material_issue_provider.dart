@@ -7,6 +7,8 @@ import '../models/material_issue.dart';
 import '../models/material_issue_item.dart';
 import '../models/stock_maintenance.dart';
 import 'base_provider.dart';
+import 'stock_maintenance_provider.dart';
+import 'material_request_provider.dart';
 
 final materialIssueBoxProvider = Provider<Box<MaterialIssue>>((ref) {
   return Hive.box<MaterialIssue>('material_issues');
@@ -92,6 +94,16 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
   @override
   String getModelId(MaterialIssue issue) => issue.issueNo;
 
+  // Override add method to update stock after issue
+  @override
+  Future<void> add(MaterialIssue issue) async {
+    await super.add(issue);
+    // Update stock after material issue is created
+    await updateStockAfterIssue(issue);
+    // Update material request status
+    await updateMaterialRequestStatus(issue);
+  }
+
   // Backward compatibility methods
   Future<void> loadMaterialIssues() => loadData();
   Future<void> addIssue(MaterialIssue issue) => add(issue);
@@ -163,42 +175,95 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
 
   // Stock management methods
   Future<void> updateStockAfterIssue(MaterialIssue issue) async {
+    print('\n=== Updating Stock After Material Issue ===');
+    print('Issue No: ${issue.issueNo}');
+    
     for (var item in issue.items) {
+      print('\nProcessing item: ${item.materialCode} - Quantity: ${item.quantity}');
+      
       final stockItems = _stockBox.values.where((stock) => 
           stock.materialCode == item.materialCode).toList();
       
-      double remainingToIssue = item.quantity;
+      print('Found ${stockItems.length} stock records for ${item.materialCode}');
       
       for (var stock in stockItems) {
-        if (remainingToIssue <= 0) break;
-        
-        final availableStock = stock.currentStock;
-        if (availableStock > 0) {
-          final toDeduct = remainingToIssue > availableStock ? availableStock : remainingToIssue;
+        // Use proper stock tracking for each job
+        for (var mrDetail in item.mrDetails.values) {
+          final jobNo = mrDetail.jobNo;
+          final issueQty = mrDetail.quantity;
           
-          // Update the current stock
-          stock.currentStock -= toDeduct;
-          await _stockBox.put(stock.key, stock);
-          remainingToIssue -= toDeduct;
+          print('Processing job: $jobNo, quantity: $issueQty');
+          
+          try {
+            // Use the proper stock tracking method
+            stock.issueStockForJob(jobNo, issue.issueNo, issueQty);
+            print('Successfully issued stock for job $jobNo');
+          } catch (e) {
+            print('Error issuing stock for job $jobNo: $e');
+            // Fallback to simple stock update if proper tracking fails
+            if (stock.currentStock >= issueQty) {
+              stock.currentStock -= issueQty;
+              if (stock.jobDetails.containsKey(jobNo)) {
+                stock.jobDetails[jobNo]!.consumedQuantity += issueQty;
+              }
+              print('Fallback: Updated current stock to: ${stock.currentStock}');
+            } else {
+              print('Insufficient stock for job $jobNo');
+            }
+          }
         }
+        
+        // Use StockMaintenanceNotifier to update stock (this ensures Firestore sync)
+        final stockMaintenanceNotifier = ref.read(stockMaintenanceProvider.notifier);
+        await stockMaintenanceNotifier.update(stock);
+        print('Successfully updated stock for ${stock.materialCode}');
       }
     }
+    print('=== End Stock Update After Material Issue ===\n');
   }
 
   // Material Request integration
   Future<void> updateMaterialRequestStatus(MaterialIssue issue) async {
+    print('\n=== Updating Material Request Status ===');
+    print('Issue No: ${issue.issueNo}');
+    
     for (var item in issue.items) {
+      print('\nProcessing item: ${item.materialCode}');
+      
       for (var mrDetail in item.mrDetails.values) {
-        final mr = _requestBox.values.where((request) => 
-            request.issueNo == mrDetail.mrNo).firstOrNull;
+        final mrNo = mrDetail.mrNo;
+        print('Updating MR: $mrNo for job: ${mrDetail.jobNo}');
+        
+        // Use material request provider to update status
+        final materialRequestNotifier = ref.read(materialRequestProvider.notifier);
+        final mr = materialRequestNotifier.state.where((request) => 
+            request.issueNo == mrNo).firstOrNull;
         
         if (mr != null) {
-          // Update MR status - simplified implementation
-          // Note: This would need proper implementation based on actual MaterialRequestItem model
-          await _requestBox.put(mr.key, mr);
+          // Create updated MR with 'Issued' status
+          final updatedMR = MaterialRequest(
+            issueNo: mr.issueNo,
+            date: mr.date,
+            issuedBy: mr.issuedBy,
+            status: 'Issued', // Update status to Issued
+            items: mr.items,
+            jobNo: mr.jobNo,
+          );
+          
+          print('Updated MR $mrNo status to: ${updatedMR.status}');
+          
+          // Use material request provider to update
+          await materialRequestNotifier.update(updatedMR);
+          print('Successfully updated MR $mrNo');
+          
+          // Force refresh of material request data
+          await materialRequestNotifier.loadData();
+        } else {
+          print('MR $mrNo not found');
         }
       }
     }
+    print('=== End Material Request Status Update ===\n');
   }
 
   // Analytics methods

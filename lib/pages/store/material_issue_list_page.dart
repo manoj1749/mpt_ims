@@ -85,10 +85,14 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
         textAlign: PlutoColumnTextAlign.left,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final issue = ref.read(materialIssueProvider).firstWhere(
+          final issue = ref.read(materialIssueProvider).firstWhereOrNull(
                 (mi) =>
                     mi.issueNo == rendererContext.row.cells['issueNo']!.value,
               );
+          
+          if (issue == null) {
+            return const SizedBox.shrink();
+          }
 
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 8),

@@ -53,7 +53,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     final Set<String> jobNos = {'All'}; // Include 'All' as default option
     final materialRequests = ref
         .read(materialRequestListProvider)
-        .where((mr) => mr.status != 'Completed')
+        .where((mr) => mr.status != 'Completed' && mr.status != 'Issued')
         .toList();
 
     for (var mr in materialRequests) {
@@ -112,11 +112,23 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
           });
         }
 
+        // Force refresh material requests to get latest status
+        await ref.read(materialRequestProvider.notifier).loadData();
+        
         // Initialize material MR items
-        final materialRequests = ref
-            .read(materialRequestListProvider)
-            .where((mr) => mr.status != 'Completed')
+        final allMaterialRequests = ref.read(materialRequestListProvider);
+        print('\n=== Debug: All Material Requests ===');
+        for (var mr in allMaterialRequests) {
+          print('MR: ${mr.issueNo}, Status: ${mr.status}, Job: ${mr.jobNo}');
+        }
+        
+        final materialRequests = allMaterialRequests
+            .where((mr) => mr.status != 'Completed' && mr.status != 'Issued')
             .toList();
+        print('\n=== Debug: Filtered Material Requests ===');
+        for (var mr in materialRequests) {
+          print('Filtered MR: ${mr.issueNo}, Status: ${mr.status}, Job: ${mr.jobNo}');
+        }
         _updateMaterialMRItems(materialRequests);
       } catch (e) {
         if (mounted) {
@@ -267,7 +279,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
   void _updateJobFilter() {
     final materialRequests = ref
         .read(materialRequestListProvider)
-        .where((mr) => mr.status != 'Completed')
+        .where((mr) => mr.status != 'Completed' && mr.status != 'Issued')
         .toList();
     _updateMaterialMRItems(materialRequests);
   }
@@ -275,7 +287,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
   void _updateVendorFilter() {
     final materialRequests = ref
         .read(materialRequestListProvider)
-        .where((mr) => mr.status != 'Completed')
+        .where((mr) => mr.status != 'Completed' && mr.status != 'Issued')
         .toList();
     _updateMaterialMRItems(materialRequests);
   }

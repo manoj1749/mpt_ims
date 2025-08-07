@@ -179,6 +179,10 @@ class _MaterialRequestListPageState
     final materialRequests = ref.watch(materialRequestProvider);
     final filteredIssues = materialRequests.where((issue) {
       if (_selectedStatus == 'All') return true;
+      if (_selectedStatus == 'Completed') {
+        // Show both 'Completed' and 'Issued' status for Completed filter
+        return issue.status == 'Completed' || issue.status == 'Issued';
+      }
       return issue.status == _selectedStatus;
     }).toList();
 

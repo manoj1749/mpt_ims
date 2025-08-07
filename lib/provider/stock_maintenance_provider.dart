@@ -246,8 +246,8 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
               materialCode: grnItem.materialCode,
               materialDescription: grnItem.materialDescription,
               unit: grnItem.unit,
-              storageLocation: '',
-              rackNumber: '',
+            storageLocation: '',
+            rackNumber: '',
             );
           },
         );
@@ -358,8 +358,8 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
         // Update PO received quantities
         stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, prQty);
 
-        // Update PR received quantity
-        stock.prDetails[prNo]!.receivedQuantity += prQty;
+        // Update PR received quantity (this will be updated based on acceptance ratio during inspection)
+        // Don't add here - it will be updated when the GRN is inspected
       }
 
       // Update total received quantity for PO
@@ -394,6 +394,51 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
     }
   }
 
+  void _updatePRReceivedQuantitiesFromInspection(StockMaintenance stock, String grnNo, InspectionGRNQuantity grnQty) {
+    print('\n=== Updating PR Received Quantities from Inspection ===');
+    print('GRN: $grnNo, Accepted: ${grnQty.acceptedQty}, Rejected: ${grnQty.rejectedQty}');
+    
+    // Find the GRN details to get the original PR mapping
+    final grnDetails = stock.grnDetails[grnNo];
+    if (grnDetails == null) {
+      print('GRN details not found for $grnNo');
+      return;
+    }
+    
+    // Calculate acceptance ratio
+    final totalReceived = grnDetails.receivedQuantity;
+    final totalAccepted = grnQty.acceptedQty;
+    final acceptanceRatio = totalReceived > 0 ? totalAccepted / totalReceived : 0.0;
+    
+    print('Acceptance Ratio: $acceptanceRatio');
+    
+    // Update PR received quantities based on acceptance ratio
+    for (var poEntry in stock.poDetails.entries) {
+      final poNo = poEntry.key;
+      final poDetails = poEntry.value;
+      
+      // Check if this PO has received quantities for this GRN
+      if (poDetails.receivedQuantities.containsKey(grnNo)) {
+        final prQuantities = poDetails.receivedQuantities[grnNo]!;
+        
+        for (var prEntry in prQuantities.entries) {
+          final prNo = prEntry.key;
+          final originalQty = prEntry.value;
+          final acceptedQty = originalQty * acceptanceRatio;
+          
+          print('PR: $prNo, Original: $originalQty, Accepted: $acceptedQty');
+          
+          // Update PR received quantity
+          if (stock.prDetails.containsKey(prNo)) {
+            // Reset the received quantity for this PR and add the accepted quantity
+            stock.prDetails[prNo]!.receivedQuantity = acceptedQty;
+            print('Updated PR $prNo received quantity to: $acceptedQty');
+          }
+        }
+      }
+    }
+  }
+
   Future<void> updateStockFromInspection(QualityInspection inspection) async {
     try {
       print('\n=== Updating Stock from Inspection ${inspection.inspectionNo} ===');
@@ -413,6 +458,9 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
             if (stock.grnDetails.containsKey(grnNo) && (grnQty.isSelected ?? false)) {
               stock.grnDetails[grnNo]!.acceptedQuantity = grnQty.acceptedQty;
               stock.grnDetails[grnNo]!.rejectedQuantity = grnQty.rejectedQty;
+              
+              // Update PR received quantities based on acceptance ratio
+              _updatePRReceivedQuantitiesFromInspection(stock, grnNo, grnQty);
             }
           }
           

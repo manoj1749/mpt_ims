@@ -611,12 +611,18 @@ class _AddQualityInspectionPageState
         selectedGRNQty.rejectedQty = 0.0;
         selectedItem.acceptedQty = selectedGRNQty.receivedQty;
         selectedItem.rejectedQty = 0.0;
+        
+        // Update the grnQuantities map with the final quantities
+        selectedItem.grnQuantities[selectedGRNEntry.key] = selectedGRNQty;
       } else if (selectedGRNQty.usageDecision == 'Rejected') {
         // If lot is rejected, all received quantity is rejected
         selectedGRNQty.acceptedQty = 0.0;
         selectedGRNQty.rejectedQty = selectedGRNQty.receivedQty;
         selectedItem.acceptedQty = 0.0;
         selectedItem.rejectedQty = selectedGRNQty.receivedQty;
+        
+        // Update the grnQuantities map with the final quantities
+        selectedItem.grnQuantities[selectedGRNEntry.key] = selectedGRNQty;
       } else if (selectedGRNQty.usageDecision == '100% Recheck') {
         if (selectedGRNQty.recheckType == '100% Acceptance') {
           // For 100% acceptance after recheck
@@ -629,6 +635,9 @@ class _AddQualityInspectionPageState
           // Set the final usage decision to indicate it was accepted after recheck
           selectedGRNQty.usageDecision = 'Accepted After 100% Recheck';
           selectedItem.usageDecision = 'Accepted After 100% Recheck';
+          
+          // Update the grnQuantities map with the final quantities
+          selectedItem.grnQuantities[selectedGRNEntry.key] = selectedGRNQty;
 
           // Create a new inspection record for stock update
           final recheckInspection = QualityInspection(
@@ -707,6 +716,9 @@ class _AddQualityInspectionPageState
           selectedGRNQty.usageDecision =
               'Partially Accepted After 100% Recheck';
           selectedItem.usageDecision = 'Partially Accepted After 100% Recheck';
+          
+          // Update the grnQuantities map with the final quantities
+          selectedItem.grnQuantities[selectedGRNEntry.key] = selectedGRNQty;
 
           // Create a new inspection record for stock update
           final recheckInspection = QualityInspection(
@@ -743,6 +755,9 @@ class _AddQualityInspectionPageState
       // Update pending quantity
       selectedItem.pendingQty = selectedGRNQty.receivedQty -
           (selectedGRNQty.acceptedQty + selectedGRNQty.rejectedQty);
+      
+      // Update the grnQuantities map with the final quantities
+      selectedItem.grnQuantities[selectedGRNEntry.key] = selectedGRNQty;
 
       // Create the inspection with appropriate status
       final inspection = QualityInspection(
@@ -1501,10 +1516,10 @@ class _AddQualityInspectionPageState
       return 'Completed - Accepted';
     } else if (item.usageDecision == 'Rejected') {
       return 'Completed - Rejected';
-    } else if (item.usageDecision == 'Accepted After Recheck') {
-      return 'Completed - Accepted After Recheck';
-    } else if (item.usageDecision == 'Partially Accepted After Recheck') {
-      return 'Completed - Partially Accepted';
+    } else if (item.usageDecision == 'Accepted After 100% Recheck') {
+      return 'Completed - Accepted After 100% Recheck';
+    } else if (item.usageDecision == 'Partially Accepted After 100% Recheck') {
+      return 'Completed - Partially Accepted After 100% Recheck';
     } else {
       return 'Completed - ${item.usageDecision}';
     }

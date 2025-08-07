@@ -75,6 +75,16 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
         'expirationDate': item.expirationDate,
         'capaRequired': item.capaRequired,
         'inspectionRemark': item.inspectionRemark,
+        'grnQuantities': item.grnQuantities.map((key, value) => MapEntry(key, {
+          'receivedQty': value.receivedQty,
+          'acceptedQty': value.acceptedQty,
+          'rejectedQty': value.rejectedQty,
+          'usageDecision': value.usageDecision,
+          'poNo': value.poNo,
+          'poDate': value.poDate,
+          'recheckType': value.recheckType,
+          'isSelected': value.isSelected,
+        })),
         'parameters': item.parameters.map((param) => {
           'parameter': param.parameter,
           'isAcceptable': param.isAcceptable,
@@ -127,6 +137,19 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
         expirationDate: item['expirationDate'] ?? '',
         capaRequired: item['capaRequired'] ?? false,
         inspectionRemark: item['inspectionRemark'],
+        grnQuantities: (item['grnQuantities'] as Map<String, dynamic>?)?.map((key, value) {
+          print('DEBUG: Deserializing grnQuantities for key: $key, value: $value');
+          return MapEntry(key, InspectionGRNQuantity(
+            receivedQty: (value['receivedQty'] as num?)?.toDouble() ?? 0.0,
+            acceptedQty: (value['acceptedQty'] as num?)?.toDouble() ?? 0.0,
+            rejectedQty: (value['rejectedQty'] as num?)?.toDouble() ?? 0.0,
+            usageDecision: value['usageDecision'] ?? 'Lot Accepted',
+            poNo: value['poNo'],
+            poDate: value['poDate'],
+            recheckType: value['recheckType'],
+            isSelected: value['isSelected'] ?? false,
+          ));
+        }) ?? {},
         parameters: (item['parameters'] as List<dynamic>?)?.map((param) => QualityParameter(
           parameter: param['parameter'] ?? '',
           isAcceptable: param['isAcceptable'] ?? true,

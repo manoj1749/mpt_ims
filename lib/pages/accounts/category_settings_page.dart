@@ -22,6 +22,13 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
   final _categoryController = TextEditingController();
   final _subCategoryController = TextEditingController();
   final _parameterController = TextEditingController();
+  
+  // Sample size controllers
+  final _sampleSizeLessThan100Controller = TextEditingController();
+  final _sampleSize100To500Controller = TextEditingController();
+  final _sampleSizeGreaterThan500Controller = TextEditingController();
+  final _shelfLifeValueController = TextEditingController();
+  
   Category? _selectedCategory;
   Category? _unsavedCategory;
   bool _hasUnsavedChanges = false;
@@ -47,6 +54,18 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
         }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _categoryController.dispose();
+    _subCategoryController.dispose();
+    _parameterController.dispose();
+    _sampleSizeLessThan100Controller.dispose();
+    _sampleSize100To500Controller.dispose();
+    _sampleSizeGreaterThan500Controller.dispose();
+    _shelfLifeValueController.dispose();
+    super.dispose();
   }
 
   Future<void> _refreshData() async {
@@ -98,13 +117,7 @@ Mapping for Category: ${mapping.category}
     print('\n==== END CATEGORY SETTINGS DATA ====\n');
   }
 
-  @override
-  void dispose() {
-    _categoryController.dispose();
-    _subCategoryController.dispose();
-    _parameterController.dispose();
-    super.dispose();
-  }
+
 
   void _showAddDialog(String title, String hint, Function(String) onAdd) {
     final controller = title == 'Category'
@@ -238,6 +251,7 @@ Mapping for Category: ${mapping.category}
           shelfLifeUnit: category.shelfLifeUnit,
         );
       });
+      _updateTextControllers(category);
     }
   }
 
@@ -250,8 +264,16 @@ Mapping for Category: ${mapping.category}
         _selectedCategory = _unsavedCategory!.copyWith();
         _hasUnsavedChanges = false;
       });
+      _updateTextControllers(_selectedCategory!);
       _printBoxContents();
     }
+  }
+
+  void _updateTextControllers(Category category) {
+    _sampleSizeLessThan100Controller.text = category.sampleSizeLessThan100?.toString() ?? '';
+    _sampleSize100To500Controller.text = category.sampleSize100To500?.toString() ?? '';
+    _sampleSizeGreaterThan500Controller.text = category.sampleSizeGreaterThan500?.toString() ?? '';
+    _shelfLifeValueController.text = category.shelfLifeValue?.toString() ?? '';
   }
 
   void _updateUnsavedCategory(Category updatedCategory) {
@@ -523,10 +545,7 @@ Mapping for Category: ${mapping.category}
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  controller: TextEditingController(
-                    text: _unsavedCategory!.sampleSizeLessThan100?.toString() ??
-                        '',
-                  ),
+                  controller: _sampleSizeLessThan100Controller,
                   onChanged: (value) {
                     final intValue = int.tryParse(value);
                     final updatedCategory = _unsavedCategory!.copyWith(
@@ -542,10 +561,7 @@ Mapping for Category: ${mapping.category}
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  controller: TextEditingController(
-                    text:
-                        _unsavedCategory!.sampleSize100To500?.toString() ?? '',
-                  ),
+                  controller: _sampleSize100To500Controller,
                   onChanged: (value) {
                     final intValue = int.tryParse(value);
                     final updatedCategory = _unsavedCategory!.copyWith(
@@ -561,11 +577,7 @@ Mapping for Category: ${mapping.category}
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  controller: TextEditingController(
-                    text: _unsavedCategory!.sampleSizeGreaterThan500
-                            ?.toString() ??
-                        '',
-                  ),
+                  controller: _sampleSizeGreaterThan500Controller,
                   onChanged: (value) {
                     final intValue = int.tryParse(value);
                     final updatedCategory = _unsavedCategory!.copyWith(
@@ -662,11 +674,7 @@ Mapping for Category: ${mapping.category}
                             border: OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.number,
-                          controller: TextEditingController(
-                            text:
-                                _unsavedCategory!.shelfLifeValue?.toString() ??
-                                    '',
-                          ),
+                          controller: _shelfLifeValueController,
                           onChanged: (value) {
                             final intValue = int.tryParse(value);
                             final updatedCategory = _unsavedCategory!.copyWith(

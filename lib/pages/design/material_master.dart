@@ -124,7 +124,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         enableEditingMode: false,
       ),
       PlutoColumn(
-        title: 'Best Rate',
+        title: 'Purchase Rate',
         field: 'bestRate',
         type: PlutoColumnType.text(),
         width: 120,

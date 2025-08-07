@@ -39,6 +39,10 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   final _issuedQtyController = TextEditingController();
   final _stockController = TextEditingController();
   late TextEditingController _inspectionStockController;
+  
+  // Weight unit dropdown
+  String _selectedWeightUnit = 'kgs';
+  final _weightValueController = TextEditingController();
 
   // Add controllers for all text fields except category and subCategory
   final Map<String, TextEditingController> _controllers = {};
@@ -97,6 +101,9 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         TextEditingController(text: item.actualWeight);
     _controllers['saleRate'] = TextEditingController(text: item.saleRate);
     _inspectionStockController = TextEditingController(text: '0');
+    
+    // Initialize weight value controller and parse existing weight
+    _initializeWeightField();
 
     // Set initial category and subcategory if editing
     if (widget.materialToEdit != null) {
@@ -138,6 +145,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _issuedQtyController.dispose();
     _stockController.dispose();
     _inspectionStockController.dispose();
+    _weightValueController.dispose();
     // Dispose all controllers
     for (var controller in _controllers.values) {
       controller.dispose();
@@ -231,6 +239,179 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         validator: validator,
       ),
     );
+  }
+
+  Widget _buildSearchableDropdown(String label, String field, List<String> options,
+      {String? hint, FormFieldValidator<String>? validator}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Autocomplete<String>(
+        fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+          // Set initial value
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (textEditingController.text.isEmpty && _controllers[field]!.text.isNotEmpty) {
+              textEditingController.text = _controllers[field]!.text;
+            }
+          });
+          return TextFormField(
+            controller: textEditingController,
+            focusNode: focusNode,
+            decoration: InputDecoration(
+              labelText: label,
+              border: const OutlineInputBorder(),
+              hintText: hint,
+            ),
+            validator: validator,
+            onChanged: (value) {
+              _controllers[field]!.text = value;
+            },
+          );
+        },
+        optionsViewBuilder: (context, onSelected, options) {
+          return Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              elevation: 4.0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(
+                  color: Theme.of(context).dividerColor,
+                ),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxHeight: 200,
+                  maxWidth: 400,
+                ),
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: options.length,
+                  itemBuilder: (context, index) {
+                    final option = options.elementAt(index);
+                    return InkWell(
+                      onTap: () => onSelected(option),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12.0,
+                          horizontal: 16.0,
+                        ),
+                        child: Text(
+                          option,
+                          style: const TextStyle(fontSize: 14.0),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+        optionsBuilder: (textEditingValue) {
+          if (textEditingValue.text.isEmpty) {
+            return options;
+          }
+          return options.where((option) =>
+              option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+        },
+        onSelected: (option) {
+          setState(() {
+            _controllers[field]!.text = option;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildWeightField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              controller: _weightValueController,
+              decoration: const InputDecoration(
+                labelText: 'Actual Weight',
+                border: OutlineInputBorder(),
+                hintText: 'Enter actual/finished goods weight',
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: (value) {
+                if (value != null && value.isNotEmpty) {
+                  if (double.tryParse(value) == null) {
+                    return 'Please enter a valid number';
+                  }
+                  if (double.parse(value) < 0) {
+                    return 'Weight cannot be negative';
+                  }
+                }
+                return null;
+              },
+              onChanged: (value) {
+                // Update the combined weight value
+                _updateCombinedWeight();
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: _selectedWeightUnit,
+              decoration: const InputDecoration(
+                labelText: 'Unit',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'kgs', child: Text('Kgs')),
+                DropdownMenuItem(value: 'grams', child: Text('Grams')),
+                DropdownMenuItem(value: 'milligrams', child: Text('Milligrams')),
+                DropdownMenuItem(value: 'tons', child: Text('Tons')),
+                DropdownMenuItem(value: 'pounds', child: Text('Pounds')),
+                DropdownMenuItem(value: 'ounces', child: Text('Ounces')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedWeightUnit = value;
+                  });
+                  _updateCombinedWeight();
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _initializeWeightField() {
+    final existingWeight = item.actualWeight;
+    if (existingWeight != null && existingWeight.isNotEmpty) {
+      // Parse existing weight to extract value and unit
+      final parts = existingWeight.split(' ');
+      if (parts.length >= 2) {
+        final weightValue = parts[0];
+        final unit = parts[1];
+        
+        _weightValueController.text = weightValue;
+        _selectedWeightUnit = unit;
+      } else {
+        // If no unit found, assume it's just a number
+        _weightValueController.text = existingWeight;
+        _selectedWeightUnit = 'kgs';
+      }
+    }
+  }
+
+  void _updateCombinedWeight() {
+    final weightValue = _weightValueController.text;
+    if (weightValue.isNotEmpty) {
+      final combinedWeight = '$weightValue $_selectedWeightUnit';
+      // Store the combined value in the actualWeight field
+      _controllers['actualWeight']!.text = combinedWeight;
+    }
   }
 
   Widget _buildCategoryDropdown() {
@@ -588,29 +769,44 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                 child: ListView(
                   children: [
                     _buildTextField('Sl No', 'slNo'),
-                    _buildTextField('Description', 'description'),
-                    _buildTextField('Part No', 'partNo'),
-                    _buildTextField(
-                      'Actual Weight',
-                      'actualWeight',
-                      type:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      hint: 'Enter actual/finished goods weight',
-                      validator: (value) {
-                        if (value != null && value.isNotEmpty) {
-                          if (double.tryParse(value) == null) {
-                            return 'Please enter a valid number';
+                    _buildSearchableDropdown('Description', 'description', _getAvailableDescriptions(),
+                        hint: 'Enter or select description',
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Required';
                           }
-                          if (double.parse(value) < 0) {
-                            return 'Weight cannot be negative';
+                          // Check for duplicate description (case-insensitive)
+                          final materials = ref.read(materialListProvider);
+                          final duplicateExists = materials.any((m) => 
+                              m.description.toLowerCase() == value.toLowerCase() &&
+                              m.slNo != item.slNo); // Exclude current item when editing
+                          if (duplicateExists) {
+                            return 'Description already exists';
                           }
-                        }
-                        return null;
-                      },
-                    ),
-                    _buildTextField('Unit', 'unit'),
+                          return null;
+                        }),
+                    _buildSearchableDropdown('Part No', 'partNo', _getAvailablePartNumbers(),
+                        hint: 'Enter or select part number',
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Required';
+                          }
+                          // Check for duplicate part number (case-insensitive)
+                          final materials = ref.read(materialListProvider);
+                          final duplicateExists = materials.any((m) => 
+                              m.partNo.toLowerCase() == value.toLowerCase() &&
+                              m.slNo != item.slNo); // Exclude current item when editing
+                          if (duplicateExists) {
+                            return 'Part number already exists';
+                          }
+                          return null;
+                        }),
+                    _buildWeightField(),
+                    _buildSearchableDropdown('Unit', 'unit', _getAvailableUnits(),
+                        hint: 'Enter or select unit'),
                     _buildTextField('Storage Location', 'storageLocation'),
-                    _buildTextField('Rack Number', 'rackNumber'),
+                    _buildSearchableDropdown('Rack Number', 'rackNumber', _getAvailableRackNumbers(),
+                        hint: 'Enter or select rack number'),
                     _buildTextField(
                       'Material Sale Rate',
                       'saleRate',
@@ -653,5 +849,34 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         .read(subCategoryListProvider)
         .where((sc) => sc.categoryName == _selectedCategory!.name)
         .toList();
+  }
+
+  // Helper methods to get available options for searchable dropdowns
+  List<String> _getAvailableUnits() {
+    final materials = ref.read(materialListProvider);
+    final units = materials.map((m) => m.unit).where((unit) => unit.isNotEmpty).toSet().toList();
+    units.sort();
+    return units;
+  }
+
+  List<String> _getAvailableRackNumbers() {
+    final materials = ref.read(materialListProvider);
+    final rackNumbers = materials.map((m) => m.rackNumber).where((rack) => rack != null && rack.isNotEmpty).cast<String>().toSet().toList();
+    rackNumbers.sort();
+    return rackNumbers;
+  }
+
+  List<String> _getAvailableDescriptions() {
+    final materials = ref.read(materialListProvider);
+    final descriptions = materials.map((m) => m.description).where((desc) => desc.isNotEmpty).toSet().toList();
+    descriptions.sort();
+    return descriptions;
+  }
+
+  List<String> _getAvailablePartNumbers() {
+    final materials = ref.read(materialListProvider);
+    final partNumbers = materials.map((m) => m.partNo).where((part) => part.isNotEmpty).toSet().toList();
+    partNumbers.sort();
+    return partNumbers;
   }
 }

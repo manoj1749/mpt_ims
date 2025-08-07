@@ -598,9 +598,8 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
     print('New Status: $newStatus');
     inward.status = newStatus;
 
-    // Save the updated GRN
-    await inward.save();
-    state = box.values.toList();
+    // Use BaseProvider's update method to ensure proper persistence
+    await update(inward);
 
     // Update stock maintenance
     await _ref

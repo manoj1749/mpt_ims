@@ -5,16 +5,8 @@ import 'package:hive/hive.dart';
 import 'dart:math' as math;
 import '../models/stock_maintenance.dart';
 import '../models/store_inward.dart';
-import '../models/category.dart';
 import '../models/quality_inspection.dart';
-import '../models/purchase_order.dart';
 import '../models/material_item.dart';
-import '../models/po_item.dart';
-import '../provider/purchase_order.dart';
-import '../provider/material_provider.dart';
-import '../provider/category_provider.dart';
-import '../provider/quality_inspection_provider.dart';
-import '../provider/store_inward_provider.dart';
 import 'base_provider.dart';
 
 final stockMaintenanceBoxProvider = Provider<Box<StockMaintenance>>((ref) {
@@ -30,9 +22,7 @@ final stockMaintenanceProvider =
 );
 
 class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
-  final Ref _ref;
-
-  StockMaintenanceNotifier(Box<StockMaintenance> stockBox, this._ref) 
+  StockMaintenanceNotifier(Box<StockMaintenance> stockBox, Ref ref) 
       : super(stockBox, 'stockMaintenance');
 
   @override
@@ -190,6 +180,21 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
   // Backward compatibility methods
   Future<void> loadStock() => loadData();
 
+  @override
+  Future<void> loadData() async {
+    print('\n=== Debug: Stock Maintenance LoadData ===');
+    print('Collection Name: $collectionName');
+    
+    // Call parent loadData method
+    await super.loadData();
+    
+    print('Stock Maintenance State after load: ${state.length} items');
+    for (var stock in state) {
+      print('Stock: ${stock.materialCode} - Current: ${stock.currentStock} - Under Inspection: ${stock.stockUnderInspection}');
+    }
+    print('=== End Stock Maintenance LoadData ===\n');
+  }
+
   // All existing functionality preserved below:
 
   Future<void> initializeStock(MaterialItem material) async {
@@ -233,7 +238,7 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
         print('\n--- Processing item: ${grnItem.materialCode} ---');
 
         // Get or create stock record for this material
-        var stock = box.values.firstWhere(
+        var stock = state.firstWhere(
           (s) => s.materialCode == grnItem.materialCode,
           orElse: () {
             print('Creating new stock record for ${grnItem.materialCode}');
@@ -241,22 +246,14 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
               materialCode: grnItem.materialCode,
               materialDescription: grnItem.materialDescription,
               unit: grnItem.unit,
-            storageLocation: '',
-            rackNumber: '',
+              storageLocation: '',
+              rackNumber: '',
             );
           },
         );
 
-        if (!box.values.contains(stock)) {
-          print('Adding new stock for ${grnItem.materialCode}');
-          await box.add(stock);
-          stock = box.values.firstWhere(
-            (s) => s.materialCode == grnItem.materialCode,
-            orElse: () {
-              throw Exception('Failed to add new stock record');
-            },
-          );
-        }
+        // Check if this is a new stock record (not in state yet)
+        bool isNewStock = !state.any((s) => s.materialCode == grnItem.materialCode);
 
         // Update GRN details
         stock.grnDetails[grn.grnNo] = StockGRNDetails(
@@ -291,12 +288,13 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
         stock.updateCurrentStock(totalCurrentStock);
         stock.updateStockUnderInspection(totalUnderInspection);
 
-        // Save to Hive
-        await stock.save();
+        // Use BaseProvider's add method for new stock, update method for existing stock
+        if (isNewStock) {
+          await add(stock);
+        } else {
+          await update(stock);
+        }
       }
-
-      // Update state
-      state = box.values.toList();
     } catch (e) {
       print('Error updating stock from GRN: $e');
       rethrow;
@@ -404,7 +402,7 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
         print('\nProcessing inspection item: ${inspectionItem.materialCode}');
         
         // Find stock for this material
-        final stock = box.values.where((s) => s.materialCode == inspectionItem.materialCode).firstOrNull;
+        final stock = state.where((s) => s.materialCode == inspectionItem.materialCode).firstOrNull;
         
         if (stock != null) {
           // Update GRN details with inspection results
@@ -435,15 +433,14 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
           stock.updateCurrentStock(totalCurrentStock);
           stock.updateStockUnderInspection(totalUnderInspection);
 
-          // Save to Hive
-          await stock.save();
+          // Use BaseProvider's update method to ensure proper persistence
+          await update(stock);
         } else {
           print('Stock not found for material: ${inspectionItem.materialCode}');
+          // This should not happen if stock was created during GRN
+          print('Warning: Stock should have been created during GRN process');
         }
       }
-
-      // Update state
-      state = box.values.toList();
     } catch (e) {
       print('Error updating stock from inspection: $e');
       rethrow;

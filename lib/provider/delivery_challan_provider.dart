@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import '../models/delivery_challan.dart';
 import '../models/stock_maintenance.dart';
 import 'base_provider.dart';
+import 'stock_maintenance_provider.dart';
 
 final deliveryChallanBoxProvider = Provider<Box<DeliveryChallan>>((ref) {
   return Hive.box<DeliveryChallan>('delivery_challans');
@@ -78,10 +79,10 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
   // Map old method names to new base provider methods
   Future<void> loadDeliveryChallans() => loadData();
 
-  Future<void> addDeliveryChallan(DeliveryChallan dc) async {
+  Future<void> addDeliveryChallan(DeliveryChallan dc, WidgetRef ref) async {
     try {
       // Update stock maintenance first
-      await _updateStockForDeliveryChallan(dc, isAdd: true);
+      await _updateStockForDeliveryChallan(dc, isAdd: true, ref: ref);
       
       // Add delivery challan
       await add(dc);
@@ -91,16 +92,16 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
     }
   }
 
-  Future<void> updateDeliveryChallan(int index, DeliveryChallan dc) async {
+  Future<void> updateDeliveryChallan(int index, DeliveryChallan dc, WidgetRef ref) async {
     try {
       // Get the old DC to revert quantities
       final oldDc = box.getAt(index);
       if (oldDc != null) {
-        await _updateStockForDeliveryChallan(oldDc, isAdd: false);
+        await _updateStockForDeliveryChallan(oldDc, isAdd: false, ref: ref);
       }
 
       // Update with new quantities
-      await _updateStockForDeliveryChallan(dc, isAdd: true);
+      await _updateStockForDeliveryChallan(dc, isAdd: true, ref: ref);
       
       // Update delivery challan
       await update(dc);
@@ -110,10 +111,10 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
     }
   }
 
-  Future<bool> deleteDeliveryChallan(DeliveryChallan dc) async {
+  Future<bool> deleteDeliveryChallan(DeliveryChallan dc, WidgetRef ref) async {
     try {
       // Revert stock quantities
-      await _updateStockForDeliveryChallan(dc, isAdd: false);
+      await _updateStockForDeliveryChallan(dc, isAdd: false, ref: ref);
       
       // Delete delivery challan
       return await delete(dc);
@@ -137,41 +138,51 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
     return '$prefix${nextNo.toString().padLeft(4, '0')}';
   }
 
-  Future<void> _updateStockForDeliveryChallan(DeliveryChallan dc, {required bool isAdd}) async {
+  Future<void> _updateStockForDeliveryChallan(DeliveryChallan dc, {required bool isAdd, required WidgetRef ref}) async {
+    print('=== Updating Stock for Delivery Challan ===');
+    print('DC No: ${dc.dcNo}, isAdd: $isAdd');
+    
     for (var item in dc.items) {
-      final stockItem = _stockBox.values
-          .firstWhere((stock) => stock.materialCode == item.materialCode);
-
-      final jobNo = item.jobNo ?? 'General';
-      final multiplier = isAdd ? 1.0 : -1.0;
+      print('Processing item: ${item.materialCode} - Quantity: ${item.quantity}');
       
-      // Update job details
-      if (!stockItem.jobDetails.containsKey(jobNo)) {
-        if (isAdd) {
-          stockItem.jobDetails[jobNo] = StockJobDetails(
-            jobNo: jobNo,
-            allocatedQuantity: 0.0,
-            consumedQuantity: 0.0,
-            pendingDeliveryQuantity: item.quantity,
-            prNo: item.prNo ?? '',
-          );
-        }
-      } else {
-        // Update pending delivery quantity
-        stockItem.jobDetails[jobNo]!.pendingDeliveryQuantity += item.quantity * multiplier;
+      final stockItems = _stockBox.values.where((stock) => 
+          stock.materialCode == item.materialCode).toList();
+      
+      print('Found ${stockItems.length} stock records for ${item.materialCode}');
+      
+      for (var stock in stockItems) {
+        final jobNo = item.jobNo ?? 'General';
+        final multiplier = isAdd ? 1.0 : -1.0;
+        final deliveryQty = item.quantity * multiplier;
         
-        // If this is a PR-based delivery, update consumed quantity
-        if (item.prNo != null && item.prNo!.isNotEmpty) {
-          stockItem.jobDetails[jobNo]!.consumedQuantity += item.quantity * multiplier;
-          
-          // Also update PR issued quantity
-          if (stockItem.prDetails.containsKey(item.prNo)) {
-            stockItem.prDetails[item.prNo]!.issuedQuantity += item.quantity * multiplier;
+        print('Job No: $jobNo, Multiplier: $multiplier, Delivery Qty: $deliveryQty');
+        print('Current job details: ${stock.jobDetails}');
+        
+        try {
+          // Use the proper stock delivery method (similar to MI's issueStockForJob)
+          stock.deliverStockForJob(jobNo, dc.dcNo, deliveryQty);
+          print('Successfully delivered stock for job $jobNo');
+        } catch (e) {
+          print('Error delivering stock for job $jobNo: $e');
+          // Fallback to simple stock update if proper tracking fails
+          if (stock.currentStock >= deliveryQty.abs()) {
+            stock.currentStock += deliveryQty; // Note: delivery reduces stock, so we add the negative value
+            if (stock.jobDetails.containsKey(jobNo)) {
+              stock.jobDetails[jobNo]!.pendingDeliveryQuantity += deliveryQty;
+            }
+            print('Fallback: Updated current stock to: ${stock.currentStock}');
+          } else {
+            print('Insufficient stock for job $jobNo');
           }
         }
+        
+        // Use BaseProvider's update method for Firestore sync
+        final stockMaintenanceNotifier = ref.read(stockMaintenanceProvider.notifier);
+        await stockMaintenanceNotifier.update(stock);
+        print('Successfully updated stock for ${stock.materialCode}');
       }
-      await stockItem.save();
     }
+    print('=== End Stock Update for Delivery Challan ===');
   }
 
   // Helper methods

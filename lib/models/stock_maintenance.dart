@@ -382,6 +382,55 @@ class StockMaintenance extends HiveObject {
       // Note: save() is now handled by the provider, not the model
     }
   }
+
+  // Deliver stock for a specific job (similar to issueStockForJob but for delivery)
+  void deliverStockForJob(String jobNo, String deliveryChallanNo, double quantity) {
+    print('=== Delivering Stock for Job ===');
+    print('Job No: $jobNo, DC No: $deliveryChallanNo, Quantity: $quantity');
+    
+    // Find the job details
+    if (!jobDetails.containsKey(jobNo)) {
+      // Create job details if it doesn't exist
+      jobDetails[jobNo] = StockJobDetails(
+        jobNo: jobNo,
+        allocatedQuantity: 0.0,
+        consumedQuantity: 0.0,
+        pendingDeliveryQuantity: quantity,
+        prNo: '',
+      );
+      print('Created new job details for $jobNo');
+    } else {
+      // Update pending delivery quantity
+      final jobDetail = jobDetails[jobNo]!;
+      final oldPending = jobDetail.pendingDeliveryQuantity;
+      jobDetail.pendingDeliveryQuantity += quantity;
+      print('Updated pending delivery quantity for $jobNo: $oldPending -> ${jobDetail.pendingDeliveryQuantity}');
+      
+      // If this is a PR-based delivery, update consumed quantity
+      // Find the PR associated with this job
+      final prNo = jobDetail.prNo;
+      if (prNo.isNotEmpty && prDetails.containsKey(prNo)) {
+        final oldConsumed = jobDetail.consumedQuantity;
+        jobDetail.consumedQuantity += quantity;
+        print('Updated consumed quantity for $jobNo: $oldConsumed -> ${jobDetail.consumedQuantity}');
+        
+        // Update PR issued quantity
+        final prDetail = prDetails[prNo]!;
+        final oldIssued = prDetail.issuedQuantity;
+        prDetail.issuedQuantity += quantity;
+        print('Updated PR issued quantity for $prNo: $oldIssued -> ${prDetail.issuedQuantity}');
+      }
+    }
+    
+    // Update current stock
+    final oldCurrentStock = currentStock;
+    currentStock -= quantity;
+    print('Updated current stock: $oldCurrentStock -> $currentStock');
+    
+    // Update total stock value
+    _updateTotalStockValue();
+    print('=== End Stock Delivery ===');
+  }
 }
 
 @HiveType(typeId: 25)

@@ -13,11 +13,7 @@ import '../../provider/stock_maintenance_provider.dart' as stock;
 import '../../provider/supplier_provider.dart';
 import '../../provider/sale_order_provider.dart';
 
-final deliveryChallanProvider = StateNotifierProvider<DeliveryChallanNotifier, List<DeliveryChallan>>((ref) {
-  final dcBox = ref.watch(deliveryChallanBoxProvider);
-  final stockBox = ref.watch(stock.stockMaintenanceBoxProvider);
-  return DeliveryChallanNotifier(dcBox, stockBox);
-});
+// Use the provider from the provider file
 
 class AddDeliveryChallanPage extends ConsumerStatefulWidget {
   final DeliveryChallan? deliveryChallan;
@@ -357,7 +353,7 @@ class _AddDeliveryChallanPageState
         }
       }
 
-      final notifier = ref.read(deliveryChallanProvider.notifier);
+              final notifier = ref.read(deliveryChallanListProvider.notifier);
       final dc = DeliveryChallan(
         dcNo: widget.deliveryChallan?.dcNo ?? notifier.generateDcNo(),
         dcDate: _selectedDate,
@@ -374,10 +370,10 @@ class _AddDeliveryChallanPageState
           // Find the index of the existing DC
           final index = notifier.state.indexWhere((d) => d.dcNo == widget.deliveryChallan!.dcNo);
           if (index != -1) {
-            await notifier.updateDeliveryChallan(index, dc);
+            await notifier.updateDeliveryChallan(index, dc, ref);
           }
         } else {
-          await notifier.addDeliveryChallan(dc);
+          await notifier.addDeliveryChallan(dc, ref);
         }
 
         if (mounted) {

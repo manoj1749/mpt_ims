@@ -3,22 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/delivery_challan.dart';
 import '../../provider/delivery_challan_provider.dart';
-import '../../provider/stock_maintenance_provider.dart' as stock;
 import '../../widgets/pluto_grid_configuration.dart';
 import 'add_delivery_challan_page.dart';
 
-final deliveryChallanProvider = StateNotifierProvider<DeliveryChallanNotifier, List<DeliveryChallan>>((ref) {
-  final dcBox = ref.watch(deliveryChallanBoxProvider);
-  final stockBox = ref.watch(stock.stockMaintenanceBoxProvider);
-  return DeliveryChallanNotifier(dcBox, stockBox);
-});
+// Use the provider from the provider file
 
 class DeliveryChallanListPage extends ConsumerWidget {
   const DeliveryChallanListPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final deliveryChallans = ref.watch(deliveryChallanProvider);
+    final deliveryChallans = ref.watch(deliveryChallanListProvider);
 
     final columns = [
       PlutoColumn(
@@ -133,10 +128,11 @@ class DeliveryChallanListPage extends ConsumerWidget {
                         TextButton(
                           onPressed: () {
                             final notifier = ref.read(
-                              deliveryChallanProvider.notifier,
+                              deliveryChallanListProvider.notifier,
                             );
                             notifier.deleteDeliveryChallan(
                               rendererContext.cell.value,
+                              ref,
                             );
                             Navigator.pop(context);
                           },

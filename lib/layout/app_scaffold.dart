@@ -52,7 +52,6 @@ class _AppScaffoldState extends State<AppScaffold> {
       'Invoice receipt',
       'Supplier Master',
       'Customer Master',
-      'Category Settings',
       'Bank statement entry',
       "Expense's entry",
       "Payment's entry",
@@ -73,6 +72,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     5: [
       'Material Master Creation',
       'Brought List',
+      'Category Settings',
     ],
     6: [
       'Bill of Material Preparation',
@@ -96,6 +96,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     ],
     10: [
       'Incoming Inspection',
+      'Category Settings',
       'Final Inspection',
       'CAPA Status',
     ],

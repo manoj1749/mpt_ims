@@ -8,11 +8,11 @@ import '../models/stock_maintenance.dart';
 import 'base_provider.dart';
 
 final deliveryChallanBoxProvider = Provider<Box<DeliveryChallan>>((ref) {
-  throw UnimplementedError();
+  return Hive.box<DeliveryChallan>('delivery_challans');
 });
 
 final stockMaintenanceBoxProvider = Provider<Box<StockMaintenance>>((ref) {
-  throw UnimplementedError();
+  return Hive.box<StockMaintenance>('stock_maintenance');
 });
 
 final deliveryChallanListProvider =

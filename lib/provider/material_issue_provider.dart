@@ -198,7 +198,7 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
             // Use the proper stock tracking method
             stock.issueStockForJob(jobNo, issue.issueNo, issueQty);
             print('Successfully issued stock for job $jobNo');
-          } catch (e) {
+    } catch (e) {
             print('Error issuing stock for job $jobNo: $e');
             // Fallback to simple stock update if proper tracking fails
             if (stock.currentStock >= issueQty) {

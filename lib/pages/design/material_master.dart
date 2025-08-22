@@ -117,6 +117,16 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         enableEditingMode: false,
       ),
       PlutoColumn(
+        title: 'BIN Number',
+        field: 'binNumber',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
         title: 'Preferred Vendor',
         field: 'preferredVendor',
         type: PlutoColumnType.text(),
@@ -282,6 +292,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           'actualWeight': PlutoCell(value: m.actualWeight),
           'storageLocation': PlutoCell(value: m.storageLocation),
           'rackNumber': PlutoCell(value: m.rackNumber),
+          'binNumber': PlutoCell(value: m.binNumber),
           'preferredVendor': PlutoCell(value: m.getPreferredVendorName()),
           'bestRate': PlutoCell(
               value: m.getLowestPurchaseRate().isEmpty

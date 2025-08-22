@@ -259,14 +259,15 @@ class StockJobDetailsAdapter extends TypeAdapter<StockJobDetails> {
       jobNo: fields[0] as String,
       allocatedQuantity: fields[1] as double,
       consumedQuantity: fields[2] as double,
-      prNo: fields[3] as String,
+      pendingDeliveryQuantity: fields[3] as double,
+      prNo: fields[4] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, StockJobDetails obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.jobNo)
       ..writeByte(1)
@@ -274,6 +275,8 @@ class StockJobDetailsAdapter extends TypeAdapter<StockJobDetails> {
       ..writeByte(2)
       ..write(obj.consumedQuantity)
       ..writeByte(3)
+      ..write(obj.pendingDeliveryQuantity)
+      ..writeByte(4)
       ..write(obj.prNo);
   }
 

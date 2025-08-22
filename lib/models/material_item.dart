@@ -39,6 +39,9 @@ class MaterialItem extends HiveObject {
   @HiveField(10, defaultValue: '0')
   String saleRate; // Material's own sale rate
 
+  @HiveField(11)
+  String? binNumber; // Storage bin number
+
   MaterialItem copy() {
     return MaterialItem(
       slNo: slNo,
@@ -49,6 +52,7 @@ class MaterialItem extends HiveObject {
       subCategory: subCategory,
       storageLocation: storageLocation ?? '',
       rackNumber: rackNumber ?? '',
+      binNumber: binNumber ?? '',
       actualWeight: actualWeight ?? '',
       vendorRates: List<VendorMaterialRate>.from(vendorRates),
       saleRate: saleRate,
@@ -64,6 +68,7 @@ class MaterialItem extends HiveObject {
     required this.subCategory,
     this.storageLocation = '',
     this.rackNumber = '',
+    this.binNumber = '',
     this.actualWeight = '',
     List<VendorMaterialRate>? vendorRates,
     this.saleRate = '0',

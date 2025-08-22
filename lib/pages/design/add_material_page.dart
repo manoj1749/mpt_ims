@@ -97,6 +97,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _controllers['storageLocation'] =
         TextEditingController(text: item.storageLocation);
     _controllers['rackNumber'] = TextEditingController(text: item.rackNumber);
+    _controllers['binNumber'] = TextEditingController(text: item.binNumber);
     _controllers['actualWeight'] =
         TextEditingController(text: item.actualWeight);
     _controllers['saleRate'] = TextEditingController(text: item.saleRate);
@@ -186,6 +187,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         item.unit = _controllers['unit']!.text;
         item.storageLocation = _controllers['storageLocation']!.text;
         item.rackNumber = _controllers['rackNumber']!.text;
+        item.binNumber = _controllers['binNumber']!.text;
         item.actualWeight = _controllers['actualWeight']!.text;
         item.category = _selectedCategory?.name ?? '';
         item.subCategory = _selectedSubCategory?.name ?? '';
@@ -225,15 +227,22 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   Widget _buildTextField(String label, String field,
       {TextInputType type = TextInputType.text,
       String? hint,
+      bool enabled = true,
       FormFieldValidator<String>? validator}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
         controller: _controllers[field],
+        enabled: enabled,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
           hintText: hint,
+          filled: !enabled,
+          fillColor: !enabled ? Colors.grey[600] : null,
+        ),
+        style: TextStyle(
+          color: !enabled ? Colors.grey[400] : null,
         ),
         keyboardType: type,
         validator: validator,
@@ -785,28 +794,41 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                           }
                           return null;
                         }),
-                    _buildSearchableDropdown('Part No', 'partNo', _getAvailablePartNumbers(),
-                        hint: 'Enter or select part number',
+                    widget.materialToEdit == null ?
+                      _buildSearchableDropdown('Part No', 'partNo', _getAvailablePartNumbers(),
+                          hint: 'Enter or select part number',
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Required';
+                            }
+                            // Check for duplicate part number (case-insensitive)
+                            final materials = ref.read(materialListProvider);
+                            final duplicateExists = materials.any((m) => 
+                                m.partNo.toLowerCase() == value.toLowerCase());
+                            if (duplicateExists) {
+                              return 'Part number already exists';
+                            }
+                            return null;
+                          }) :
+                      _buildTextField(
+                        'Part No',
+                        'partNo',
+                        enabled: false,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Required';
                           }
-                          // Check for duplicate part number (case-insensitive)
-                          final materials = ref.read(materialListProvider);
-                          final duplicateExists = materials.any((m) => 
-                              m.partNo.toLowerCase() == value.toLowerCase() &&
-                              m.slNo != item.slNo); // Exclude current item when editing
-                          if (duplicateExists) {
-                            return 'Part number already exists';
-                          }
                           return null;
-                        }),
+                        }
+                      ),
                     _buildWeightField(),
                     _buildSearchableDropdown('Unit', 'unit', _getAvailableUnits(),
                         hint: 'Enter or select unit'),
                     _buildTextField('Storage Location', 'storageLocation'),
                     _buildSearchableDropdown('Rack Number', 'rackNumber', _getAvailableRackNumbers(),
                         hint: 'Enter or select rack number'),
+                    _buildSearchableDropdown('BIN Number', 'binNumber', _getAvailableBinNumbers(),
+                        hint: 'Enter or select BIN number'),
                     _buildTextField(
                       'Material Sale Rate',
                       'saleRate',
@@ -878,5 +900,12 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     final partNumbers = materials.map((m) => m.partNo).where((part) => part.isNotEmpty).toSet().toList();
     partNumbers.sort();
     return partNumbers;
+  }
+
+  List<String> _getAvailableBinNumbers() {
+    final materials = ref.read(materialListProvider);
+    final binNumbers = materials.map((m) => m.binNumber).where((bin) => bin != null && bin.isNotEmpty).cast<String>().toSet().toList();
+    binNumbers.sort();
+    return binNumbers;
   }
 }

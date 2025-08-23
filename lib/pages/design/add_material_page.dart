@@ -98,6 +98,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         TextEditingController(text: item.storageLocation);
     _controllers['rackNumber'] = TextEditingController(text: item.rackNumber);
     _controllers['binNumber'] = TextEditingController(text: item.binNumber);
+    _controllers['hsnCode'] = TextEditingController(text: item.hsnCode);
     _controllers['actualWeight'] =
         TextEditingController(text: item.actualWeight);
     _controllers['saleRate'] = TextEditingController(text: item.saleRate);
@@ -188,6 +189,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         item.storageLocation = _controllers['storageLocation']!.text;
         item.rackNumber = _controllers['rackNumber']!.text;
         item.binNumber = _controllers['binNumber']!.text;
+        item.hsnCode = _controllers['hsnCode']!.text;
         item.actualWeight = _controllers['actualWeight']!.text;
         item.category = _selectedCategory?.name ?? '';
         item.subCategory = _selectedSubCategory?.name ?? '';
@@ -829,6 +831,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                         hint: 'Enter or select rack number'),
                     _buildSearchableDropdown('BIN Number', 'binNumber', _getAvailableBinNumbers(),
                         hint: 'Enter or select BIN number'),
+                    _buildSearchableDropdown('HSN Code', 'hsnCode', _getAvailableHSNCodes(),
+                        hint: 'Enter or select HSN code'),
                     _buildTextField(
                       'Material Sale Rate',
                       'saleRate',
@@ -907,5 +911,12 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     final binNumbers = materials.map((m) => m.binNumber).where((bin) => bin != null && bin.isNotEmpty).cast<String>().toSet().toList();
     binNumbers.sort();
     return binNumbers;
+  }
+
+  List<String> _getAvailableHSNCodes() {
+    final materials = ref.read(materialListProvider);
+    final hsnCodes = materials.map((m) => m.hsnCode).where((hsn) => hsn != null && hsn.isNotEmpty).cast<String>().toSet().toList();
+    hsnCodes.sort();
+    return hsnCodes;
   }
 }

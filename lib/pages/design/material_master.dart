@@ -127,6 +127,16 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         enableEditingMode: false,
       ),
       PlutoColumn(
+        title: 'HSN Code',
+        field: 'hsnCode',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
         title: 'Preferred Vendor',
         field: 'preferredVendor',
         type: PlutoColumnType.text(),
@@ -292,7 +302,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           'actualWeight': PlutoCell(value: m.actualWeight),
           'storageLocation': PlutoCell(value: m.storageLocation),
           'rackNumber': PlutoCell(value: m.rackNumber),
-          'binNumber': PlutoCell(value: m.binNumber),
+          'binNumber': PlutoCell(value: m.binNumber?.isEmpty ?? true ? '-' : m.binNumber),
+          'hsnCode': PlutoCell(value: m.hsnCode?.isEmpty ?? true ? '-' : m.hsnCode),
           'preferredVendor': PlutoCell(value: m.getPreferredVendorName()),
           'bestRate': PlutoCell(
               value: m.getLowestPurchaseRate().isEmpty

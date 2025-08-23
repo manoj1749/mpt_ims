@@ -42,6 +42,9 @@ class MaterialItem extends HiveObject {
   @HiveField(11)
   String? binNumber; // Storage bin number
 
+  @HiveField(12)
+  String? hsnCode; // HSN code for GST
+
   MaterialItem copy() {
     return MaterialItem(
       slNo: slNo,
@@ -53,6 +56,7 @@ class MaterialItem extends HiveObject {
       storageLocation: storageLocation ?? '',
       rackNumber: rackNumber ?? '',
       binNumber: binNumber ?? '',
+      hsnCode: hsnCode ?? '',
       actualWeight: actualWeight ?? '',
       vendorRates: List<VendorMaterialRate>.from(vendorRates),
       saleRate: saleRate,
@@ -69,6 +73,7 @@ class MaterialItem extends HiveObject {
     this.storageLocation = '',
     this.rackNumber = '',
     this.binNumber = '',
+    this.hsnCode = '',
     this.actualWeight = '',
     List<VendorMaterialRate>? vendorRates,
     this.saleRate = '0',

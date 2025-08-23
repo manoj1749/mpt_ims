@@ -28,6 +28,7 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
       'storageLocation': material.storageLocation,
       'rackNumber': material.rackNumber,
       'binNumber': material.binNumber,
+      'hsnCode': material.hsnCode,
       'actualWeight': material.actualWeight,
       'saleRate': material.saleRate,
       'vendorRates': material.vendorRates.map((rate) => {
@@ -64,6 +65,7 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
       storageLocation: map['storageLocation'],
       rackNumber: map['rackNumber'],
       binNumber: map['binNumber'],
+      hsnCode: map['hsnCode'],
       actualWeight: map['actualWeight'],
       saleRate: map['saleRate'] ?? '0',
       vendorRates: vendorRatesList,

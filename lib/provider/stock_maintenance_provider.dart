@@ -358,8 +358,13 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
         // Update PO received quantities
         stock.poDetails[poNo]!.addReceivedQuantity(grnNo, prNo, prQty);
 
-        // Update PR received quantity (this will be updated based on acceptance ratio during inspection)
-        // Don't add here - it will be updated when the GRN is inspected
+        // Update PR received quantity immediately for accepted quantities
+        if (grnItem.acceptedQty > 0) {
+          final acceptanceRatio = grnItem.acceptedQty / grnItem.receivedQty;
+          final acceptedQty = prQty * acceptanceRatio;
+          stock.prDetails[prNo]!.receivedQuantity += acceptedQty;
+          print('Updated PR $prNo received quantity to: ${stock.prDetails[prNo]!.receivedQuantity}');
+        }
       }
 
       // Update total received quantity for PO

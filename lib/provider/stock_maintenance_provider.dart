@@ -69,7 +69,6 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
         'jobNo': value.jobNo,
         'allocatedQuantity': value.allocatedQuantity,
         'consumedQuantity': value.consumedQuantity,
-        'pendingDeliveryQuantity': value.pendingDeliveryQuantity,
       })),
              'vendorDetails': stock.vendorDetails.map((key, value) => MapEntry(key, {
          'vendorId': value.vendorId,
@@ -152,7 +151,6 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
               jobNo: value['jobNo'] ?? '',
               allocatedQuantity: (value['allocatedQuantity'] as num?)?.toDouble() ?? 0.0,
               consumedQuantity: (value['consumedQuantity'] as num?)?.toDouble() ?? 0.0,
-          pendingDeliveryQuantity: (value['pendingDeliveryQuantity'] as num?)?.toDouble() ?? 0.0,
           prNo: value['prNo'] ?? 'General',
             );
           });
@@ -350,7 +348,6 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
             jobNo: jobNo,
             allocatedQuantity: prQty,
             consumedQuantity: 0.0,
-            pendingDeliveryQuantity: 0.0,
             prNo: prNo,
           );
         }
@@ -521,7 +518,6 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
       if (stock != null) {
         final jobDetails = stock.jobDetails[jobNo];
         if (jobDetails != null) {
-          jobDetails.pendingDeliveryQuantity = math.max(0, jobDetails.pendingDeliveryQuantity - quantity);
           jobDetails.allocatedQuantity = math.max(0, jobDetails.allocatedQuantity - quantity);
           stock.currentStock += quantity; // Return to available stock
           await update(stock);
@@ -533,28 +529,7 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
     }
   }
 
-  Future<void> updatePendingDeliveryQuantity(String materialCode, String jobNo, double newQuantity) async {
-    try {
-      var stock = state.where((s) => s.materialCode == materialCode).firstOrNull;
-      if (stock != null) {
-        final jobDetails = stock.jobDetails[jobNo];
-        if (jobDetails != null) {
-          final oldQuantity = jobDetails.pendingDeliveryQuantity;
-          jobDetails.pendingDeliveryQuantity = newQuantity;
-          
-          // Adjust allocated quantity accordingly
-          final difference = newQuantity - oldQuantity;
-          jobDetails.allocatedQuantity += difference;
-          stock.currentStock -= difference;
-          
-          await update(stock);
-        }
-      }
-    } catch (e) {
-      print('Error updating pending delivery quantity: $e');
-      rethrow;
-    }
-  }
+  // Method removed - pendingDeliveryQuantity field no longer exists
 
   Future<void> consumeStockForJob(String materialCode, String jobNo, double quantity) async {
     try {
@@ -563,7 +538,6 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
         final jobDetails = stock.jobDetails[jobNo];
         if (jobDetails != null) {
           jobDetails.consumedQuantity += quantity;
-          jobDetails.pendingDeliveryQuantity = math.max(0, jobDetails.pendingDeliveryQuantity - quantity);
           await update(stock);
         }
       }

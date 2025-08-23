@@ -413,9 +413,8 @@ class _StockDetailsViewState extends State<StockDetailsView> {
     // Add issued quantities and pending deliveries
     for (var jobEntry in widget.stock.jobDetails.entries) {
       final jobNo = jobEntry.key;
-      jobTotals.putIfAbsent(jobNo, () => {'received': 0.0, 'issued': 0.0, 'pendingDelivery': 0.0});
+      jobTotals.putIfAbsent(jobNo, () => {'received': 0.0, 'issued': 0.0});
       jobTotals[jobNo]!['issued'] = jobEntry.value.consumedQuantity;
-      jobTotals[jobNo]!['pendingDelivery'] = jobEntry.value.pendingDeliveryQuantity;
     }
 
     // Now group PRs by job number
@@ -645,7 +644,7 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                                     if (jobDetail != null) Padding(
                                       padding: const EdgeInsets.only(left: 24.0),
                                       child: Text(
-                                        'Job Details - Allocated: ${jobDetail.allocatedQuantity} | Consumed: ${jobDetail.consumedQuantity} | Pending Delivery: ${jobDetail.pendingDeliveryQuantity}',
+                                        'Job Details - Allocated: ${jobDetail.allocatedQuantity} | Consumed: ${jobDetail.consumedQuantity}',
                                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                           color: Colors.grey[600],
                                         ),

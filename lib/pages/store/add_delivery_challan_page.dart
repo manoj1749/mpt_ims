@@ -1,12 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
-import 'package:responsive_sizer/responsive_sizer.dart';
 import '../../models/delivery_challan.dart';
-
+import '../../services/pdf_service.dart';
 import '../../models/material_item.dart';
 import '../../models/supplier.dart';
-import '../../models/stock_maintenance.dart';
 import '../../provider/delivery_challan_provider.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/stock_maintenance_provider.dart' as stock;
@@ -38,7 +37,6 @@ class _AddDeliveryChallanPageState
   final _materialCodesController = TextEditingController();
   final _quantitiesController = TextEditingController();
   late String _selectedDate;
-  String? _selectedVendor;
 
   @override
   void initState() {
@@ -328,15 +326,12 @@ class _AddDeliveryChallanPageState
             }
           }
 
-          // Subtract any pending deliveries from general stock
-          for (var jobDetail in stockItem.jobDetails.values) {
-            availableQty -= jobDetail.pendingDeliveryQuantity;
-          }
+          // General stock calculation (no pending deliveries to subtract)
         } else {
           // For specific job numbers, check the allocated quantity for that job
           final jobDetail = stockItem.jobDetails[jobNo];
           if (jobDetail != null) {
-            availableQty = jobDetail.allocatedQuantity - jobDetail.consumedQuantity - jobDetail.pendingDeliveryQuantity;
+            availableQty = jobDetail.allocatedQuantity - jobDetail.consumedQuantity;
           }
         }
 
@@ -368,16 +363,21 @@ class _AddDeliveryChallanPageState
       try {
         if (widget.deliveryChallan != null) {
           // Find the index of the existing DC
-          final index = notifier.state.indexWhere((d) => d.dcNo == widget.deliveryChallan!.dcNo);
+          final deliveryChallans = ref.read(deliveryChallanListProvider);
+          final index = deliveryChallans.indexWhere((d) => d.dcNo == widget.deliveryChallan!.dcNo);
           if (index != -1) {
             await notifier.updateDeliveryChallan(index, dc, ref);
           }
+          // For editing, just go back without PDF generation
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
         } else {
           await notifier.addDeliveryChallan(dc, ref);
-        }
-
-        if (mounted) {
-          Navigator.of(context).pop();
+          // For new DC, show PDF generation dialog
+          if (mounted) {
+            _showPDFGenerationDialog(dc);
+          }
         }
       } catch (e) {
         if (mounted) {
@@ -388,6 +388,168 @@ class _AddDeliveryChallanPageState
             ),
           );
         }
+      }
+    }
+  }
+
+  void _showPDFGenerationDialog(DeliveryChallan deliveryChallan) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delivery Challan Created Successfully!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('DC No: ${deliveryChallan.dcNo}'),
+            const SizedBox(height: 16),
+            const Text('Choose how to save the PDF:'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              _navigateBackToDCList();
+            },
+            child: const Text('Skip'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              await _generateAndSaveToDownloads(deliveryChallan);
+              _navigateBackToDCList();
+            },
+            child: const Text('Quick Save'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              await _generateAndSavePDF(deliveryChallan);
+              _navigateBackToDCList();
+            },
+            child: const Text('Choose Location'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _navigateBackToDCList() {
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _generateAndSavePDF(DeliveryChallan deliveryChallan) async {
+    try {
+      if (_selectedSupplier == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Supplier information not available'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final materials = ref.read(materialListProvider);
+      final success = await PDFService.saveDeliveryChallan(deliveryChallan, _selectedSupplier!, materials: materials);
+      
+      Navigator.pop(context); // Close loading dialog
+      
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF saved successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Save cancelled by user'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _generateAndSaveToDownloads(DeliveryChallan deliveryChallan) async {
+    try {
+      if (_selectedSupplier == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Supplier information not available'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final materials = ref.read(materialListProvider);
+      final success = await PDFService.saveDeliveryChallanToDownloads(deliveryChallan, _selectedSupplier!, materials: materials);
+      
+      Navigator.pop(context); // Close loading dialog
+      
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(Platform.isMacOS || Platform.isIOS 
+                ? 'PDF saved to Documents folder successfully!' 
+                : 'PDF saved to Downloads folder successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to save PDF to Downloads'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }

@@ -375,57 +375,85 @@ class StockMaintenance extends HiveObject {
     return jobDetail.allocatedQuantity - jobDetail.consumedQuantity;
   }
 
-  // Update pending delivery quantity for a job
-  void updatePendingDeliveryQuantity(String jobNo, double quantity) {
-    if (jobDetails.containsKey(jobNo)) {
-      jobDetails[jobNo]!.pendingDeliveryQuantity = quantity;
-      // Note: save() is now handled by the provider, not the model
-    }
-  }
+
 
   // Deliver stock for a specific job (similar to issueStockForJob but for delivery)
   void deliverStockForJob(String jobNo, String deliveryChallanNo, double quantity) {
     print('=== Delivering Stock for Job ===');
     print('Job No: $jobNo, DC No: $deliveryChallanNo, Quantity: $quantity');
     
-    // Find the job details
-    if (!jobDetails.containsKey(jobNo)) {
-      // Create job details if it doesn't exist
-      jobDetails[jobNo] = StockJobDetails(
-        jobNo: jobNo,
-        allocatedQuantity: 0.0,
-        consumedQuantity: 0.0,
-        pendingDeliveryQuantity: quantity,
-        prNo: '',
-      );
-      print('Created new job details for $jobNo');
-    } else {
-      // Update pending delivery quantity
-      final jobDetail = jobDetails[jobNo]!;
-      final oldPending = jobDetail.pendingDeliveryQuantity;
-      jobDetail.pendingDeliveryQuantity += quantity;
-      print('Updated pending delivery quantity for $jobNo: $oldPending -> ${jobDetail.pendingDeliveryQuantity}');
+    // Find the oldest available PR for this job (similar to Material Issue logic)
+    final prInfo = findAvailablePRForJob(jobNo, quantity);
+    if (prInfo != null) {
+      final prNo = prInfo.$1;
+      final availableQty = prInfo.$2;
       
-      // If this is a PR-based delivery, update consumed quantity
-      // Find the PR associated with this job
-      final prNo = jobDetail.prNo;
-      if (prNo.isNotEmpty && prDetails.containsKey(prNo)) {
+      print('Found oldest PR for job: $prNo with available quantity: $availableQty');
+      
+      // Use the minimum of requested quantity and available quantity
+      final deliveryQty = quantity.clamp(0.0, availableQty);
+      
+      // Update PR issued quantity
+      final prDetail = prDetails[prNo]!;
+      final oldIssued = prDetail.issuedQuantity;
+      prDetail.issuedQuantity += deliveryQty;
+      print('Updated PR issued quantity for $prNo: $oldIssued -> ${prDetail.issuedQuantity}');
+      
+      // Update or create job details
+      if (!jobDetails.containsKey(jobNo)) {
+        jobDetails[jobNo] = StockJobDetails(
+          jobNo: jobNo,
+          allocatedQuantity: prDetail.orderedQuantity, // Set from PR
+          consumedQuantity: deliveryQty,
+          prNo: prNo, // Link to the oldest PR
+        );
+        print('Created new job details for $jobNo linked to PR $prNo');
+      } else {
+        final jobDetail = jobDetails[jobNo]!;
+        
+        // Update consumed quantity
         final oldConsumed = jobDetail.consumedQuantity;
-        jobDetail.consumedQuantity += quantity;
+        jobDetail.consumedQuantity += deliveryQty;
         print('Updated consumed quantity for $jobNo: $oldConsumed -> ${jobDetail.consumedQuantity}');
         
-        // Update PR issued quantity
-        final prDetail = prDetails[prNo]!;
-        final oldIssued = prDetail.issuedQuantity;
-        prDetail.issuedQuantity += quantity;
-        print('Updated PR issued quantity for $prNo: $oldIssued -> ${prDetail.issuedQuantity}');
+        // Update PR link if it wasn't set or if we're using a different (older) PR
+        if (jobDetail.prNo.isEmpty || jobDetail.prNo != prNo) {
+          jobDetail.prNo = prNo;
+          print('Updated job details PR link to: $prNo');
+        }
       }
+      
+      // Update current stock
+      final oldCurrentStock = currentStock;
+      currentStock -= deliveryQty;
+      print('Updated current stock: $oldCurrentStock -> $currentStock');
+      
+    } else {
+      // No PR found, handle as general stock delivery
+      print('No PR found for job $jobNo, handling as general delivery');
+      
+      if (!jobDetails.containsKey(jobNo)) {
+        jobDetails[jobNo] = StockJobDetails(
+          jobNo: jobNo,
+          allocatedQuantity: 0.0,
+          consumedQuantity: quantity,
+          prNo: 'General',
+        );
+        print('Created new general job details for $jobNo');
+      } else {
+        final jobDetail = jobDetails[jobNo]!;
+        final oldConsumed = jobDetail.consumedQuantity;
+        
+        jobDetail.consumedQuantity += quantity;
+        
+        print('Updated general job - consumed: $oldConsumed -> ${jobDetail.consumedQuantity}');
+      }
+      
+      // Update current stock
+      final oldCurrentStock = currentStock;
+      currentStock -= quantity;
+      print('Updated current stock: $oldCurrentStock -> $currentStock');
     }
-    
-    // Update current stock
-    final oldCurrentStock = currentStock;
-    currentStock -= quantity;
-    print('Updated current stock: $oldCurrentStock -> $currentStock');
     
     // Update total stock value
     _updateTotalStockValue();
@@ -625,29 +653,19 @@ class StockJobDetails extends HiveObject {
   @HiveField(2)
   double consumedQuantity;
 
-  @HiveField(3)
-  double pendingDeliveryQuantity;
-
   @HiveField(4)
   String prNo;
 
-  double get availableQuantity => allocatedQuantity - consumedQuantity - pendingDeliveryQuantity;
+  double get availableQuantity => allocatedQuantity - consumedQuantity;
 
   StockJobDetails({
     required this.jobNo,
     this.allocatedQuantity = 0.0,
     this.consumedQuantity = 0.0,
-    this.pendingDeliveryQuantity = 0.0,
     required this.prNo,
   });
 
-  void addPendingDelivery(double quantity) {
-    pendingDeliveryQuantity += quantity;
-  }
 
-  void removePendingDelivery(double quantity) {
-    pendingDeliveryQuantity = (pendingDeliveryQuantity - quantity).clamp(0.0, double.infinity);
-  }
 
   void addConsumedQuantity(double quantity) {
     consumedQuantity += quantity;
@@ -655,7 +673,7 @@ class StockJobDetails extends HiveObject {
 
   @override
   String toString() {
-    return 'StockJobDetails(jobNo: $jobNo, allocatedQuantity: $allocatedQuantity, consumedQuantity: $consumedQuantity, pendingDeliveryQuantity: $pendingDeliveryQuantity, prNo: $prNo)';
+    return 'StockJobDetails(jobNo: $jobNo, allocatedQuantity: $allocatedQuantity, consumedQuantity: $consumedQuantity, prNo: $prNo)';
   }
 }
 

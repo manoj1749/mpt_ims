@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/purchase_order.dart';
+import '../models/delivery_challan.dart';
 import '../models/supplier.dart';
 
 class PDFService {
@@ -454,6 +455,8 @@ Coimbatore, Tamil Nadu - 641201''',
           font: isHeader ? fontBold : font,
         ),
         textAlign: isHeader ? pw.TextAlign.center : pw.TextAlign.left,
+        maxLines: isHeader ? 2 : 3, // Allow multiple lines for text wrapping
+        overflow: pw.TextOverflow.visible, // Allow text to wrap instead of clipping
       ),
     );
   }
@@ -661,6 +664,748 @@ Coimbatore, Tamil Nadu - 641201''',
       
       if (directory != null) {
         final fileName = 'PurchaseOrder_${purchaseOrder.poNo}.pdf';
+        final file = File('${directory.path}/$fileName');
+        await file.writeAsBytes(pdfData);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      throw Exception('Failed to save PDF: $e');
+    }
+  }
+
+  // ============== DELIVERY CHALLAN PDF METHODS ==============
+
+  static Future<Uint8List> generateDeliveryChallanPDF(
+    DeliveryChallan deliveryChallan,
+    Supplier supplier, {
+    List<dynamic>? materials, // Optional material master data for HSN codes and rates
+  }) async {
+    final pdf = pw.Document();
+
+    // Load font that supports Unicode characters
+    final font = await PdfGoogleFonts.notoSansRegular();
+    final fontBold = await PdfGoogleFonts.notoSansBold();
+
+    // Load company logo
+    final logoData = await rootBundle.load('assets/logo.jpeg');
+    final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+
+    // Company information (configurable)
+    final companyName = _companyConfig['name']!;
+    final companyAddress = _companyConfig['address']!;
+    final companyGSTN = _companyConfig['gstn']!;
+    final companyMobile = _companyConfig['mobile']!;
+    final companyEmail = _companyConfig['email']!;
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(20),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header with company details
+              _buildHeader(companyName, companyAddress, companyGSTN, companyMobile, companyEmail, logoImage, font, fontBold),
+              
+              pw.SizedBox(height: 20),
+              
+              // Delivery Challan title and details
+              _buildDCHeader(deliveryChallan, font, fontBold),
+              
+              pw.SizedBox(height: 20),
+              
+              // Supplier details section
+              _buildSupplierDetailsForDC(supplier, deliveryChallan, font, fontBold),
+              
+              pw.SizedBox(height: 20),
+              
+              // Items table
+              _buildDCItemsTable(deliveryChallan, font, fontBold, materials, supplier),
+              
+              pw.SizedBox(height: 20),
+              
+              // Totals section
+              _buildDCTotalsSection(deliveryChallan, font, fontBold, materials, supplier),
+              
+              pw.Spacer(),
+              
+              // Notes section (if any)
+              if (deliveryChallan.note != null && deliveryChallan.note!.isNotEmpty)
+                _buildNotesSection(deliveryChallan.note!, font, fontBold),
+              
+              // Terms and conditions
+              _buildDCTermsAndConditions(supplier, deliveryChallan, font, fontBold),
+            ],
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  static pw.Widget _buildDCHeader(DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            child: pw.Container(
+              padding: const pw.EdgeInsets.all(8),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Delivery Challan',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      font: fontBold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          pw.Container(
+            width: 200,
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(
+                left: pw.BorderSide(color: PdfColors.black, width: 1),
+              ),
+            ),
+            child: pw.Column(
+              children: [
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: const pw.BoxDecoration(
+                    color: PdfColors.grey300,
+                    border: pw.Border(
+                      bottom: pw.BorderSide(color: PdfColors.black, width: 1),
+                    ),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'DC NO:',
+                        style: pw.TextStyle(font: fontBold),
+                      ),
+                      pw.Text(deliveryChallan.dcNo, style: pw.TextStyle(font: font)),
+                    ],
+                  ),
+                ),
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(8),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'DC DATE:',
+                        style: pw.TextStyle(font: fontBold),
+                      ),
+                      pw.Text(deliveryChallan.dcDate, style: pw.TextStyle(font: font)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildSupplierDetailsForDC(Supplier supplier, DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          // Supplier Details
+          pw.Expanded(
+            child: pw.Container(
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  right: pw.BorderSide(color: PdfColors.black, width: 1),
+                ),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Container(
+                    width: double.infinity,
+                    padding: const pw.EdgeInsets.all(8),
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.grey300,
+                      border: pw.Border(
+                        bottom: pw.BorderSide(color: PdfColors.black, width: 1),
+                      ),
+                    ),
+                    child: pw.Text(
+                      'VENDOR DETAILS',
+                      style: pw.TextStyle(font: fontBold),
+                    ),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(8),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          supplier.name,
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            font: fontBold,
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        if (supplier.address1.isNotEmpty)
+                          pw.Text(supplier.address1, style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.address2.isNotEmpty)
+                          pw.Text(supplier.address2, style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.address3.isNotEmpty)
+                          pw.Text(supplier.address3, style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.address4.isNotEmpty)
+                          pw.Text(supplier.address4, style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.state.isNotEmpty)
+                          pw.Text('${supplier.state} - ${supplier.stateCode}', 
+                            style: pw.TextStyle(fontSize: 10, font: font)),
+                        pw.SizedBox(height: 4),
+                        if (supplier.gstNo.isNotEmpty)
+                          pw.Text('GST: ${supplier.gstNo}', style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.phone.isNotEmpty)
+                          pw.Text('Phone: ${supplier.phone}', style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.email.isNotEmpty)
+                          pw.Text('Email: ${supplier.email}', style: pw.TextStyle(fontSize: 10, font: font)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Delivery Challan Details
+          pw.Container(
+            width: 200,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: const pw.BoxDecoration(
+                    color: PdfColors.grey300,
+                    border: pw.Border(
+                      bottom: pw.BorderSide(color: PdfColors.black, width: 1),
+                    ),
+                  ),
+                  child: pw.Text(
+                    'DELIVERY CHALLAN DETAILS',
+                    style: pw.TextStyle(font: fontBold),
+                  ),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(8),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Returnable: ${deliveryChallan.isReturnable ? "Yes" : "No"}',
+                        style: pw.TextStyle(fontSize: 10, font: font),
+                      ),
+                      if (supplier.paymentTerms.isNotEmpty) ...[
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          'Payment Terms: ${supplier.paymentTerms}',
+                          style: pw.TextStyle(fontSize: 10, font: font),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildDCItemsTable(DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold, List<dynamic>? materials, Supplier supplier) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      child: pw.Column(
+        children: [
+          // Table header
+          pw.Container(
+            decoration: const pw.BoxDecoration(
+              color: PdfColors.grey300,
+              border: pw.Border(
+                bottom: pw.BorderSide(color: PdfColors.black, width: 1),
+              ),
+            ),
+            child: pw.Row(
+              children: [
+                _buildTableCell('SR NO:', width: 35, isHeader: true, font: font, fontBold: fontBold),
+                _buildTableCell('MATERIAL CODE:', width: 95, isHeader: true, font: font, fontBold: fontBold),
+                _buildTableCell('DESCRIPTION:', width: 180, isHeader: true, font: font, fontBold: fontBold),
+                _buildTableCell('QTY:', width: 45, isHeader: true, font: font, fontBold: fontBold),
+                _buildTableCell('UNIT:', width: 45, isHeader: true, font: font, fontBold: fontBold),
+                _buildTableCell('RATE:', width: 65, isHeader: true, font: font, fontBold: fontBold),
+                _buildTableCell('VALUE:', width: 65, isHeader: true, font: font, fontBold: fontBold),
+                _buildTableCell('JOB NO:', width: 70, isHeader: true, font: font, fontBold: fontBold),
+              ],
+            ),
+          ),
+          // Table rows
+          ...deliveryChallan.items.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
+            
+            // Find material data for rate and value calculation
+            String rate = '0.00';
+            String value = '0.00';
+            double rateValue = 0.0;
+            
+            if (materials != null) {
+              try {
+                // Find the material by part number (primary) or description (fallback)
+                dynamic materialData;
+                try {
+                  materialData = materials.firstWhere(
+                    (m) => m.partNo == item.materialCode,
+                  );
+                } catch (e) {
+                  materialData = null;
+                }
+                
+                // If not found by part number, try by description
+                if (materialData == null) {
+                  try {
+                    materialData = materials.firstWhere(
+                      (m) => m.description == item.materialDescription,
+                    );
+                  } catch (e) {
+                    materialData = null;
+                  }
+                }
+                
+                if (materialData != null) {
+                  print('Found material: ${materialData.partNo} - ${materialData.description}');
+                  print('Looking for rates from DC vendor: ${supplier.name} (${supplier.vendorCode})');
+                  
+                  // Priority 1: Get rate from the specific vendor for this DC
+                  if (materialData.vendorRates != null && materialData.vendorRates.isNotEmpty) {
+                    // Look for the specific vendor from the DC
+                    var dcVendorRate;
+                    try {
+                      dcVendorRate = materialData.vendorRates.firstWhere(
+                        (vr) => (vr.vendorId == supplier.name || 
+                                 vr.vendorId == supplier.vendorCode) && 
+                               vr.purchaseRate != null && 
+                               vr.purchaseRate.isNotEmpty &&
+                               double.tryParse(vr.purchaseRate) != null &&
+                               double.tryParse(vr.purchaseRate)! > 0,
+                      );
+                    } catch (e) {
+                      dcVendorRate = null;
+                    }
+                    
+                    if (dcVendorRate != null) {
+                      rateValue = double.tryParse(dcVendorRate.purchaseRate) ?? 0.0;
+                      print('Using DC vendor (${supplier.name}) purchase rate: $rateValue');
+                    } else {
+                      print('No rate found for DC vendor ${supplier.name}, checking other options...');
+                      
+                      // Priority 2: Try preferred vendor if DC vendor rate not found
+                      var preferredVendor;
+                      try {
+                        preferredVendor = materialData.vendorRates.firstWhere(
+                          (vr) => vr.isPreferred == true && 
+                                 vr.purchaseRate != null && 
+                                 vr.purchaseRate.isNotEmpty &&
+                                 double.tryParse(vr.purchaseRate) != null &&
+                                 double.tryParse(vr.purchaseRate)! > 0,
+                        );
+                      } catch (e) {
+                        preferredVendor = null;
+                      }
+                      
+                      if (preferredVendor != null) {
+                        rateValue = double.tryParse(preferredVendor.purchaseRate) ?? 0.0;
+                        print('Using preferred vendor rate: $rateValue from ${preferredVendor.vendorId}');
+                      } else {
+                        // Priority 3: Get any valid purchase rate from vendor rates
+                        for (var vendorRate in materialData.vendorRates) {
+                          if (vendorRate.purchaseRate != null && 
+                              vendorRate.purchaseRate.isNotEmpty) {
+                            final purchaseRate = double.tryParse(vendorRate.purchaseRate) ?? 0.0;
+                            if (purchaseRate > 0) {
+                              rateValue = purchaseRate;
+                              print('Using fallback vendor purchase rate: $rateValue from vendor: ${vendorRate.vendorId}');
+                              break;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  
+                  // Priority 4: Fallback to sale rate if no vendor rate found
+                  if (rateValue == 0.0 && 
+                      materialData.saleRate != null && 
+                      materialData.saleRate.isNotEmpty) {
+                    rateValue = double.tryParse(materialData.saleRate) ?? 0.0;
+                    print('Using material sale rate: $rateValue');
+                  }
+                  
+                  print('Final rate for ${item.materialCode}: $rateValue');
+                  
+                  rate = rateValue.toStringAsFixed(2);
+                  final totalValue = rateValue * item.quantity;
+                  value = totalValue.toStringAsFixed(2);
+                } else {
+                  print('Material not found for: ${item.materialCode} - ${item.materialDescription}');
+                }
+              } catch (e) {
+                print('Error finding material rate: $e');
+              }
+            }
+            
+            return pw.Container(
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  bottom: pw.BorderSide(color: PdfColors.black, width: 0.5),
+                ),
+              ),
+              child: pw.Row(
+                children: [
+                  _buildTableCell((index + 1).toString(), width: 35, font: font, fontBold: fontBold),
+                  _buildTableCell(item.materialCode, width: 95, font: font, fontBold: fontBold),
+                  _buildTableCell(item.materialDescription, width: 180, font: font, fontBold: fontBold),
+                  _buildTableCell(item.quantity.toString(), width: 45, font: font, fontBold: fontBold),
+                  _buildTableCell(item.unit, width: 45, font: font, fontBold: fontBold),
+                  _buildTableCell('Rs.$rate', width: 65, font: font, fontBold: fontBold),
+                  _buildTableCell('Rs.$value', width: 65, font: font, fontBold: fontBold),
+                  _buildTableCell(item.jobNo ?? 'General', width: 70, font: font, fontBold: fontBold),
+                ],
+              ),
+            );
+          }).toList(),
+          // Empty rows to fill the table
+          ...List.generate(10 - deliveryChallan.items.length, (index) {
+            return pw.Container(
+              height: 20,
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  bottom: pw.BorderSide(color: PdfColors.black, width: 0.5),
+                ),
+              ),
+              child: pw.Row(
+                children: [
+                  _buildTableCell('', width: 35, font: font, fontBold: fontBold),
+                  _buildTableCell('', width: 95, font: font, fontBold: fontBold),
+                  _buildTableCell('', width: 180, font: font, fontBold: fontBold),
+                  _buildTableCell('', width: 45, font: font, fontBold: fontBold),
+                  _buildTableCell('', width: 45, font: font, fontBold: fontBold),
+                  _buildTableCell('', width: 65, font: font, fontBold: fontBold),
+                  _buildTableCell('', width: 65, font: font, fontBold: fontBold),
+                  _buildTableCell('', width: 70, font: font, fontBold: fontBold),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildDCTotalsSection(DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold, List<dynamic>? materials, Supplier supplier) {
+    // Calculate totals from items using the same logic as the table
+    double total = 0.0;
+    
+    if (materials != null) {
+      for (var item in deliveryChallan.items) {
+        try {
+          // Find the material by part number (primary) or description (fallback)
+          dynamic materialData;
+          try {
+            materialData = materials.firstWhere(
+              (m) => m.partNo == item.materialCode,
+            );
+          } catch (e) {
+            materialData = null;
+          }
+          
+          // If not found by part number, try by description
+          if (materialData == null) {
+            try {
+              materialData = materials.firstWhere(
+                (m) => m.description == item.materialDescription,
+              );
+            } catch (e) {
+              materialData = null;
+            }
+          }
+          
+          if (materialData != null) {
+            double rateValue = 0.0;
+            
+            // Priority 1: Get rate from the specific vendor for this DC
+            if (materialData.vendorRates != null && materialData.vendorRates.isNotEmpty) {
+              // Look for the specific vendor from the DC
+              var dcVendorRate;
+              try {
+                dcVendorRate = materialData.vendorRates.firstWhere(
+                  (vr) => (vr.vendorId == supplier.name || 
+                           vr.vendorId == supplier.vendorCode) && 
+                         vr.purchaseRate != null && 
+                         vr.purchaseRate.isNotEmpty &&
+                         double.tryParse(vr.purchaseRate) != null &&
+                         double.tryParse(vr.purchaseRate)! > 0,
+                );
+              } catch (e) {
+                dcVendorRate = null;
+              }
+              
+              if (dcVendorRate != null) {
+                rateValue = double.tryParse(dcVendorRate.purchaseRate) ?? 0.0;
+              } else {
+                // Priority 2: Try preferred vendor if DC vendor rate not found
+                var preferredVendor;
+                try {
+                  preferredVendor = materialData.vendorRates.firstWhere(
+                    (vr) => vr.isPreferred == true && 
+                           vr.purchaseRate != null && 
+                           vr.purchaseRate.isNotEmpty &&
+                           double.tryParse(vr.purchaseRate) != null &&
+                           double.tryParse(vr.purchaseRate)! > 0,
+                  );
+                } catch (e) {
+                  preferredVendor = null;
+                }
+                
+                if (preferredVendor != null) {
+                  rateValue = double.tryParse(preferredVendor.purchaseRate) ?? 0.0;
+                } else {
+                  // Priority 3: Get any valid purchase rate from vendor rates
+                  for (var vendorRate in materialData.vendorRates) {
+                    if (vendorRate.purchaseRate != null && 
+                        vendorRate.purchaseRate.isNotEmpty) {
+                      final purchaseRate = double.tryParse(vendorRate.purchaseRate) ?? 0.0;
+                      if (purchaseRate > 0) {
+                        rateValue = purchaseRate;
+                        break;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            
+            // Priority 4: Fallback to sale rate if no vendor rate found
+            if (rateValue == 0.0 && 
+                materialData.saleRate != null && 
+                materialData.saleRate.isNotEmpty) {
+              rateValue = double.tryParse(materialData.saleRate) ?? 0.0;
+            }
+            
+            total += rateValue * item.quantity;
+          }
+        } catch (e) {
+          // Material not found, continue
+        }
+      }
+    }
+    
+    // Calculate GST (assuming 18% total GST - 9% CGST + 9% SGST)
+    final cgst = total * 0.09; // 9% CGST
+    final sgst = total * 0.09; // 9% SGST
+    final grandTotal = total + cgst + sgst;
+    
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.end,
+      children: [
+        pw.Container(
+          width: 200,
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.black, width: 1),
+          ),
+          child: pw.Column(
+            children: [
+              _buildTotalRow('TOTAL:', 'Rs.${total.toStringAsFixed(2)}', font: font, fontBold: fontBold),
+              _buildTotalRow('CGST @ 9%:', 'Rs.${cgst.toStringAsFixed(2)}', font: font, fontBold: fontBold),
+              _buildTotalRow('SGST @ 9%:', 'Rs.${sgst.toStringAsFixed(2)}', font: font, fontBold: fontBold),
+              _buildTotalRow('GRAND TOTAL:', 'Rs.${grandTotal.toStringAsFixed(2)}', 
+                isGrandTotal: true, font: font, fontBold: fontBold),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _buildNotesSection(String note, pw.Font font, pw.Font fontBold) {
+    return pw.Container(
+      width: double.infinity,
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      padding: const pw.EdgeInsets.all(8),
+      margin: const pw.EdgeInsets.only(bottom: 10),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Notes:',
+            style: pw.TextStyle(
+              fontSize: 12,
+              font: fontBold,
+            ),
+          ),
+          pw.SizedBox(height: 5),
+          pw.Text(
+            note,
+            style: pw.TextStyle(fontSize: 10, font: font),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildDCTermsAndConditions(Supplier supplier, DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Terms & Conditions',
+            style: pw.TextStyle(
+              fontSize: 12,
+              font: fontBold,
+            ),
+          ),
+          pw.SizedBox(height: 5),
+          pw.Text(
+            '• This delivery challan is ${deliveryChallan.isReturnable ? "returnable" : "non-returnable"}',
+            style: pw.TextStyle(fontSize: 9, font: font),
+          ),
+          pw.Text(
+            '• Materials delivered as per the specifications mentioned',
+            style: pw.TextStyle(fontSize: 9, font: font),
+          ),
+          pw.Text(
+            '• Any discrepancy should be reported within 24 hours',
+            style: pw.TextStyle(fontSize: 9, font: font),
+          ),
+          if (deliveryChallan.isReturnable)
+            pw.Text(
+              '• Materials should be returned in original condition',
+              style: pw.TextStyle(fontSize: 9, font: font),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static Future<void> printDeliveryChallan(
+    DeliveryChallan deliveryChallan,
+    Supplier supplier, {
+    List<dynamic>? materials,
+  }) async {
+    final pdfData = await generateDeliveryChallanPDF(deliveryChallan, supplier, materials: materials);
+    
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdfData,
+      name: 'DeliveryChallan_${deliveryChallan.dcNo}',
+    );
+  }
+
+  static Future<void> shareDeliveryChallan(
+    DeliveryChallan deliveryChallan,
+    Supplier supplier, {
+    List<dynamic>? materials,
+  }) async {
+    final pdfData = await generateDeliveryChallanPDF(deliveryChallan, supplier, materials: materials);
+    
+    await Printing.sharePdf(
+      bytes: pdfData,
+      filename: 'DeliveryChallan_${deliveryChallan.dcNo}.pdf',
+    );
+  }
+
+  static Future<bool> saveDeliveryChallan(
+    DeliveryChallan deliveryChallan,
+    Supplier supplier, {
+    List<dynamic>? materials,
+  }) async {
+    try {
+      // Generate PDF data
+      final pdfData = await generateDeliveryChallanPDF(deliveryChallan, supplier, materials: materials);
+      
+      // Use saveFile method which works better on macOS
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Delivery Challan PDF',
+        fileName: 'DeliveryChallan_${deliveryChallan.dcNo}.pdf',
+        type: FileType.any,
+      );
+      
+      if (outputFile != null) {
+        // Ensure the file has .pdf extension
+        if (!outputFile.toLowerCase().endsWith('.pdf')) {
+          outputFile = '$outputFile.pdf';
+        }
+        
+        // Write the PDF file
+        final file = File(outputFile);
+        await file.writeAsBytes(pdfData);
+        return true;
+      }
+      return false; // User cancelled
+    } catch (e) {
+      throw Exception('Failed to save PDF: $e');
+    }
+  }
+
+  static Future<bool> saveDeliveryChallanToDownloads(
+    DeliveryChallan deliveryChallan,
+    Supplier supplier, {
+    List<dynamic>? materials,
+  }) async {
+    try {
+      // Generate PDF data
+      final pdfData = await generateDeliveryChallanPDF(deliveryChallan, supplier, materials: materials);
+      
+      // Get accessible directory
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = Directory('/storage/emulated/0/Download');
+      } else if (Platform.isIOS || Platform.isMacOS) {
+        // Use Documents directory which is always accessible
+        directory = await getApplicationDocumentsDirectory();
+      } else {
+        // For other platforms, try downloads first, fallback to documents
+        try {
+          directory = await getDownloadsDirectory();
+        } catch (e) {
+          directory = await getApplicationDocumentsDirectory();
+        }
+      }
+      
+      if (directory != null) {
+        final fileName = 'DeliveryChallan_${deliveryChallan.dcNo}.pdf';
         final file = File('${directory.path}/$fileName');
         await file.writeAsBytes(pdfData);
         return true;

@@ -167,9 +167,6 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
           // Fallback to simple stock update if proper tracking fails
           if (stock.currentStock >= deliveryQty.abs()) {
             stock.currentStock += deliveryQty; // Note: delivery reduces stock, so we add the negative value
-            if (stock.jobDetails.containsKey(jobNo)) {
-              stock.jobDetails[jobNo]!.pendingDeliveryQuantity += deliveryQty;
-            }
             print('Fallback: Updated current stock to: ${stock.currentStock}');
           } else {
             print('Insufficient stock for job $jobNo');

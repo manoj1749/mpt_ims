@@ -711,25 +711,35 @@ class _QualityInspectionListPageState
           ),
           TextButton(
             onPressed: () async {
-              // Delete only this specific inspection
-              ref
+              // Attempt to delete the inspection
+              final success = await ref
                   .read(qualityInspectionProvider.notifier)
                   .deleteInspection(inspection);
               Navigator.pop(context);
 
-              // Refresh grid rows
-              if (stateManager != null) {
-                final inspections = ref.read(qualityInspectionProvider);
-                stateManager!.removeAllRows();
-                stateManager!.appendRows(_getRows(inspections));
-              }
+              if (success) {
+                // Refresh grid rows
+                if (stateManager != null) {
+                  final inspections = ref.read(qualityInspectionProvider);
+                  stateManager!.removeAllRows();
+                  stateManager!.appendRows(_getRows(inspections));
+                }
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Inspection deleted successfully'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Inspection deleted successfully'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Cannot delete inspection ${inspection.inspectionNo} - Quality inspections cannot be deleted once created'),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
             },
             child: const Text('Delete'),
           ),

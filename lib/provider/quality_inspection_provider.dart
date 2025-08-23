@@ -4,10 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import '../models/quality_inspection.dart';
-import '../models/store_inward.dart';
-import '../models/purchase_order.dart';
-import '../models/quality.dart';
-import '../models/category_parameter_mapping.dart';
 import 'base_provider.dart';
 import 'stock_maintenance_provider.dart';
 import 'store_inward_provider.dart';
@@ -162,6 +158,12 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
 
   @override
   String getModelId(QualityInspection inspection) => inspection.inspectionNo;
+
+  @override
+  Future<bool> delete(QualityInspection inspection) async {
+    // Quality Inspections cannot be deleted once created
+    return false;
+  }
 
   // Backward compatibility methods
   Future<void> loadInspections() => loadData();

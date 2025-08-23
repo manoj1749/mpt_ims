@@ -3,6 +3,7 @@ import 'package:hive/hive.dart';
 import '../models/purchase_order.dart';
 import '../models/po_item.dart';
 import 'base_provider.dart';
+import 'store_inward_provider.dart';
 
 final purchaseOrderBoxProvider = Provider<Box<PurchaseOrder>>((ref) {
   throw UnimplementedError();
@@ -10,11 +11,13 @@ final purchaseOrderBoxProvider = Provider<Box<PurchaseOrder>>((ref) {
 
 final purchaseOrderListProvider =
     StateNotifierProvider<PurchaseOrderNotifier, List<PurchaseOrder>>(
-  (ref) => PurchaseOrderNotifier(ref.read(purchaseOrderBoxProvider)),
+  (ref) => PurchaseOrderNotifier(ref.read(purchaseOrderBoxProvider), ref),
 );
 
 class PurchaseOrderNotifier extends BaseProvider<PurchaseOrder> {
-  PurchaseOrderNotifier(Box<PurchaseOrder> box) : super(box, 'purchase_orders');
+  final StateNotifierProviderRef? _ref;
+  
+  PurchaseOrderNotifier(Box<PurchaseOrder> box, [this._ref]) : super(box, 'purchase_orders');
 
   @override
   Map<String, dynamic> modelToMap(PurchaseOrder order) {
@@ -82,6 +85,22 @@ class PurchaseOrderNotifier extends BaseProvider<PurchaseOrder> {
 
   @override
   String getModelId(PurchaseOrder order) => order.poNo;
+
+  @override
+  Future<bool> delete(PurchaseOrder order) async {
+    // Check if PO has any GRs (received items)
+    if (_ref != null) {
+      final storeInwardBox = _ref!.read(storeInwardBoxProvider);
+      bool hasGRs = storeInwardBox.values.any((inward) =>
+          inward.items.any((item) => item.prQuantities.containsKey(order.poNo)));
+      
+      if (hasGRs) {
+        return false; // Cannot delete PO with received items
+      }
+    }
+    
+    return super.delete(order);
+  }
 
   // Map old method names to new base provider methods
   Future<void> loadOrders() => loadData();

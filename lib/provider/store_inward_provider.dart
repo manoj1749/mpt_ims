@@ -262,6 +262,15 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
 
   @override
   Future<bool> delete(StoreInward inward) async {
+    // Check if GR has any Quality Inspections
+    final inspectionBox = _ref.read(qualityInspectionBoxProvider);
+    bool hasQIs = inspectionBox.values.any((inspection) => 
+        inspection.grnNo == inward.grnNo);
+    
+    if (hasQIs) {
+      return false; // Cannot delete GR with quality inspections
+    }
+
     // First reverse the GRN's effect on stock
     await _reverseStockUpdate(inward);
 

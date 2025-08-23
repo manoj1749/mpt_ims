@@ -259,7 +259,7 @@ class StockJobDetailsAdapter extends TypeAdapter<StockJobDetails> {
       jobNo: fields[0] as String,
       allocatedQuantity: fields[1] as double,
       consumedQuantity: fields[2] as double,
-      prNo: fields[3] as String,
+      prNo: fields[4] as String,
     );
   }
 
@@ -273,7 +273,7 @@ class StockJobDetailsAdapter extends TypeAdapter<StockJobDetails> {
       ..write(obj.allocatedQuantity)
       ..writeByte(2)
       ..write(obj.consumedQuantity)
-      ..writeByte(3)
+      ..writeByte(4)
       ..write(obj.prNo);
   }
 

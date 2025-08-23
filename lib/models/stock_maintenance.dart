@@ -382,79 +382,85 @@ class StockMaintenance extends HiveObject {
     print('=== Delivering Stock for Job ===');
     print('Job No: $jobNo, DC No: $deliveryChallanNo, Quantity: $quantity');
     
-    // Find the oldest available PR for this job (similar to Material Issue logic)
+    // Find available PR for this job (same as Material Issue logic)
     final prInfo = findAvailablePRForJob(jobNo, quantity);
-    if (prInfo != null) {
-      final prNo = prInfo.$1;
-      final availableQty = prInfo.$2;
-      
-      print('Found oldest PR for job: $prNo with available quantity: $availableQty');
-      
-      // Use the minimum of requested quantity and available quantity
-      final deliveryQty = quantity.clamp(0.0, availableQty);
-      
+    if (prInfo == null) {
+      throw Exception('No available PR found for job $jobNo');
+    }
+
+    var remainingQty = quantity;
+    var currentPrNo = prInfo.$1;
+    var currentPrQty = prInfo.$2;
+
+    while (remainingQty > 0) {
+      // Find available PO for current PR
+      final poInfo = findAvailablePOForPR(currentPrNo, currentPrQty);
+      if (poInfo == null) {
+        throw Exception('No available PO found for PR $currentPrNo');
+      }
+
+      final currentPoNo = poInfo.$1;
+      final currentPoQty = poInfo.$2;
+
+      // Find available GRN for current PO
+      final grnInfo =
+          findAvailableGRNForPO(currentPoNo, currentPrNo, currentPoQty);
+      if (grnInfo == null) {
+        throw Exception('No available GRN found for PO $currentPoNo');
+      }
+
+      final currentGrnNo = grnInfo.$1;
+      final currentGrnQty = grnInfo.$2;
+
+      // Update quantities at all levels (same as Material Issue)
+      final deliveryQty = currentGrnQty.clamp(0.0, remainingQty).toDouble();
+
+      // Update GRN issued quantity
+      final grnDetail = grnDetails[currentGrnNo]!;
+      grnDetail.addIssuedQuantity(currentPrNo, deliveryQty);
+      print('Updated GRN $currentGrnNo issued quantity for PR $currentPrNo: +$deliveryQty');
+
+      // Update PO issued quantity
+      final poDetail = poDetails[currentPoNo]!;
+      poDetail.addIssuedQuantity(currentPrNo, deliveryQty);
+      print('Updated PO $currentPoNo issued quantity for PR $currentPrNo: +$deliveryQty');
+
       // Update PR issued quantity
-      final prDetail = prDetails[prNo]!;
+      final prDetail = prDetails[currentPrNo]!;
       final oldIssued = prDetail.issuedQuantity;
       prDetail.issuedQuantity += deliveryQty;
-      print('Updated PR issued quantity for $prNo: $oldIssued -> ${prDetail.issuedQuantity}');
-      
+      print('Updated PR $currentPrNo issued quantity: $oldIssued -> ${prDetail.issuedQuantity}');
+
       // Update or create job details
       if (!jobDetails.containsKey(jobNo)) {
         jobDetails[jobNo] = StockJobDetails(
           jobNo: jobNo,
-          allocatedQuantity: prDetail.orderedQuantity, // Set from PR
+          allocatedQuantity: prDetail.orderedQuantity,
           consumedQuantity: deliveryQty,
-          prNo: prNo, // Link to the oldest PR
+          prNo: currentPrNo,
         );
-        print('Created new job details for $jobNo linked to PR $prNo');
+        print('Created new job details for $jobNo linked to PR $currentPrNo');
       } else {
         final jobDetail = jobDetails[jobNo]!;
-        
-        // Update consumed quantity
         final oldConsumed = jobDetail.consumedQuantity;
         jobDetail.consumedQuantity += deliveryQty;
         print('Updated consumed quantity for $jobNo: $oldConsumed -> ${jobDetail.consumedQuantity}');
-        
-        // Update PR link if it wasn't set or if we're using a different (older) PR
-        if (jobDetail.prNo.isEmpty || jobDetail.prNo != prNo) {
-          jobDetail.prNo = prNo;
-          print('Updated job details PR link to: $prNo');
+      }
+
+      remainingQty -= deliveryQty;
+
+      // If we still need more quantity, find the next available PR
+      if (remainingQty > 0) {
+        final nextPrInfo = findAvailablePRForJob(jobNo, remainingQty);
+        if (nextPrInfo == null) {
+          throw Exception('Insufficient stock available for job $jobNo');
         }
+        currentPrNo = nextPrInfo.$1;
+        currentPrQty = nextPrInfo.$2;
+        print('Moving to next PR: $currentPrNo with available quantity: $currentPrQty');
       }
-      
-      // Update current stock
-      final oldCurrentStock = currentStock;
-      currentStock -= deliveryQty;
-      print('Updated current stock: $oldCurrentStock -> $currentStock');
-      
-    } else {
-      // No PR found, handle as general stock delivery
-      print('No PR found for job $jobNo, handling as general delivery');
-      
-      if (!jobDetails.containsKey(jobNo)) {
-        jobDetails[jobNo] = StockJobDetails(
-          jobNo: jobNo,
-          allocatedQuantity: 0.0,
-          consumedQuantity: quantity,
-          prNo: 'General',
-        );
-        print('Created new general job details for $jobNo');
-      } else {
-        final jobDetail = jobDetails[jobNo]!;
-        final oldConsumed = jobDetail.consumedQuantity;
-        
-        jobDetail.consumedQuantity += quantity;
-        
-        print('Updated general job - consumed: $oldConsumed -> ${jobDetail.consumedQuantity}');
-      }
-      
-      // Update current stock
-      final oldCurrentStock = currentStock;
-      currentStock -= quantity;
-      print('Updated current stock: $oldCurrentStock -> $currentStock');
     }
-    
+
     // Update total stock value
     _updateTotalStockValue();
     print('=== End Stock Delivery ===');

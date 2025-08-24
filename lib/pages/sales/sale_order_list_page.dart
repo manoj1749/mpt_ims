@@ -90,7 +90,8 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
               endDate.isEmpty ? 'Not completed' : endDate,
               style: TextStyle(
                 color: endDate.isEmpty ? Colors.grey : Colors.green,
-                fontWeight: endDate.isEmpty ? FontWeight.normal : FontWeight.bold,
+                fontWeight:
+                    endDate.isEmpty ? FontWeight.normal : FontWeight.bold,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -331,7 +332,8 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
                               stateManager?.setShowColumnFilter(true);
                             });
                           },
-                          configuration: PlutoGridConfigurations.darkMode().copyWith(
+                          configuration:
+                              PlutoGridConfigurations.darkMode().copyWith(
                             columnSize: const PlutoGridColumnSizeConfig(
                               autoSizeMode: PlutoAutoSizeMode.equal,
                               resizeMode: PlutoResizeMode.normal,

@@ -32,16 +32,20 @@ class SubCategoryNotifier extends BaseProvider<SubCategory> {
   }
 
   @override
-  String getModelId(SubCategory subCategory) => '${subCategory.categoryName}_${subCategory.name}';
+  String getModelId(SubCategory subCategory) =>
+      '${subCategory.categoryName}_${subCategory.name}';
 
   // Map old method names to new base provider methods
   Future<void> loadSubCategories() => loadData();
-  Future<void> addSubCategory(String name, String categoryName) => 
+  Future<void> addSubCategory(String name, String categoryName) =>
       add(SubCategory(name: name, categoryName: categoryName));
-  Future<void> deleteSubCategory(SubCategory subCategory) => delete(subCategory);
+  Future<void> deleteSubCategory(SubCategory subCategory) =>
+      delete(subCategory);
 
   // Helper methods
   List<SubCategory> getSubCategoriesForCategory(String categoryName) {
-    return state.where((subCategory) => subCategory.categoryName == categoryName).toList();
+    return state
+        .where((subCategory) => subCategory.categoryName == categoryName)
+        .toList();
   }
 }

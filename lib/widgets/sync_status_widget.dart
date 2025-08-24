@@ -18,7 +18,9 @@ class SyncStatusWidget extends ConsumerWidget {
       padding: const EdgeInsets.all(8.0),
       margin: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
-        color: error != null ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+        color: error != null
+            ? Colors.red.withOpacity(0.1)
+            : Colors.green.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: Row(
@@ -37,4 +39,4 @@ class SyncStatusWidget extends ConsumerWidget {
       ),
     );
   }
-} 
+}

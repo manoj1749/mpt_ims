@@ -76,10 +76,12 @@ class SaleOrderNotifier extends BaseProvider<SaleOrder> {
 
   // Search and filter methods
   List<SaleOrder> searchOrders(String query) {
-    return search(query, (order, query) =>
-        order.orderNo.toLowerCase().contains(query) ||
-        order.customerName.toLowerCase().contains(query) ||
-        order.boardNo.toLowerCase().contains(query));
+    return search(
+        query,
+        (order, query) =>
+            order.orderNo.toLowerCase().contains(query) ||
+            order.customerName.toLowerCase().contains(query) ||
+            order.boardNo.toLowerCase().contains(query));
   }
 
   List<SaleOrder> getActiveOrders() {
@@ -91,8 +93,10 @@ class SaleOrderNotifier extends BaseProvider<SaleOrder> {
   }
 
   List<SaleOrder> getOrdersByCustomer(String customerName) {
-    return state.where((order) => 
-        order.customerName.toLowerCase() == customerName.toLowerCase()).toList();
+    return state
+        .where((order) =>
+            order.customerName.toLowerCase() == customerName.toLowerCase())
+        .toList();
   }
 
   SaleOrder? getOrderByNo(String orderNo) {
@@ -109,7 +113,7 @@ class SaleOrderNotifier extends BaseProvider<SaleOrder> {
       try {
         final orderDate = DateFormat('dd/MM/yyyy').parse(order.orderDate);
         return orderDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
-               orderDate.isBefore(endDate.add(const Duration(days: 1)));
+            orderDate.isBefore(endDate.add(const Duration(days: 1)));
       } catch (e) {
         return false;
       }

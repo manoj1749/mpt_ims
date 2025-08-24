@@ -35,15 +35,17 @@ class PurchaseRequestNotifier extends BaseProvider<PurchaseRequest> {
       'requiredBy': request.requiredBy,
       'status': request.status,
       'jobNo': request.jobNo,
-      'items': request.items.map((item) => {
-        'materialCode': item.materialCode,
-        'materialDescription': item.materialDescription,
-        'unit': item.unit,
-        'quantity': item.quantity,
-        'prNo': item.prNo,
-        'orderedQuantities': item.orderedQuantities,
-        'totalReceivedQuantity': item.totalReceivedQuantity,
-      }).toList(),
+      'items': request.items
+          .map((item) => {
+                'materialCode': item.materialCode,
+                'materialDescription': item.materialDescription,
+                'unit': item.unit,
+                'quantity': item.quantity,
+                'prNo': item.prNo,
+                'orderedQuantities': item.orderedQuantities,
+                'totalReceivedQuantity': item.totalReceivedQuantity,
+              })
+          .toList(),
     };
   }
 
@@ -55,15 +57,21 @@ class PurchaseRequestNotifier extends BaseProvider<PurchaseRequest> {
       requiredBy: map['requiredBy'] ?? '',
       status: map['status'] ?? 'Draft',
       jobNo: map['jobNo'],
-      items: (map['items'] as List<dynamic>?)?.map((item) => PRItem(
-        materialCode: item['materialCode'] ?? '',
-        materialDescription: item['materialDescription'] ?? '',
-        unit: item['unit'] ?? '',
-        quantity: item['quantity'] ?? '',
-        prNo: item['prNo'] ?? '',
-        orderedQuantities: Map<String, double>.from(item['orderedQuantities'] ?? {}),
-        totalReceivedQuantity: (item['totalReceivedQuantity'] as num?)?.toDouble() ?? 0.0,
-      )).toList() ?? [],
+      items: (map['items'] as List<dynamic>?)
+              ?.map((item) => PRItem(
+                    materialCode: item['materialCode'] ?? '',
+                    materialDescription: item['materialDescription'] ?? '',
+                    unit: item['unit'] ?? '',
+                    quantity: item['quantity'] ?? '',
+                    prNo: item['prNo'] ?? '',
+                    orderedQuantities: Map<String, double>.from(
+                        item['orderedQuantities'] ?? {}),
+                    totalReceivedQuantity:
+                        (item['totalReceivedQuantity'] as num?)?.toDouble() ??
+                            0.0,
+                  ))
+              .toList() ??
+          [],
     );
   }
 
@@ -80,7 +88,8 @@ class PurchaseRequestNotifier extends BaseProvider<PurchaseRequest> {
   @override
   Future<bool> delete(PurchaseRequest request) async {
     // Check if PR has partial or completed orders
-    if (request.status == 'Partially Ordered' || request.status == 'Completed') {
+    if (request.status == 'Partially Ordered' ||
+        request.status == 'Completed') {
       // Check if any PO exists for this PR
       bool hasActivePO = poBox.values.any((po) =>
           po.items.any((poItem) => poItem.prDetails.containsKey(request.prNo)));
@@ -97,11 +106,13 @@ class PurchaseRequestNotifier extends BaseProvider<PurchaseRequest> {
 
   // Helper methods
   List<PurchaseRequest> searchRequests(String query) {
-    return search(query, (request, query) =>
-        request.prNo.toLowerCase().contains(query) ||
-        request.requiredBy.toLowerCase().contains(query) ||
-        request.status.toLowerCase().contains(query) ||
-        (request.jobNo?.toLowerCase().contains(query) ?? false));
+    return search(
+        query,
+        (request, query) =>
+            request.prNo.toLowerCase().contains(query) ||
+            request.requiredBy.toLowerCase().contains(query) ||
+            request.status.toLowerCase().contains(query) ||
+            (request.jobNo?.toLowerCase().contains(query) ?? false));
   }
 
   PurchaseRequest? getRequestByNo(String prNo) {

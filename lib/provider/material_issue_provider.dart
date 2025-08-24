@@ -20,7 +20,8 @@ final materialIssueListProvider = Provider<List<MaterialIssue>>((ref) {
 });
 
 // StateNotifier provider for backward compatibility
-final materialIssueProvider = StateNotifierProvider<MaterialIssueNotifier, List<MaterialIssue>>((ref) {
+final materialIssueProvider =
+    StateNotifierProvider<MaterialIssueNotifier, List<MaterialIssue>>((ref) {
   final issueBox = ref.watch(materialIssueBoxProvider);
   final requestBox = Hive.box<MaterialRequest>('material_requests');
   final stockBox = Hive.box<StockMaintenance>('stock_maintenance');
@@ -42,20 +43,22 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
       'issueNo': issue.issueNo,
       'issueDate': issue.issueDate,
       'issuedTo': issue.issuedTo,
-      'items': issue.items.map((item) => {
-        'materialCode': item.materialCode,
-        'materialDescription': item.materialDescription,
-        'unit': item.unit,
-        'quantity': item.quantity,
-        'mrDetails': item.mrDetails.map((key, value) => MapEntry(key, {
-          'mrNo': value.mrNo,
-          'jobNo': value.jobNo,
-          'quantity': value.quantity,
-          'prNo': value.prNo,
-        })),
-        'issuedQuantities': item.issuedQuantities,
-        'prMapping': item.prMapping,
-      }).toList(),
+      'items': issue.items
+          .map((item) => {
+                'materialCode': item.materialCode,
+                'materialDescription': item.materialDescription,
+                'unit': item.unit,
+                'quantity': item.quantity,
+                'mrDetails': item.mrDetails.map((key, value) => MapEntry(key, {
+                      'mrNo': value.mrNo,
+                      'jobNo': value.jobNo,
+                      'quantity': value.quantity,
+                      'prNo': value.prNo,
+                    })),
+                'issuedQuantities': item.issuedQuantities,
+                'prMapping': item.prMapping,
+              })
+          .toList(),
     };
   }
 
@@ -66,28 +69,30 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
       issueDate: map['issueDate'] ?? '',
       issuedTo: map['issuedTo'] ?? '',
       items: (map['items'] as List<dynamic>?)?.map((item) {
-        final mrDetailsMap = <String, ItemMRDetails>{};
-        if (item['mrDetails'] != null) {
-          (item['mrDetails'] as Map<String, dynamic>).forEach((key, value) {
-            mrDetailsMap[key] = ItemMRDetails(
-              mrNo: value['mrNo'] ?? '',
-              jobNo: value['jobNo'] ?? '',
-              quantity: (value['quantity'] as num?)?.toDouble() ?? 0.0,
-              prNo: value['prNo'],
-            );
-          });
-        }
+            final mrDetailsMap = <String, ItemMRDetails>{};
+            if (item['mrDetails'] != null) {
+              (item['mrDetails'] as Map<String, dynamic>).forEach((key, value) {
+                mrDetailsMap[key] = ItemMRDetails(
+                  mrNo: value['mrNo'] ?? '',
+                  jobNo: value['jobNo'] ?? '',
+                  quantity: (value['quantity'] as num?)?.toDouble() ?? 0.0,
+                  prNo: value['prNo'],
+                );
+              });
+            }
 
-        return MaterialIssueItem(
-          materialCode: item['materialCode'] ?? '',
-          materialDescription: item['materialDescription'] ?? '',
-          unit: item['unit'] ?? '',
-          quantity: (item['quantity'] as num?)?.toDouble() ?? 0.0,
-          mrDetails: mrDetailsMap,
-          issuedQuantities: Map<String, double>.from(item['issuedQuantities'] ?? {}),
-          prMapping: Map<String, String>.from(item['prMapping'] ?? {}),
-        );
-      }).toList() ?? [],
+            return MaterialIssueItem(
+              materialCode: item['materialCode'] ?? '',
+              materialDescription: item['materialDescription'] ?? '',
+              unit: item['unit'] ?? '',
+              quantity: (item['quantity'] as num?)?.toDouble() ?? 0.0,
+              mrDetails: mrDetailsMap,
+              issuedQuantities:
+                  Map<String, double>.from(item['issuedQuantities'] ?? {}),
+              prMapping: Map<String, String>.from(item['prMapping'] ?? {}),
+            );
+          }).toList() ??
+          [],
     );
   }
 
@@ -121,18 +126,21 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
 
   // Search and filter methods
   List<MaterialIssue> searchIssues(String query) {
-    return search(query, (issue, query) =>
-        issue.issueNo.toLowerCase().contains(query) ||
-        issue.issuedTo.toLowerCase().contains(query) ||
-        issue.formattedJobNo.toLowerCase().contains(query));
+    return search(
+        query,
+        (issue, query) =>
+            issue.issueNo.toLowerCase().contains(query) ||
+            issue.issuedTo.toLowerCase().contains(query) ||
+            issue.formattedJobNo.toLowerCase().contains(query));
   }
 
-  List<MaterialIssue> getIssuesByDateRange(DateTime startDate, DateTime endDate) {
+  List<MaterialIssue> getIssuesByDateRange(
+      DateTime startDate, DateTime endDate) {
     return state.where((issue) {
       try {
         final issueDate = DateTime.parse(issue.issueDate);
         return issueDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
-               issueDate.isBefore(endDate.add(const Duration(days: 1)));
+            issueDate.isBefore(endDate.add(const Duration(days: 1)));
       } catch (e) {
         return false;
       }
@@ -140,8 +148,10 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
   }
 
   List<MaterialIssue> getIssuesByDepartment(String department) {
-    return state.where((issue) => 
-        issue.issuedTo.toLowerCase() == department.toLowerCase()).toList();
+    return state
+        .where(
+            (issue) => issue.issuedTo.toLowerCase() == department.toLowerCase())
+        .toList();
   }
 
   List<MaterialIssue> getIssuesByJobNo(String jobNo) {
@@ -158,17 +168,17 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
 
   // Issue number generation
   String generateIssueNo() => generateIssueNumber();
-  
+
   String generateIssueNumber() {
     final now = DateTime.now();
     final year = now.year.toString();
     final month = now.month.toString().padLeft(2, '0');
-    
+
     // Find existing issues for current month
     final existingIssues = state.where((issue) {
       return issue.issueNo.startsWith('MI$year$month');
     }).toList();
-    
+
     final nextNumber = existingIssues.length + 1;
     return 'MI$year$month${nextNumber.toString().padLeft(3, '0')}';
   }
@@ -177,28 +187,31 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
   Future<void> updateStockAfterIssue(MaterialIssue issue) async {
     print('\n=== Updating Stock After Material Issue ===');
     print('Issue No: ${issue.issueNo}');
-    
+
     for (var item in issue.items) {
-      print('\nProcessing item: ${item.materialCode} - Quantity: ${item.quantity}');
-      
-      final stockItems = _stockBox.values.where((stock) => 
-          stock.materialCode == item.materialCode).toList();
-      
-      print('Found ${stockItems.length} stock records for ${item.materialCode}');
-      
+      print(
+          '\nProcessing item: ${item.materialCode} - Quantity: ${item.quantity}');
+
+      final stockItems = _stockBox.values
+          .where((stock) => stock.materialCode == item.materialCode)
+          .toList();
+
+      print(
+          'Found ${stockItems.length} stock records for ${item.materialCode}');
+
       for (var stock in stockItems) {
         // Use proper stock tracking for each job
         for (var mrDetail in item.mrDetails.values) {
           final jobNo = mrDetail.jobNo;
           final issueQty = mrDetail.quantity;
-          
+
           print('Processing job: $jobNo, quantity: $issueQty');
-          
+
           try {
             // Use the proper stock tracking method
             stock.issueStockForJob(jobNo, issue.issueNo, issueQty);
             print('Successfully issued stock for job $jobNo');
-    } catch (e) {
+          } catch (e) {
             print('Error issuing stock for job $jobNo: $e');
             // Fallback to simple stock update if proper tracking fails
             if (stock.currentStock >= issueQty) {
@@ -206,15 +219,17 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
               if (stock.jobDetails.containsKey(jobNo)) {
                 stock.jobDetails[jobNo]!.consumedQuantity += issueQty;
               }
-              print('Fallback: Updated current stock to: ${stock.currentStock}');
+              print(
+                  'Fallback: Updated current stock to: ${stock.currentStock}');
             } else {
               print('Insufficient stock for job $jobNo');
             }
           }
         }
-        
+
         // Use StockMaintenanceNotifier to update stock (this ensures Firestore sync)
-        final stockMaintenanceNotifier = ref.read(stockMaintenanceProvider.notifier);
+        final stockMaintenanceNotifier =
+            ref.read(stockMaintenanceProvider.notifier);
         await stockMaintenanceNotifier.update(stock);
         print('Successfully updated stock for ${stock.materialCode}');
       }
@@ -226,19 +241,21 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
   Future<void> updateMaterialRequestStatus(MaterialIssue issue) async {
     print('\n=== Updating Material Request Status ===');
     print('Issue No: ${issue.issueNo}');
-    
+
     for (var item in issue.items) {
       print('\nProcessing item: ${item.materialCode}');
-      
+
       for (var mrDetail in item.mrDetails.values) {
         final mrNo = mrDetail.mrNo;
         print('Updating MR: $mrNo for job: ${mrDetail.jobNo}');
-        
+
         // Use material request provider to update status
-        final materialRequestNotifier = ref.read(materialRequestProvider.notifier);
-        final mr = materialRequestNotifier.state.where((request) => 
-            request.issueNo == mrNo).firstOrNull;
-        
+        final materialRequestNotifier =
+            ref.read(materialRequestProvider.notifier);
+        final mr = materialRequestNotifier.state
+            .where((request) => request.issueNo == mrNo)
+            .firstOrNull;
+
         if (mr != null) {
           // Create updated MR with 'Issued' status
           final updatedMR = MaterialRequest(
@@ -249,13 +266,13 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
             items: mr.items,
             jobNo: mr.jobNo,
           );
-          
+
           print('Updated MR $mrNo status to: ${updatedMR.status}');
-          
+
           // Use material request provider to update
           await materialRequestNotifier.update(updatedMR);
           print('Successfully updated MR $mrNo');
-          
+
           // Force refresh of material request data
           await materialRequestNotifier.loadData();
         } else {
@@ -269,19 +286,20 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
   // Analytics methods
   Map<String, double> getMaterialUsageStats() {
     final usage = <String, double>{};
-    
+
     for (var issue in state) {
       for (var item in issue.items) {
-        usage[item.materialCode] = (usage[item.materialCode] ?? 0.0) + item.quantity;
+        usage[item.materialCode] =
+            (usage[item.materialCode] ?? 0.0) + item.quantity;
       }
     }
-    
+
     return usage;
   }
 
   Map<String, double> getDepartmentUsageStats() {
     final usage = <String, double>{};
-    
+
     for (var issue in state) {
       double totalValue = 0.0;
       for (var item in issue.items) {
@@ -290,19 +308,19 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
       }
       usage[issue.issuedTo] = (usage[issue.issuedTo] ?? 0.0) + totalValue;
     }
-    
+
     return usage;
   }
 
   Map<String, int> getJobWiseIssueCount() {
     final jobCount = <String, int>{};
-    
+
     for (var issue in state) {
       for (var jobNo in issue.jobNumbers) {
         jobCount[jobNo] = (jobCount[jobNo] ?? 0) + 1;
       }
     }
-    
+
     return jobCount;
   }
 
@@ -311,25 +329,25 @@ class MaterialIssueNotifier extends BaseProvider<MaterialIssue> {
     final availableStock = _stockBox.values
         .where((stock) => stock.materialCode == materialCode)
         .fold(0.0, (sum, stock) => sum + stock.currentStock);
-    
+
     return availableStock >= requestedQuantity;
   }
 
   List<String> validateIssue(MaterialIssue issue) {
     final errors = <String>[];
-    
+
     // Check if issue number already exists
     if (state.any((existingIssue) => existingIssue.issueNo == issue.issueNo)) {
       errors.add('Issue number ${issue.issueNo} already exists');
     }
-    
+
     // Check stock availability for each item
     for (var item in issue.items) {
       if (!canIssueQuantity(item.materialCode, item.quantity)) {
         errors.add('Insufficient stock for ${item.materialDescription}');
       }
     }
-    
+
     return errors;
   }
 }

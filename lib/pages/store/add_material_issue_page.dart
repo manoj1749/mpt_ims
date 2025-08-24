@@ -90,7 +90,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
         await ref.read(stockMaintenanceProvider.notifier).loadStock();
         // Then load material requests
         await ref.read(materialRequestProvider.notifier).loadMaterialRequests();
-        
+
         if (widget.existingIssue != null) {
           // Initialize MR quantities and selected MRs from existing issue items
           for (var item in widget.existingIssue!.items) {
@@ -108,26 +108,28 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
           }
 
           setState(() {
-            issueItems = List<MaterialIssueItem>.from(widget.existingIssue!.items);
+            issueItems =
+                List<MaterialIssueItem>.from(widget.existingIssue!.items);
           });
         }
 
         // Force refresh material requests to get latest status
         await ref.read(materialRequestProvider.notifier).loadData();
-        
+
         // Initialize material MR items
         final allMaterialRequests = ref.read(materialRequestListProvider);
         print('\n=== Debug: All Material Requests ===');
         for (var mr in allMaterialRequests) {
           print('MR: ${mr.issueNo}, Status: ${mr.status}, Job: ${mr.jobNo}');
         }
-        
+
         final materialRequests = allMaterialRequests
             .where((mr) => mr.status != 'Completed' && mr.status != 'Issued')
             .toList();
         print('\n=== Debug: Filtered Material Requests ===');
         for (var mr in materialRequests) {
-          print('Filtered MR: ${mr.issueNo}, Status: ${mr.status}, Job: ${mr.jobNo}');
+          print(
+              'Filtered MR: ${mr.issueNo}, Status: ${mr.status}, Job: ${mr.jobNo}');
         }
         _updateMaterialMRItems(materialRequests);
       } catch (e) {

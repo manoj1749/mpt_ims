@@ -39,7 +39,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   final _issuedQtyController = TextEditingController();
   final _stockController = TextEditingController();
   late TextEditingController _inspectionStockController;
-  
+
   // Weight unit dropdown
   String _selectedWeightUnit = 'kgs';
   final _weightValueController = TextEditingController();
@@ -58,7 +58,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   void _calculateDiscountFromRates() {
     final baseRate = double.tryParse(_baseRateController.text);
     final purchaseRate = double.tryParse(_saleRateController.text);
-    
+
     if (baseRate != null && purchaseRate != null && baseRate > 0) {
       final discount = ((baseRate - purchaseRate) / baseRate) * 100;
       _discountController.text = discount.toStringAsFixed(2);
@@ -68,7 +68,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   void _calculatePurchaseRateFromDiscount() {
     final baseRate = double.tryParse(_baseRateController.text);
     final discount = double.tryParse(_discountController.text);
-    
+
     if (baseRate != null && discount != null && baseRate > 0) {
       final purchaseRate = baseRate - (baseRate * discount / 100);
       _saleRateController.text = purchaseRate.toStringAsFixed(2);
@@ -103,7 +103,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         TextEditingController(text: item.actualWeight);
     _controllers['saleRate'] = TextEditingController(text: item.saleRate);
     _inspectionStockController = TextEditingController(text: '0');
-    
+
     // Initialize weight value controller and parse existing weight
     _initializeWeightField();
 
@@ -119,18 +119,19 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         setState(() {
           // Find the actual category object from the list, or null if not found
           _selectedCategory = categories.cast<Category?>().firstWhere(
-            (c) => c?.name == item.category,
-            orElse: () => null,
-          );
+                (c) => c?.name == item.category,
+                orElse: () => null,
+              );
 
           if (_selectedCategory != null && _selectedCategory!.name.isNotEmpty) {
             // Find the actual subcategory object from the list, or null if not found
-            _selectedSubCategory = subCategories.cast<SubCategory?>().firstWhere(
-              (sc) =>
-                  sc?.name == item.subCategory &&
-                  sc?.categoryName == item.category,
-              orElse: () => null,
-            );
+            _selectedSubCategory =
+                subCategories.cast<SubCategory?>().firstWhere(
+                      (sc) =>
+                          sc?.name == item.subCategory &&
+                          sc?.categoryName == item.category,
+                      orElse: () => null,
+                    );
           }
         });
       });
@@ -252,15 +253,18 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     );
   }
 
-  Widget _buildSearchableDropdown(String label, String field, List<String> options,
+  Widget _buildSearchableDropdown(
+      String label, String field, List<String> options,
       {String? hint, FormFieldValidator<String>? validator}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Autocomplete<String>(
-        fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+        fieldViewBuilder:
+            (context, textEditingController, focusNode, onFieldSubmitted) {
           // Set initial value
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (textEditingController.text.isEmpty && _controllers[field]!.text.isNotEmpty) {
+            if (textEditingController.text.isEmpty &&
+                _controllers[field]!.text.isNotEmpty) {
               textEditingController.text = _controllers[field]!.text;
             }
           });
@@ -322,8 +326,9 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
           if (textEditingValue.text.isEmpty) {
             return options;
           }
-          return options.where((option) =>
-              option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+          return options.where((option) => option
+              .toLowerCase()
+              .contains(textEditingValue.text.toLowerCase()));
         },
         onSelected: (option) {
           setState(() {
@@ -348,7 +353,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                 border: OutlineInputBorder(),
                 hintText: 'Enter actual/finished goods weight',
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               validator: (value) {
                 if (value != null && value.isNotEmpty) {
                   if (double.tryParse(value) == null) {
@@ -377,7 +383,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
               items: const [
                 DropdownMenuItem(value: 'kgs', child: Text('Kgs')),
                 DropdownMenuItem(value: 'grams', child: Text('Grams')),
-                DropdownMenuItem(value: 'milligrams', child: Text('Milligrams')),
+                DropdownMenuItem(
+                    value: 'milligrams', child: Text('Milligrams')),
                 DropdownMenuItem(value: 'tons', child: Text('Tons')),
                 DropdownMenuItem(value: 'pounds', child: Text('Pounds')),
                 DropdownMenuItem(value: 'ounces', child: Text('Ounces')),
@@ -405,7 +412,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
       if (parts.length >= 2) {
         final weightValue = parts[0];
         final unit = parts[1];
-        
+
         _weightValueController.text = weightValue;
         _selectedWeightUnit = unit;
       } else {
@@ -496,8 +503,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _remarksController.text = existingRate?.remarks ?? '';
 
     // Calculate initial discount if both rates exist
-    if (existingRate != null && 
-        existingRate.baseRate.isNotEmpty && 
+    if (existingRate != null &&
+        existingRate.baseRate.isNotEmpty &&
         existingRate.purchaseRate.isNotEmpty) {
       _calculateDiscountFromRates();
     }
@@ -547,7 +554,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                 decoration: const InputDecoration(
                   labelText: 'Discount %',
                   border: OutlineInputBorder(),
-                  helperText: 'Discount percentage (auto-calculated or enter manually)',
+                  helperText:
+                      'Discount percentage (auto-calculated or enter manually)',
                   suffixText: '%',
                 ),
                 keyboardType: TextInputType.number,
@@ -583,11 +591,11 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     );
 
     if (result == true && _saleRateController.text.isNotEmpty) {
-
       final newRate = VendorMaterialRate(
         vendorId: vendor.name,
         baseRate: _baseRateController.text,
-        purchaseRate: _saleRateController.text, // This is actually the purchase rate
+        purchaseRate:
+            _saleRateController.text, // This is actually the purchase rate
         lastPurchaseDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
         remarks: _remarksController.text,
         isPreferred: false,
@@ -780,63 +788,67 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                 child: ListView(
                   children: [
                     _buildTextField('Sl No', 'slNo'),
-                    _buildSearchableDropdown('Description', 'description', _getAvailableDescriptions(),
+                    _buildSearchableDropdown('Description', 'description',
+                        _getAvailableDescriptions(),
                         hint: 'Enter or select description',
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Required';
-                          }
-                          // Check for duplicate description (case-insensitive)
-                          final materials = ref.read(materialListProvider);
-                          final duplicateExists = materials.any((m) => 
-                              m.description.toLowerCase() == value.toLowerCase() &&
-                              m.slNo != item.slNo); // Exclude current item when editing
-                          if (duplicateExists) {
-                            return 'Description already exists';
-                          }
-                          return null;
-                        }),
-                    widget.materialToEdit == null ?
-                      _buildSearchableDropdown('Part No', 'partNo', _getAvailablePartNumbers(),
-                          hint: 'Enter or select part number',
-                          validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Required';
+                      }
+                      // Check for duplicate description (case-insensitive)
+                      final materials = ref.read(materialListProvider);
+                      final duplicateExists = materials.any((m) =>
+                          m.description.toLowerCase() == value.toLowerCase() &&
+                          m.slNo !=
+                              item.slNo); // Exclude current item when editing
+                      if (duplicateExists) {
+                        return 'Description already exists';
+                      }
+                      return null;
+                    }),
+                    widget.materialToEdit == null
+                        ? _buildSearchableDropdown(
+                            'Part No', 'partNo', _getAvailablePartNumbers(),
+                            hint: 'Enter or select part number',
+                            validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Required';
                             }
                             // Check for duplicate part number (case-insensitive)
                             final materials = ref.read(materialListProvider);
-                            final duplicateExists = materials.any((m) => 
+                            final duplicateExists = materials.any((m) =>
                                 m.partNo.toLowerCase() == value.toLowerCase());
                             if (duplicateExists) {
                               return 'Part number already exists';
                             }
                             return null;
-                          }) :
-                      _buildTextField(
-                        'Part No',
-                        'partNo',
-                        enabled: false,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Required';
-                          }
-                          return null;
-                        }
-                      ),
+                          })
+                        : _buildTextField('Part No', 'partNo', enabled: false,
+                            validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Required';
+                            }
+                            return null;
+                          }),
                     _buildWeightField(),
-                    _buildSearchableDropdown('Unit', 'unit', _getAvailableUnits(),
+                    _buildSearchableDropdown(
+                        'Unit', 'unit', _getAvailableUnits(),
                         hint: 'Enter or select unit'),
                     _buildTextField('Storage Location', 'storageLocation'),
-                    _buildSearchableDropdown('Rack Number', 'rackNumber', _getAvailableRackNumbers(),
+                    _buildSearchableDropdown(
+                        'Rack Number', 'rackNumber', _getAvailableRackNumbers(),
                         hint: 'Enter or select rack number'),
-                    _buildSearchableDropdown('BIN Number', 'binNumber', _getAvailableBinNumbers(),
+                    _buildSearchableDropdown(
+                        'BIN Number', 'binNumber', _getAvailableBinNumbers(),
                         hint: 'Enter or select BIN number'),
-                    _buildSearchableDropdown('HSN Code', 'hsnCode', _getAvailableHSNCodes(),
+                    _buildSearchableDropdown(
+                        'HSN Code', 'hsnCode', _getAvailableHSNCodes(),
                         hint: 'Enter or select HSN code'),
                     _buildTextField(
                       'Material Sale Rate',
                       'saleRate',
-                      type: const TextInputType.numberWithOptions(decimal: true),
+                      type:
+                          const TextInputType.numberWithOptions(decimal: true),
                       hint: 'Enter material\'s own sale rate',
                       validator: (value) {
                         if (value != null && value.isNotEmpty) {
@@ -880,42 +892,69 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   // Helper methods to get available options for searchable dropdowns
   List<String> _getAvailableUnits() {
     final materials = ref.read(materialListProvider);
-    final units = materials.map((m) => m.unit).where((unit) => unit.isNotEmpty).toSet().toList();
+    final units = materials
+        .map((m) => m.unit)
+        .where((unit) => unit.isNotEmpty)
+        .toSet()
+        .toList();
     units.sort();
     return units;
   }
 
   List<String> _getAvailableRackNumbers() {
     final materials = ref.read(materialListProvider);
-    final rackNumbers = materials.map((m) => m.rackNumber).where((rack) => rack != null && rack.isNotEmpty).cast<String>().toSet().toList();
+    final rackNumbers = materials
+        .map((m) => m.rackNumber)
+        .where((rack) => rack != null && rack.isNotEmpty)
+        .cast<String>()
+        .toSet()
+        .toList();
     rackNumbers.sort();
     return rackNumbers;
   }
 
   List<String> _getAvailableDescriptions() {
     final materials = ref.read(materialListProvider);
-    final descriptions = materials.map((m) => m.description).where((desc) => desc.isNotEmpty).toSet().toList();
+    final descriptions = materials
+        .map((m) => m.description)
+        .where((desc) => desc.isNotEmpty)
+        .toSet()
+        .toList();
     descriptions.sort();
     return descriptions;
   }
 
   List<String> _getAvailablePartNumbers() {
     final materials = ref.read(materialListProvider);
-    final partNumbers = materials.map((m) => m.partNo).where((part) => part.isNotEmpty).toSet().toList();
+    final partNumbers = materials
+        .map((m) => m.partNo)
+        .where((part) => part.isNotEmpty)
+        .toSet()
+        .toList();
     partNumbers.sort();
     return partNumbers;
   }
 
   List<String> _getAvailableBinNumbers() {
     final materials = ref.read(materialListProvider);
-    final binNumbers = materials.map((m) => m.binNumber).where((bin) => bin != null && bin.isNotEmpty).cast<String>().toSet().toList();
+    final binNumbers = materials
+        .map((m) => m.binNumber)
+        .where((bin) => bin != null && bin.isNotEmpty)
+        .cast<String>()
+        .toSet()
+        .toList();
     binNumbers.sort();
     return binNumbers;
   }
 
   List<String> _getAvailableHSNCodes() {
     final materials = ref.read(materialListProvider);
-    final hsnCodes = materials.map((m) => m.hsnCode).where((hsn) => hsn != null && hsn.isNotEmpty).cast<String>().toSet().toList();
+    final hsnCodes = materials
+        .map((m) => m.hsnCode)
+        .where((hsn) => hsn != null && hsn.isNotEmpty)
+        .cast<String>()
+        .toSet()
+        .toList();
     hsnCodes.sort();
     return hsnCodes;
   }

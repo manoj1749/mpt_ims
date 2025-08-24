@@ -31,29 +31,32 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
       'hsnCode': material.hsnCode,
       'actualWeight': material.actualWeight,
       'saleRate': material.saleRate,
-      'vendorRates': material.vendorRates.map((rate) => {
-        'vendorId': rate.vendorId,
-        'baseRate': rate.baseRate,
-        'purchaseRate': rate.purchaseRate,
-        'lastPurchaseDate': rate.lastPurchaseDate,
-        'remarks': rate.remarks,
-        'isPreferred': rate.isPreferred,
-      }).toList(),
+      'vendorRates': material.vendorRates
+          .map((rate) => {
+                'vendorId': rate.vendorId,
+                'baseRate': rate.baseRate,
+                'purchaseRate': rate.purchaseRate,
+                'lastPurchaseDate': rate.lastPurchaseDate,
+                'remarks': rate.remarks,
+                'isPreferred': rate.isPreferred,
+              })
+          .toList(),
     };
   }
 
   @override
   MaterialItem mapToModel(Map<String, dynamic> map) {
-    final vendorRatesList = (map['vendorRates'] as List<dynamic>?)?.map((rateMap) => 
-      VendorMaterialRate(
-        vendorId: rateMap['vendorId'] ?? '',
-        baseRate: rateMap['baseRate'] ?? '',
-        purchaseRate: rateMap['purchaseRate'] ?? '',
-        lastPurchaseDate: rateMap['lastPurchaseDate'] ?? '',
-        remarks: rateMap['remarks'] ?? '',
-        isPreferred: rateMap['isPreferred'] ?? false,
-      )
-    ).toList() ?? <VendorMaterialRate>[];
+    final vendorRatesList = (map['vendorRates'] as List<dynamic>?)
+            ?.map((rateMap) => VendorMaterialRate(
+                  vendorId: rateMap['vendorId'] ?? '',
+                  baseRate: rateMap['baseRate'] ?? '',
+                  purchaseRate: rateMap['purchaseRate'] ?? '',
+                  lastPurchaseDate: rateMap['lastPurchaseDate'] ?? '',
+                  remarks: rateMap['remarks'] ?? '',
+                  isPreferred: rateMap['isPreferred'] ?? false,
+                ))
+            .toList() ??
+        <VendorMaterialRate>[];
 
     return MaterialItem(
       slNo: map['slNo'] ?? '',
@@ -84,6 +87,7 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
       await update(material);
     }
   }
+
   Future<void> deleteMaterial(MaterialItem material) => delete(material);
 
   // Helper methods
@@ -92,7 +96,9 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
   }
 
   List<MaterialItem> getMaterialsBySubCategory(String subCategory) {
-    return state.where((material) => material.subCategory == subCategory).toList();
+    return state
+        .where((material) => material.subCategory == subCategory)
+        .toList();
   }
 
   MaterialItem? getMaterialBySlNo(String slNo) {
@@ -105,10 +111,12 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
 
   List<MaterialItem> searchMaterials(String query) {
     final lowercaseQuery = query.toLowerCase();
-    return state.where((material) =>
-        material.description.toLowerCase().contains(lowercaseQuery) ||
-        material.partNo.toLowerCase().contains(lowercaseQuery) ||
-        material.category.toLowerCase().contains(lowercaseQuery) ||
-        material.subCategory.toLowerCase().contains(lowercaseQuery)).toList();
+    return state
+        .where((material) =>
+            material.description.toLowerCase().contains(lowercaseQuery) ||
+            material.partNo.toLowerCase().contains(lowercaseQuery) ||
+            material.category.toLowerCase().contains(lowercaseQuery) ||
+            material.subCategory.toLowerCase().contains(lowercaseQuery))
+        .toList();
   }
 }

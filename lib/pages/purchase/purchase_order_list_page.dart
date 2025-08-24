@@ -100,12 +100,12 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       for (var order in orders) {
         for (var item in order.items) {
           final rowData = <String>[];
-          
+
           // Calculate pending quantity
           final orderedQty = double.tryParse(item.quantity) ?? 0.0;
           final receivedQty = item.totalReceivedQuantity;
           final pendingQty = orderedQty - receivedQty;
-          
+
           rowData.add(serialNo.toString());
           rowData.add(order.poNo);
           rowData.add(order.poDate);
@@ -118,7 +118,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
           rowData.add(item.totalCost);
           rowData.add(pendingQty.toString());
           rowData.add(order.status);
-          
+
           csvData.add(rowData);
           serialNo++;
         }
@@ -173,21 +173,20 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
               ),
               fillColor: Colors.grey[800],
               filled: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
             style: const TextStyle(color: Colors.white),
             dropdownColor: Colors.grey[800],
             value: _selectedStatus,
-            items: [
-              'Active',
-              'Placed', 
-              'Partially Received',
-              'Completed',
-              'All'
-            ].map((status) => DropdownMenuItem(
-                  value: status,
-                  child: Text(status, style: const TextStyle(color: Colors.white)),
-                )).toList(),
+            items:
+                ['Active', 'Placed', 'Partially Received', 'Completed', 'All']
+                    .map((status) => DropdownMenuItem(
+                          value: status,
+                          child: Text(status,
+                              style: const TextStyle(color: Colors.white)),
+                        ))
+                    .toList(),
             onChanged: (value) {
               if (value != null) {
                 setState(() {
@@ -230,7 +229,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
               Navigator.pop(context);
               _quickExport();
             },
-            child: Text('Quick Export', style: TextStyle(color: Colors.grey[200])),
+            child:
+                Text('Quick Export', style: TextStyle(color: Colors.grey[200])),
           ),
           ElevatedButton(
             onPressed: () {
@@ -286,11 +286,19 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                   style: const TextStyle(color: Colors.white),
                   dropdownColor: Colors.grey[800],
                   value: statusFilter,
-                  items: ['All', 'Active', 'Placed', 'Partially Received', 'Completed']
+                  items: [
+                    'All',
+                    'Active',
+                    'Placed',
+                    'Partially Received',
+                    'Completed'
+                  ]
                       .map((status) => DropdownMenuItem(
                             value: status,
-                            child: Text(status, style: const TextStyle(color: Colors.white)),
-                          )).toList(),
+                            child: Text(status,
+                                style: const TextStyle(color: Colors.white)),
+                          ))
+                      .toList(),
                   onChanged: (value) => statusFilter = value ?? 'All',
                 ),
                 const SizedBox(height: 16),
@@ -372,7 +380,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                _exportWithFilters(startDate, endDate, supplierFilter, partNumberFilter, statusFilter);
+                _exportWithFilters(startDate, endDate, supplierFilter,
+                    partNumberFilter, statusFilter);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
@@ -385,15 +394,18 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
     );
   }
 
-  void _exportWithFilters(DateTime? startDate, DateTime? endDate, String supplierFilter, String partNumberFilter, String statusFilter) {
+  void _exportWithFilters(DateTime? startDate, DateTime? endDate,
+      String supplierFilter, String partNumberFilter, String statusFilter) {
     final allOrders = ref.read(purchaseOrderListProvider);
 
     // Apply filters
     final filteredOrders = allOrders.where((order) {
       // Status filter
       if (statusFilter != 'All') {
-        if (statusFilter == 'Active' && order.status == 'Completed') return false;
-        if (statusFilter != 'Active' && order.status != statusFilter) return false;
+        if (statusFilter == 'Active' && order.status == 'Completed')
+          return false;
+        if (statusFilter != 'Active' && order.status != statusFilter)
+          return false;
       }
 
       // Date filter
@@ -408,7 +420,9 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
 
       // Supplier filter
       if (supplierFilter.isNotEmpty) {
-        if (!order.supplierName.toLowerCase().contains(supplierFilter.toLowerCase())) {
+        if (!order.supplierName
+            .toLowerCase()
+            .contains(supplierFilter.toLowerCase())) {
           return false;
         }
       }
@@ -417,8 +431,12 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       if (partNumberFilter.isNotEmpty) {
         bool hasMatch = false;
         for (var item in order.items) {
-          if (item.materialCode.toLowerCase().contains(partNumberFilter.toLowerCase()) ||
-              item.materialDescription.toLowerCase().contains(partNumberFilter.toLowerCase())) {
+          if (item.materialCode
+                  .toLowerCase()
+                  .contains(partNumberFilter.toLowerCase()) ||
+              item.materialDescription
+                  .toLowerCase()
+                  .contains(partNumberFilter.toLowerCase())) {
             hasMatch = true;
             break;
           }
@@ -783,7 +801,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
               Navigator.pop(context);
               await _generateAndSaveToDownloads(order);
             },
-            child: Text('Quick Save', style: TextStyle(color: Colors.grey[200])),
+            child:
+                Text('Quick Save', style: TextStyle(color: Colors.grey[200])),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -805,7 +824,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       final suppliers = ref.read(supplierListProvider);
       final supplier = suppliers.firstWhere(
         (s) => s.name == order.supplierName,
-        orElse: () => throw Exception('Supplier not found: ${order.supplierName}'),
+        orElse: () =>
+            throw Exception('Supplier not found: ${order.supplierName}'),
       );
 
       // Show loading
@@ -835,9 +855,9 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       );
 
       final success = await PDFService.savePurchaseOrder(order, supplier);
-      
+
       Navigator.pop(context); // Close loading dialog
-      
+
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -869,7 +889,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       final suppliers = ref.read(supplierListProvider);
       final supplier = suppliers.firstWhere(
         (s) => s.name == order.supplierName,
-        orElse: () => throw Exception('Supplier not found: ${order.supplierName}'),
+        orElse: () =>
+            throw Exception('Supplier not found: ${order.supplierName}'),
       );
 
       // Show loading
@@ -898,16 +919,17 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
         ),
       );
 
-      final success = await PDFService.savePurchaseOrderToDownloads(order, supplier);
-      
+      final success =
+          await PDFService.savePurchaseOrderToDownloads(order, supplier);
+
       Navigator.pop(context); // Close loading dialog
-      
+
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(Platform.isMacOS || Platform.isIOS 
-              ? 'PDF saved to Documents folder successfully!' 
-              : 'PDF saved to Downloads folder successfully!'),
+            content: Text(Platform.isMacOS || Platform.isIOS
+                ? 'PDF saved to Documents folder successfully!'
+                : 'PDF saved to Downloads folder successfully!'),
             backgroundColor: Colors.green,
           ),
         );

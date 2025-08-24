@@ -13,7 +13,7 @@ final categoryParameterProvider = StateNotifierProvider<
     (ref) => CategoryParameterNotifier(ref.read(categoryParameterBoxProvider)));
 
 class CategoryParameterNotifier extends BaseProvider<CategoryParameterMapping> {
-  CategoryParameterNotifier(Box<CategoryParameterMapping> box) 
+  CategoryParameterNotifier(Box<CategoryParameterMapping> box)
       : super(box, 'category_parameter_mappings');
 
   @override
@@ -43,8 +43,9 @@ class CategoryParameterNotifier extends BaseProvider<CategoryParameterMapping> {
 
   Future<void> updateMapping(CategoryParameterMapping mapping) async {
     // Check if mapping already exists
-    final existingIndex = state.indexWhere((m) => m.category == mapping.category);
-    
+    final existingIndex =
+        state.indexWhere((m) => m.category == mapping.category);
+
     if (existingIndex == -1) {
       // This is a new mapping
       await add(mapping);
@@ -68,8 +69,11 @@ class CategoryParameterNotifier extends BaseProvider<CategoryParameterMapping> {
   }
 
   List<CategoryParameterMapping> searchMappings(String query) {
-    return search(query, (mapping, query) =>
-        mapping.category.toLowerCase().contains(query) ||
-        mapping.parameters.any((param) => param.toLowerCase().contains(query)));
+    return search(
+        query,
+        (mapping, query) =>
+            mapping.category.toLowerCase().contains(query) ||
+            mapping.parameters
+                .any((param) => param.toLowerCase().contains(query)));
   }
 }

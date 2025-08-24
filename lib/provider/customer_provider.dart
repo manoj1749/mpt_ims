@@ -90,7 +90,7 @@ class CustomerNotifier extends BaseProvider<Customer> {
   String generateNextCustomerCode() {
     final customers = state;
     int maxNumber = 0;
-    
+
     // Find the highest existing number in AICM-xxxx format
     for (var customer in customers) {
       final code = customer.customerCode;
@@ -102,7 +102,7 @@ class CustomerNotifier extends BaseProvider<Customer> {
         }
       }
     }
-    
+
     // Generate next sequential number with leading zeros
     final nextNumber = maxNumber + 1;
     return 'AICM-${nextNumber.toString().padLeft(4, '0')}';

@@ -48,8 +48,8 @@ class _AddSupplierPageState extends ConsumerState<AddSupplierPage> {
     phone = s?.phone ?? '';
     email = s?.email ?? '';
     // Auto-generate vendor code for new suppliers
-    vendorCode = s?.vendorCode ?? 
-        (widget.supplierToEdit == null 
+    vendorCode = s?.vendorCode ??
+        (widget.supplierToEdit == null
             ? ref.read(supplierListProvider.notifier).generateNextSupplierCode()
             : '');
     address1 = s?.address1 ?? '';
@@ -135,7 +135,8 @@ class _AddSupplierPageState extends ConsumerState<AddSupplierPage> {
                 _buildTextField('Email', (v) => email = v,
                     initial: email, keyboardType: TextInputType.emailAddress),
                 _buildTextField('Vendor Code', (v) => vendorCode = v,
-                    initial: vendorCode, enabled: widget.supplierToEdit == null),
+                    initial: vendorCode,
+                    enabled: widget.supplierToEdit == null),
                 _buildTextField('Address 1', (v) => address1 = v,
                     initial: address1),
                 _buildTextField('Address 2', (v) => address2 = v,
@@ -204,53 +205,53 @@ class _AddSupplierPageState extends ConsumerState<AddSupplierPage> {
           if (value == null || value.isEmpty) {
             return 'Required';
           }
-          
+
           final suppliers = ref.read(supplierListProvider);
           final currentSupplier = widget.supplierToEdit;
-          
+
           // Validation for various fields to prevent duplicates
           if (enabled && value.isNotEmpty) {
             // Vendor Code validation
             if (label.contains('Vendor Code')) {
-              final existingSupplier = suppliers.any((s) => 
-                  s.vendorCode.toLowerCase() == value.toLowerCase() && 
+              final existingSupplier = suppliers.any((s) =>
+                  s.vendorCode.toLowerCase() == value.toLowerCase() &&
                   s.vendorCode != (currentSupplier?.vendorCode ?? ''));
               if (existingSupplier) {
                 return 'Vendor code already exists';
               }
             }
-            
+
             // Supplier Name validation
             if (label.contains('Supplier Name')) {
-              final existingSupplier = suppliers.any((s) => 
-                  s.name.toLowerCase() == value.toLowerCase() && 
+              final existingSupplier = suppliers.any((s) =>
+                  s.name.toLowerCase() == value.toLowerCase() &&
                   s.name != (currentSupplier?.name ?? ''));
               if (existingSupplier) {
                 return 'Supplier name already exists';
               }
             }
-            
+
             // PAN validation
             if (label.contains('PAN')) {
-              final existingSupplier = suppliers.any((s) => 
-                  s.pan.toLowerCase() == value.toLowerCase() && 
+              final existingSupplier = suppliers.any((s) =>
+                  s.pan.toLowerCase() == value.toLowerCase() &&
                   s.pan != (currentSupplier?.pan ?? ''));
               if (existingSupplier) {
                 return 'PAN number already exists';
               }
             }
-            
+
             // GST validation
             if (label.contains('GST No')) {
-              final existingSupplier = suppliers.any((s) => 
-                  s.gstNo.toLowerCase() == value.toLowerCase() && 
+              final existingSupplier = suppliers.any((s) =>
+                  s.gstNo.toLowerCase() == value.toLowerCase() &&
                   s.gstNo != (currentSupplier?.gstNo ?? ''));
               if (existingSupplier) {
                 return 'GST number already exists';
               }
             }
           }
-          
+
           return null;
         },
         onSaved: (value) => onSaved(value ?? ''),

@@ -158,9 +158,10 @@ class StockMaintenance extends HiveObject {
 
     // Calculate from GRN details
     for (var grnDetail in grnDetails.values) {
-      totalCurrentStock += grnDetail.acceptedQuantity - grnDetail.issuedQuantity;
-      totalUnderInspection += grnDetail.receivedQuantity - 
-        (grnDetail.acceptedQuantity + grnDetail.rejectedQuantity);
+      totalCurrentStock +=
+          grnDetail.acceptedQuantity - grnDetail.issuedQuantity;
+      totalUnderInspection += grnDetail.receivedQuantity -
+          (grnDetail.acceptedQuantity + grnDetail.rejectedQuantity);
     }
 
     // Update the stock quantities
@@ -175,7 +176,8 @@ class StockMaintenance extends HiveObject {
   void _updateTotalStockValue() {
     double total = 0.0;
     for (var grnDetail in grnDetails.values) {
-      total += (grnDetail.acceptedQuantity - grnDetail.issuedQuantity) * grnDetail.rate;
+      total += (grnDetail.acceptedQuantity - grnDetail.issuedQuantity) *
+          grnDetail.rate;
     }
     totalStockValue = total;
   }
@@ -362,7 +364,7 @@ class StockMaintenance extends HiveObject {
   // Get available quantity for a specific PR
   double getAvailableQuantityForPR(String prNo) {
     if (!prDetails.containsKey(prNo)) return 0.0;
-    
+
     final prDetail = prDetails[prNo]!;
     return prDetail.receivedQuantity - prDetail.issuedQuantity;
   }
@@ -370,18 +372,17 @@ class StockMaintenance extends HiveObject {
   // Get available quantity for a specific job
   double getAvailableQuantityForJob(String jobNo) {
     if (!jobDetails.containsKey(jobNo)) return 0.0;
-    
+
     final jobDetail = jobDetails[jobNo]!;
     return jobDetail.allocatedQuantity - jobDetail.consumedQuantity;
   }
 
-
-
   // Deliver stock for a specific job (similar to issueStockForJob but for delivery)
-  void deliverStockForJob(String jobNo, String deliveryChallanNo, double quantity) {
+  void deliverStockForJob(
+      String jobNo, String deliveryChallanNo, double quantity) {
     print('=== Delivering Stock for Job ===');
     print('Job No: $jobNo, DC No: $deliveryChallanNo, Quantity: $quantity');
-    
+
     // Find available PR for this job (same as Material Issue logic)
     final prInfo = findAvailablePRForJob(jobNo, quantity);
     if (prInfo == null) {
@@ -418,18 +419,21 @@ class StockMaintenance extends HiveObject {
       // Update GRN issued quantity
       final grnDetail = grnDetails[currentGrnNo]!;
       grnDetail.addIssuedQuantity(currentPrNo, deliveryQty);
-      print('Updated GRN $currentGrnNo issued quantity for PR $currentPrNo: +$deliveryQty');
+      print(
+          'Updated GRN $currentGrnNo issued quantity for PR $currentPrNo: +$deliveryQty');
 
       // Update PO issued quantity
       final poDetail = poDetails[currentPoNo]!;
       poDetail.addIssuedQuantity(currentPrNo, deliveryQty);
-      print('Updated PO $currentPoNo issued quantity for PR $currentPrNo: +$deliveryQty');
+      print(
+          'Updated PO $currentPoNo issued quantity for PR $currentPrNo: +$deliveryQty');
 
       // Update PR issued quantity
       final prDetail = prDetails[currentPrNo]!;
       final oldIssued = prDetail.issuedQuantity;
       prDetail.issuedQuantity += deliveryQty;
-      print('Updated PR $currentPrNo issued quantity: $oldIssued -> ${prDetail.issuedQuantity}');
+      print(
+          'Updated PR $currentPrNo issued quantity: $oldIssued -> ${prDetail.issuedQuantity}');
 
       // Update or create job details
       if (!jobDetails.containsKey(jobNo)) {
@@ -444,7 +448,8 @@ class StockMaintenance extends HiveObject {
         final jobDetail = jobDetails[jobNo]!;
         final oldConsumed = jobDetail.consumedQuantity;
         jobDetail.consumedQuantity += deliveryQty;
-        print('Updated consumed quantity for $jobNo: $oldConsumed -> ${jobDetail.consumedQuantity}');
+        print(
+            'Updated consumed quantity for $jobNo: $oldConsumed -> ${jobDetail.consumedQuantity}');
       }
 
       remainingQty -= deliveryQty;
@@ -457,7 +462,8 @@ class StockMaintenance extends HiveObject {
         }
         currentPrNo = nextPrInfo.$1;
         currentPrQty = nextPrInfo.$2;
-        print('Moving to next PR: $currentPrNo with available quantity: $currentPrQty');
+        print(
+            'Moving to next PR: $currentPrNo with available quantity: $currentPrQty');
       }
     }
 
@@ -670,8 +676,6 @@ class StockJobDetails extends HiveObject {
     this.consumedQuantity = 0.0,
     required this.prNo,
   });
-
-
 
   void addConsumedQuantity(double quantity) {
     consumedQuantity += quantity;

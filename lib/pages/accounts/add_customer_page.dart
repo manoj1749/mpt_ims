@@ -52,8 +52,8 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
     phone = c?.phone ?? '';
     email = c?.email ?? '';
     // Auto-generate customer code for new customers
-    customerCode = c?.customerCode ?? 
-        (widget.customerToEdit == null 
+    customerCode = c?.customerCode ??
+        (widget.customerToEdit == null
             ? ref.read(customerListProvider.notifier).generateNextCustomerCode()
             : '');
     address1 = c?.address1 ?? '';
@@ -157,7 +157,8 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
                 _buildTextField('Email', (v) => email = v,
                     initial: email, keyboardType: TextInputType.emailAddress),
                 _buildTextField('Customer Code', (v) => customerCode = v,
-                    initial: customerCode, required: true, 
+                    initial: customerCode,
+                    required: true,
                     enabled: widget.customerToEdit == null),
                 _buildTextField('Address Line 1', (v) => address1 = v,
                     initial: address1),
@@ -229,53 +230,53 @@ class _AddCustomerPageState extends ConsumerState<AddCustomerPage> {
           if (required && (value == null || value.isEmpty)) {
             return 'Required';
           }
-          
+
           final customers = ref.read(customerListProvider);
           final currentCustomer = widget.customerToEdit;
-          
+
           // Validation for various fields to prevent duplicates
           if (enabled && value != null && value.isNotEmpty) {
             // Customer Code validation
             if (label.contains('Customer Code')) {
-              final existingCustomer = customers.any((c) => 
-                  c.customerCode.toLowerCase() == value.toLowerCase() && 
+              final existingCustomer = customers.any((c) =>
+                  c.customerCode.toLowerCase() == value.toLowerCase() &&
                   c.customerCode != (currentCustomer?.customerCode ?? ''));
               if (existingCustomer) {
                 return 'Customer code already exists';
               }
             }
-            
+
             // Customer Name validation
             if (label.contains('Customer Name')) {
-              final existingCustomer = customers.any((c) => 
-                  c.name.toLowerCase() == value.toLowerCase() && 
+              final existingCustomer = customers.any((c) =>
+                  c.name.toLowerCase() == value.toLowerCase() &&
                   c.name != (currentCustomer?.name ?? ''));
               if (existingCustomer) {
                 return 'Customer name already exists';
               }
             }
-            
+
             // PAN validation
             if (label.contains('PAN')) {
-              final existingCustomer = customers.any((c) => 
-                  c.pan.toLowerCase() == value.toLowerCase() && 
+              final existingCustomer = customers.any((c) =>
+                  c.pan.toLowerCase() == value.toLowerCase() &&
                   c.pan != (currentCustomer?.pan ?? ''));
               if (existingCustomer) {
                 return 'PAN number already exists';
               }
             }
-            
+
             // GST validation
             if (label.contains('GST No')) {
-              final existingCustomer = customers.any((c) => 
-                  c.gstNo.toLowerCase() == value.toLowerCase() && 
+              final existingCustomer = customers.any((c) =>
+                  c.gstNo.toLowerCase() == value.toLowerCase() &&
                   c.gstNo != (currentCustomer?.gstNo ?? ''));
               if (existingCustomer) {
                 return 'GST number already exists';
               }
             }
           }
-          
+
           return null;
         },
         onSaved: (value) => onSaved(value ?? ''),

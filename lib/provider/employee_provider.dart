@@ -69,7 +69,8 @@ class EmployeeNotifier extends BaseProvider<Employee> {
 
   Employee? getEmployeeByAadhaar(String aadhaarNumber) {
     try {
-      return state.firstWhere((employee) => employee.aadhaarNumber == aadhaarNumber);
+      return state
+          .firstWhere((employee) => employee.aadhaarNumber == aadhaarNumber);
     } catch (_) {
       return null;
     }
@@ -77,16 +78,20 @@ class EmployeeNotifier extends BaseProvider<Employee> {
 
   List<Employee> searchEmployees(String query) {
     final lowercaseQuery = query.toLowerCase();
-    return state.where((employee) =>
-        employee.name.toLowerCase().contains(lowercaseQuery) ||
-        employee.employeeCode.toLowerCase().contains(lowercaseQuery) ||
-        employee.aadhaarNumber.toLowerCase().contains(lowercaseQuery) ||
-        employee.esiNumber.toLowerCase().contains(lowercaseQuery) ||
-        employee.pfNumber.toLowerCase().contains(lowercaseQuery)).toList();
+    return state
+        .where((employee) =>
+            employee.name.toLowerCase().contains(lowercaseQuery) ||
+            employee.employeeCode.toLowerCase().contains(lowercaseQuery) ||
+            employee.aadhaarNumber.toLowerCase().contains(lowercaseQuery) ||
+            employee.esiNumber.toLowerCase().contains(lowercaseQuery) ||
+            employee.pfNumber.toLowerCase().contains(lowercaseQuery))
+        .toList();
   }
 
   double getTotalDailySalary() {
-    return state.fold(0.0, (sum, employee) => 
-      sum + (double.tryParse(employee.perDaySalary) ?? 0.0));
+    return state.fold(
+        0.0,
+        (sum, employee) =>
+            sum + (double.tryParse(employee.perDaySalary) ?? 0.0));
   }
 }

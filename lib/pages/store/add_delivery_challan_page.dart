@@ -56,7 +56,8 @@ class _AddDeliveryChallanPageState
     _isReturnable = widget.deliveryChallan?.isReturnable ?? false;
     _items =
         widget.deliveryChallan?.items.map((i) => i.copyWith()).toList() ?? [];
-    _selectedDate = widget.deliveryChallan?.dcDate ?? DateTime.now().toString().split(' ')[0];
+    _selectedDate = widget.deliveryChallan?.dcDate ??
+        DateTime.now().toString().split(' ')[0];
 
     // Initialize selected supplier if editing
     if (widget.deliveryChallan != null) {
@@ -312,13 +313,13 @@ class _AddDeliveryChallanPageState
             .firstWhere((stock) => stock.materialCode == item.materialCode);
 
         final jobNo = item.jobNo ?? 'General';
-        
+
         // Calculate available quantity based on job number
         double availableQty = 0.0;
         if (jobNo == 'General') {
           // For general stock, use calculatedCurrentStock which is more accurate
           availableQty = stockItem.calculatedCurrentStock;
-          
+
           // Subtract any quantities allocated to specific jobs
           for (var jobDetail in stockItem.jobDetails.entries) {
             if (jobDetail.key != 'General') {
@@ -331,7 +332,8 @@ class _AddDeliveryChallanPageState
           // For specific job numbers, check the allocated quantity for that job
           final jobDetail = stockItem.jobDetails[jobNo];
           if (jobDetail != null) {
-            availableQty = jobDetail.allocatedQuantity - jobDetail.consumedQuantity;
+            availableQty =
+                jobDetail.allocatedQuantity - jobDetail.consumedQuantity;
           }
         }
 
@@ -348,7 +350,7 @@ class _AddDeliveryChallanPageState
         }
       }
 
-              final notifier = ref.read(deliveryChallanListProvider.notifier);
+      final notifier = ref.read(deliveryChallanListProvider.notifier);
       final dc = DeliveryChallan(
         dcNo: widget.deliveryChallan?.dcNo ?? notifier.generateDcNo(),
         dcDate: _selectedDate,
@@ -364,7 +366,8 @@ class _AddDeliveryChallanPageState
         if (widget.deliveryChallan != null) {
           // Find the index of the existing DC
           final deliveryChallans = ref.read(deliveryChallanListProvider);
-          final index = deliveryChallans.indexWhere((d) => d.dcNo == widget.deliveryChallan!.dcNo);
+          final index = deliveryChallans
+              .indexWhere((d) => d.dcNo == widget.deliveryChallan!.dcNo);
           if (index != -1) {
             await notifier.updateDeliveryChallan(index, dc, ref);
           }
@@ -462,10 +465,12 @@ class _AddDeliveryChallanPageState
       );
 
       final materials = ref.read(materialListProvider);
-      final success = await PDFService.saveDeliveryChallan(deliveryChallan, _selectedSupplier!, materials: materials);
-      
+      final success = await PDFService.saveDeliveryChallan(
+          deliveryChallan, _selectedSupplier!,
+          materials: materials);
+
       Navigator.pop(context); // Close loading dialog
-      
+
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -496,7 +501,8 @@ class _AddDeliveryChallanPageState
     }
   }
 
-  Future<void> _generateAndSaveToDownloads(DeliveryChallan deliveryChallan) async {
+  Future<void> _generateAndSaveToDownloads(
+      DeliveryChallan deliveryChallan) async {
     try {
       if (_selectedSupplier == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -518,17 +524,19 @@ class _AddDeliveryChallanPageState
       );
 
       final materials = ref.read(materialListProvider);
-      final success = await PDFService.saveDeliveryChallanToDownloads(deliveryChallan, _selectedSupplier!, materials: materials);
-      
+      final success = await PDFService.saveDeliveryChallanToDownloads(
+          deliveryChallan, _selectedSupplier!,
+          materials: materials);
+
       Navigator.pop(context); // Close loading dialog
-      
+
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(Platform.isMacOS || Platform.isIOS 
-                ? 'PDF saved to Documents folder successfully!' 
-                : 'PDF saved to Downloads folder successfully!'),
+              content: Text(Platform.isMacOS || Platform.isIOS
+                  ? 'PDF saved to Documents folder successfully!'
+                  : 'PDF saved to Downloads folder successfully!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -582,10 +590,12 @@ class _AddDeliveryChallanPageState
                   labelText: 'Vendor Name',
                   border: OutlineInputBorder(),
                 ),
-                items: suppliers.map((supplier) => DropdownMenuItem(
-                  value: supplier,
-                  child: Text(supplier.name),
-                )).toList(),
+                items: suppliers
+                    .map((supplier) => DropdownMenuItem(
+                          value: supplier,
+                          child: Text(supplier.name),
+                        ))
+                    .toList(),
                 onChanged: (supplier) {
                   setState(() {
                     _selectedSupplier = supplier;
@@ -685,7 +695,8 @@ class _AddDeliveryChallanPageState
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _items.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 16),
                 itemBuilder: (context, index) {
                   final item = _items[index];
                   return Card(
@@ -701,10 +712,12 @@ class _AddDeliveryChallanPageState
                               fieldViewBuilder: (context, textEditingController,
                                   focusNode, onFieldSubmitted) {
                                 // Set initial value without triggering rebuild
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
                                   if (textEditingController.text.isEmpty &&
                                       item.materialCode.isNotEmpty) {
-                                    textEditingController.text = item.materialCode;
+                                    textEditingController.text =
+                                        item.materialCode;
                                   }
                                 });
                                 return TextFormField(
@@ -725,7 +738,8 @@ class _AddDeliveryChallanPageState
                                   },
                                 );
                               },
-                              optionsViewBuilder: (context, onSelected, options) {
+                              optionsViewBuilder:
+                                  (context, onSelected, options) {
                                 return Align(
                                   alignment: Alignment.topLeft,
                                   child: Material(
@@ -745,11 +759,13 @@ class _AddDeliveryChallanPageState
                                         padding: const EdgeInsets.all(8.0),
                                         itemCount: options.length,
                                         itemBuilder: (context, index) {
-                                          final option = options.elementAt(index);
+                                          final option =
+                                              options.elementAt(index);
                                           return InkWell(
                                             onTap: () => onSelected(option),
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
                                                 vertical: 12.0,
                                                 horizontal: 16.0,
                                               ),
@@ -767,15 +783,15 @@ class _AddDeliveryChallanPageState
                                   ),
                                 );
                               },
-                              displayStringForOption: (material) => material.partNo,
+                              displayStringForOption: (material) =>
+                                  material.partNo,
                               optionsBuilder: (textEditingValue) {
                                 if (textEditingValue.text.isEmpty) {
                                   return materials;
                                 }
-                                return materials.where(
-                                    (material) => material.partNo
-                                        .toLowerCase()
-                                        .contains(textEditingValue.text.toLowerCase()));
+                                return materials.where((material) =>
+                                    material.partNo.toLowerCase().contains(
+                                        textEditingValue.text.toLowerCase()));
                               },
                               onSelected: (material) {
                                 setState(() {
@@ -798,7 +814,8 @@ class _AddDeliveryChallanPageState
                               fieldViewBuilder: (context, textEditingController,
                                   focusNode, onFieldSubmitted) {
                                 // Set initial value without triggering rebuild
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
                                   if (textEditingController.text.isEmpty &&
                                       item.materialDescription.isNotEmpty) {
                                     textEditingController.text =
@@ -816,14 +833,16 @@ class _AddDeliveryChallanPageState
                                     if (v == null || v.isEmpty) {
                                       return 'Required';
                                     }
-                                    if (!materials.any((m) => m.description == v)) {
+                                    if (!materials
+                                        .any((m) => m.description == v)) {
                                       return 'Invalid material';
                                     }
                                     return null;
                                   },
                                 );
                               },
-                              optionsViewBuilder: (context, onSelected, options) {
+                              optionsViewBuilder:
+                                  (context, onSelected, options) {
                                 return Align(
                                   alignment: Alignment.topLeft,
                                   child: Material(
@@ -843,11 +862,13 @@ class _AddDeliveryChallanPageState
                                         padding: const EdgeInsets.all(8.0),
                                         itemCount: options.length,
                                         itemBuilder: (context, index) {
-                                          final option = options.elementAt(index);
+                                          final option =
+                                              options.elementAt(index);
                                           return InkWell(
                                             onTap: () => onSelected(option),
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
                                                 vertical: 12.0,
                                                 horizontal: 16.0,
                                               ),
@@ -871,10 +892,9 @@ class _AddDeliveryChallanPageState
                                 if (textEditingValue.text.isEmpty) {
                                   return materials;
                                 }
-                                return materials.where(
-                                    (material) => material.description
-                                        .toLowerCase()
-                                        .contains(textEditingValue.text.toLowerCase()));
+                                return materials.where((material) =>
+                                    material.description.toLowerCase().contains(
+                                        textEditingValue.text.toLowerCase()));
                               },
                               onSelected: (material) {
                                 setState(() {
@@ -930,9 +950,9 @@ class _AddDeliveryChallanPageState
                                   child: Text('General'),
                                 ),
                                 ...saleOrders.map((order) => DropdownMenuItem(
-                                  value: order.boardNo,
-                                  child: Text(order.boardNo),
-                                )),
+                                      value: order.boardNo,
+                                      child: Text(order.boardNo),
+                                    )),
                               ],
                               onChanged: (value) {
                                 setState(() {

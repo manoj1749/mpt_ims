@@ -22,13 +22,13 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
   final _categoryController = TextEditingController();
   final _subCategoryController = TextEditingController();
   final _parameterController = TextEditingController();
-  
+
   // Sample size controllers
   final _sampleSizeLessThan100Controller = TextEditingController();
   final _sampleSize100To500Controller = TextEditingController();
   final _sampleSizeGreaterThan500Controller = TextEditingController();
   final _shelfLifeValueController = TextEditingController();
-  
+
   Category? _selectedCategory;
   Category? _unsavedCategory;
   bool _hasUnsavedChanges = false;
@@ -43,7 +43,7 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
         await ref.read(subCategoryListProvider.notifier).loadSubCategories();
         await ref.read(categoryParameterProvider.notifier).loadMappings();
         await ref.read(universalParameterProvider.notifier).loadParameters();
-        
+
         // Print debug info
         _printBoxContents();
       } catch (e) {
@@ -116,8 +116,6 @@ Mapping for Category: ${mapping.category}
 
     print('\n==== END CATEGORY SETTINGS DATA ====\n');
   }
-
-
 
   void _showAddDialog(String title, String hint, Function(String) onAdd) {
     final controller = title == 'Category'
@@ -270,9 +268,12 @@ Mapping for Category: ${mapping.category}
   }
 
   void _updateTextControllers(Category category) {
-    _sampleSizeLessThan100Controller.text = category.sampleSizeLessThan100?.toString() ?? '';
-    _sampleSize100To500Controller.text = category.sampleSize100To500?.toString() ?? '';
-    _sampleSizeGreaterThan500Controller.text = category.sampleSizeGreaterThan500?.toString() ?? '';
+    _sampleSizeLessThan100Controller.text =
+        category.sampleSizeLessThan100?.toString() ?? '';
+    _sampleSize100To500Controller.text =
+        category.sampleSize100To500?.toString() ?? '';
+    _sampleSizeGreaterThan500Controller.text =
+        category.sampleSizeGreaterThan500?.toString() ?? '';
     _shelfLifeValueController.text = category.shelfLifeValue?.toString() ?? '';
   }
 
@@ -741,10 +742,13 @@ Mapping for Category: ${mapping.category}
                     _selectedCategory = _unsavedCategory;
                     _unsavedCategory = Category(
                       name: _selectedCategory!.name,
-                      requiresQualityCheck: _selectedCategory!.requiresQualityCheck,
-                      sampleSizeLessThan100: _selectedCategory!.sampleSizeLessThan100,
+                      requiresQualityCheck:
+                          _selectedCategory!.requiresQualityCheck,
+                      sampleSizeLessThan100:
+                          _selectedCategory!.sampleSizeLessThan100,
                       sampleSize100To500: _selectedCategory!.sampleSize100To500,
-                      sampleSizeGreaterThan500: _selectedCategory!.sampleSizeGreaterThan500,
+                      sampleSizeGreaterThan500:
+                          _selectedCategory!.sampleSizeGreaterThan500,
                       hasExpiryDate: _selectedCategory!.hasExpiryDate,
                       hasShelfLife: _selectedCategory!.hasShelfLife,
                       shelfLifeValue: _selectedCategory!.shelfLifeValue,

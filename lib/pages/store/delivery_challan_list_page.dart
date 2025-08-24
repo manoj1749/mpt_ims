@@ -16,10 +16,12 @@ class DeliveryChallanListPage extends ConsumerStatefulWidget {
   const DeliveryChallanListPage({super.key});
 
   @override
-  ConsumerState<DeliveryChallanListPage> createState() => _DeliveryChallanListPageState();
+  ConsumerState<DeliveryChallanListPage> createState() =>
+      _DeliveryChallanListPageState();
 }
 
-class _DeliveryChallanListPageState extends ConsumerState<DeliveryChallanListPage> {
+class _DeliveryChallanListPageState
+    extends ConsumerState<DeliveryChallanListPage> {
   @override
   Widget build(BuildContext context) {
     final deliveryChallans = ref.watch(deliveryChallanListProvider);
@@ -278,7 +280,9 @@ class _DeliveryChallanListPageState extends ConsumerState<DeliveryChallanListPag
       final suppliers = ref.read(supplierListProvider);
       final supplier = suppliers.firstWhere(
         (s) => s.name == dc.vendorName,
-        orElse: () => suppliers.isNotEmpty ? suppliers.first : throw Exception('No suppliers found'),
+        orElse: () => suppliers.isNotEmpty
+            ? suppliers.first
+            : throw Exception('No suppliers found'),
       );
 
       if (!mounted) return;
@@ -304,10 +308,11 @@ class _DeliveryChallanListPageState extends ConsumerState<DeliveryChallanListPag
       );
 
       final materials = ref.read(materialListProvider);
-      final success = await PDFService.saveDeliveryChallan(dc, supplier, materials: materials);
-      
+      final success = await PDFService.saveDeliveryChallan(dc, supplier,
+          materials: materials);
+
       Navigator.pop(context); // Close loading dialog
-      
+
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -339,7 +344,9 @@ class _DeliveryChallanListPageState extends ConsumerState<DeliveryChallanListPag
       final suppliers = ref.read(supplierListProvider);
       final supplier = suppliers.firstWhere(
         (s) => s.name == dc.vendorName,
-        orElse: () => suppliers.isNotEmpty ? suppliers.first : throw Exception('No suppliers found'),
+        orElse: () => suppliers.isNotEmpty
+            ? suppliers.first
+            : throw Exception('No suppliers found'),
       );
 
       if (!mounted) return;
@@ -365,16 +372,18 @@ class _DeliveryChallanListPageState extends ConsumerState<DeliveryChallanListPag
       );
 
       final materials = ref.read(materialListProvider);
-      final success = await PDFService.saveDeliveryChallanToDownloads(dc, supplier, materials: materials);
-      
+      final success = await PDFService.saveDeliveryChallanToDownloads(
+          dc, supplier,
+          materials: materials);
+
       Navigator.pop(context); // Close loading dialog
-      
+
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(Platform.isMacOS || Platform.isIOS 
-              ? 'PDF saved to Documents folder successfully!' 
-              : 'PDF saved to Downloads folder successfully!'),
+            content: Text(Platform.isMacOS || Platform.isIOS
+                ? 'PDF saved to Documents folder successfully!'
+                : 'PDF saved to Downloads folder successfully!'),
             backgroundColor: Colors.green,
           ),
         );

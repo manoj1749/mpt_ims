@@ -302,21 +302,24 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           'actualWeight': PlutoCell(value: m.actualWeight),
           'storageLocation': PlutoCell(value: m.storageLocation),
           'rackNumber': PlutoCell(value: m.rackNumber),
-          'binNumber': PlutoCell(value: m.binNumber?.isEmpty ?? true ? '-' : m.binNumber),
-          'hsnCode': PlutoCell(value: m.hsnCode?.isEmpty ?? true ? '-' : m.hsnCode),
+          'binNumber': PlutoCell(
+              value: m.binNumber?.isEmpty ?? true ? '-' : m.binNumber),
+          'hsnCode':
+              PlutoCell(value: m.hsnCode?.isEmpty ?? true ? '-' : m.hsnCode),
           'preferredVendor': PlutoCell(value: m.getPreferredVendorName()),
           'bestRate': PlutoCell(
               value: m.getLowestPurchaseRate().isEmpty
                   ? '-'
                   : '₹${m.getLowestPurchaseRate()}'),
           'vendorCount': PlutoCell(value: m.getVendorCount()),
-          'saleRate': PlutoCell(
-              value: m.saleRate.isEmpty
-                  ? '-'
-                  : '₹${m.saleRate}'),
-          'stock': PlutoCell(value: '-'), // Stock info moved to stock maintenance
-          'inspectionStock': PlutoCell(value: '-'), // Inspection stock moved to quality
-          'stockValue': PlutoCell(value: '-'), // Stock value moved to stock maintenance
+          'saleRate':
+              PlutoCell(value: m.saleRate.isEmpty ? '-' : '₹${m.saleRate}'),
+          'stock':
+              PlutoCell(value: '-'), // Stock info moved to stock maintenance
+          'inspectionStock':
+              PlutoCell(value: '-'), // Inspection stock moved to quality
+          'stockValue':
+              PlutoCell(value: '-'), // Stock value moved to stock maintenance
           'totalReceived': PlutoCell(value: '-'), // Moved to stock maintenance
           'vendorIssued': PlutoCell(value: '-'), // Moved to stock maintenance
           'vendorReceived': PlutoCell(value: '-'), // Moved to stock maintenance
@@ -519,7 +522,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                       Expanded(child: Text('₹${rate.baseRate}')),
                       Expanded(child: Text('₹${rate.purchaseRate}')),
                       Expanded(child: Text(rate.lastPurchaseDate)),
-                      Expanded(child: Icon(
+                      Expanded(
+                          child: Icon(
                         rate.isPreferred ? Icons.star : Icons.star_border,
                         color: rate.isPreferred ? Colors.amber : Colors.grey,
                       )),

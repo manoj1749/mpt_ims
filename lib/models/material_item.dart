@@ -92,11 +92,12 @@ class MaterialItem extends HiveObject {
               lastPurchaseDate: '',
               remarks: '',
             )
-          : vendorRates.reduce((a, b) =>
-              double.parse(a.purchaseRate.isEmpty ? '999999' : a.purchaseRate) <=
-                      double.parse(b.purchaseRate.isEmpty ? '999999' : b.purchaseRate)
-                  ? a
-                  : b),
+          : vendorRates.reduce((a, b) => double.parse(
+                      a.purchaseRate.isEmpty ? '999999' : a.purchaseRate) <=
+                  double.parse(
+                      b.purchaseRate.isEmpty ? '999999' : b.purchaseRate)
+              ? a
+              : b),
     );
 
     return preferredRate.vendorId;
@@ -137,9 +138,8 @@ class MaterialItem extends HiveObject {
   List<VendorMaterialRate> getRankedVendors() {
     final rates = List<VendorMaterialRate>.from(vendorRates);
     // Sort by base rate
-    rates.sort((a, b) =>
-        (double.tryParse(a.purchaseRate) ?? double.infinity)
-            .compareTo(double.tryParse(b.purchaseRate) ?? double.infinity));
+    rates.sort((a, b) => (double.tryParse(a.purchaseRate) ?? double.infinity)
+        .compareTo(double.tryParse(b.purchaseRate) ?? double.infinity));
     return rates;
   }
 
@@ -161,7 +161,8 @@ class MaterialItem extends HiveObject {
 
   // Update an existing vendor rate
   void updateVendorRate(VendorMaterialRate updatedRate) {
-    final index = vendorRates.indexWhere((r) => r.vendorId == updatedRate.vendorId);
+    final index =
+        vendorRates.indexWhere((r) => r.vendorId == updatedRate.vendorId);
     if (index != -1) {
       vendorRates[index] = updatedRate;
     }

@@ -89,7 +89,7 @@ class _MaterialIssueListPageState extends ConsumerState<MaterialIssueListPage> {
                 (mi) =>
                     mi.issueNo == rendererContext.row.cells['issueNo']!.value,
               );
-          
+
           if (issue == null) {
             return const SizedBox.shrink();
           }

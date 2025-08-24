@@ -292,7 +292,7 @@ class _AddMaterialRequestPageState
         unit: item.unitController.text,
         quantity: quantity
             .toString(), // Convert to string since the model expects a string
-        issueNo: widget.existingIssue?.issueNo ?? 
+        issueNo: widget.existingIssue?.issueNo ??
             ref.read(materialRequestProvider.notifier).generateRequestNumber(),
       );
     }).toList();

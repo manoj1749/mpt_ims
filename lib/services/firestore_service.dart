@@ -126,14 +126,16 @@ class FirestoreService {
       'vendorGstin': dc.vendorGstin,
       'isReturnable': dc.isReturnable,
       'note': dc.note,
-      'items': dc.items.map((item) => {
-        'materialCode': item.materialCode,
-        'materialDescription': item.materialDescription,
-        'unit': item.unit,
-        'quantity': item.quantity,
-        'jobNo': item.jobNo,
-        'prNo': item.prNo,
-      }).toList(),
+      'items': dc.items
+          .map((item) => {
+                'materialCode': item.materialCode,
+                'materialDescription': item.materialDescription,
+                'unit': item.unit,
+                'quantity': item.quantity,
+                'jobNo': item.jobNo,
+                'prNo': item.prNo,
+              })
+          .toList(),
     };
   }
 
@@ -146,14 +148,16 @@ class FirestoreService {
       vendorGstin: data['vendorGstin'],
       isReturnable: data['isReturnable'],
       note: data['note'],
-      items: (data['items'] as List).map((item) => DeliveryChallanItem(
-        materialCode: item['materialCode'],
-        materialDescription: item['materialDescription'],
-        unit: item['unit'],
-        quantity: item['quantity'].toDouble(),
-        jobNo: item['jobNo'],
-        prNo: item['prNo'],
-      )).toList(),
+      items: (data['items'] as List)
+          .map((item) => DeliveryChallanItem(
+                materialCode: item['materialCode'],
+                materialDescription: item['materialDescription'],
+                unit: item['unit'],
+                quantity: item['quantity'].toDouble(),
+                jobNo: item['jobNo'],
+                prNo: item['prNo'],
+              ))
+          .toList(),
     );
   }
 
@@ -210,4 +214,4 @@ class FirestoreService {
     // TODO: Implement conversion
     throw UnimplementedError();
   }
-} 
+}

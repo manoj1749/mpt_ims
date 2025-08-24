@@ -298,7 +298,8 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
                     color: Colors.black,
                     child: Row(
                       children: [
-                        _buildExcelCell('Sl No', width: slNoWidth, center: true),
+                        _buildExcelCell('Sl No',
+                            width: slNoWidth, center: true),
                         _buildExcelCell('Customer Name', width: nameWidth),
                         _buildExcelCell('Customer Code', width: codeWidth),
                         Container(

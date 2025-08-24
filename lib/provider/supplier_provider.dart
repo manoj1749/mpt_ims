@@ -85,13 +85,14 @@ class SupplierNotifier extends BaseProvider<Supplier> {
       await update(supplier);
     }
   }
+
   Future<void> deleteSupplier(Supplier supplier) => delete(supplier);
 
   // Generate next sequential supplier code
   String generateNextSupplierCode() {
     final suppliers = state;
     int maxNumber = 0;
-    
+
     // Find the highest existing number in AISM-xxxxx format
     for (var supplier in suppliers) {
       final code = supplier.vendorCode;
@@ -103,7 +104,7 @@ class SupplierNotifier extends BaseProvider<Supplier> {
         }
       }
     }
-    
+
     // Generate next sequential number with leading zeros
     final nextNumber = maxNumber + 1;
     return 'AISM-${nextNumber.toString().padLeft(5, '0')}';
@@ -120,11 +121,13 @@ class SupplierNotifier extends BaseProvider<Supplier> {
 
   List<Supplier> searchSuppliers(String query) {
     final lowercaseQuery = query.toLowerCase();
-    return state.where((supplier) =>
-        supplier.name.toLowerCase().contains(lowercaseQuery) ||
-        supplier.vendorCode.toLowerCase().contains(lowercaseQuery) ||
-        supplier.contact.toLowerCase().contains(lowercaseQuery) ||
-        supplier.phone.toLowerCase().contains(lowercaseQuery) ||
-        supplier.email.toLowerCase().contains(lowercaseQuery)).toList();
+    return state
+        .where((supplier) =>
+            supplier.name.toLowerCase().contains(lowercaseQuery) ||
+            supplier.vendorCode.toLowerCase().contains(lowercaseQuery) ||
+            supplier.contact.toLowerCase().contains(lowercaseQuery) ||
+            supplier.phone.toLowerCase().contains(lowercaseQuery) ||
+            supplier.email.toLowerCase().contains(lowercaseQuery))
+        .toList();
   }
 }

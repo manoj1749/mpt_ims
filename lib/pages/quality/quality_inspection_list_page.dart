@@ -734,7 +734,8 @@ class _QualityInspectionListPageState
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Cannot delete inspection ${inspection.inspectionNo} - Quality inspections cannot be deleted once created'),
+                    content: Text(
+                        'Cannot delete inspection ${inspection.inspectionNo} - Quality inspections cannot be deleted once created'),
                     backgroundColor: Colors.red,
                     duration: const Duration(seconds: 3),
                   ),

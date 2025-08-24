@@ -377,7 +377,7 @@ class _StockDetailsViewState extends State<StockDetailsView> {
   Widget _buildSummaryView() {
     // Create a map to store aggregated quantities by job
     Map<String, Map<String, double>> jobTotals = {};
-    
+
     // Initialize with all job numbers
     Set<String> allJobNumbers = {};
     for (var entry in widget.stock.prDetails.entries) {
@@ -390,7 +390,7 @@ class _StockDetailsViewState extends State<StockDetailsView> {
       };
     }
     allJobNumbers.addAll(widget.stock.jobDetails.keys);
-    
+
     // Calculate totals from GRN details
     for (var grnEntry in widget.stock.grnDetails.entries) {
       final grnDetail = grnEntry.value;
@@ -401,15 +401,17 @@ class _StockDetailsViewState extends State<StockDetailsView> {
           final prNo = prEntry.key;
           final qty = prEntry.value;
           final jobNo = widget.stock.prDetails[prNo]?.jobNo ?? 'General';
-          jobTotals.putIfAbsent(jobNo, () => {'received': 0.0, 'issued': 0.0, 'pendingDelivery': 0.0});
+          jobTotals.putIfAbsent(jobNo,
+              () => {'received': 0.0, 'issued': 0.0, 'pendingDelivery': 0.0});
           if (grnDetail.acceptedQuantity > 0) {
             // Only count accepted quantities
-            jobTotals[jobNo]!['received'] = (jobTotals[jobNo]!['received'] ?? 0.0) + qty;
+            jobTotals[jobNo]!['received'] =
+                (jobTotals[jobNo]!['received'] ?? 0.0) + qty;
           }
         }
       }
     }
-    
+
     // Add issued quantities and pending deliveries
     for (var jobEntry in widget.stock.jobDetails.entries) {
       final jobNo = jobEntry.key;
@@ -421,8 +423,9 @@ class _StockDetailsViewState extends State<StockDetailsView> {
     Map<String, List<MapEntry<String, StockPRDetails>>> jobWiseStock = {};
     for (var jobNo in allJobNumbers) {
       jobWiseStock[jobNo] = widget.stock.prDetails.entries
-          .where((entry) => entry.value.jobNo == jobNo || 
-                          (jobNo == 'General' && entry.value.jobNo.isEmpty))
+          .where((entry) =>
+              entry.value.jobNo == jobNo ||
+              (jobNo == 'General' && entry.value.jobNo.isEmpty))
           .toList();
     }
 
@@ -449,7 +452,7 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                   final received = totals['received'] ?? 0.0;
                   final issued = totals['issued'] ?? 0.0;
                   final pendingDelivery = totals['pendingDelivery'] ?? 0.0;
-                  
+
                   // Skip this job if no activity
                   if (received <= 0 && issued <= 0 && pendingDelivery <= 0) {
                     return const SizedBox.shrink();
@@ -494,16 +497,18 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                                       '${(received - issued).toStringAsFixed(2)} ${widget.stock.unit}'),
                                 ],
                               ),
-                              if (pendingDelivery > 0) Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Pending Delivery:'),
-                                  Text(
-                                      '${pendingDelivery.toStringAsFixed(2)} ${widget.stock.unit}',
-                                      style: const TextStyle(color: Colors.orange)),
-                                ],
-                              ),
+                              if (pendingDelivery > 0)
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Pending Delivery:'),
+                                    Text(
+                                        '${pendingDelivery.toStringAsFixed(2)} ${widget.stock.unit}',
+                                        style: const TextStyle(
+                                            color: Colors.orange)),
+                                  ],
+                                ),
                             ],
                           ),
                         ),
@@ -512,17 +517,19 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                     children: [
                       // Show PR details for this job
                       ...widget.stock.prDetails.entries
-                          .where((prEntry) => 
-                            (prEntry.value.jobNo == jobNo) || 
-                            (jobNo == 'General' && prEntry.value.jobNo.isEmpty))
+                          .where((prEntry) =>
+                              (prEntry.value.jobNo == jobNo) ||
+                              (jobNo == 'General' &&
+                                  prEntry.value.jobNo.isEmpty))
                           .map((prEntry) {
                         final prNo = prEntry.key;
                         final pr = prEntry.value;
-                        
+
                         // Find vendor details from PO
                         String vendorName = '';
                         for (var poDetail in widget.stock.poDetails.entries) {
-                          for (var grnQtys in poDetail.value.receivedQuantities.values) {
+                          for (var grnQtys
+                              in poDetail.value.receivedQuantities.values) {
                             if (grnQtys.containsKey(prNo)) {
                               vendorName = poDetail.value.vendorId;
                               break;
@@ -538,31 +545,38 @@ class _StockDetailsViewState extends State<StockDetailsView> {
                             children: [
                               Text(
                                 'PR: $prNo | Vendor: $vendorName',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                               Padding(
                                 padding: const EdgeInsets.only(left: 16.0),
                                 child: Column(
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         const Text('Received:'),
-                                        Text('${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                        Text(
+                                            '${pr.receivedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
                                       ],
                                     ),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         const Text('Issued:'),
-                                        Text('${pr.issuedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
+                                        Text(
+                                            '${pr.issuedQuantity.toStringAsFixed(2)} ${widget.stock.unit}'),
                                       ],
                                     ),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         const Text('Available:'),
-                                        Text('${(pr.receivedQuantity - pr.issuedQuantity).toStringAsFixed(2)} ${widget.stock.unit}'),
+                                        Text(
+                                            '${(pr.receivedQuantity - pr.issuedQuantity).toStringAsFixed(2)} ${widget.stock.unit}'),
                                       ],
                                     ),
                                   ],
@@ -606,59 +620,64 @@ class _StockDetailsViewState extends State<StockDetailsView> {
         final grn = grnEntry.value;
         final grnNo = grnEntry.key;
 
-                          // For each PO, show all PRs for this GRN
-                  final prRows = <Widget>[];
-                  widget.stock.poDetails.forEach((poNo, po) {
-                    if (po.vendorId == grn.vendorId) {  // Only show PRs from this vendor's PO
-                      final receivedQtys = po.receivedQuantities[grnNo];
-                      if (receivedQtys != null) {
-                        receivedQtys.forEach((prNo, qty) {
-                          if (qty > 0) {
-                            final issuedQty = grn.issuedQuantities[prNo] ?? 0.0;
-                            final prDetail = widget.stock.prDetails[prNo];
-                            final jobNo = prDetail?.jobNo ?? 'General';
-                            final jobDetail = widget.stock.jobDetails[jobNo];
-                            
-                            prRows.add(
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                    left: 16.0, top: 4.0, bottom: 4.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          prNo == 'General' 
-                                            ? 'General Stock' 
-                                            : 'PR: $prNo | Job: $jobNo',
-                                          style: Theme.of(context).textTheme.bodySmall,
-                                        ),
-                                        Text(
-                                          'Received: ${qty.toStringAsFixed(2)} | Issued: ${issuedQty.toStringAsFixed(2)} | Available: ${(qty - issuedQty).toStringAsFixed(2)} ${widget.stock.unit}',
-                                          style: Theme.of(context).textTheme.bodySmall,
-                                        ),
-                                      ],
-                                    ),
-                                    if (jobDetail != null) Padding(
-                                      padding: const EdgeInsets.only(left: 24.0),
-                                      child: Text(
-                                        'Job Details - Allocated: ${jobDetail.allocatedQuantity} | Consumed: ${jobDetail.consumedQuantity}',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+        // For each PO, show all PRs for this GRN
+        final prRows = <Widget>[];
+        widget.stock.poDetails.forEach((poNo, po) {
+          if (po.vendorId == grn.vendorId) {
+            // Only show PRs from this vendor's PO
+            final receivedQtys = po.receivedQuantities[grnNo];
+            if (receivedQtys != null) {
+              receivedQtys.forEach((prNo, qty) {
+                if (qty > 0) {
+                  final issuedQty = grn.issuedQuantities[prNo] ?? 0.0;
+                  final prDetail = widget.stock.prDetails[prNo];
+                  final jobNo = prDetail?.jobNo ?? 'General';
+                  final jobDetail = widget.stock.jobDetails[jobNo];
+
+                  prRows.add(
+                    Padding(
+                      padding: const EdgeInsets.only(
+                          left: 16.0, top: 4.0, bottom: 4.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                prNo == 'General'
+                                    ? 'General Stock'
+                                    : 'PR: $prNo | Job: $jobNo',
+                                style: Theme.of(context).textTheme.bodySmall,
                               ),
-                            );
-                          }
-                        });
-                      }
-                    }
-                  });
+                              Text(
+                                'Received: ${qty.toStringAsFixed(2)} | Issued: ${issuedQty.toStringAsFixed(2)} | Available: ${(qty - issuedQty).toStringAsFixed(2)} ${widget.stock.unit}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                          if (jobDetail != null)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 24.0),
+                              child: Text(
+                                'Job Details - Allocated: ${jobDetail.allocatedQuantity} | Consumed: ${jobDetail.consumedQuantity}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Colors.grey[600],
+                                    ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+              });
+            }
+          }
+        });
 
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4.0),

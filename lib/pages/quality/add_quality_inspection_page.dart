@@ -611,7 +611,7 @@ class _AddQualityInspectionPageState
         selectedGRNQty.rejectedQty = 0.0;
         selectedItem.acceptedQty = selectedGRNQty.receivedQty;
         selectedItem.rejectedQty = 0.0;
-        
+
         // Update the grnQuantities map with the final quantities
         selectedItem.grnQuantities[selectedGRNEntry.key] = selectedGRNQty;
       } else if (selectedGRNQty.usageDecision == 'Rejected') {
@@ -620,7 +620,7 @@ class _AddQualityInspectionPageState
         selectedGRNQty.rejectedQty = selectedGRNQty.receivedQty;
         selectedItem.acceptedQty = 0.0;
         selectedItem.rejectedQty = selectedGRNQty.receivedQty;
-        
+
         // Update the grnQuantities map with the final quantities
         selectedItem.grnQuantities[selectedGRNEntry.key] = selectedGRNQty;
       } else if (selectedGRNQty.usageDecision == '100% Recheck') {
@@ -635,7 +635,7 @@ class _AddQualityInspectionPageState
           // Set the final usage decision to indicate it was accepted after recheck
           selectedGRNQty.usageDecision = 'Accepted After 100% Recheck';
           selectedItem.usageDecision = 'Accepted After 100% Recheck';
-          
+
           // Update the grnQuantities map with the final quantities
           selectedItem.grnQuantities[selectedGRNEntry.key] = selectedGRNQty;
 
@@ -716,7 +716,7 @@ class _AddQualityInspectionPageState
           selectedGRNQty.usageDecision =
               'Partially Accepted After 100% Recheck';
           selectedItem.usageDecision = 'Partially Accepted After 100% Recheck';
-          
+
           // Update the grnQuantities map with the final quantities
           selectedItem.grnQuantities[selectedGRNEntry.key] = selectedGRNQty;
 
@@ -755,7 +755,7 @@ class _AddQualityInspectionPageState
       // Update pending quantity
       selectedItem.pendingQty = selectedGRNQty.receivedQty -
           (selectedGRNQty.acceptedQty + selectedGRNQty.rejectedQty);
-      
+
       // Update the grnQuantities map with the final quantities
       selectedItem.grnQuantities[selectedGRNEntry.key] = selectedGRNQty;
 

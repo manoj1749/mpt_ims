@@ -31,12 +31,12 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
   @override
   void initState() {
     super.initState();
-    
+
     // Add listener to end date controller to rebuild UI when text changes
     _endDateController.addListener(() {
       setState(() {});
     });
-    
+
     if (widget.order != null) {
       // Edit mode - populate fields
       _orderNo = widget.order!.orderNo;
@@ -216,7 +216,8 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                           labelText: 'Job No',
                           border: const OutlineInputBorder(),
                           filled: widget.order != null,
-                          fillColor: widget.order != null ? Colors.grey[600] : null,
+                          fillColor:
+                              widget.order != null ? Colors.grey[600] : null,
                         ),
                         style: TextStyle(
                           color: widget.order != null ? Colors.grey[400] : null,
@@ -225,17 +226,21 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                           if (value?.isEmpty == true) {
                             return 'Required';
                           }
-                          
+
                           // Check for duplicate job numbers (only when creating new order)
-                          if (widget.order == null && value != null && value.isNotEmpty) {
+                          if (widget.order == null &&
+                              value != null &&
+                              value.isNotEmpty) {
                             final existingOrders = ref.read(saleOrderProvider);
-                            final duplicateExists = existingOrders.any((order) => 
-                                order.boardNo.toLowerCase() == value.toLowerCase());
+                            final duplicateExists = existingOrders.any(
+                                (order) =>
+                                    order.boardNo.toLowerCase() ==
+                                    value.toLowerCase());
                             if (duplicateExists) {
                               return 'Job number already exists';
                             }
                           }
-                          
+
                           return null;
                         },
                       ),

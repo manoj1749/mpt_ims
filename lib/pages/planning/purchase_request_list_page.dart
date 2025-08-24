@@ -312,7 +312,7 @@ class _PurchaseRequestListPageState
 
       for (var row in rows) {
         final rowData = <String>[];
-        
+
         // Extract data in the order of headers
         rowData.add(row.cells['serialNo']?.value.toString() ?? '');
         rowData.add(''); // Sale Order No - not available in current model
@@ -324,12 +324,17 @@ class _PurchaseRequestListPageState
         rowData.add(row.cells['prQty']?.value.toString() ?? '');
         rowData.add(row.cells['unit']?.value.toString() ?? '');
         rowData.add(row.cells['requestedBy']?.value.toString() ?? '');
-        rowData.add(row.cells['stockTransfer']?.value.toString().replaceAll('\n', '; ') ?? '');
-        rowData.add(row.cells['poDetails']?.value.toString().replaceAll('\n', '; ') ?? '');
+        rowData.add(row.cells['stockTransfer']?.value
+                .toString()
+                .replaceAll('\n', '; ') ??
+            '');
+        rowData.add(
+            row.cells['poDetails']?.value.toString().replaceAll('\n', '; ') ??
+                '');
         rowData.add(row.cells['orderedQty']?.value.toString() ?? '');
         rowData.add(row.cells['pendingQty']?.value.toString() ?? '');
         rowData.add(row.cells['status']?.value.toString() ?? '');
-        
+
         csvData.add(rowData);
       }
 
@@ -382,19 +387,19 @@ class _PurchaseRequestListPageState
               ),
               fillColor: Colors.grey[800],
               filled: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
             style: const TextStyle(color: Colors.white),
             dropdownColor: Colors.grey[800],
             value: _selectedStatus,
-            items: [
-              'Active',
-              'Completed',
-              'All'
-            ].map((status) => DropdownMenuItem(
-                  value: status,
-                  child: Text(status, style: const TextStyle(color: Colors.white)),
-                )).toList(),
+            items: ['Active', 'Completed', 'All']
+                .map((status) => DropdownMenuItem(
+                      value: status,
+                      child: Text(status,
+                          style: const TextStyle(color: Colors.white)),
+                    ))
+                .toList(),
             onChanged: (value) {
               if (value != null) {
                 setState(() {
@@ -446,7 +451,8 @@ class _PurchaseRequestListPageState
               Navigator.pop(context);
               _quickExport();
             },
-            child: Text('Quick Export', style: TextStyle(color: Colors.grey[200])),
+            child:
+                Text('Quick Export', style: TextStyle(color: Colors.grey[200])),
           ),
           ElevatedButton(
             onPressed: () {
@@ -568,7 +574,8 @@ class _PurchaseRequestListPageState
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                _exportWithFilters(startDate, endDate, jobNumberFilter, partNumberFilter);
+                _exportWithFilters(
+                    startDate, endDate, jobNumberFilter, partNumberFilter);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
@@ -581,7 +588,8 @@ class _PurchaseRequestListPageState
     );
   }
 
-  void _exportWithFilters(DateTime? startDate, DateTime? endDate, String jobNumberFilter, String partNumberFilter) {
+  void _exportWithFilters(DateTime? startDate, DateTime? endDate,
+      String jobNumberFilter, String partNumberFilter) {
     final allRequests = ref.read(purchaseRequestListProvider);
     final purchaseOrders = ref.read(purchaseOrderListProvider);
     final storeInwards = ref.read(storeInwardProvider);
@@ -600,7 +608,10 @@ class _PurchaseRequestListPageState
 
       // Job number filter
       if (jobNumberFilter.isNotEmpty) {
-        if (!(request.jobNo?.toLowerCase().contains(jobNumberFilter.toLowerCase()) ?? false)) {
+        if (!(request.jobNo
+                ?.toLowerCase()
+                .contains(jobNumberFilter.toLowerCase()) ??
+            false)) {
           return false;
         }
       }
@@ -609,8 +620,12 @@ class _PurchaseRequestListPageState
       if (partNumberFilter.isNotEmpty) {
         bool hasMatch = false;
         for (var item in request.items) {
-          if (item.materialCode.toLowerCase().contains(partNumberFilter.toLowerCase()) ||
-              item.materialDescription.toLowerCase().contains(partNumberFilter.toLowerCase())) {
+          if (item.materialCode
+                  .toLowerCase()
+                  .contains(partNumberFilter.toLowerCase()) ||
+              item.materialDescription
+                  .toLowerCase()
+                  .contains(partNumberFilter.toLowerCase())) {
             hasMatch = true;
             break;
           }
@@ -632,10 +647,11 @@ class _PurchaseRequestListPageState
     // Apply status filter only
     var filteredRequests = requests.where((pr) {
       if (_selectedStatus == 'Active' && pr.status == 'Completed') return false;
-      if (_selectedStatus != 'All' && _selectedStatus != 'Active' && pr.status != _selectedStatus) return false;
+      if (_selectedStatus != 'All' &&
+          _selectedStatus != 'Active' &&
+          pr.status != _selectedStatus) return false;
       return true;
     }).toList();
-
 
     final rows = <PlutoRow>[];
     var serialNo = 1;

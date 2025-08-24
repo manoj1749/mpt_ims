@@ -26,7 +26,8 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
   final StockMaintenanceNotifier stockMaintenance;
   final StoreInwardNotifier storeInward;
 
-  QualityInspectionNotifier(Box<QualityInspection> box, this.stockMaintenance, this.storeInward)
+  QualityInspectionNotifier(
+      Box<QualityInspection> box, this.stockMaintenance, this.storeInward)
       : super(box, 'qualityInspections');
 
   @override
@@ -53,41 +54,46 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
       'capaTargetDate': inspection.capaTargetDate,
       'capaCompletionDate': inspection.capaCompletionDate,
       'capaActions': inspection.capaActions,
-      'items': inspection.items.map((item) => {
-        'materialCode': item.materialCode,
-        'materialDescription': item.materialDescription,
-        'unit': item.unit,
-        'category': item.category,
-        'receivedQty': item.receivedQty,
-        'costPerUnit': item.costPerUnit,
-        'totalCost': item.totalCost,
-        'sampleSize': item.sampleSize,
-        'inspectedQty': item.inspectedQty,
-        'acceptedQty': item.acceptedQty,
-        'rejectedQty': item.rejectedQty,
-        'pendingQty': item.pendingQty,
-        'usageDecision': item.usageDecision,
-        'receivedDate': item.receivedDate,
-        'expirationDate': item.expirationDate,
-        'capaRequired': item.capaRequired,
-        'inspectionRemark': item.inspectionRemark,
-        'grnQuantities': item.grnQuantities.map((key, value) => MapEntry(key, {
-          'receivedQty': value.receivedQty,
-          'acceptedQty': value.acceptedQty,
-          'rejectedQty': value.rejectedQty,
-          'usageDecision': value.usageDecision,
-          'poNo': value.poNo,
-          'poDate': value.poDate,
-          'recheckType': value.recheckType,
-          'isSelected': value.isSelected,
-        })),
-        'parameters': item.parameters.map((param) => {
-          'parameter': param.parameter,
-          'isAcceptable': param.isAcceptable,
-          'observation': param.observation,
-          'result': param.result,
-        }).toList(),
-      }).toList(),
+      'items': inspection.items
+          .map((item) => {
+                'materialCode': item.materialCode,
+                'materialDescription': item.materialDescription,
+                'unit': item.unit,
+                'category': item.category,
+                'receivedQty': item.receivedQty,
+                'costPerUnit': item.costPerUnit,
+                'totalCost': item.totalCost,
+                'sampleSize': item.sampleSize,
+                'inspectedQty': item.inspectedQty,
+                'acceptedQty': item.acceptedQty,
+                'rejectedQty': item.rejectedQty,
+                'pendingQty': item.pendingQty,
+                'usageDecision': item.usageDecision,
+                'receivedDate': item.receivedDate,
+                'expirationDate': item.expirationDate,
+                'capaRequired': item.capaRequired,
+                'inspectionRemark': item.inspectionRemark,
+                'grnQuantities':
+                    item.grnQuantities.map((key, value) => MapEntry(key, {
+                          'receivedQty': value.receivedQty,
+                          'acceptedQty': value.acceptedQty,
+                          'rejectedQty': value.rejectedQty,
+                          'usageDecision': value.usageDecision,
+                          'poNo': value.poNo,
+                          'poDate': value.poDate,
+                          'recheckType': value.recheckType,
+                          'isSelected': value.isSelected,
+                        })),
+                'parameters': item.parameters
+                    .map((param) => {
+                          'parameter': param.parameter,
+                          'isAcceptable': param.isAcceptable,
+                          'observation': param.observation,
+                          'result': param.result,
+                        })
+                    .toList(),
+              })
+          .toList(),
     };
   }
 
@@ -115,44 +121,68 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
       capaTargetDate: map['capaTargetDate'],
       capaCompletionDate: map['capaCompletionDate'],
       capaActions: List<String>.from(map['capaActions'] ?? []),
-      items: (map['items'] as List<dynamic>?)?.map((item) => InspectionItem(
-        materialCode: item['materialCode'] ?? '',
-        materialDescription: item['materialDescription'] ?? '',
-        unit: item['unit'] ?? '',
-        category: item['category'] ?? '',
-        receivedQty: (item['receivedQty'] as num?)?.toDouble() ?? 0.0,
-        costPerUnit: (item['costPerUnit'] as num?)?.toDouble() ?? 0.0,
-        totalCost: (item['totalCost'] as num?)?.toDouble() ?? 0.0,
-        sampleSize: (item['sampleSize'] as num?)?.toDouble() ?? 0.0,
-        inspectedQty: (item['inspectedQty'] as num?)?.toDouble() ?? 0.0,
-        acceptedQty: (item['acceptedQty'] as num?)?.toDouble() ?? 0.0,
-        rejectedQty: (item['rejectedQty'] as num?)?.toDouble() ?? 0.0,
-        pendingQty: (item['pendingQty'] as num?)?.toDouble() ?? 0.0,
-        usageDecision: item['usageDecision'] ?? 'Lot Accepted',
-        receivedDate: item['receivedDate'] ?? '',
-        expirationDate: item['expirationDate'] ?? '',
-        capaRequired: item['capaRequired'] ?? false,
-        inspectionRemark: item['inspectionRemark'],
-        grnQuantities: (item['grnQuantities'] as Map<String, dynamic>?)?.map((key, value) {
-          print('DEBUG: Deserializing grnQuantities for key: $key, value: $value');
-          return MapEntry(key, InspectionGRNQuantity(
-            receivedQty: (value['receivedQty'] as num?)?.toDouble() ?? 0.0,
-            acceptedQty: (value['acceptedQty'] as num?)?.toDouble() ?? 0.0,
-            rejectedQty: (value['rejectedQty'] as num?)?.toDouble() ?? 0.0,
-            usageDecision: value['usageDecision'] ?? 'Lot Accepted',
-            poNo: value['poNo'],
-            poDate: value['poDate'],
-            recheckType: value['recheckType'],
-            isSelected: value['isSelected'] ?? false,
-          ));
-        }) ?? {},
-        parameters: (item['parameters'] as List<dynamic>?)?.map((param) => QualityParameter(
-          parameter: param['parameter'] ?? '',
-          isAcceptable: param['isAcceptable'] ?? true,
-          observation: param['observation'] ?? '',
-          result: param['result'] ?? 'OK',
-        )).toList() ?? [],
-      )).toList() ?? [],
+      items: (map['items'] as List<dynamic>?)
+              ?.map((item) => InspectionItem(
+                    materialCode: item['materialCode'] ?? '',
+                    materialDescription: item['materialDescription'] ?? '',
+                    unit: item['unit'] ?? '',
+                    category: item['category'] ?? '',
+                    receivedQty:
+                        (item['receivedQty'] as num?)?.toDouble() ?? 0.0,
+                    costPerUnit:
+                        (item['costPerUnit'] as num?)?.toDouble() ?? 0.0,
+                    totalCost: (item['totalCost'] as num?)?.toDouble() ?? 0.0,
+                    sampleSize: (item['sampleSize'] as num?)?.toDouble() ?? 0.0,
+                    inspectedQty:
+                        (item['inspectedQty'] as num?)?.toDouble() ?? 0.0,
+                    acceptedQty:
+                        (item['acceptedQty'] as num?)?.toDouble() ?? 0.0,
+                    rejectedQty:
+                        (item['rejectedQty'] as num?)?.toDouble() ?? 0.0,
+                    pendingQty: (item['pendingQty'] as num?)?.toDouble() ?? 0.0,
+                    usageDecision: item['usageDecision'] ?? 'Lot Accepted',
+                    receivedDate: item['receivedDate'] ?? '',
+                    expirationDate: item['expirationDate'] ?? '',
+                    capaRequired: item['capaRequired'] ?? false,
+                    inspectionRemark: item['inspectionRemark'],
+                    grnQuantities: (item['grnQuantities']
+                                as Map<String, dynamic>?)
+                            ?.map((key, value) {
+                          print(
+                              'DEBUG: Deserializing grnQuantities for key: $key, value: $value');
+                          return MapEntry(
+                              key,
+                              InspectionGRNQuantity(
+                                receivedQty: (value['receivedQty'] as num?)
+                                        ?.toDouble() ??
+                                    0.0,
+                                acceptedQty: (value['acceptedQty'] as num?)
+                                        ?.toDouble() ??
+                                    0.0,
+                                rejectedQty: (value['rejectedQty'] as num?)
+                                        ?.toDouble() ??
+                                    0.0,
+                                usageDecision:
+                                    value['usageDecision'] ?? 'Lot Accepted',
+                                poNo: value['poNo'],
+                                poDate: value['poDate'],
+                                recheckType: value['recheckType'],
+                                isSelected: value['isSelected'] ?? false,
+                              ));
+                        }) ??
+                        {},
+                    parameters: (item['parameters'] as List<dynamic>?)
+                            ?.map((param) => QualityParameter(
+                                  parameter: param['parameter'] ?? '',
+                                  isAcceptable: param['isAcceptable'] ?? true,
+                                  observation: param['observation'] ?? '',
+                                  result: param['result'] ?? 'OK',
+                                ))
+                            .toList() ??
+                        [],
+                  ))
+              .toList() ??
+          [],
     );
   }
 
@@ -168,16 +198,20 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
   // Backward compatibility methods
   Future<void> loadInspections() => loadData();
   Future<void> addInspection(QualityInspection inspection) => add(inspection);
-  Future<void> updateInspection(QualityInspection inspection) => update(inspection);
-  Future<bool> deleteInspection(QualityInspection inspection) => delete(inspection);
+  Future<void> updateInspection(QualityInspection inspection) =>
+      update(inspection);
+  Future<bool> deleteInspection(QualityInspection inspection) =>
+      delete(inspection);
 
   // Search and filter methods
   List<QualityInspection> searchInspections(String query) {
-    return search(query, (inspection, query) =>
-        inspection.inspectionNo.toLowerCase().contains(query) ||
-        inspection.supplierName.toLowerCase().contains(query) ||
-        inspection.poNo.toLowerCase().contains(query) ||
-        inspection.grnNo.toLowerCase().contains(query));
+    return search(
+        query,
+        (inspection, query) =>
+            inspection.inspectionNo.toLowerCase().contains(query) ||
+            inspection.supplierName.toLowerCase().contains(query) ||
+            inspection.poNo.toLowerCase().contains(query) ||
+            inspection.grnNo.toLowerCase().contains(query));
   }
 
   List<QualityInspection> getInspectionsByStatus(String status) {
@@ -185,25 +219,31 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
   }
 
   List<QualityInspection> getInspectionsBySupplier(String supplierName) {
-    return state.where((inspection) => 
-        inspection.supplierName.toLowerCase() == supplierName.toLowerCase()).toList();
+    return state
+        .where((inspection) =>
+            inspection.supplierName.toLowerCase() == supplierName.toLowerCase())
+        .toList();
   }
 
-  List<QualityInspection> getInspectionsByDateRange(DateTime startDate, DateTime endDate) {
+  List<QualityInspection> getInspectionsByDateRange(
+      DateTime startDate, DateTime endDate) {
     return state.where((inspection) {
       try {
-        final inspectionDate = DateFormat('dd/MM/yyyy').parse(inspection.inspectionDate);
-        return inspectionDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
-               inspectionDate.isBefore(endDate.add(const Duration(days: 1)));
-    } catch (e) {
+        final inspectionDate =
+            DateFormat('dd/MM/yyyy').parse(inspection.inspectionDate);
+        return inspectionDate
+                .isAfter(startDate.subtract(const Duration(days: 1))) &&
+            inspectionDate.isBefore(endDate.add(const Duration(days: 1)));
+      } catch (e) {
         return false;
-    }
+      }
     }).toList();
   }
 
   QualityInspection? getInspectionByNo(String inspectionNo) {
     try {
-      return state.firstWhere((inspection) => inspection.inspectionNo == inspectionNo);
+      return state
+          .firstWhere((inspection) => inspection.inspectionNo == inspectionNo);
     } catch (e) {
       return null;
     }
@@ -214,12 +254,12 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
     final now = DateTime.now();
     final year = now.year.toString().substring(2);
     final month = now.month.toString().padLeft(2, '0');
-    
+
     // Find existing inspections for current month
     final existingInspections = state.where((inspection) {
       return inspection.inspectionNo.startsWith('QI$year$month');
     }).toList();
-    
+
     final nextNumber = existingInspections.length + 1;
     return 'QI$year$month${nextNumber.toString().padLeft(3, '0')}';
   }
@@ -230,11 +270,15 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
   }
 
   List<QualityInspection> getApprovedInspections() {
-    return state.where((inspection) => inspection.status == 'Approved').toList();
+    return state
+        .where((inspection) => inspection.status == 'Approved')
+        .toList();
   }
 
   List<QualityInspection> getRejectedInspections() {
-    return state.where((inspection) => inspection.status == 'Rejected').toList();
+    return state
+        .where((inspection) => inspection.status == 'Rejected')
+        .toList();
   }
 
   // CAPA management
@@ -243,7 +287,9 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
   }
 
   List<QualityInspection> getCapaByStatus(String capaStatus) {
-    return state.where((inspection) => inspection.capaStatus == capaStatus).toList();
+    return state
+        .where((inspection) => inspection.capaStatus == capaStatus)
+        .toList();
   }
 
   // Analytics methods
@@ -259,7 +305,8 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
     final stats = <String, int>{};
     for (var inspection in state) {
       if (inspection.status == 'Rejected') {
-        stats[inspection.supplierName] = (stats[inspection.supplierName] ?? 0) + 1;
+        stats[inspection.supplierName] =
+            (stats[inspection.supplierName] ?? 0) + 1;
       }
     }
     return stats;
@@ -268,45 +315,49 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
   Map<String, double> getMaterialRejectionRates() {
     final totalInspections = <String, int>{};
     final rejectedInspections = <String, int>{};
-    
+
     for (var inspection in state) {
       for (var item in inspection.items) {
-        totalInspections[item.materialCode] = (totalInspections[item.materialCode] ?? 0) + 1;
+        totalInspections[item.materialCode] =
+            (totalInspections[item.materialCode] ?? 0) + 1;
         if (item.usageDecision == 'Rejected') {
-          rejectedInspections[item.materialCode] = (rejectedInspections[item.materialCode] ?? 0) + 1;
+          rejectedInspections[item.materialCode] =
+              (rejectedInspections[item.materialCode] ?? 0) + 1;
         }
       }
     }
-    
+
     final rejectionRates = <String, double>{};
     for (var materialCode in totalInspections.keys) {
       final total = totalInspections[materialCode]!;
       final rejected = rejectedInspections[materialCode] ?? 0;
       rejectionRates[materialCode] = (rejected / total) * 100;
     }
-    
+
     return rejectionRates;
   }
 
   // Validation methods
   List<String> validateInspection(QualityInspection inspection) {
     final errors = <String>[];
-    
+
     // Check if inspection number already exists
-    if (state.any((existingInspection) => existingInspection.inspectionNo == inspection.inspectionNo)) {
+    if (state.any((existingInspection) =>
+        existingInspection.inspectionNo == inspection.inspectionNo)) {
       errors.add('Inspection number ${inspection.inspectionNo} already exists');
     }
-    
+
     // Check if all items have valid quantities
     for (var item in inspection.items) {
       if (item.receivedQty <= 0) {
         errors.add('Invalid received quantity for ${item.materialDescription}');
       }
       if (item.acceptedQty + item.rejectedQty > item.receivedQty) {
-        errors.add('Total inspected quantity exceeds received quantity for ${item.materialDescription}');
+        errors.add(
+            'Total inspected quantity exceeds received quantity for ${item.materialDescription}');
       }
     }
-    
+
     return errors;
   }
 
@@ -318,7 +369,8 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
   }
 
   // Update inspection status method for backward compatibility
-  Future<void> updateInspectionStatus(String inspectionNo, String newStatus) async {
+  Future<void> updateInspectionStatus(
+      String inspectionNo, String newStatus) async {
     final inspection = getInspectionByNo(inspectionNo);
     if (inspection != null) {
       inspection.status = newStatus;
@@ -335,7 +387,8 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
     }
   }
 
-  Future<void> processInspectionRejection(String inspectionNo, String reason) async {
+  Future<void> processInspectionRejection(
+      String inspectionNo, String reason) async {
     final inspection = getInspectionByNo(inspectionNo);
     if (inspection != null) {
       final updatedInspection = inspection.copyWith(

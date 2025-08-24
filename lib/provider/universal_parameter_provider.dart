@@ -36,8 +36,10 @@ class UniversalParameterNotifier extends BaseProvider<UniversalParameter> {
   // Map old method names to new base provider methods
   Future<void> loadParameters() => loadData();
   Future<void> addParameter(String name) => add(UniversalParameter(name: name));
-  Future<void> deleteParameter(UniversalParameter parameter) => delete(parameter);
-  Future<void> removeParameter(UniversalParameter parameter) => delete(parameter);
+  Future<void> deleteParameter(UniversalParameter parameter) =>
+      delete(parameter);
+  Future<void> removeParameter(UniversalParameter parameter) =>
+      delete(parameter);
 
   // Helper methods
   UniversalParameter? getParameterByName(String name) {

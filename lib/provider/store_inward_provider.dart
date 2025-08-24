@@ -30,7 +30,8 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
   final Ref _ref;
   int _lastGRNNumber = 0;
 
-  StoreInwardNotifier(Box<StoreInward> box, this._ref) : super(box, 'storeInwards') {
+  StoreInwardNotifier(Box<StoreInward> box, this._ref)
+      : super(box, 'storeInwards') {
     _initializeLastGRNNumber();
   }
 
@@ -48,24 +49,27 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
       'receivedBy': inward.receivedBy,
       'checkedBy': inward.checkedBy,
       'status': inward.status,
-      'items': inward.items.map((item) => {
-        'materialCode': item.materialCode,
-        'materialDescription': item.materialDescription,
-        'unit': item.unit,
-        'orderedQty': item.orderedQty,
-        'receivedQty': item.receivedQty,
-        'acceptedQty': item.acceptedQty,
-        'rejectedQty': item.rejectedQty,
-        'costPerUnit': item.costPerUnit,
-        'prQuantities': item.prQuantities,
-        'inspectionStatus': item.inspectionStatus.map((key, value) => MapEntry(key, {
-          'inspectedQty': value.inspectedQty,
-          'acceptedQty': value.acceptedQty,
-          'rejectedQty': value.rejectedQty,
-          'status': value.status,
-        })),
-        'prJobNumbers': item.prJobNumbers,
-      }).toList(),
+      'items': inward.items
+          .map((item) => {
+                'materialCode': item.materialCode,
+                'materialDescription': item.materialDescription,
+                'unit': item.unit,
+                'orderedQty': item.orderedQty,
+                'receivedQty': item.receivedQty,
+                'acceptedQty': item.acceptedQty,
+                'rejectedQty': item.rejectedQty,
+                'costPerUnit': item.costPerUnit,
+                'prQuantities': item.prQuantities,
+                'inspectionStatus':
+                    item.inspectionStatus.map((key, value) => MapEntry(key, {
+                          'inspectedQty': value.inspectedQty,
+                          'acceptedQty': value.acceptedQty,
+                          'rejectedQty': value.rejectedQty,
+                          'status': value.status,
+                        })),
+                'prJobNumbers': item.prJobNumbers,
+              })
+          .toList(),
     };
   }
 
@@ -82,29 +86,53 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
       invoiceAmount: (data['invoiceAmount'] as num?)?.toDouble() ?? 0.0,
       receivedBy: data['receivedBy'] ?? '',
       checkedBy: data['checkedBy'] ?? '',
-      items: (data['items'] as List<dynamic>?)?.map((item) => InwardItem(
-        materialCode: item['materialCode'] ?? '',
-        materialDescription: item['materialDescription'] ?? '',
-        unit: item['unit'] ?? '',
-        orderedQty: (item['orderedQty'] as num?)?.toDouble() ?? 0.0,
-        receivedQty: (item['receivedQty'] as num?)?.toDouble() ?? 0.0,
-        acceptedQty: (item['acceptedQty'] as num?)?.toDouble() ?? 0.0,
-        rejectedQty: (item['rejectedQty'] as num?)?.toDouble() ?? 0.0,
-        costPerUnit: item['costPerUnit'] ?? '0',
-        prQuantities: (item['prQuantities'] as Map<String, dynamic>?)?.map((key, value) => 
-          MapEntry(key, (value as Map<String, dynamic>).map((k, v) => 
-            MapEntry(k, (v as num).toDouble())))) ?? {},
-        inspectionStatus: (item['inspectionStatus'] as Map<String, dynamic>?)?.map((key, value) => 
-          MapEntry(key, InspectionQuantityStatus(
-            inspectedQty: (value['inspectedQty'] as num?)?.toDouble() ?? 0.0,
-            acceptedQty: (value['acceptedQty'] as num?)?.toDouble() ?? 0.0,
-            rejectedQty: (value['rejectedQty'] as num?)?.toDouble() ?? 0.0,
-            status: value['status'] ?? 'Pending',
-          ))) ?? {},
-        prJobNumbers: (item['prJobNumbers'] as Map<String, dynamic>?)?.map((key, value) => 
-          MapEntry(key, (value as Map<String, dynamic>).map((k, v) => 
-            MapEntry(k, v.toString())))) ?? {},
-      )).toList() ?? [],
+      items: (data['items'] as List<dynamic>?)
+              ?.map((item) => InwardItem(
+                    materialCode: item['materialCode'] ?? '',
+                    materialDescription: item['materialDescription'] ?? '',
+                    unit: item['unit'] ?? '',
+                    orderedQty: (item['orderedQty'] as num?)?.toDouble() ?? 0.0,
+                    receivedQty:
+                        (item['receivedQty'] as num?)?.toDouble() ?? 0.0,
+                    acceptedQty:
+                        (item['acceptedQty'] as num?)?.toDouble() ?? 0.0,
+                    rejectedQty:
+                        (item['rejectedQty'] as num?)?.toDouble() ?? 0.0,
+                    costPerUnit: item['costPerUnit'] ?? '0',
+                    prQuantities: (item['prQuantities']
+                                as Map<String, dynamic>?)
+                            ?.map((key, value) => MapEntry(
+                                key,
+                                (value as Map<String, dynamic>).map((k, v) =>
+                                    MapEntry(k, (v as num).toDouble())))) ??
+                        {},
+                    inspectionStatus: (item['inspectionStatus']
+                                as Map<String, dynamic>?)
+                            ?.map((key, value) => MapEntry(
+                                key,
+                                InspectionQuantityStatus(
+                                  inspectedQty: (value['inspectedQty'] as num?)
+                                          ?.toDouble() ??
+                                      0.0,
+                                  acceptedQty: (value['acceptedQty'] as num?)
+                                          ?.toDouble() ??
+                                      0.0,
+                                  rejectedQty: (value['rejectedQty'] as num?)
+                                          ?.toDouble() ??
+                                      0.0,
+                                  status: value['status'] ?? 'Pending',
+                                ))) ??
+                        {},
+                    prJobNumbers: (item['prJobNumbers']
+                                as Map<String, dynamic>?)
+                            ?.map((key, value) => MapEntry(
+                                key,
+                                (value as Map<String, dynamic>).map(
+                                    (k, v) => MapEntry(k, v.toString())))) ??
+                        {},
+                  ))
+              .toList() ??
+          [],
     );
   }
 
@@ -264,9 +292,9 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
   Future<bool> delete(StoreInward inward) async {
     // Check if GR has any Quality Inspections
     final inspectionBox = _ref.read(qualityInspectionBoxProvider);
-    bool hasQIs = inspectionBox.values.any((inspection) => 
-        inspection.grnNo == inward.grnNo);
-    
+    bool hasQIs = inspectionBox.values
+        .any((inspection) => inspection.grnNo == inward.grnNo);
+
     if (hasQIs) {
       return false; // Cannot delete GR with quality inspections
     }
@@ -303,15 +331,13 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
 
       // Use the BaseProvider update method
       await update(inward);
-      
+
       print('Successfully updated GRN ${inward.grnNo} from inspection');
     } catch (e) {
       print('Error updating GRN from inspection: $e');
       rethrow;
     }
   }
-
-
 
   // Helper method to reverse a GRN's effect on stock
   Future<void> _reverseStockUpdate(StoreInward inward) async {

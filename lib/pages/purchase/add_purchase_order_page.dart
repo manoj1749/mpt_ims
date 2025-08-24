@@ -165,7 +165,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
   POItem _createPOItem(MaterialItem material, List<PRItem> prItems) {
     // Get the vendor rate for the selected supplier
     final vendorRate = material.getRateForVendor(selectedSupplier!.name);
-    
+
     if (vendorRate == null) {
       throw Exception('Rate not found for ${selectedSupplier!.name}');
     }
@@ -308,8 +308,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         .toList();
 
     // Sort rates by purchase price (lowest first)
-    rates.sort(
-        (a, b) => double.parse(a.purchaseRate).compareTo(double.parse(b.purchaseRate)));
+    rates.sort((a, b) =>
+        double.parse(a.purchaseRate).compareTo(double.parse(b.purchaseRate)));
 
     // Find selected supplier's rate
     final selectedRate = rates.firstWhere(
@@ -318,8 +318,10 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     );
 
     // Get lowest and highest prices
-    final lowestPrice = rates.isNotEmpty ? double.parse(rates.first.purchaseRate) : 0.0;
-    final highestPrice = rates.isNotEmpty ? double.parse(rates.last.purchaseRate) : 0.0;
+    final lowestPrice =
+        rates.isNotEmpty ? double.parse(rates.first.purchaseRate) : 0.0;
+    final highestPrice =
+        rates.isNotEmpty ? double.parse(rates.last.purchaseRate) : 0.0;
     final selectedPrice = double.parse(selectedRate.purchaseRate);
 
     // Determine color based on rate comparison
@@ -882,12 +884,13 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
               // Update PR status through provider (avoid direct model save)
               if (pr.isFullyOrdered) {
                 pr.status = 'Completed';
-              } else if (pr.items.any((item) => item.totalOrderedQuantity > 0)) {
+              } else if (pr.items
+                  .any((item) => item.totalOrderedQuantity > 0)) {
                 pr.status = 'Partially Ordered';
               } else {
                 pr.status = 'Draft';
               }
-              
+
               final index = purchaseRequests.indexOf(pr);
               prNotifier.updateRequest(index, pr);
             }
@@ -979,10 +982,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         ),
       );
 
-      final success = await PDFService.savePurchaseOrder(purchaseOrder, selectedSupplier!);
-      
+      final success =
+          await PDFService.savePurchaseOrder(purchaseOrder, selectedSupplier!);
+
       Navigator.pop(context); // Close loading dialog
-      
+
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1034,17 +1038,18 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         ),
       );
 
-      final success = await PDFService.savePurchaseOrderToDownloads(purchaseOrder, selectedSupplier!);
-      
+      final success = await PDFService.savePurchaseOrderToDownloads(
+          purchaseOrder, selectedSupplier!);
+
       Navigator.pop(context); // Close loading dialog
-      
+
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(Platform.isMacOS || Platform.isIOS 
-                ? 'PDF saved to Documents folder successfully!' 
-                : 'PDF saved to Downloads folder successfully!'),
+              content: Text(Platform.isMacOS || Platform.isIOS
+                  ? 'PDF saved to Documents folder successfully!'
+                  : 'PDF saved to Downloads folder successfully!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -1281,11 +1286,14 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         );
 
                         // Get the vendor rate for this material
-                        final vendorRate = material.getRateForVendor(selectedSupplier!.name);
+                        final vendorRate =
+                            material.getRateForVendor(selectedSupplier!.name);
                         if (vendorRate == null) {
-                          throw Exception('Rate not found for ${selectedSupplier!.name}');
+                          throw Exception(
+                              'Rate not found for ${selectedSupplier!.name}');
                         }
-                        final costPerUnit = double.parse(vendorRate.purchaseRate);
+                        final costPerUnit =
+                            double.parse(vendorRate.purchaseRate);
 
                         // Calculate total for general stock
                         if (entry.value['General'] == true) {
@@ -1434,7 +1442,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     // Only show materials that:
                     // 1. Have rates for the selected supplier
                     // 2. Are not already in the PR list
-                    final hasRate = m.getRateForVendor(selectedSupplier!.name) != null;
+                    final hasRate =
+                        m.getRateForVendor(selectedSupplier!.name) != null;
                     final notInPRs = !materialPRItems.containsKey(m.partNo);
                     return hasRate && notInPRs;
                   })
@@ -1571,7 +1580,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         continue;
                       }
 
-                      if (material.getRateForVendor(selectedSupplier!.name) == null) {
+                      if (material.getRateForVendor(selectedSupplier!.name) ==
+                          null) {
                         noRateCodes.add(code);
                       }
                     }

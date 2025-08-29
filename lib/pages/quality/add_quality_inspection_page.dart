@@ -778,20 +778,10 @@ class _AddQualityInspectionPageState
         status: _determineInspectionStatus(selectedItem),
       );
 
-      // Add the inspection and update stock
+      // Add the inspection (this will automatically update stock and GRN status)
       await ref
           .read(qualityInspectionProvider.notifier)
           .addInspection(inspection);
-
-      // Update stock maintenance
-      await ref
-          .read(stockMaintenanceProvider.notifier)
-          .updateStockFromInspection(inspection);
-
-      // Update GRN status
-      await ref
-          .read(storeInwardProvider.notifier)
-          .updateGRNStatus(inspection.grnNo);
 
       // Show success message
       if (mounted) {

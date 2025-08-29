@@ -483,46 +483,74 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
             .firstOrNull;
 
         if (stock != null) {
+          print('Found stock record for ${inspectionItem.materialCode}');
+          bool stockUpdated = false;
+          
           // Update GRN details with inspection results
           for (var grnEntry in inspectionItem.grnQuantities.entries) {
             final grnNo = grnEntry.key;
             final grnQty = grnEntry.value;
 
+            print('Processing GRN: $grnNo, Selected: ${grnQty.isSelected}');
+            print('Accepted: ${grnQty.acceptedQty}, Rejected: ${grnQty.rejectedQty}');
+
             if (stock.grnDetails.containsKey(grnNo) &&
                 (grnQty.isSelected ?? false)) {
+              print('Updating GRN details for $grnNo');
+              
+              // Store old values for comparison
+              final oldAccepted = stock.grnDetails[grnNo]!.acceptedQuantity;
+              final oldRejected = stock.grnDetails[grnNo]!.rejectedQuantity;
+              
               stock.grnDetails[grnNo]!.acceptedQuantity = grnQty.acceptedQty;
               stock.grnDetails[grnNo]!.rejectedQuantity = grnQty.rejectedQty;
+              
+              print('Updated GRN $grnNo: Accepted $oldAccepted -> ${grnQty.acceptedQty}, Rejected $oldRejected -> ${grnQty.rejectedQty}');
 
               // Update PR received quantities based on acceptance ratio
               _updatePRReceivedQuantitiesFromInspection(stock, grnNo, grnQty);
+              stockUpdated = true;
+            } else {
+              if (!stock.grnDetails.containsKey(grnNo)) {
+                print('Warning: GRN $grnNo not found in stock details');
+              }
+              if (!(grnQty.isSelected ?? false)) {
+                print('GRN $grnNo not selected for inspection');
+              }
             }
           }
 
-          // Recalculate stock quantities
-          double totalCurrentStock = 0.0;
-          double totalUnderInspection = 0.0;
+          if (stockUpdated) {
+            // Recalculate stock quantities
+            double totalCurrentStock = 0.0;
+            double totalUnderInspection = 0.0;
 
-          for (var grnDetail in stock.grnDetails.values) {
-            totalCurrentStock += grnDetail.acceptedQuantity;
-            totalUnderInspection += grnDetail.receivedQuantity -
-                (grnDetail.acceptedQuantity + grnDetail.rejectedQuantity);
+            for (var grnDetail in stock.grnDetails.values) {
+              totalCurrentStock += grnDetail.acceptedQuantity;
+              totalUnderInspection += grnDetail.receivedQuantity -
+                  (grnDetail.acceptedQuantity + grnDetail.rejectedQuantity);
+            }
+
+            print('Recalculated - Current Stock: $totalCurrentStock, Under Inspection: $totalUnderInspection');
+
+            // Update stock quantities
+            stock.updateCurrentStock(totalCurrentStock);
+            stock.updateStockUnderInspection(totalUnderInspection);
+
+            // Use BaseProvider's update method to ensure proper persistence
+            await update(stock);
+            print('Stock successfully updated and persisted for ${inspectionItem.materialCode}');
+          } else {
+            print('No stock updates needed for ${inspectionItem.materialCode}');
           }
-
-          print('New Current Stock: $totalCurrentStock');
-          print('New Under Inspection: $totalUnderInspection');
-
-          // Update stock quantities
-          stock.updateCurrentStock(totalCurrentStock);
-          stock.updateStockUnderInspection(totalUnderInspection);
-
-          // Use BaseProvider's update method to ensure proper persistence
-          await update(stock);
         } else {
           print('Stock not found for material: ${inspectionItem.materialCode}');
           // This should not happen if stock was created during GRN
           print('Warning: Stock should have been created during GRN process');
         }
       }
+      
+      print('=== Completed Stock Update from Inspection ===');
     } catch (e) {
       print('Error updating stock from inspection: $e');
       rethrow;

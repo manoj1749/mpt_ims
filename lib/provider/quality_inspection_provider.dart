@@ -361,11 +361,41 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
     return errors;
   }
 
+  // Override add method to ensure proper stock updates
+  @override
+  Future<void> add(QualityInspection inspection) async {
+    try {
+      print('\n=== Adding Quality Inspection ${inspection.inspectionNo} ===');
+      
+      // Call parent add method first to save the inspection
+      await super.add(inspection);
+      
+      // Update stock maintenance after inspection is saved
+      await updateStockAfterInspection(inspection);
+      
+      // Update GRN status
+      await storeInward.updateGRNStatus(inspection.grnNo);
+      
+      print('Successfully added inspection and updated related systems');
+    } catch (e) {
+      print('Error adding inspection: $e');
+      rethrow;
+    }
+  }
+
   // Stock integration methods
   Future<void> updateStockAfterInspection(QualityInspection inspection) async {
-    // This would integrate with stock maintenance
-    // Implementation depends on the actual stock management requirements
-    print('Updating stock after inspection: ${inspection.inspectionNo}');
+    try {
+      print('Updating stock after inspection: ${inspection.inspectionNo}');
+      
+      // Delegate to stock maintenance provider
+      await stockMaintenance.updateStockFromInspection(inspection);
+      
+      print('Stock updated successfully for inspection: ${inspection.inspectionNo}');
+    } catch (e) {
+      print('Error updating stock after inspection: $e');
+      rethrow;
+    }
   }
 
   // Update inspection status method for backward compatibility

@@ -12,7 +12,7 @@ import '../../models/supplier.dart';
 import '../../provider/supplier_provider.dart';
 import '../../provider/store_inward_provider.dart';
 import '../../provider/category_parameter_provider.dart';
-import '../../provider/universal_parameter_provider.dart';
+
 import '../../models/category.dart';
 import '../../provider/category_provider.dart';
 import '../../models/store_inward.dart';
@@ -221,30 +221,36 @@ class _AddQualityInspectionPageState
 
         // Only create inspection item if there are GRNs with remaining quantities
         if (grnQuantities.isNotEmpty) {
-          // Get standard parameters from provider
-          final universalParams = ref.read(universalParameterProvider);
+          // Get category-specific parameters only
           final categoryParams = ref.read(categoryParameterProvider);
+          
+          print('Loading parameters for material: ${material.partNo}, category: ${material.category}');
 
-          // Get category-specific parameters
-          final categorySpecificParams = categoryParams
+          // Get only the parameters selected for this material's category
+          final categoryMapping = categoryParams
               .where((mapping) => mapping.category == material.category)
-              .expand((mapping) => mapping.parameters)
-              .toList();
+              .firstOrNull;
 
-          // Initialize parameters
-          final parameters = [
-            ...universalParams.map((param) => QualityParameter(
-                  parameter: param.name,
-                  isAcceptable: true,
-                )),
-            ...categorySpecificParams
-                .where((paramName) =>
-                    !universalParams.any((up) => up.name == paramName))
-                .map((paramName) => QualityParameter(
-                      parameter: paramName,
-                      isAcceptable: true,
-                    ))
-          ];
+          final parameters = <QualityParameter>[];
+          
+          if (categoryMapping != null) {
+            print('Found category mapping for ${material.category} with ${categoryMapping.parameters.length} parameters');
+            parameters.addAll(
+              categoryMapping.parameters.map((paramName) => QualityParameter(
+                parameter: paramName,
+                isAcceptable: true,
+              ))
+            );
+          } else {
+            print('No category mapping found for ${material.category}');
+            // If no category mapping exists, create a default parameter
+            parameters.add(QualityParameter(
+              parameter: 'Visual Check',
+              isAcceptable: true,
+            ));
+          }
+          
+          print('Final parameters for ${material.partNo}: ${parameters.map((p) => p.parameter).toList()}');
 
           final inspectionItem = InspectionItem(
             materialCode: materialCode,

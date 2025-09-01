@@ -706,25 +706,37 @@ Coimbatore, Tamil Nadu - 641201''',
       // Generate PDF data
       final pdfData = await generatePurchaseOrderPDF(purchaseOrder, supplier);
 
-      // Get accessible directory
-      Directory? directory;
+      // Get accessible directory and create MPT_IMS folder structure
+      Directory? baseDirectory;
       if (Platform.isAndroid) {
-        directory = Directory('/storage/emulated/0/Download');
+        baseDirectory = Directory('/storage/emulated/0/Download');
       } else if (Platform.isIOS || Platform.isMacOS) {
         // Use Documents directory which is always accessible
-        directory = await getApplicationDocumentsDirectory();
+        baseDirectory = await getApplicationDocumentsDirectory();
       } else {
         // For other platforms, try downloads first, fallback to documents
         try {
-          directory = await getDownloadsDirectory();
+          baseDirectory = await getDownloadsDirectory();
         } catch (e) {
-          directory = await getApplicationDocumentsDirectory();
+          baseDirectory = await getApplicationDocumentsDirectory();
         }
       }
 
-      if (directory != null) {
+      if (baseDirectory != null) {
+        // Create MPT_IMS/Purchase_Orders folder structure
+        final mptImsDirectory = Directory('${baseDirectory.path}/MPT_IMS');
+        final poDirectory = Directory('${mptImsDirectory.path}/Purchase_Orders');
+        
+        // Create directories if they don't exist
+        if (!await mptImsDirectory.exists()) {
+          await mptImsDirectory.create(recursive: true);
+        }
+        if (!await poDirectory.exists()) {
+          await poDirectory.create(recursive: true);
+        }
+
         final fileName = 'PurchaseOrder_${purchaseOrder.poNo}.pdf';
-        final file = File('${directory.path}/$fileName');
+        final file = File('${poDirectory.path}/$fileName');
         await file.writeAsBytes(pdfData);
         return true;
       }
@@ -1860,25 +1872,37 @@ Coimbatore, Tamil Nadu - 641201''',
           deliveryChallan, supplier,
           materials: materials);
 
-      // Get accessible directory
-      Directory? directory;
+      // Get accessible directory and create MPT_IMS folder structure
+      Directory? baseDirectory;
       if (Platform.isAndroid) {
-        directory = Directory('/storage/emulated/0/Download');
+        baseDirectory = Directory('/storage/emulated/0/Download');
       } else if (Platform.isIOS || Platform.isMacOS) {
         // Use Documents directory which is always accessible
-        directory = await getApplicationDocumentsDirectory();
+        baseDirectory = await getApplicationDocumentsDirectory();
       } else {
         // For other platforms, try downloads first, fallback to documents
         try {
-          directory = await getDownloadsDirectory();
+          baseDirectory = await getDownloadsDirectory();
         } catch (e) {
-          directory = await getApplicationDocumentsDirectory();
+          baseDirectory = await getApplicationDocumentsDirectory();
         }
       }
 
-      if (directory != null) {
+      if (baseDirectory != null) {
+        // Create MPT_IMS/Delivery_Challans folder structure
+        final mptImsDirectory = Directory('${baseDirectory.path}/MPT_IMS');
+        final dcDirectory = Directory('${mptImsDirectory.path}/Delivery_Challans');
+        
+        // Create directories if they don't exist
+        if (!await mptImsDirectory.exists()) {
+          await mptImsDirectory.create(recursive: true);
+        }
+        if (!await dcDirectory.exists()) {
+          await dcDirectory.create(recursive: true);
+        }
+
         final fileName = 'DeliveryChallan_${deliveryChallan.dcNo}.pdf';
-        final file = File('${directory.path}/$fileName');
+        final file = File('${dcDirectory.path}/$fileName');
         await file.writeAsBytes(pdfData);
         return true;
       }
@@ -1962,25 +1986,37 @@ Coimbatore, Tamil Nadu - 641201''',
       final pdfData = await generateInvoicePDF(deliveryChallan, supplier,
           materials: materials);
 
-      // Get accessible directory
-      Directory? directory;
+      // Get accessible directory and create MPT_IMS folder structure
+      Directory? baseDirectory;
       if (Platform.isAndroid) {
-        directory = Directory('/storage/emulated/0/Download');
+        baseDirectory = Directory('/storage/emulated/0/Download');
       } else if (Platform.isIOS || Platform.isMacOS) {
         // Use Documents directory which is always accessible
-        directory = await getApplicationDocumentsDirectory();
+        baseDirectory = await getApplicationDocumentsDirectory();
       } else {
         // For other platforms, try downloads first, fallback to documents
         try {
-          directory = await getDownloadsDirectory();
+          baseDirectory = await getDownloadsDirectory();
         } catch (e) {
-          directory = await getApplicationDocumentsDirectory();
+          baseDirectory = await getApplicationDocumentsDirectory();
         }
       }
 
-      if (directory != null) {
+      if (baseDirectory != null) {
+        // Create MPT_IMS/Invoices folder structure
+        final mptImsDirectory = Directory('${baseDirectory.path}/MPT_IMS');
+        final invoiceDirectory = Directory('${mptImsDirectory.path}/Invoices');
+        
+        // Create directories if they don't exist
+        if (!await mptImsDirectory.exists()) {
+          await mptImsDirectory.create(recursive: true);
+        }
+        if (!await invoiceDirectory.exists()) {
+          await invoiceDirectory.create(recursive: true);
+        }
+
         final fileName = 'Invoice_${deliveryChallan.dcNo}.pdf';
-        final file = File('${directory.path}/$fileName');
+        final file = File('${invoiceDirectory.path}/$fileName');
         await file.writeAsBytes(pdfData);
         return true;
       }
@@ -1990,4 +2026,7 @@ Coimbatore, Tamil Nadu - 641201''',
     }
   }
 }
+
+
+
 

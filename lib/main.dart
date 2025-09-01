@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import 'package:mpt_ims/provider/material_request_provider.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'db/hive_initializer.dart';
@@ -15,7 +17,6 @@ import 'models/customer.dart';
 import 'models/purchase_order.dart';
 import 'models/store_inward.dart';
 import 'models/purchase_request.dart';
-import 'models/vendor_material_rate.dart';
 import 'models/quality_inspection.dart';
 import 'models/category_parameter_mapping.dart';
 import 'models/category.dart';
@@ -47,6 +48,33 @@ import 'models/material_request.dart';
 import 'models/material_issue.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+Future<void> _setupHiveDirectory() async {
+  try {
+    // Get the application documents directory
+    final Directory appDocDir = await getApplicationDocumentsDirectory();
+    
+    // Create MPT_IMS/Database folder structure
+    final mptImsDirectory = Directory('${appDocDir.path}/MPT_IMS');
+    final databaseDirectory = Directory('${mptImsDirectory.path}/Database');
+    
+    // Create directories if they don't exist
+    if (!await mptImsDirectory.exists()) {
+      await mptImsDirectory.create(recursive: true);
+    }
+    if (!await databaseDirectory.exists()) {
+      await databaseDirectory.create(recursive: true);
+    }
+    
+    // Initialize Hive with custom path
+    await Hive.initFlutter(databaseDirectory.path);
+    print('Hive initialized at: ${databaseDirectory.path}');
+  } catch (e) {
+    print('Error setting up Hive directory: $e');
+    // Fallback to default initialization
+    await Hive.initFlutter();
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -59,7 +87,9 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    await Hive.initFlutter();
+    
+    // Set up custom Hive directory structure
+    await _setupHiveDirectory();
   }
 
   // Initialize Hive first

@@ -56,8 +56,8 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
       'capaActions': inspection.capaActions,
       'items': inspection.items
           .map((item) => {
-                'materialCode': item.materialCode,
-                'materialDescription': item.materialDescription,
+        'materialCode': item.materialCode,
+        'materialDescription': item.materialDescription,
                 'unit': item.unit,
                 'category': item.category,
                 'receivedQty': item.receivedQty,
@@ -65,22 +65,22 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
                 'totalCost': item.totalCost,
                 'sampleSize': item.sampleSize,
                 'inspectedQty': item.inspectedQty,
-                'acceptedQty': item.acceptedQty,
-                'rejectedQty': item.rejectedQty,
+        'acceptedQty': item.acceptedQty,
+        'rejectedQty': item.rejectedQty,
                 'pendingQty': item.pendingQty,
-                'usageDecision': item.usageDecision,
+        'usageDecision': item.usageDecision,
                 'receivedDate': item.receivedDate,
                 'expirationDate': item.expirationDate,
                 'capaRequired': item.capaRequired,
                 'inspectionRemark': item.inspectionRemark,
                 'grnQuantities':
                     item.grnQuantities.map((key, value) => MapEntry(key, {
-                          'receivedQty': value.receivedQty,
-                          'acceptedQty': value.acceptedQty,
-                          'rejectedQty': value.rejectedQty,
-                          'usageDecision': value.usageDecision,
-                          'poNo': value.poNo,
-                          'poDate': value.poDate,
+          'receivedQty': value.receivedQty,
+          'acceptedQty': value.acceptedQty,
+          'rejectedQty': value.rejectedQty,
+          'usageDecision': value.usageDecision,
+          'poNo': value.poNo,
+          'poDate': value.poDate,
                           'recheckType': value.recheckType,
                           'isSelected': value.isSelected,
                         })),
@@ -234,9 +234,9 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
         return inspectionDate
                 .isAfter(startDate.subtract(const Duration(days: 1))) &&
             inspectionDate.isBefore(endDate.add(const Duration(days: 1)));
-      } catch (e) {
+    } catch (e) {
         return false;
-      }
+    }
     }).toList();
   }
 

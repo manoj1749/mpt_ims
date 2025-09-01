@@ -558,6 +558,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
   void _showBulkUploadDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false, // Prevent dismissing by tapping outside
       builder: (context) => AlertDialog(
         title: const Text('Bulk Stock Upload'),
         content: SizedBox(
@@ -607,9 +608,50 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              _pickAndProcessFile();
+              // Show loading dialog
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const AlertDialog(
+                  content: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(width: 16),
+                      Text('Opening file picker...'),
+                    ],
+                  ),
+                ),
+              );
+              
+              // Wait a moment to ensure dialog is shown
+              await Future.delayed(const Duration(milliseconds: 100));
+              
+              try {
+                await _pickAndProcessFile().timeout(
+                  const Duration(seconds: 30),
+                  onTimeout: () {
+                    throw Exception('File processing timed out after 30 seconds');
+                  },
+                );
+              } catch (e) {
+                print('Error in file processing: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error processing file: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              } finally {
+                // Close loading dialog if it's still open
+                if (mounted && Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+              }
             },
             child: const Text('Select File'),
           ),
@@ -620,50 +662,131 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
 
   Future<void> _pickAndProcessFile() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['csv', 'xlsx'],
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.single.path != null) {
-        final file = File(result.files.single.path!);
-        final extension = result.files.single.extension?.toLowerCase();
+      print('Starting file picker...');
+      print('Platform: ${Theme.of(context).platform}');
+      
+      // Try with the simplest approach first
+      FilePickerResult? result;
+      
+      // Try different approaches
+      try {
+        print('Attempting file picker with FileType.any...');
+        result = await FilePicker.platform.pickFiles(
+          type: FileType.any,
+          allowMultiple: false,
+        );
+        print('FileType.any result: $result');
+      } catch (e) {
+        print('FileType.any failed: $e');
         
-        if (extension == 'csv') {
-          await _processCsvFile(file);
-        } else if (extension == 'xlsx') {
-          // For now, show message to convert to CSV
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please convert Excel file to CSV format and try again'),
-              backgroundColor: Colors.orange,
-            ),
+        try {
+          print('Attempting file picker with custom extensions...');
+          result = await FilePicker.platform.pickFiles(
+            type: FileType.custom,
+            allowedExtensions: ['csv', 'xlsx', 'xls'],
+            allowMultiple: false,
           );
+          print('Custom extensions result: $result');
+        } catch (e2) {
+          print('Custom extensions failed: $e2');
+          throw Exception('All file picker methods failed. Last error: $e2');
         }
       }
+
+      print('File picker result: $result');
+
+      if (result != null) {
+        print('File selected: ${result.files.single.name}');
+        print('File path: ${result.files.single.path}');
+        
+        if (result.files.single.path != null) {
+          final file = File(result.files.single.path!);
+          final extension = result.files.single.extension?.toLowerCase();
+          
+          print('File extension: $extension');
+          
+          if (extension == 'csv') {
+            await _processCsvFile(file);
+          } else if (extension == 'xlsx' || extension == 'xls') {
+            // For now, show message to convert to CSV
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Please convert Excel file to CSV format and try again'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          } else {
+            // Check if the file might be a CSV without extension
+            final fileName = result.files.single.name.toLowerCase();
+            if (fileName.endsWith('.csv') || 
+                (extension == null && fileName.contains('csv'))) {
+              await _processCsvFile(file);
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Unsupported file type: $extension. Please select a CSV file.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          }
+        } else {
+          print('File path is null');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not access the selected file. Please try again.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } else {
+        print('No file selected or file picker was cancelled');
+        // User cancelled file selection - this is normal, don't show error
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error picking file: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('Error in file picker: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _processCsvFile(File file) async {
     try {
+      print('=== Processing CSV File ===');
+      print('File path: ${file.path}');
+      
+      print('Reading file content...');
       final input = await file.readAsString();
+      print('File content length: ${input.length} characters');
+      
+      print('Converting CSV to list...');
       final fields = const CsvToListConverter().convert(input);
+      print('CSV fields parsed: ${fields.length} rows');
       
       if (fields.isEmpty) {
         throw Exception('File is empty');
       }
 
+      print('Processing headers...');
       final headers = fields[0].map((e) => e.toString().toLowerCase()).toList();
+      print('Headers: $headers');
+      
       final dataRows = fields.sublist(1);
+      print('Data rows: ${dataRows.length}');
 
+      print('Finding column indices...');
       // Find required column indices
       final partNoIndex = _findColumnIndex(headers, ['part number', 'material code', 'partno', 'part_number']);
       final descriptionIndex = _findColumnIndex(headers, ['description', 'desc', 'material description']);
@@ -672,11 +795,15 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       final hsnIndex = _findColumnIndex(headers, ['hsn code', 'hsn', 'hsncode', 'hsn_code']);
       final stockNoIndex = _findColumnIndex(headers, ['stock number', 'stock no', 'stockno', 'stock_number']);
 
+      print('Column indices - Part: $partNoIndex, Description: $descriptionIndex, Quantity: $quantityIndex, Unit: $unitIndex');
+
       if (partNoIndex == -1 || descriptionIndex == -1 || quantityIndex == -1 || unitIndex == -1) {
         throw Exception('Required columns not found. Please ensure your file has: Part Number, Description, Quantity, and Unit columns');
       }
 
+      print('Showing upload preview...');
       await _showUploadPreview(dataRows, partNoIndex, descriptionIndex, quantityIndex, unitIndex, hsnIndex, stockNoIndex);
+      print('=== CSV Processing Complete ===');
 
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -707,12 +834,22 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
     int hsnIndex,
     int stockNoIndex,
   ) async {
-    final previewData = <Map<String, dynamic>>[];
-    final existingMaterials = ref.read(materialListProvider);
+    print('=== Showing Upload Preview ===');
+    print('Data rows count: ${dataRows.length}');
     
+    final previewData = <Map<String, dynamic>>[];
+    print('Getting existing materials...');
+    final existingMaterials = ref.read(materialListProvider);
+    print('Found ${existingMaterials.length} existing materials');
+    
+    print('Processing preview data...');
     for (int i = 0; i < dataRows.length && i < 10; i++) { // Show first 10 rows for preview
+      print('Processing row $i of ${dataRows.length}');
       final row = dataRows[i];
-      if (row.length <= [partNoIndex, descriptionIndex, quantityIndex, unitIndex].reduce((a, b) => a > b ? a : b)) {
+      final maxIndex = [partNoIndex, descriptionIndex, quantityIndex, unitIndex].reduce((a, b) => a > b ? a : b);
+      
+      if (row.length <= maxIndex) {
+        print('Row $i has insufficient columns: ${row.length} <= $maxIndex');
         continue;
       }
 
@@ -722,6 +859,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       final unit = row[unitIndex]?.toString().trim() ?? '';
       final hsnCode = hsnIndex != -1 ? (row[hsnIndex]?.toString().trim() ?? '') : '';
       final stockNo = stockNoIndex != -1 ? (row[stockNoIndex]?.toString().trim() ?? '') : '';
+
+      print('Row $i data: Part=$partNo, Desc=$description, Qty=$quantity, Unit=$unit');
 
       final existingMaterial = existingMaterials.firstWhereOrNull((m) => m.partNo == partNo);
       final status = existingMaterial != null ? 'Update' : 'New';
@@ -736,8 +875,18 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         'status': status,
       });
     }
+    
+    print('Preview data prepared: ${previewData.length} items');
 
     if (mounted) {
+      print('Showing preview dialog...');
+      
+      // Close any existing loading dialog first
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+        print('Closed loading dialog before showing preview');
+      }
+      
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -806,9 +955,48 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () {
+              onPressed: () async {
+                print('Upload button pressed in preview dialog');
                 Navigator.pop(context);
-                _processUpload(dataRows, partNoIndex, descriptionIndex, quantityIndex, unitIndex, hsnIndex, stockNoIndex);
+                
+                // Show processing dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const AlertDialog(
+                    content: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(width: 16),
+                        Text('Processing upload...'),
+                      ],
+                    ),
+                  ),
+                );
+                
+                try {
+                  await _processUpload(dataRows, partNoIndex, descriptionIndex, quantityIndex, unitIndex, hsnIndex, stockNoIndex);
+                  
+                  // Close processing dialog
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                } catch (e) {
+                  // Close processing dialog
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                  
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Upload failed: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
               },
               child: const Text('Upload'),
             ),
@@ -828,18 +1016,27 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
     int stockNoIndex,
   ) async {
     try {
+      print('=== Starting Upload Process ===');
+      print('Data rows to process: ${dataRows.length}');
+      
       final materialNotifier = ref.read(materialListProvider.notifier);
       final stockNotifier = ref.read(stockMaintenanceProvider.notifier);
       final existingMaterials = ref.read(materialListProvider);
+      
+      print('Got notifiers and existing materials: ${existingMaterials.length}');
       
       int processed = 0;
       int created = 0;
       int updated = 0;
       int errors = 0;
 
-      for (final row in dataRows) {
+      for (int i = 0; i < dataRows.length; i++) {
+        final row = dataRows[i];
         try {
+          print('Processing row $i: $row');
+          
           if (row.length <= [partNoIndex, descriptionIndex, quantityIndex, unitIndex].reduce((a, b) => a > b ? a : b)) {
+            print('Skipping row $i: insufficient columns');
             continue;
           }
 
@@ -850,13 +1047,17 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           final hsnCode = hsnIndex != -1 ? (row[hsnIndex]?.toString().trim() ?? '') : '';
           final stockNo = stockNoIndex != -1 ? (row[stockNoIndex]?.toString().trim() ?? '') : '';
 
+          print('Row $i data: Part=$partNo, Desc=$description, Qty=$quantity, Unit=$unit');
+
           if (partNo.isEmpty || description.isEmpty || quantity <= 0 || unit.isEmpty) {
+            print('Skipping row $i: invalid data');
             errors++;
             continue;
           }
 
           // Check if material exists
           final existingMaterial = existingMaterials.firstWhereOrNull((m) => m.partNo == partNo);
+          print('Row $i: Existing material found: ${existingMaterial != null}');
           
           if (existingMaterial != null) {
             // Material exists - verify details match and update stock
@@ -866,12 +1067,15 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
               continue;
             }
             
+            print('Row $i: Updating stock for existing material $partNo');
             // Add to general stock
             await _addToGeneralStock(partNo, quantity, stockNotifier);
+            print('Row $i: Stock updated successfully');
             updated++;
           } else {
             // Create new material
-            final newSlNo = (existingMaterials.length + 1).toString();
+            print('Row $i: Creating new material $partNo');
+            final newSlNo = (existingMaterials.length + created + 1).toString();
             final newMaterial = MaterialItem(
               slNo: newSlNo,
               partNo: partNo,
@@ -887,10 +1091,14 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
               vendorRates: [],
             );
             
+            print('Row $i: Adding material to database...');
             await materialNotifier.addMaterial(newMaterial);
+            print('Row $i: Material added successfully');
             
             // Add to general stock
+            print('Row $i: Adding stock for new material...');
             await _addToGeneralStock(partNo, quantity, stockNotifier);
+            print('Row $i: Stock added successfully');
             created++;
           }
           
@@ -900,6 +1108,9 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           errors++;
         }
       }
+
+      print('=== Upload Process Complete ===');
+      print('Processed: $processed, Created: $created, Updated: $updated, Errors: $errors');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -961,4 +1172,6 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       rethrow;
     }
   }
+
+
 }

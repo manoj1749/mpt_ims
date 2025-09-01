@@ -116,7 +116,7 @@ class _DeliveryChallanListPageState
         field: 'actions',
         type: PlutoColumnType.text(),
         enableEditingMode: false,
-        width: 100,
+        width: 140,
         renderer: (rendererContext) {
           final dc = deliveryChallans.firstWhere(
             (dc) => dc.dcNo == rendererContext.cell.value,
@@ -127,18 +127,29 @@ class _DeliveryChallanListPageState
             children: [
               IconButton(
                 icon: Icon(Icons.picture_as_pdf, color: Colors.grey[300]),
-                iconSize: 20,
+                iconSize: 18,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
+                  minWidth: 28,
+                  minHeight: 28,
                 ),
                 onPressed: () => _showPDFOptions(dc),
-                tooltip: 'Generate PDF',
+                tooltip: 'Generate DC PDF',
+              ),
+              IconButton(
+                icon: Icon(Icons.receipt, color: Colors.grey[300]),
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 28,
+                  minHeight: 28,
+                ),
+                onPressed: () => _showInvoiceOptions(dc),
+                tooltip: 'Generate Invoice',
               ),
               IconButton(
                 icon: Icon(Icons.delete, color: Colors.grey[300]),
-                iconSize: 20,
+                iconSize: 18,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(
                   minWidth: 32,
@@ -242,11 +253,11 @@ class _DeliveryChallanListPageState
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[850],
         title: Text(
-          'Generate PDF for ${dc.dcNo}',
+          'Generate Delivery Challan PDF for ${dc.dcNo}',
           style: TextStyle(color: Colors.grey[200]),
         ),
         content: Text(
-          'Choose how to save the PDF:',
+          'Choose how to save the DC PDF:',
           style: TextStyle(color: Colors.grey[200]),
         ),
         actions: [
@@ -267,6 +278,45 @@ class _DeliveryChallanListPageState
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
+            ),
+            child: const Text('Choose Location'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInvoiceOptions(DeliveryChallan dc) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[850],
+        title: Text(
+          'Generate Invoice PDF for ${dc.dcNo}',
+          style: TextStyle(color: Colors.grey[200]),
+        ),
+        content: Text(
+          'Choose how to save the Invoice PDF:',
+          style: TextStyle(color: Colors.grey[200]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _generateAndSaveInvoiceToDownloads(dc);
+            },
+            child: Text(
+              'Quick Save',
+              style: TextStyle(color: Colors.grey[300]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _generateAndSaveInvoice(dc);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
             ),
             child: const Text('Choose Location'),
           ),
@@ -400,6 +450,137 @@ class _DeliveryChallanListPageState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _generateAndSaveInvoice(DeliveryChallan dc) async {
+    try {
+      final suppliers = ref.read(supplierListProvider);
+      final supplier = suppliers.firstWhere(
+        (s) => s.name == dc.vendorName,
+        orElse: () => suppliers.isNotEmpty
+            ? suppliers.first
+            : throw Exception('No suppliers found'),
+      );
+
+      if (!mounted) return;
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.grey[850],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Preparing Invoice PDF...',
+                style: TextStyle(color: Colors.grey[200]),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      final materials = ref.read(materialListProvider);
+      final success = await PDFService.saveInvoice(dc, supplier,
+          materials: materials);
+
+      Navigator.pop(context); // Close loading dialog
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invoice PDF saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Save cancelled by user'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving Invoice PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _generateAndSaveInvoiceToDownloads(DeliveryChallan dc) async {
+    try {
+      final suppliers = ref.read(supplierListProvider);
+      final supplier = suppliers.firstWhere(
+        (s) => s.name == dc.vendorName,
+        orElse: () => suppliers.isNotEmpty
+            ? suppliers.first
+            : throw Exception('No suppliers found'),
+      );
+
+      if (!mounted) return;
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.grey[850],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Preparing Invoice PDF...',
+                style: TextStyle(color: Colors.grey[200]),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      final materials = ref.read(materialListProvider);
+      final success = await PDFService.saveInvoiceToDownloads(
+          dc, supplier,
+          materials: materials);
+
+      Navigator.pop(context); // Close loading dialog
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(Platform.isMacOS || Platform.isIOS
+                ? 'Invoice PDF saved to Documents folder successfully!'
+                : 'Invoice PDF saved to Downloads folder successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save Invoice PDF to Downloads'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving Invoice PDF: $e'),
           backgroundColor: Colors.red,
         ),
       );

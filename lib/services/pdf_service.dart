@@ -736,6 +736,82 @@ Coimbatore, Tamil Nadu - 641201''',
 
   // ============== DELIVERY CHALLAN PDF METHODS ==============
 
+  static Future<Uint8List> generateInvoicePDF(
+    DeliveryChallan deliveryChallan,
+    Supplier supplier, {
+    List<dynamic>? materials,
+  }) async {
+    final pdf = pw.Document();
+
+    // Load font that supports Unicode characters
+    final font = await PdfGoogleFonts.notoSansRegular();
+    final fontBold = await PdfGoogleFonts.notoSansBold();
+
+    // Load company logo
+    final logoData = await rootBundle.load('assets/logo.jpeg');
+    final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+
+    // Company information (configurable)
+    final companyName = _companyConfig['name']!;
+    final companyAddress = _companyConfig['address']!;
+    final companyGSTN = _companyConfig['gstn']!;
+    final companyMobile = _companyConfig['mobile']!;
+    final companyEmail = _companyConfig['email']!;
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(20),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header with company details
+              _buildHeader(companyName, companyAddress, companyGSTN,
+                  companyMobile, companyEmail, logoImage, font, fontBold),
+
+              pw.SizedBox(height: 20),
+
+              // Invoice title and details
+              _buildInvoiceHeader(deliveryChallan, font, fontBold),
+
+              pw.SizedBox(height: 20),
+
+              // Supplier details section
+              _buildSupplierDetailsForInvoice(
+                  supplier, deliveryChallan, font, fontBold),
+
+              pw.SizedBox(height: 20),
+
+              // Items table
+              _buildDCItemsTable(
+                  deliveryChallan, font, fontBold, materials, supplier),
+
+              pw.SizedBox(height: 20),
+
+              // Totals section
+              _buildDCTotalsSection(
+                  deliveryChallan, font, fontBold, materials, supplier),
+
+              pw.Spacer(),
+
+              // Notes section (if any)
+              if (deliveryChallan.note != null &&
+                  deliveryChallan.note!.isNotEmpty)
+                _buildNotesSection(deliveryChallan.note!, font, fontBold),
+
+              // Terms and conditions
+              _buildInvoiceTermsAndConditions(
+                  supplier, deliveryChallan, font, fontBold),
+            ],
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
   static Future<Uint8List> generateDeliveryChallanPDF(
     DeliveryChallan deliveryChallan,
     Supplier supplier, {
@@ -813,6 +889,82 @@ Coimbatore, Tamil Nadu - 641201''',
     return pdf.save();
   }
 
+  static pw.Widget _buildInvoiceHeader(
+      DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            child: pw.Container(
+              padding: const pw.EdgeInsets.all(8),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Invoice',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      font: fontBold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          pw.Container(
+            width: 200,
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(
+                left: pw.BorderSide(color: PdfColors.black, width: 1),
+              ),
+            ),
+            child: pw.Column(
+              children: [
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: const pw.BoxDecoration(
+                    color: PdfColors.grey300,
+                    border: pw.Border(
+                      bottom: pw.BorderSide(color: PdfColors.black, width: 1),
+                    ),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'INVOICE NO:',
+                        style: pw.TextStyle(font: fontBold),
+                      ),
+                      pw.Text(deliveryChallan.dcNo,
+                          style: pw.TextStyle(font: font)),
+                    ],
+                  ),
+                ),
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(8),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'INVOICE DATE:',
+                        style: pw.TextStyle(font: fontBold),
+                      ),
+                      pw.Text(deliveryChallan.dcDate,
+                          style: pw.TextStyle(font: font)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   static pw.Widget _buildDCHeader(
       DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
     return pw.Container(
@@ -878,6 +1030,128 @@ Coimbatore, Tamil Nadu - 641201''',
                       ),
                       pw.Text(deliveryChallan.dcDate,
                           style: pw.TextStyle(font: font)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildSupplierDetailsForInvoice(Supplier supplier,
+      DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          // Supplier Details
+          pw.Expanded(
+            child: pw.Container(
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  right: pw.BorderSide(color: PdfColors.black, width: 1),
+                ),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Container(
+                    width: double.infinity,
+                    padding: const pw.EdgeInsets.all(8),
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.grey300,
+                      border: pw.Border(
+                        bottom: pw.BorderSide(color: PdfColors.black, width: 1),
+                      ),
+                    ),
+                    child: pw.Text(
+                      'BILL TO',
+                      style: pw.TextStyle(font: fontBold),
+                    ),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(8),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          supplier.name,
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            font: fontBold,
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        if (supplier.address1.isNotEmpty)
+                          pw.Text(supplier.address1,
+                              style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.address2.isNotEmpty)
+                          pw.Text(supplier.address2,
+                              style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.address3.isNotEmpty)
+                          pw.Text(supplier.address3,
+                              style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.address4.isNotEmpty)
+                          pw.Text(supplier.address4,
+                              style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.state.isNotEmpty)
+                          pw.Text('${supplier.state} - ${supplier.stateCode}',
+                              style: pw.TextStyle(fontSize: 10, font: font)),
+                        pw.SizedBox(height: 4),
+                        if (supplier.gstNo.isNotEmpty)
+                          pw.Text('GST: ${supplier.gstNo}',
+                              style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.phone.isNotEmpty)
+                          pw.Text('Phone: ${supplier.phone}',
+                              style: pw.TextStyle(fontSize: 10, font: font)),
+                        if (supplier.email.isNotEmpty)
+                          pw.Text('Email: ${supplier.email}',
+                              style: pw.TextStyle(fontSize: 10, font: font)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Invoice Details
+          pw.Container(
+            width: 200,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: const pw.BoxDecoration(
+                    color: PdfColors.grey300,
+                    border: pw.Border(
+                      bottom: pw.BorderSide(color: PdfColors.black, width: 1),
+                    ),
+                  ),
+                  child: pw.Text(
+                    'INVOICE DETAILS',
+                    style: pw.TextStyle(font: fontBold),
+                  ),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(8),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      if (supplier.paymentTerms.isNotEmpty) ...[
+                        pw.Text(
+                          'Payment Terms: ${supplier.paymentTerms}',
+                          style: pw.TextStyle(fontSize: 10, font: font),
+                        ),
+                        pw.SizedBox(height: 4),
+                      ],
                     ],
                   ),
                 ),
@@ -1042,7 +1316,7 @@ Coimbatore, Tamil Nadu - 641201''',
                 _buildTableCell('MATERIAL CODE:',
                     width: 95, isHeader: true, font: font, fontBold: fontBold),
                 _buildTableCell('DESCRIPTION:',
-                    width: 180, isHeader: true, font: font, fontBold: fontBold),
+                    width: 120, isHeader: true, font: font, fontBold: fontBold),
                 _buildTableCell('QTY:',
                     width: 45, isHeader: true, font: font, fontBold: fontBold),
                 _buildTableCell('UNIT:',
@@ -1198,7 +1472,7 @@ Coimbatore, Tamil Nadu - 641201''',
                   _buildTableCell(item.materialCode,
                       width: 95, font: font, fontBold: fontBold),
                   _buildTableCell(item.materialDescription,
-                      width: 180, font: font, fontBold: fontBold),
+                      width: 120, font: font, fontBold: fontBold),
                   _buildTableCell(item.quantity.toString(),
                       width: 45, font: font, fontBold: fontBold),
                   _buildTableCell(item.unit,
@@ -1229,7 +1503,7 @@ Coimbatore, Tamil Nadu - 641201''',
                   _buildTableCell('',
                       width: 95, font: font, fontBold: fontBold),
                   _buildTableCell('',
-                      width: 180, font: font, fontBold: fontBold),
+                      width: 120, font: font, fontBold: fontBold),
                   _buildTableCell('',
                       width: 45, font: font, fontBold: fontBold),
                   _buildTableCell('',
@@ -1258,6 +1532,15 @@ Coimbatore, Tamil Nadu - 641201''',
     // Calculate totals from items using the same logic as the table
     double total = 0.0;
 
+    // Debug: Enable to troubleshoot rate issues
+    bool debug = true;
+    if (debug) {
+      print('=== DC Totals Debug ===');
+      print('Materials available: ${materials?.length ?? 0}');
+      print('DC items: ${deliveryChallan.items.length}');
+      print('Supplier: ${supplier.name} (IGST: ${supplier.igst}, CGST: ${supplier.cgst}, SGST: ${supplier.sgst})');
+    }
+
     if (materials != null) {
       for (var item in deliveryChallan.items) {
         try {
@@ -1284,6 +1567,7 @@ Coimbatore, Tamil Nadu - 641201''',
 
           if (materialData != null) {
             double rateValue = 0.0;
+            if (debug) print('Found material: ${materialData.partNo} - ${materialData.description}');
 
             // Priority 1: Get rate from the specific vendor for this DC
             if (materialData.vendorRates != null &&
@@ -1350,17 +1634,35 @@ Coimbatore, Tamil Nadu - 641201''',
             }
 
             total += rateValue * item.quantity;
+            
+            if (debug) {
+              print('${item.materialCode}: Rate=$rateValue x Qty=${item.quantity} = $total');
+            }
+          } else {
+            if (debug) print('Material NOT FOUND: ${item.materialCode} - ${item.materialDescription}');
           }
         } catch (e) {
-          // Material not found, continue
+          if (debug) print('Error processing ${item.materialCode}: $e');
         }
       }
     }
 
-    // Calculate GST (assuming 18% total GST - 9% CGST + 9% SGST)
-    final cgst = total * 0.09; // 9% CGST
-    final sgst = total * 0.09; // 9% SGST
-    final grandTotal = total + cgst + sgst;
+    // Calculate GST using supplier's GST configuration
+    double parseGstRate(String? value) {
+      if (value == null || value.isEmpty) return 0.0;
+      value = value.replaceAll('%', '').trim();
+      return double.tryParse(value) ?? 0.0;
+    }
+
+    final igst = total * (parseGstRate(supplier.igst) / 100);
+    final cgst = total * (parseGstRate(supplier.cgst) / 100);
+    final sgst = total * (parseGstRate(supplier.sgst) / 100);
+    final grandTotal = total + igst + cgst + sgst;
+
+    if (debug) {
+      print('Final totals: Subtotal=$total, IGST=$igst, CGST=$cgst, SGST=$sgst, Grand Total=$grandTotal');
+      print('=== End DC Totals Debug ===');
+    }
 
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.end,
@@ -1374,10 +1676,15 @@ Coimbatore, Tamil Nadu - 641201''',
             children: [
               _buildTotalRow('TOTAL:', 'Rs.${total.toStringAsFixed(2)}',
                   font: font, fontBold: fontBold),
-              _buildTotalRow('CGST @ 9%:', 'Rs.${cgst.toStringAsFixed(2)}',
-                  font: font, fontBold: fontBold),
-              _buildTotalRow('SGST @ 9%:', 'Rs.${sgst.toStringAsFixed(2)}',
-                  font: font, fontBold: fontBold),
+              if (igst > 0)
+                _buildTotalRow('IGST @ ${parseGstRate(supplier.igst).toStringAsFixed(0)}%:', 'Rs.${igst.toStringAsFixed(2)}',
+                    font: font, fontBold: fontBold),
+              if (cgst > 0)
+                _buildTotalRow('CGST @ ${parseGstRate(supplier.cgst).toStringAsFixed(0)}%:', 'Rs.${cgst.toStringAsFixed(2)}',
+                    font: font, fontBold: fontBold),
+              if (sgst > 0)
+                _buildTotalRow('SGST @ ${parseGstRate(supplier.sgst).toStringAsFixed(0)}%:', 'Rs.${sgst.toStringAsFixed(2)}',
+                    font: font, fontBold: fontBold),
               _buildTotalRow(
                   'GRAND TOTAL:', 'Rs.${grandTotal.toStringAsFixed(2)}',
                   isGrandTotal: true, font: font, fontBold: fontBold),
@@ -1411,6 +1718,45 @@ Coimbatore, Tamil Nadu - 641201''',
           pw.Text(
             note,
             style: pw.TextStyle(fontSize: 10, font: font),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildInvoiceTermsAndConditions(Supplier supplier,
+      DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Terms & Conditions',
+            style: pw.TextStyle(
+              fontSize: 12,
+              font: fontBold,
+            ),
+          ),
+          pw.SizedBox(height: 5),
+          pw.Text(
+            '• Payment Terms: ${supplier.paymentTerms.isNotEmpty ? supplier.paymentTerms : "As per agreement"}',
+            style: pw.TextStyle(fontSize: 9, font: font),
+          ),
+          pw.Text(
+            '• Materials delivered as per the specifications mentioned',
+            style: pw.TextStyle(fontSize: 9, font: font),
+          ),
+          pw.Text(
+            '• Any discrepancy should be reported within 24 hours',
+            style: pw.TextStyle(fontSize: 9, font: font),
+          ),
+          pw.Text(
+            '• This invoice is subject to terms and conditions of sale',
+            style: pw.TextStyle(fontSize: 9, font: font),
           ),
         ],
       ),
@@ -1558,4 +1904,107 @@ Coimbatore, Tamil Nadu - 641201''',
       throw Exception('Failed to save PDF: $e');
     }
   }
+
+  // ============== INVOICE PDF METHODS ==============
+
+  static Future<void> printInvoice(
+    DeliveryChallan deliveryChallan,
+    Supplier supplier, {
+    List<dynamic>? materials,
+  }) async {
+    final pdfData = await generateInvoicePDF(deliveryChallan, supplier,
+        materials: materials);
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdfData,
+      name: 'Invoice_${deliveryChallan.dcNo}',
+    );
+  }
+
+  static Future<void> shareInvoice(
+    DeliveryChallan deliveryChallan,
+    Supplier supplier, {
+    List<dynamic>? materials,
+  }) async {
+    final pdfData = await generateInvoicePDF(deliveryChallan, supplier,
+        materials: materials);
+
+    await Printing.sharePdf(
+      bytes: pdfData,
+      filename: 'Invoice_${deliveryChallan.dcNo}.pdf',
+    );
+  }
+
+  static Future<bool> saveInvoice(
+    DeliveryChallan deliveryChallan,
+    Supplier supplier, {
+    List<dynamic>? materials,
+  }) async {
+    try {
+      // Generate PDF data
+      final pdfData = await generateInvoicePDF(deliveryChallan, supplier,
+          materials: materials);
+
+      // Use saveFile method which works better on macOS
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Invoice PDF',
+        fileName: 'Invoice_${deliveryChallan.dcNo}.pdf',
+        type: FileType.any,
+      );
+
+      if (outputFile != null) {
+        // Ensure the file has .pdf extension
+        if (!outputFile.toLowerCase().endsWith('.pdf')) {
+          outputFile = '$outputFile.pdf';
+        }
+
+        // Write the PDF file
+        final file = File(outputFile);
+        await file.writeAsBytes(pdfData);
+        return true;
+      }
+      return false; // User cancelled
+    } catch (e) {
+      throw Exception('Failed to save PDF: $e');
+    }
+  }
+
+  static Future<bool> saveInvoiceToDownloads(
+    DeliveryChallan deliveryChallan,
+    Supplier supplier, {
+    List<dynamic>? materials,
+  }) async {
+    try {
+      // Generate PDF data
+      final pdfData = await generateInvoicePDF(deliveryChallan, supplier,
+          materials: materials);
+
+      // Get accessible directory
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = Directory('/storage/emulated/0/Download');
+      } else if (Platform.isIOS || Platform.isMacOS) {
+        // Use Documents directory which is always accessible
+        directory = await getApplicationDocumentsDirectory();
+      } else {
+        // For other platforms, try downloads first, fallback to documents
+        try {
+          directory = await getDownloadsDirectory();
+        } catch (e) {
+          directory = await getApplicationDocumentsDirectory();
+        }
+      }
+
+      if (directory != null) {
+        final fileName = 'Invoice_${deliveryChallan.dcNo}.pdf';
+        final file = File('${directory.path}/$fileName');
+        await file.writeAsBytes(pdfData);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      throw Exception('Failed to save PDF: $e');
+    }
+  }
 }
+

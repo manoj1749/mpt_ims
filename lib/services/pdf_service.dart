@@ -524,18 +524,18 @@ Coimbatore, Tamil Nadu - 641201''',
                   font: font, fontBold: fontBold),
               if (purchaseOrder.igst > 0)
                 _buildTotalRow('IGST @ ${_getIGSTPercentage(purchaseOrder)}%:',
-                    'Rs.${purchaseOrder.igst.toStringAsFixed(2)}',
+                    'Rs.${(purchaseOrder.igst + 0.5).floor().toString()}',
                     font: font, fontBold: fontBold),
               if (purchaseOrder.cgst > 0)
                 _buildTotalRow('CGST @ ${_getCGSTPercentage(purchaseOrder)}%:',
-                    'Rs.${purchaseOrder.cgst.toStringAsFixed(2)}',
+                    'Rs.${(purchaseOrder.cgst + 0.5).floor().toString()}',
                     font: font, fontBold: fontBold),
               if (purchaseOrder.sgst > 0)
                 _buildTotalRow('SGST @ ${_getSGSTPercentage(purchaseOrder)}%:',
-                    'Rs.${purchaseOrder.sgst.toStringAsFixed(2)}',
+                    'Rs.${(purchaseOrder.sgst + 0.5).floor().toString()}',
                     font: font, fontBold: fontBold),
               _buildTotalRow('GRAND TOTAL:',
-                  'Rs.${purchaseOrder.grandTotal.toStringAsFixed(2)}',
+                  'Rs.${(purchaseOrder.total + (purchaseOrder.igst + 0.5).floor() + (purchaseOrder.cgst + 0.5).floor() + (purchaseOrder.sgst + 0.5).floor()).toStringAsFixed(2)}',
                   isGrandTotal: true, font: font, fontBold: fontBold),
             ],
           ),
@@ -923,26 +923,6 @@ Coimbatore, Tamil Nadu - 641201''',
             ),
             child: pw.Column(
               children: [
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(8),
-                  decoration: const pw.BoxDecoration(
-                    color: PdfColors.grey300,
-                    border: pw.Border(
-                      bottom: pw.BorderSide(color: PdfColors.black, width: 1),
-                    ),
-                  ),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'INVOICE NO:',
-                        style: pw.TextStyle(font: fontBold),
-                      ),
-                      pw.Text(deliveryChallan.dcNo,
-                          style: pw.TextStyle(font: font)),
-                    ],
-                  ),
-                ),
                 pw.Container(
                   padding: const pw.EdgeInsets.all(8),
                   child: pw.Row(
@@ -1657,10 +1637,13 @@ Coimbatore, Tamil Nadu - 641201''',
     final igst = total * (parseGstRate(supplier.igst) / 100);
     final cgst = total * (parseGstRate(supplier.cgst) / 100);
     final sgst = total * (parseGstRate(supplier.sgst) / 100);
-    final grandTotal = total + igst + cgst + sgst;
 
     if (debug) {
-      print('Final totals: Subtotal=$total, IGST=$igst, CGST=$cgst, SGST=$sgst, Grand Total=$grandTotal');
+      final roundedIGST = (igst + 0.5).floor();
+      final roundedCGST = (cgst + 0.5).floor();
+      final roundedSGST = (sgst + 0.5).floor();
+      final roundedGrandTotal = total + roundedIGST + roundedCGST + roundedSGST;
+      print('Final totals: Subtotal=$total, IGST=$roundedIGST, CGST=$roundedCGST, SGST=$roundedSGST, Grand Total=$roundedGrandTotal');
       print('=== End DC Totals Debug ===');
     }
 
@@ -1677,16 +1660,16 @@ Coimbatore, Tamil Nadu - 641201''',
               _buildTotalRow('TOTAL:', 'Rs.${total.toStringAsFixed(2)}',
                   font: font, fontBold: fontBold),
               if (igst > 0)
-                _buildTotalRow('IGST @ ${parseGstRate(supplier.igst).toStringAsFixed(0)}%:', 'Rs.${igst.toStringAsFixed(2)}',
+                _buildTotalRow('IGST @ ${parseGstRate(supplier.igst).toStringAsFixed(0)}%:', 'Rs.${(igst + 0.5).floor().toString()}',
                     font: font, fontBold: fontBold),
               if (cgst > 0)
-                _buildTotalRow('CGST @ ${parseGstRate(supplier.cgst).toStringAsFixed(0)}%:', 'Rs.${cgst.toStringAsFixed(2)}',
+                _buildTotalRow('CGST @ ${parseGstRate(supplier.cgst).toStringAsFixed(0)}%:', 'Rs.${(cgst + 0.5).floor().toString()}',
                     font: font, fontBold: fontBold),
               if (sgst > 0)
-                _buildTotalRow('SGST @ ${parseGstRate(supplier.sgst).toStringAsFixed(0)}%:', 'Rs.${sgst.toStringAsFixed(2)}',
+                _buildTotalRow('SGST @ ${parseGstRate(supplier.sgst).toStringAsFixed(0)}%:', 'Rs.${(sgst + 0.5).floor().toString()}',
                     font: font, fontBold: fontBold),
               _buildTotalRow(
-                  'GRAND TOTAL:', 'Rs.${grandTotal.toStringAsFixed(2)}',
+                  'GRAND TOTAL:', 'Rs.${(total + (igst + 0.5).floor() + (cgst + 0.5).floor() + (sgst + 0.5).floor()).toStringAsFixed(2)}',
                   isGrandTotal: true, font: font, fontBold: fontBold),
             ],
           ),

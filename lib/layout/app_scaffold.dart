@@ -19,6 +19,7 @@ import 'package:mpt_ims/pages/quality/capa_status_page.dart';
 import 'package:mpt_ims/pages/sales/sale_order_list_page.dart';
 import 'package:mpt_ims/pages/store/material_issue_list_page.dart';
 import 'package:mpt_ims/pages/store/delivery_challan_list_page.dart';
+import 'package:mpt_ims/pages/store/invoice_generation_page.dart';
 import '../widgets/sync_status_widget.dart';
 
 class AppScaffold extends StatefulWidget {
@@ -89,6 +90,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       'Stock Maintenance & Display',
       'Delivery Challan',
       'Vendor Delivery Challan',
+      'Invoice Generation',
     ],
     9: [
       'Job Order Entry',
@@ -155,6 +157,9 @@ class _AppScaffoldState extends State<AppScaffold> {
         break;
       case 'Delivery Challan':
         page = const DeliveryChallanListPage();
+        break;
+      case 'Invoice Generation':
+        page = const InvoiceGenerationPage();
         break;
       default:
         page = SectionPage(title: name);

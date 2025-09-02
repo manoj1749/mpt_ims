@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/services.dart';
@@ -11,6 +13,26 @@ import '../models/delivery_challan.dart';
 import '../models/supplier.dart';
 
 class PDFService {
+  static Future<pw.Document> _setupPdfDocument({
+    required pw.Font font,
+    required pw.Font fontBold,
+  }) async {
+    return pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: font,
+        bold: fontBold,
+      ),
+    );
+  }
+
+  static PdfPageFormat _getPageFormat() {
+    return PdfPageFormat.a4.copyWith(
+      marginTop: 15.0,
+      marginBottom: 15.0,
+      marginLeft: 15.0,
+      marginRight: 15.0,
+    );
+  }
   // Company configuration - can be modified as needed
   static const _companyConfig = {
     'name': 'Aimant Industries',
@@ -26,11 +48,12 @@ Coimbatore, Tamil Nadu - 641201''',
     PurchaseOrder purchaseOrder,
     Supplier supplier,
   ) async {
-    final pdf = pw.Document();
-
     // Load font that supports Unicode characters
     final font = await PdfGoogleFonts.notoSansRegular();
     final fontBold = await PdfGoogleFonts.notoSansBold();
+
+    // Initialize PDF document with custom theme
+    final pdf = await _setupPdfDocument(font: font, fontBold: fontBold);
 
     // Load company logo
     final logoData = await rootBundle.load('assets/logo.jpeg');
@@ -44,11 +67,11 @@ Coimbatore, Tamil Nadu - 641201''',
     final companyEmail = _companyConfig['email']!;
 
     pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(20),
-        build: (pw.Context context) {
-          return pw.Column(
+      pw.MultiPage(
+        pageFormat: _getPageFormat(),
+        maxPages: 2,
+        build: (pw.Context context) => [
+          pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               // Header with company details
@@ -75,13 +98,13 @@ Coimbatore, Tamil Nadu - 641201''',
               // Totals section
               _buildTotalsSection(purchaseOrder, font, fontBold),
 
-              pw.Spacer(),
+              pw.SizedBox(height: 20),
 
               // Terms and conditions
-              _buildTermsAndConditions(supplier, font, fontBold),
+              // _buildTermsAndConditions(supplier, font, fontBold),
             ],
-          );
-        },
+          ),
+        ],
       ),
     );
 
@@ -524,18 +547,24 @@ Coimbatore, Tamil Nadu - 641201''',
                   font: font, fontBold: fontBold),
               if (purchaseOrder.igst > 0)
                 _buildTotalRow('IGST @ ${_getIGSTPercentage(purchaseOrder)}%:',
-                    'Rs.${purchaseOrder.igst.ceil().toString()}',
+                    'Rs.${purchaseOrder.igst.toStringAsFixed(2)}',
                     font: font, fontBold: fontBold),
               if (purchaseOrder.cgst > 0)
                 _buildTotalRow('CGST @ ${_getCGSTPercentage(purchaseOrder)}%:',
-                    'Rs.${purchaseOrder.cgst.ceil().toString()}',
+                    'Rs.${purchaseOrder.cgst.toStringAsFixed(2)}',
                     font: font, fontBold: fontBold),
               if (purchaseOrder.sgst > 0)
                 _buildTotalRow('SGST @ ${_getSGSTPercentage(purchaseOrder)}%:',
-                    'Rs.${purchaseOrder.sgst.ceil().toString()}',
+                    'Rs.${purchaseOrder.sgst.toStringAsFixed(2)}',
                     font: font, fontBold: fontBold),
+              _buildTotalRow('Total GST:',
+                  'Rs.${(purchaseOrder.igst + purchaseOrder.cgst + purchaseOrder.sgst).toStringAsFixed(2)}',
+                  font: font, fontBold: fontBold),
+              _buildTotalRow('Round Off:',
+                  'Rs.${((purchaseOrder.igst + purchaseOrder.cgst + purchaseOrder.sgst).ceil() - (purchaseOrder.igst + purchaseOrder.cgst + purchaseOrder.sgst)).toStringAsFixed(2)}',
+                  font: font, fontBold: fontBold),
               _buildTotalRow('GRAND TOTAL:',
-                  'Rs.${(purchaseOrder.total + purchaseOrder.igst.ceil() + purchaseOrder.cgst.ceil() + purchaseOrder.sgst.ceil()).toStringAsFixed(2)}',
+                  'Rs.${(purchaseOrder.total + (purchaseOrder.igst + purchaseOrder.cgst + purchaseOrder.sgst).ceil()).toStringAsFixed(2)}',
                   isGrandTotal: true, font: font, fontBold: fontBold),
             ],
           ),
@@ -602,44 +631,44 @@ Coimbatore, Tamil Nadu - 641201''',
     return '0';
   }
 
-  static pw.Widget _buildTermsAndConditions(
-      Supplier supplier, pw.Font font, pw.Font fontBold) {
-    return pw.Container(
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.black, width: 1),
-      ),
-      padding: const pw.EdgeInsets.all(8),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Terms & Conditions',
-            style: pw.TextStyle(
-              fontSize: 12,
-              font: fontBold,
-            ),
-          ),
-          pw.SizedBox(height: 5),
-          pw.Text(
-            '• Payment Terms: ${supplier.paymentTerms.isNotEmpty ? supplier.paymentTerms : "As per agreement"}',
-            style: pw.TextStyle(fontSize: 9, font: font),
-          ),
-          pw.Text(
-            '• Delivery: As per delivery requirements mentioned above',
-            style: pw.TextStyle(fontSize: 9, font: font),
-          ),
-          pw.Text(
-            '• Quality: Materials should meet the specified quality standards',
-            style: pw.TextStyle(fontSize: 9, font: font),
-          ),
-          pw.Text(
-            '• Returns: Defective materials will be returned at supplier\'s cost',
-            style: pw.TextStyle(fontSize: 9, font: font),
-          ),
-        ],
-      ),
-    );
-  }
+  // static pw.Widget _buildTermsAndConditions(
+  //     Supplier supplier, pw.Font font, pw.Font fontBold) {
+  //   return pw.Container(
+  //     decoration: pw.BoxDecoration(
+  //       border: pw.Border.all(color: PdfColors.black, width: 1),
+  //     ),
+  //     padding: const pw.EdgeInsets.all(8),
+  //     child: pw.Column(
+  //       crossAxisAlignment: pw.CrossAxisAlignment.start,
+  //       children: [
+  //         pw.Text(
+  //           'Terms & Conditions',
+  //           style: pw.TextStyle(
+  //             fontSize: 12,
+  //             font: fontBold,
+  //           ),
+  //         ),
+  //         pw.SizedBox(height: 5),
+  //         pw.Text(
+  //           '• Payment Terms: ${supplier.paymentTerms.isNotEmpty ? supplier.paymentTerms : "As per agreement"}',
+  //           style: pw.TextStyle(fontSize: 9, font: font),
+  //         ),
+  //         pw.Text(
+  //           '• Delivery: As per delivery requirements mentioned above',
+  //           style: pw.TextStyle(fontSize: 9, font: font),
+  //         ),
+  //         pw.Text(
+  //           '• Quality: Materials should meet the specified quality standards',
+  //           style: pw.TextStyle(fontSize: 9, font: font),
+  //         ),
+  //         pw.Text(
+  //           '• Returns: Defective materials will be returned at supplier\'s cost',
+  //           style: pw.TextStyle(fontSize: 9, font: font),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   static Future<void> printPurchaseOrder(
     PurchaseOrder purchaseOrder,
@@ -753,11 +782,12 @@ Coimbatore, Tamil Nadu - 641201''',
     Supplier supplier, {
     List<dynamic>? materials,
   }) async {
-    final pdf = pw.Document();
-
     // Load font that supports Unicode characters
     final font = await PdfGoogleFonts.notoSansRegular();
     final fontBold = await PdfGoogleFonts.notoSansBold();
+
+    // Initialize PDF document with custom theme
+    final pdf = await _setupPdfDocument(font: font, fontBold: fontBold);
 
     // Load company logo
     final logoData = await rootBundle.load('assets/logo.jpeg');
@@ -771,11 +801,11 @@ Coimbatore, Tamil Nadu - 641201''',
     final companyEmail = _companyConfig['email']!;
 
     pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(20),
-        build: (pw.Context context) {
-          return pw.Column(
+      pw.MultiPage(
+        pageFormat: _getPageFormat(),
+        // maxPages: 2,
+        build: (pw.Context context) => [
+          pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               // Header with company details
@@ -805,20 +835,23 @@ Coimbatore, Tamil Nadu - 641201''',
               _buildDCTotalsSection(
                   deliveryChallan, font, fontBold, materials, supplier),
 
-              pw.Spacer(),
+              pw.SizedBox(height: 20),
 
               // Notes section (if any)
               if (deliveryChallan.note != null &&
                   deliveryChallan.note!.isNotEmpty)
                 _buildNotesSection(deliveryChallan.note!, font, fontBold),
 
+              pw.SizedBox(height: 20),
+
               // Terms and conditions
-              _buildInvoiceTermsAndConditions(
-                  supplier, deliveryChallan, font, fontBold),
+              // _buildInvoiceTermsAndConditions(
+              //     supplier, deliveryChallan, font, fontBold),
             ],
-          );
-        },
+          ),
+        ],
       ),
+
     );
 
     return pdf.save();
@@ -830,11 +863,12 @@ Coimbatore, Tamil Nadu - 641201''',
     List<dynamic>?
         materials, // Optional material master data for HSN codes and rates
   }) async {
-    final pdf = pw.Document();
-
     // Load font that supports Unicode characters
     final font = await PdfGoogleFonts.notoSansRegular();
     final fontBold = await PdfGoogleFonts.notoSansBold();
+
+    // Initialize PDF document with custom theme
+    final pdf = await _setupPdfDocument(font: font, fontBold: fontBold);
 
     // Load company logo
     final logoData = await rootBundle.load('assets/logo.jpeg');
@@ -848,11 +882,11 @@ Coimbatore, Tamil Nadu - 641201''',
     final companyEmail = _companyConfig['email']!;
 
     pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(20),
-        build: (pw.Context context) {
-          return pw.Column(
+      pw.MultiPage(
+        pageFormat: _getPageFormat(),
+        maxPages: 2,
+        build: (pw.Context context) => [
+          pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               // Header with company details
@@ -882,19 +916,21 @@ Coimbatore, Tamil Nadu - 641201''',
               _buildDCTotalsSection(
                   deliveryChallan, font, fontBold, materials, supplier),
 
-              pw.Spacer(),
+              pw.SizedBox(height: 20),
 
               // Notes section (if any)
               if (deliveryChallan.note != null &&
                   deliveryChallan.note!.isNotEmpty)
                 _buildNotesSection(deliveryChallan.note!, font, fontBold),
 
+              pw.SizedBox(height: 20),
+
               // Terms and conditions
-              _buildDCTermsAndConditions(
-                  supplier, deliveryChallan, font, fontBold),
+              // _buildDCTermsAndConditions(
+              //     supplier, deliveryChallan, font, fontBold),
             ],
-          );
-        },
+          ),
+        ],
       ),
     );
 
@@ -1664,12 +1700,21 @@ Coimbatore, Tamil Nadu - 641201''',
       igst = total * (parseGstRate(supplier.igst) / 100);
     }
 
+    // Calculate total GST and round off
+    final actualTotalGst = igst + cgst + sgst;
+    final roundedTotalGst = actualTotalGst.ceil();
+    final roundOff = roundedTotalGst - actualTotalGst;
+
     if (debug) {
-      final roundedIGST = igst.ceil();
-      final roundedCGST = cgst.ceil();
-      final roundedSGST = sgst.ceil();
-      final roundedGrandTotal = total + roundedIGST + roundedCGST + roundedSGST;
-      print('Final totals: Subtotal=$total, IGST=$roundedIGST, CGST=$roundedCGST, SGST=$roundedSGST, Grand Total=$roundedGrandTotal');
+      print('=== DC Totals Debug ===');
+      print('Subtotal: $total');
+      print('IGST: $igst');
+      print('CGST: $cgst');
+      print('SGST: $sgst');
+      print('Total GST (actual): $actualTotalGst');
+      print('Total GST (rounded): $roundedTotalGst');
+      print('Round Off: $roundOff');
+      print('Grand Total: ${total + roundedTotalGst}');
       print('=== End DC Totals Debug ===');
     }
 
@@ -1686,16 +1731,20 @@ Coimbatore, Tamil Nadu - 641201''',
               _buildTotalRow('TOTAL:', 'Rs.${total.toStringAsFixed(2)}',
                   font: font, fontBold: fontBold),
               if (igst > 0)
-                _buildTotalRow('IGST @ ${parseGstRate(supplier.igst).toStringAsFixed(0)}%:', 'Rs.${igst.ceil().toString()}',
+                _buildTotalRow('IGST @ ${parseGstRate(supplier.igst).toStringAsFixed(0)}%:', 'Rs.${igst.toStringAsFixed(2)}',
                     font: font, fontBold: fontBold),
               if (cgst > 0)
-                _buildTotalRow('CGST @ ${parseGstRate(supplier.cgst).toStringAsFixed(0)}%:', 'Rs.${cgst.ceil().toString()}',
+                _buildTotalRow('CGST @ ${parseGstRate(supplier.cgst).toStringAsFixed(0)}%:', 'Rs.${cgst.toStringAsFixed(2)}',
                     font: font, fontBold: fontBold),
               if (sgst > 0)
-                _buildTotalRow('SGST @ ${parseGstRate(supplier.sgst).toStringAsFixed(0)}%:', 'Rs.${sgst.ceil().toString()}',
+                _buildTotalRow('SGST @ ${parseGstRate(supplier.sgst).toStringAsFixed(0)}%:', 'Rs.${sgst.toStringAsFixed(2)}',
                     font: font, fontBold: fontBold),
+              _buildTotalRow('Total GST:', 'Rs.${actualTotalGst.toStringAsFixed(2)}',
+                  font: font, fontBold: fontBold),
+              _buildTotalRow('Round Off:', 'Rs.${roundOff.toStringAsFixed(2)}',
+                  font: font, fontBold: fontBold),
               _buildTotalRow(
-                  'GRAND TOTAL:', 'Rs.${(total + igst.ceil() + cgst.ceil() + sgst.ceil()).toStringAsFixed(2)}',
+                  'GRAND TOTAL:', 'Rs.${(total + roundedTotalGst).toStringAsFixed(2)}',
                   isGrandTotal: true, font: font, fontBold: fontBold),
             ],
           ),
@@ -1733,84 +1782,84 @@ Coimbatore, Tamil Nadu - 641201''',
     );
   }
 
-  static pw.Widget _buildInvoiceTermsAndConditions(Supplier supplier,
-      DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
-    return pw.Container(
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.black, width: 1),
-      ),
-      padding: const pw.EdgeInsets.all(8),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Terms & Conditions',
-            style: pw.TextStyle(
-              fontSize: 12,
-              font: fontBold,
-            ),
-          ),
-          pw.SizedBox(height: 5),
-          pw.Text(
-            '• Payment Terms: ${supplier.paymentTerms.isNotEmpty ? supplier.paymentTerms : "As per agreement"}',
-            style: pw.TextStyle(fontSize: 9, font: font),
-          ),
-          pw.Text(
-            '• Materials delivered as per the specifications mentioned',
-            style: pw.TextStyle(fontSize: 9, font: font),
-          ),
-          pw.Text(
-            '• Any discrepancy should be reported within 24 hours',
-            style: pw.TextStyle(fontSize: 9, font: font),
-          ),
-          pw.Text(
-            '• This invoice is subject to terms and conditions of sale',
-            style: pw.TextStyle(fontSize: 9, font: font),
-          ),
-        ],
-      ),
-    );
-  }
+  // static pw.Widget _buildInvoiceTermsAndConditions(Supplier supplier,
+  //     DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+  //   return pw.Container(
+  //     decoration: pw.BoxDecoration(
+  //       border: pw.Border.all(color: PdfColors.black, width: 1),
+  //     ),
+  //     padding: const pw.EdgeInsets.all(8),
+  //     child: pw.Column(
+  //       crossAxisAlignment: pw.CrossAxisAlignment.start,
+  //       children: [
+  //         pw.Text(
+  //           'Terms & Conditions',
+  //           style: pw.TextStyle(
+  //             fontSize: 12,
+  //             font: fontBold,
+  //           ),
+  //         ),
+  //         pw.SizedBox(height: 5),
+  //         pw.Text(
+  //           '• Payment Terms: ${supplier.paymentTerms.isNotEmpty ? supplier.paymentTerms : "As per agreement"}',
+  //           style: pw.TextStyle(fontSize: 9, font: font),
+  //         ),
+  //         pw.Text(
+  //           '• Materials delivered as per the specifications mentioned',
+  //           style: pw.TextStyle(fontSize: 9, font: font),
+  //         ),
+  //         pw.Text(
+  //           '• Any discrepancy should be reported within 24 hours',
+  //           style: pw.TextStyle(fontSize: 9, font: font),
+  //         ),
+  //         pw.Text(
+  //           '• This invoice is subject to terms and conditions of sale',
+  //           style: pw.TextStyle(fontSize: 9, font: font),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
-  static pw.Widget _buildDCTermsAndConditions(Supplier supplier,
-      DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
-    return pw.Container(
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.black, width: 1),
-      ),
-      padding: const pw.EdgeInsets.all(8),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Terms & Conditions',
-            style: pw.TextStyle(
-              fontSize: 12,
-              font: fontBold,
-            ),
-          ),
-          pw.SizedBox(height: 5),
-          pw.Text(
-            '• This delivery challan is ${deliveryChallan.isReturnable ? "returnable" : "non-returnable"}',
-            style: pw.TextStyle(fontSize: 9, font: font),
-          ),
-          pw.Text(
-            '• Materials delivered as per the specifications mentioned',
-            style: pw.TextStyle(fontSize: 9, font: font),
-          ),
-          pw.Text(
-            '• Any discrepancy should be reported within 24 hours',
-            style: pw.TextStyle(fontSize: 9, font: font),
-          ),
-          if (deliveryChallan.isReturnable)
-            pw.Text(
-              '• Materials should be returned in original condition',
-              style: pw.TextStyle(fontSize: 9, font: font),
-            ),
-        ],
-      ),
-    );
-  }
+  // static pw.Widget _buildDCTermsAndConditions(Supplier supplier,
+  //     DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+  //   return pw.Container(
+  //     decoration: pw.BoxDecoration(
+  //       border: pw.Border.all(color: PdfColors.black, width: 1),
+  //     ),
+  //     padding: const pw.EdgeInsets.all(8),
+  //     child: pw.Column(
+  //       crossAxisAlignment: pw.CrossAxisAlignment.start,
+  //       children: [
+  //         pw.Text(
+  //           'Terms & Conditions',
+  //           style: pw.TextStyle(
+  //             fontSize: 12,
+  //             font: fontBold,
+  //           ),
+  //         ),
+  //         pw.SizedBox(height: 5),
+  //         pw.Text(
+  //           '• This delivery challan is ${deliveryChallan.isReturnable ? "returnable" : "non-returnable"}',
+  //           style: pw.TextStyle(fontSize: 9, font: font),
+  //         ),
+  //         pw.Text(
+  //           '• Materials delivered as per the specifications mentioned',
+  //           style: pw.TextStyle(fontSize: 9, font: font),
+  //         ),
+  //         pw.Text(
+  //           '• Any discrepancy should be reported within 24 hours',
+  //           style: pw.TextStyle(fontSize: 9, font: font),
+  //         ),
+  //         if (deliveryChallan.isReturnable)
+  //           pw.Text(
+  //             '• Materials should be returned in original condition',
+  //             style: pw.TextStyle(fontSize: 9, font: font),
+  //           ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   static Future<void> printDeliveryChallan(
     DeliveryChallan deliveryChallan,

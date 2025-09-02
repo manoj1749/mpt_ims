@@ -609,33 +609,9 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           ),
           FilledButton(
             onPressed: () async {
-              Navigator.pop(context);
-              // Show loading dialog
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const AlertDialog(
-                  content: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(width: 16),
-                      Text('Opening file picker...'),
-                    ],
-                  ),
-                ),
-              );
-              
-              // Wait a moment to ensure dialog is shown
-              await Future.delayed(const Duration(milliseconds: 100));
-              
+              Navigator.pop(context); // Close initial dialog
               try {
-                await _pickAndProcessFile().timeout(
-                  const Duration(seconds: 30),
-                  onTimeout: () {
-                    throw Exception('File processing timed out after 30 seconds');
-                  },
-                );
+                await _pickAndProcessFile();
               } catch (e) {
                 print('Error in file processing: $e');
                 if (mounted) {
@@ -645,11 +621,6 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                       backgroundColor: Colors.red,
                     ),
                   );
-                }
-              } finally {
-                // Close loading dialog if it's still open
-                if (mounted && Navigator.canPop(context)) {
-                  Navigator.pop(context);
                 }
               }
             },
@@ -881,15 +852,9 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
     if (mounted) {
       print('Showing preview dialog...');
       
-      // Close any existing loading dialog first
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-        print('Closed loading dialog before showing preview');
-      }
-      
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: Text('Upload Preview (${dataRows.length} total rows)'),
           content: SizedBox(
             width: 800,
@@ -951,41 +916,51 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () async {
                 print('Upload button pressed in preview dialog');
-                Navigator.pop(context);
+                
+                // Store the main context before closing dialog
+                final mainContext = context;
+                Navigator.pop(dialogContext); // Close preview dialog
                 
                 // Show processing dialog
+                BuildContext? processingDialogContext;
                 showDialog(
-                  context: context,
+                  context: mainContext,
                   barrierDismissible: false,
-                  builder: (context) => const AlertDialog(
-                    content: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(width: 16),
-                        Text('Processing upload...'),
-                      ],
-                    ),
-                  ),
+                  builder: (context) {
+                    processingDialogContext = context;
+                    return WillPopScope(
+                      onWillPop: () async => false,
+                      child: const AlertDialog(
+                        content: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(width: 16),
+                            Text('Processing upload...'),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 );
                 
                 try {
                   await _processUpload(dataRows, partNoIndex, descriptionIndex, quantityIndex, unitIndex, hsnIndex, stockNoIndex);
                   
                   // Close processing dialog
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
+                  if (processingDialogContext != null && Navigator.canPop(processingDialogContext!)) {
+                    Navigator.pop(processingDialogContext!);
                   }
                 } catch (e) {
                   // Close processing dialog
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
+                  if (processingDialogContext != null && Navigator.canPop(processingDialogContext!)) {
+                    Navigator.pop(processingDialogContext!);
                   }
                   
                   if (mounted) {
@@ -1015,9 +990,12 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
     int hsnIndex,
     int stockNoIndex,
   ) async {
+    
     try {
       print('=== Starting Upload Process ===');
       print('Data rows to process: ${dataRows.length}');
+      
+
       
       final materialNotifier = ref.read(materialListProvider.notifier);
       final stockNotifier = ref.read(stockMaintenanceProvider.notifier);
@@ -1112,6 +1090,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       print('=== Upload Process Complete ===');
       print('Processed: $processed, Created: $created, Updated: $updated, Errors: $errors');
 
+      // Show completion message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1122,9 +1101,15 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
             duration: const Duration(seconds: 4),
           ),
         );
+        
+        // Force a rebuild of the material master page
+        setState(() {});
       }
 
     } catch (e) {
+      print('Error during upload process: $e');
+      
+      // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1132,25 +1117,59 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
             backgroundColor: Colors.red,
           ),
         );
+        
+        // Force a rebuild of the material master page
+        setState(() {});
       }
     }
   }
 
   Future<void> _addToGeneralStock(String partNo, double quantity, StockMaintenanceNotifier stockNotifier) async {
     try {
+      print('\n=== Adding to General Stock ===');
+      print('Part No: $partNo');
+      print('Quantity: $quantity');
+      
+
+      
       // Check if stock record exists
       final existingStocks = ref.read(stockMaintenanceProvider);
       final existingStock = existingStocks.firstWhereOrNull((s) => s.materialCode == partNo);
       
       if (existingStock != null) {
+        print('Found existing stock record');
+        print('Current stock: ${existingStock.currentStock}');
+        
         // Update existing stock
         existingStock.currentStock += quantity;
         await stockNotifier.update(existingStock);
+        
+        print('Updated stock to: ${existingStock.currentStock}');
       } else {
+        print('Creating new stock record');
+        
         // Create new stock record
-        final material = ref.read(materialListProvider).firstWhere((m) => m.partNo == partNo);
+        final materials = ref.read(materialListProvider);
+        print('Found ${materials.length} materials');
+        
+        final material = materials.firstWhere(
+          (m) => m.partNo == partNo,
+          orElse: () {
+            print('Material not found by partNo, searching by slNo');
+            return materials.firstWhere(
+              (m) => m.slNo == partNo,
+              orElse: () {
+                print('Material not found by slNo either');
+                throw Exception('Material not found: $partNo');
+              },
+            );
+          },
+        );
+        
+        print('Found material: ${material.partNo} (${material.description})');
+        
         final newStock = StockMaintenance(
-          materialCode: partNo,
+          materialCode: material.partNo, // Use partNo consistently
           materialDescription: material.description,
           unit: material.unit,
           storageLocation: '',
@@ -1165,8 +1184,12 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           vendorDetails: {},
         );
         
+        print('Adding new stock record with quantity: $quantity');
         await stockNotifier.add(newStock);
+        print('Stock record added successfully');
       }
+      
+      print('=== Stock Update Complete ===');
     } catch (e) {
       print('Error adding to general stock for $partNo: $e');
       rethrow;

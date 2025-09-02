@@ -916,7 +916,7 @@ Coimbatore, Tamil Nadu - 641201''',
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'Invoice',
+                    'Tax Invoice',
                     style: pw.TextStyle(
                       fontSize: 16,
                       font: fontBold,
@@ -1639,16 +1639,30 @@ Coimbatore, Tamil Nadu - 641201''',
       }
     }
 
-    // Calculate GST using supplier's GST configuration
+    // Calculate GST using supplier's GST configuration and state
     double parseGstRate(String? value) {
       if (value == null || value.isEmpty) return 0.0;
       value = value.replaceAll('%', '').trim();
       return double.tryParse(value) ?? 0.0;
     }
 
-    final igst = total * (parseGstRate(supplier.igst) / 100);
-    final cgst = total * (parseGstRate(supplier.cgst) / 100);
-    final sgst = total * (parseGstRate(supplier.sgst) / 100);
+    // Get company state code from GSTN (first two digits)
+    final companyStateCode = _companyConfig['gstn']!.substring(0, 2);
+    final supplierStateCode = supplier.gstNo.isNotEmpty ? supplier.gstNo.substring(0, 2) : '';
+    
+    // Calculate GST based on state comparison
+    double igst = 0.0;
+    double cgst = 0.0;
+    double sgst = 0.0;
+    
+    if (supplierStateCode == companyStateCode) {
+      // Same state - apply CGST and SGST
+      cgst = total * (parseGstRate(supplier.cgst) / 100);
+      sgst = total * (parseGstRate(supplier.sgst) / 100);
+    } else {
+      // Different state - apply IGST
+      igst = total * (parseGstRate(supplier.igst) / 100);
+    }
 
     if (debug) {
       final roundedIGST = igst.ceil();

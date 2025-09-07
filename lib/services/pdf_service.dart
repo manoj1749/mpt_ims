@@ -469,35 +469,6 @@ Coimbatore, Tamil Nadu - 641201''',
               ),
             );
           }).toList(),
-          // Empty rows to fill the table
-          ...List.generate(10 - purchaseOrder.items.length, (index) {
-            return pw.Container(
-              height: 20,
-              decoration: const pw.BoxDecoration(
-                border: pw.Border(
-                  bottom: pw.BorderSide(color: PdfColors.black, width: 0.5),
-                ),
-              ),
-              child: pw.Row(
-                children: [
-                  _buildTableCell('',
-                      width: 40, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 80, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 200, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 50, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 50, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 60, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 60, font: font, fontBold: fontBold),
-                ],
-              ),
-            );
-          }),
         ],
       ),
     );
@@ -1515,37 +1486,6 @@ Coimbatore, Tamil Nadu - 641201''',
               ),
             );
           }).toList(),
-          // Empty rows to fill the table
-          ...List.generate(10 - deliveryChallan.items.length, (index) {
-            return pw.Container(
-              height: 20,
-              decoration: const pw.BoxDecoration(
-                border: pw.Border(
-                  bottom: pw.BorderSide(color: PdfColors.black, width: 0.5),
-                ),
-              ),
-              child: pw.Row(
-                children: [
-                  _buildTableCell('',
-                      width: 35, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 95, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 120, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 45, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 45, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 65, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 65, font: font, fontBold: fontBold),
-                  _buildTableCell('',
-                      width: 70, font: font, fontBold: fontBold),
-                ],
-              ),
-            );
-          }),
         ],
       ),
     );

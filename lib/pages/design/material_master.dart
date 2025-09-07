@@ -1130,8 +1130,6 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       print('Part No: $partNo');
       print('Quantity: $quantity');
       
-
-      
       // Check if stock record exists
       final existingStocks = ref.read(stockMaintenanceProvider);
       final existingStock = existingStocks.firstWhereOrNull((s) => s.materialCode == partNo);
@@ -1140,8 +1138,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         print('Found existing stock record');
         print('Current stock: ${existingStock.currentStock}');
         
-        // Update existing stock
-        existingStock.currentStock += quantity;
+        // Create synthetic records for the additional uploaded stock
+        await _createSyntheticStockRecords(existingStock, quantity);
         await stockNotifier.update(existingStock);
         
         print('Updated stock to: ${existingStock.currentStock}');
@@ -1168,21 +1166,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         
         print('Found material: ${material.partNo} (${material.description})');
         
-        final newStock = StockMaintenance(
-          materialCode: material.partNo, // Use partNo consistently
-          materialDescription: material.description,
-          unit: material.unit,
-          storageLocation: '',
-          rackNumber: material.rackNumber ?? '',
-          currentStock: quantity,
-          stockUnderInspection: 0.0,
-          totalStockValue: 0.0,
-          grnDetails: {},
-          poDetails: {},
-          prDetails: {},
-          jobDetails: {},
-          vendorDetails: {},
-        );
+        // Create stock record with synthetic GRN/PO/PR records
+        final newStock = await _createStockWithSyntheticRecords(material, quantity);
         
         print('Adding new stock record with quantity: $quantity');
         await stockNotifier.add(newStock);
@@ -1194,6 +1179,206 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       print('Error adding to general stock for $partNo: $e');
       rethrow;
     }
+  }
+
+  Future<StockMaintenance> _createStockWithSyntheticRecords(dynamic material, double quantity) async {
+    final now = DateTime.now();
+    final dateStr = now.toIso8601String();
+    final timestamp = now.millisecondsSinceEpoch.toString();
+    
+    // Generate synthetic IDs
+    final grnNo = 'GRN_UPLOAD_$timestamp';
+    final poNo = 'PO_UPLOAD_$timestamp';
+    final prNo = 'PR_UPLOAD_$timestamp';
+    
+    print('Creating synthetic records:');
+    print('  GRN: $grnNo');
+    print('  PO: $poNo');
+    print('  PR: $prNo');
+    
+    // Create synthetic GRN details
+    final grnDetails = {
+      grnNo: StockGRNDetails(
+        grnNo: grnNo,
+        grnDate: dateStr,
+        receivedQuantity: quantity,
+        acceptedQuantity: quantity,
+        rejectedQuantity: 0.0,
+        vendorId: 'UPLOADED_STOCK',
+        rate: (material.saleRate is num) ? (material.saleRate as num).toDouble() : 0.0,
+        issuedQuantity: 0.0,
+        issuedQuantities: {},
+      ),
+    };
+    
+    // Create synthetic PO details
+    final poDetails = {
+      poNo: StockPODetails(
+        poNo: poNo,
+        poDate: dateStr,
+        orderedQuantity: quantity,
+        receivedQuantity: quantity,
+        vendorId: 'UPLOADED_STOCK',
+        rate: (material.saleRate is num) ? (material.saleRate as num).toDouble() : 0.0,
+        receivedQuantities: {
+          grnNo: {'General': quantity}
+        },
+        issuedQuantity: 0.0,
+        issuedQuantities: {},
+      ),
+    };
+    
+    // Create synthetic PR details
+    final prDetails = {
+      'General': StockPRDetails(
+        prNo: 'General',
+        prDate: dateStr,
+        requestedQuantity: quantity,
+        orderedQuantity: quantity,
+        receivedQuantity: quantity,
+        issuedQuantity: 0.0,
+        jobNo: 'General',
+      ),
+    };
+    
+    // Create synthetic job details
+    final jobDetails = {
+      'General': StockJobDetails(
+        jobNo: 'General',
+        allocatedQuantity: quantity,
+        consumedQuantity: 0.0,
+        prNo: 'General',
+      ),
+    };
+    
+    // Create synthetic vendor details
+    final vendorDetails = {
+      'UPLOADED_STOCK': StockVendorDetails(
+        vendorId: 'UPLOADED_STOCK',
+        vendorName: 'Uploaded Stock',
+        quantity: quantity,
+        rate: (material.saleRate is num) ? (material.saleRate as num).toDouble() : 0.0,
+        lastPurchaseDate: dateStr,
+      ),
+    };
+    
+    final newStock = StockMaintenance(
+      materialCode: material.partNo,
+      materialDescription: material.description,
+      unit: material.unit,
+      storageLocation: '',
+      rackNumber: material.rackNumber ?? '',
+      currentStock: quantity,
+      stockUnderInspection: 0.0,
+      totalStockValue: quantity * ((material.saleRate is num) ? (material.saleRate as num).toDouble() : 0.0),
+      grnDetails: grnDetails,
+      poDetails: poDetails,
+      prDetails: prDetails,
+      jobDetails: jobDetails,
+      vendorDetails: vendorDetails,
+    );
+    
+    print('Created stock with synthetic records');
+    return newStock;
+  }
+
+  Future<void> _createSyntheticStockRecords(StockMaintenance existingStock, double quantity) async {
+    final now = DateTime.now();
+    final dateStr = now.toIso8601String();
+    final timestamp = now.millisecondsSinceEpoch.toString();
+    
+    // Generate synthetic IDs
+    final grnNo = 'GRN_UPLOAD_$timestamp';
+    final poNo = 'PO_UPLOAD_$timestamp';
+    
+    print('Adding synthetic records to existing stock:');
+    print('  GRN: $grnNo');
+    print('  PO: $poNo');
+    
+    // Get material details for rate
+    final materials = ref.read(materialListProvider);
+    final material = materials.firstWhereOrNull((m) => m.partNo == existingStock.materialCode);
+    final rate = (material?.saleRate is num) ? (material!.saleRate as num).toDouble() : 0.0;
+    
+    // Add synthetic GRN details
+    existingStock.grnDetails[grnNo] = StockGRNDetails(
+      grnNo: grnNo,
+      grnDate: dateStr,
+      receivedQuantity: quantity,
+      acceptedQuantity: quantity,
+      rejectedQuantity: 0.0,
+      vendorId: 'UPLOADED_STOCK',
+      rate: rate,
+      issuedQuantity: 0.0,
+      issuedQuantities: {},
+    );
+    
+    // Add synthetic PO details
+    existingStock.poDetails[poNo] = StockPODetails(
+      poNo: poNo,
+      poDate: dateStr,
+      orderedQuantity: quantity,
+      receivedQuantity: quantity,
+      vendorId: 'UPLOADED_STOCK',
+      rate: rate,
+      receivedQuantities: {
+        grnNo: {'General': quantity}
+      },
+      issuedQuantity: 0.0,
+      issuedQuantities: {},
+    );
+    
+    // Update or create General PR details
+    if (existingStock.prDetails.containsKey('General')) {
+      final generalPR = existingStock.prDetails['General']!;
+      generalPR.requestedQuantity += quantity;
+      generalPR.orderedQuantity += quantity;
+      generalPR.receivedQuantity += quantity;
+    } else {
+      existingStock.prDetails['General'] = StockPRDetails(
+        prNo: 'General',
+        prDate: dateStr,
+        requestedQuantity: quantity,
+        orderedQuantity: quantity,
+        receivedQuantity: quantity,
+        issuedQuantity: 0.0,
+        jobNo: 'General',
+      );
+    }
+    
+    // Update or create General job details
+    if (existingStock.jobDetails.containsKey('General')) {
+      final generalJob = existingStock.jobDetails['General']!;
+      generalJob.allocatedQuantity += quantity;
+    } else {
+      existingStock.jobDetails['General'] = StockJobDetails(
+        jobNo: 'General',
+        allocatedQuantity: quantity,
+        consumedQuantity: 0.0,
+        prNo: 'General',
+      );
+    }
+    
+    // Update or create vendor details for uploaded stock
+    if (existingStock.vendorDetails.containsKey('UPLOADED_STOCK')) {
+      final uploadedVendor = existingStock.vendorDetails['UPLOADED_STOCK']!;
+      uploadedVendor.quantity += quantity;
+      uploadedVendor.lastPurchaseDate = dateStr;
+    } else {
+      existingStock.vendorDetails['UPLOADED_STOCK'] = StockVendorDetails(
+        vendorId: 'UPLOADED_STOCK',
+        vendorName: 'Uploaded Stock',
+        quantity: quantity,
+        rate: rate,
+        lastPurchaseDate: dateStr,
+      );
+    }
+    
+    // Update current stock and total stock value
+    existingStock.currentStock += quantity;
+    existingStock.totalStockValue += quantity * rate;
+    
+    print('Added synthetic records to existing stock');
   }
 
 

@@ -356,8 +356,8 @@ class StockMaintenance extends HiveObject {
       }
     }
 
-    // Update current stock and total stock value
-    _updateTotalStockValue();
+    // Update stock quantities and total stock value
+    _updateStockQuantities();
     // Note: save() is now handled by the provider, not the model
   }
 
@@ -467,8 +467,8 @@ class StockMaintenance extends HiveObject {
       }
     }
 
-    // Update total stock value
-    _updateTotalStockValue();
+    // Update stock quantities and total stock value
+    _updateStockQuantities();
     print('=== End Stock Delivery ===');
   }
 }

@@ -1205,7 +1205,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         acceptedQuantity: quantity,
         rejectedQuantity: 0.0,
         vendorId: 'UPLOADED_STOCK',
-        rate: (material.saleRate is num) ? (material.saleRate as num).toDouble() : 0.0,
+        rate: _getMaterialRate(material),
         issuedQuantity: 0.0,
         issuedQuantities: {},
       ),
@@ -1219,7 +1219,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         orderedQuantity: quantity,
         receivedQuantity: quantity,
         vendorId: 'UPLOADED_STOCK',
-        rate: (material.saleRate is num) ? (material.saleRate as num).toDouble() : 0.0,
+        rate: _getMaterialRate(material),
         receivedQuantities: {
           grnNo: {'General': quantity}
         },
@@ -1257,7 +1257,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         vendorId: 'UPLOADED_STOCK',
         vendorName: 'Uploaded Stock',
         quantity: quantity,
-        rate: (material.saleRate is num) ? (material.saleRate as num).toDouble() : 0.0,
+        rate: _getMaterialRate(material),
         lastPurchaseDate: dateStr,
       ),
     };
@@ -1270,7 +1270,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       rackNumber: material.rackNumber ?? '',
       currentStock: quantity,
       stockUnderInspection: 0.0,
-      totalStockValue: quantity * ((material.saleRate is num) ? (material.saleRate as num).toDouble() : 0.0),
+      totalStockValue: quantity * _getMaterialRate(material),
       grnDetails: grnDetails,
       poDetails: poDetails,
       prDetails: prDetails,
@@ -1298,7 +1298,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
     // Get material details for rate
     final materials = ref.read(materialListProvider);
     final material = materials.firstWhereOrNull((m) => m.partNo == existingStock.materialCode);
-    final rate = (material?.saleRate is num) ? (material!.saleRate as num).toDouble() : 0.0;
+    final rate = material != null ? _getMaterialRate(material) : 0.0;
     
     // Add synthetic GRN details
     existingStock.grnDetails[grnNo] = StockGRNDetails(
@@ -1379,6 +1379,18 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
     existingStock.totalStockValue += quantity * rate;
     
     print('Added synthetic records to existing stock');
+  }
+
+  double _getMaterialRate(dynamic material) {
+    // Try to get purchase rate first, then sale rate, then default to 100.0
+    if (material.purchaseRate != null && material.purchaseRate is num && (material.purchaseRate as num) > 0) {
+      return (material.purchaseRate as num).toDouble();
+    }
+    if (material.saleRate != null && material.saleRate is num && (material.saleRate as num) > 0) {
+      return (material.saleRate as num).toDouble();
+    }
+    // Default rate for uploaded materials
+    return 100.0;
   }
 
 

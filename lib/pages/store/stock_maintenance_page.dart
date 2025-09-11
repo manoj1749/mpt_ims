@@ -393,10 +393,20 @@ class _StockDetailsViewState extends State<StockDetailsView> {
 
     // Calculate totals from GRN details
     for (var grnEntry in widget.stock.grnDetails.entries) {
+      final grnNo = grnEntry.key;
       final grnDetail = grnEntry.value;
-      final poDetail = widget.stock.poDetails[grnDetail.vendorId];
+      
+      // Find PO that contains this GRN
+      StockPODetails? poDetail;
+      for (var poEntry in widget.stock.poDetails.entries) {
+        if (poEntry.value.receivedQuantities.containsKey(grnNo)) {
+          poDetail = poEntry.value;
+          break;
+        }
+      }
+      
       if (poDetail != null) {
-        final prQuantities = poDetail.receivedQuantities[grnEntry.key] ?? {};
+        final prQuantities = poDetail.receivedQuantities[grnNo] ?? {};
         for (var prEntry in prQuantities.entries) {
           final prNo = prEntry.key;
           final qty = prEntry.value;

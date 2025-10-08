@@ -499,11 +499,17 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
               print('Updating GRN details for $grnNo');
               
               // Store old values for comparison
-              final oldAccepted = stock.grnDetails[grnNo]!.acceptedQuantity;
-              final oldRejected = stock.grnDetails[grnNo]!.rejectedQuantity;
+              final grnDetail = stock.grnDetails[grnNo];
+              if (grnDetail == null) {
+                print('Error: GRN detail is null for $grnNo');
+                continue;
+              }
               
-              stock.grnDetails[grnNo]!.acceptedQuantity = grnQty.acceptedQty;
-              stock.grnDetails[grnNo]!.rejectedQuantity = grnQty.rejectedQty;
+              final oldAccepted = grnDetail.acceptedQuantity;
+              final oldRejected = grnDetail.rejectedQuantity;
+              
+              grnDetail.acceptedQuantity = grnQty.acceptedQty;
+              grnDetail.rejectedQuantity = grnQty.rejectedQty;
               
               print('Updated GRN $grnNo: Accepted $oldAccepted -> ${grnQty.acceptedQty}, Rejected $oldRejected -> ${grnQty.rejectedQty}');
 

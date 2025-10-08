@@ -24,13 +24,22 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
       jobStartDate: fields[4] as String,
       targetDate: fields[5] as String,
       endDate: fields[6] as String?,
+      jobNo: fields[7] as String,
+      planningStartDate: fields[8] as String?,
+      planningEndDate: fields[9] as String?,
+      actualStartDate: fields[10] as String?,
+      customerRequirementDate: fields[11] as String?,
+      customerCommitmentDate: fields[12] as String?,
+      actualCustomerDeliveryDate: fields[13] as String?,
+      jobStatus: fields[14] as String?,
+      jobNotes: fields[15] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, SaleOrder obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.orderNo)
       ..writeByte(1)
@@ -44,7 +53,25 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
       ..writeByte(5)
       ..write(obj.targetDate)
       ..writeByte(6)
-      ..write(obj.endDate);
+      ..write(obj.endDate)
+      ..writeByte(7)
+      ..write(obj.jobNo)
+      ..writeByte(8)
+      ..write(obj.planningStartDate)
+      ..writeByte(9)
+      ..write(obj.planningEndDate)
+      ..writeByte(10)
+      ..write(obj.actualStartDate)
+      ..writeByte(11)
+      ..write(obj.customerRequirementDate)
+      ..writeByte(12)
+      ..write(obj.customerCommitmentDate)
+      ..writeByte(13)
+      ..write(obj.actualCustomerDeliveryDate)
+      ..writeByte(14)
+      ..write(obj.jobStatus)
+      ..writeByte(15)
+      ..write(obj.jobNotes);
   }
 
   @override

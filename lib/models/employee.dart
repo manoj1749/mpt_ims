@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:mpt_ims/models/increment_history.dart';
 
 part 'employee.g.dart';
 
@@ -22,6 +23,18 @@ class Employee extends HiveObject {
   @HiveField(5)
   String accountNumber;
 
+  @HiveField(22)
+  String degreeCourse;
+
+  @HiveField(23)
+  String institution;
+
+  @HiveField(24)
+  String completionYear;
+
+  @HiveField(25)
+  String gradeOrGPA;
+
   @HiveField(6)
   String ifscCode;
 
@@ -37,6 +50,57 @@ class Employee extends HiveObject {
   @HiveField(10)
   String otSalaryPerHour;
 
+  @HiveField(11)
+  String permanentAddress;
+
+  @HiveField(12)
+  String temporaryAddress;
+
+  @HiveField(13)
+  String email;
+
+  @HiveField(14)
+  String phoneNumber;
+
+  @HiveField(15)
+  String dateOfJoining;
+
+  @HiveField(16)
+  String lastIncrementDate;
+
+  @HiveField(17)
+  String dateOfResignation;
+
+  @HiveField(18)
+  String bloodGroup;
+
+  @HiveField(26)
+  String emergencyContactName;
+
+  @HiveField(27)
+  String emergencyContactPhone;
+
+  @HiveField(28)
+  String emergencyContactAddress;
+
+  @HiveField(29)
+  String emergencyContactRelation;
+
+  @HiveField(30)
+  String rejoinedDate;
+  
+  @HiveField(31)
+  bool isRejoined;
+
+  @HiveField(32)
+  String department;
+
+  @HiveField(33)
+  String jobRole;
+
+  @HiveField(34)
+  List<IncrementHistory> incrementHistory;
+
   Employee({
     required this.name,
     required this.employeeCode,
@@ -44,11 +108,32 @@ class Employee extends HiveObject {
     required this.esiNumber,
     required this.pfNumber,
     required this.accountNumber,
+    this.degreeCourse = '',
+    this.institution = '',
+    this.completionYear = '',
+    this.gradeOrGPA = '',
     required this.ifscCode,
     required this.bankName,
     required this.branch,
     required this.perDaySalary,
     required this.otSalaryPerHour,
+    this.permanentAddress = '',
+    this.temporaryAddress = '',
+    this.email = '',
+    this.phoneNumber = '',
+    this.dateOfJoining = '',
+    this.lastIncrementDate = '',
+    this.dateOfResignation = '',
+    this.bloodGroup = '',
+    this.emergencyContactName = '',
+    this.emergencyContactPhone = '',
+    this.emergencyContactAddress = '',
+    this.emergencyContactRelation = '',
+    this.rejoinedDate = '',
+    this.isRejoined = false,
+    this.department = '',
+    this.jobRole = '',
+    this.incrementHistory = const [],
   });
 
   Employee copyWith({
@@ -63,6 +148,23 @@ class Employee extends HiveObject {
     String? branch,
     String? perDaySalary,
     String? otSalaryPerHour,
+    String? permanentAddress,
+    String? temporaryAddress,
+    String? email,
+  String? phoneNumber,
+  String? dateOfJoining,
+  String? lastIncrementDate,
+  String? dateOfResignation,
+  String? bloodGroup,
+  String? emergencyContactName,
+  String? emergencyContactPhone,
+  String? emergencyContactAddress,
+  String? emergencyContactRelation,
+  String? rejoinedDate,
+  bool? isRejoined,
+  String? department,
+  String? jobRole,
+  List<IncrementHistory>? incrementHistory,
   }) {
     return Employee(
       name: name ?? this.name,
@@ -76,6 +178,23 @@ class Employee extends HiveObject {
       branch: branch ?? this.branch,
       perDaySalary: perDaySalary ?? this.perDaySalary,
       otSalaryPerHour: otSalaryPerHour ?? this.otSalaryPerHour,
+      permanentAddress: permanentAddress ?? this.permanentAddress,
+      temporaryAddress: temporaryAddress ?? this.temporaryAddress,
+      email: email ?? this.email,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      dateOfJoining: dateOfJoining ?? this.dateOfJoining,
+      lastIncrementDate: lastIncrementDate ?? this.lastIncrementDate,
+      dateOfResignation: dateOfResignation ?? this.dateOfResignation,
+      bloodGroup: bloodGroup ?? this.bloodGroup,
+      emergencyContactName: emergencyContactName ?? this.emergencyContactName,
+      emergencyContactPhone: emergencyContactPhone ?? this.emergencyContactPhone,
+      emergencyContactAddress: emergencyContactAddress ?? this.emergencyContactAddress,
+      emergencyContactRelation: emergencyContactRelation ?? this.emergencyContactRelation,
+      rejoinedDate: rejoinedDate ?? this.rejoinedDate,
+      isRejoined: isRejoined ?? this.isRejoined,
+      department: department ?? this.department,
+      jobRole: jobRole ?? this.jobRole,
+      incrementHistory: incrementHistory ?? this.incrementHistory,
     );
   }
 }

@@ -94,4 +94,26 @@ class EmployeeNotifier extends BaseProvider<Employee> {
         (sum, employee) =>
             sum + (double.tryParse(employee.perDaySalary) ?? 0.0));
   }
+
+  // Generate next sequential employee code
+  String generateNextEmployeeCode() {
+    final employees = state;
+    int maxNumber = 0;
+
+    // Find the highest existing number in EMP-XXXXX format
+    for (var employee in employees) {
+      final code = employee.employeeCode;
+      if (code.startsWith('AIEM-') && code.length >= 5) {
+        final numberPart = code.substring(4); // Remove "EMP-" prefix
+        final number = int.tryParse(numberPart) ?? 0;
+        if (number > maxNumber) {
+          maxNumber = number;
+        }
+      }
+    }
+
+    // Increment and format with leading zeros
+    final nextNumber = maxNumber + 1;
+    return 'AIEM-${nextNumber.toString().padLeft(5, '0')}';
+  }
 }

@@ -155,4 +155,49 @@ class PurchaseOrderNotifier extends BaseProvider<PurchaseOrder> {
   List<PurchaseOrder> getPendingOrders() {
     return state.where((order) => !order.isFullyReceived).toList();
   }
+
+  String generateOrderNumber() {
+    // Get current financial year (April to March)
+    final now = DateTime.now();
+    int financialYear = now.year;
+    if (now.month < 4) {
+      financialYear--; // If before April, use previous financial year
+    }
+    final nextFinancialYear = financialYear + 1;
+
+    // Get last 2 digits of current and next financial year
+    final currentYearStr = financialYear.toString().substring(2);
+    final nextYearStr = nextFinancialYear.toString().substring(2);
+    final yearPrefix = '$currentYearStr$nextYearStr';
+
+    // Find all VALID sequential order numbers for the current financial year
+    final validSequentialOrders = state.where((order) {
+      // Check if PO number matches the expected format: PO + YYYY + 6 digits
+      if (!order.poNo.startsWith('PO$yearPrefix') || order.poNo.length != 12) {
+        return false;
+      }
+
+      // Check if the last 6 characters are all digits
+      final sequencePart = order.poNo.substring(6);
+      return RegExp(r'^\d{6}$').hasMatch(sequencePart);
+    }).toList();
+
+    // If no valid sequential orders exist for this financial year, start from 1
+    if (validSequentialOrders.isEmpty) {
+      return 'PO${yearPrefix}000001';
+    }
+
+    // Extract and parse sequence numbers from valid orders only
+    final sequenceNumbers = validSequentialOrders.map((order) {
+      return int.parse(order.poNo.substring(6));
+    }).toList();
+
+    // Find the highest sequence number and increment by 1
+    final nextSequence = sequenceNumbers.reduce((a, b) => a > b ? a : b) + 1;
+
+    // Format as 6-digit number with leading zeros
+    final sequenceStr = nextSequence.toString().padLeft(6, '0');
+
+    return 'PO$yearPrefix$sequenceStr'; // e.g., PO25260001, PO25260002, etc.
+  }
 }

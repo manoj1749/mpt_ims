@@ -23,18 +23,39 @@ class EmployeeAdapter extends TypeAdapter<Employee> {
       esiNumber: fields[3] as String,
       pfNumber: fields[4] as String,
       accountNumber: fields[5] as String,
+      degreeCourse: fields[22] as String,
+      institution: fields[23] as String,
+      completionYear: fields[24] as String,
+      gradeOrGPA: fields[25] as String,
       ifscCode: fields[6] as String,
       bankName: fields[7] as String,
       branch: fields[8] as String,
       perDaySalary: fields[9] as String,
       otSalaryPerHour: fields[10] as String,
+      permanentAddress: fields[11] as String,
+      temporaryAddress: fields[12] as String,
+      email: fields[13] as String,
+      phoneNumber: fields[14] as String,
+      dateOfJoining: fields[15] as String,
+      lastIncrementDate: fields[16] as String,
+      dateOfResignation: fields[17] as String,
+      bloodGroup: fields[18] as String,
+      emergencyContactName: fields[26] as String,
+      emergencyContactPhone: fields[27] as String,
+      emergencyContactAddress: fields[28] as String,
+      emergencyContactRelation: fields[29] as String,
+      rejoinedDate: fields[30] as String,
+      isRejoined: fields[31] as bool,
+      department: fields[32] as String,
+      jobRole: fields[33] as String,
+      incrementHistory: (fields[34] as List).cast<IncrementHistory>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Employee obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(32)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -47,6 +68,14 @@ class EmployeeAdapter extends TypeAdapter<Employee> {
       ..write(obj.pfNumber)
       ..writeByte(5)
       ..write(obj.accountNumber)
+      ..writeByte(22)
+      ..write(obj.degreeCourse)
+      ..writeByte(23)
+      ..write(obj.institution)
+      ..writeByte(24)
+      ..write(obj.completionYear)
+      ..writeByte(25)
+      ..write(obj.gradeOrGPA)
       ..writeByte(6)
       ..write(obj.ifscCode)
       ..writeByte(7)
@@ -56,7 +85,41 @@ class EmployeeAdapter extends TypeAdapter<Employee> {
       ..writeByte(9)
       ..write(obj.perDaySalary)
       ..writeByte(10)
-      ..write(obj.otSalaryPerHour);
+      ..write(obj.otSalaryPerHour)
+      ..writeByte(11)
+      ..write(obj.permanentAddress)
+      ..writeByte(12)
+      ..write(obj.temporaryAddress)
+      ..writeByte(13)
+      ..write(obj.email)
+      ..writeByte(14)
+      ..write(obj.phoneNumber)
+      ..writeByte(15)
+      ..write(obj.dateOfJoining)
+      ..writeByte(16)
+      ..write(obj.lastIncrementDate)
+      ..writeByte(17)
+      ..write(obj.dateOfResignation)
+      ..writeByte(18)
+      ..write(obj.bloodGroup)
+      ..writeByte(26)
+      ..write(obj.emergencyContactName)
+      ..writeByte(27)
+      ..write(obj.emergencyContactPhone)
+      ..writeByte(28)
+      ..write(obj.emergencyContactAddress)
+      ..writeByte(29)
+      ..write(obj.emergencyContactRelation)
+      ..writeByte(30)
+      ..write(obj.rejoinedDate)
+      ..writeByte(31)
+      ..write(obj.isRejoined)
+      ..writeByte(32)
+      ..write(obj.department)
+      ..writeByte(33)
+      ..write(obj.jobRole)
+      ..writeByte(34)
+      ..write(obj.incrementHistory);
   }
 
   @override

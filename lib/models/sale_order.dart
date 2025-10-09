@@ -17,13 +17,40 @@ class SaleOrder extends HiveObject {
   String boardNo;
 
   @HiveField(4)
-  String jobStartDate;
+  String jobStartDate; // Sales Target Start Date
 
   @HiveField(5)
-  String targetDate;
+  String targetDate; // Sales Target End Date
 
   @HiveField(6)
-  String? endDate;
+  String? endDate; // Actual End Date
+  
+  @HiveField(7)
+  String jobNo;
+  
+  @HiveField(8)
+  String? planningStartDate; // Planning Target Start Date
+  
+  @HiveField(9)
+  String? planningEndDate; // Planning Target End Date
+  
+  @HiveField(10)
+  String? actualStartDate; // Actual Start Date
+  
+  @HiveField(11)
+  String? customerRequirementDate; // Customer Requirement Date
+  
+  @HiveField(12)
+  String? customerCommitmentDate; // Customer Commitment Date
+  
+  @HiveField(13)
+  String? actualCustomerDeliveryDate; // Actual Customer Delivery Date
+  
+  @HiveField(14)
+  String? jobStatus; // Job Status
+  
+  @HiveField(15)
+  String? jobNotes; // Job Notes
 
   SaleOrder({
     required this.orderNo,
@@ -33,6 +60,15 @@ class SaleOrder extends HiveObject {
     required this.jobStartDate,
     required this.targetDate,
     this.endDate,
+    required this.jobNo,
+    this.planningStartDate,
+    this.planningEndDate,
+    this.actualStartDate,
+    this.customerRequirementDate,
+    this.customerCommitmentDate,
+    this.actualCustomerDeliveryDate,
+    this.jobStatus,
+    this.jobNotes,
   });
 
   bool get isCompleted => endDate != null;

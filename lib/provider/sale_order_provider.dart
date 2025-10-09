@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
-import 'dart:math';
 import '../models/sale_order.dart';
 import 'base_provider.dart';
 
@@ -27,6 +26,15 @@ class SaleOrderNotifier extends BaseProvider<SaleOrder> {
       'jobStartDate': order.jobStartDate,
       'targetDate': order.targetDate,
       'endDate': order.endDate,
+      'jobNo': order.jobNo,
+      'planningStartDate': order.planningStartDate,
+      'planningEndDate': order.planningEndDate,
+      'actualStartDate': order.actualStartDate,
+      'customerRequirementDate': order.customerRequirementDate,
+      'customerCommitmentDate': order.customerCommitmentDate,
+      'actualCustomerDeliveryDate': order.actualCustomerDeliveryDate,
+      'jobStatus': order.jobStatus,
+      'jobNotes': order.jobNotes,
     };
   }
 
@@ -40,6 +48,15 @@ class SaleOrderNotifier extends BaseProvider<SaleOrder> {
       jobStartDate: map['jobStartDate'] ?? '',
       targetDate: map['targetDate'] ?? '',
       endDate: map['endDate'],
+      jobNo: map['jobNo'] ?? '',
+      planningStartDate: map['planningStartDate'],
+      planningEndDate: map['planningEndDate'],
+      actualStartDate: map['actualStartDate'],
+      customerRequirementDate: map['customerRequirementDate'],
+      customerCommitmentDate: map['customerCommitmentDate'],
+      actualCustomerDeliveryDate: map['actualCustomerDeliveryDate'],
+      jobStatus: map['jobStatus'],
+      jobNotes: map['jobNotes'],
     );
   }
 
@@ -55,33 +72,105 @@ class SaleOrderNotifier extends BaseProvider<SaleOrder> {
 
   // Utility methods
   String generateOrderNumber() {
-    // Get current academic year (assuming academic year starts in June)
+    // Get current financial year (April to March)
     final now = DateTime.now();
-    int academicYear = now.year;
-    if (now.month < 6) {
-      academicYear--; // If before June, use previous year
+    int financialYear = now.year;
+    if (now.month < 4) {
+      financialYear--; // If before April, use previous financial year
+    }
+    final nextFinancialYear = financialYear + 1;
+
+    // Get last 2 digits of current and next financial year
+    final currentYearStr = financialYear.toString().substring(2);
+    final nextYearStr = nextFinancialYear.toString().substring(2);
+    final yearPrefix = '$currentYearStr$nextYearStr';
+
+    // Find all VALID sequential order numbers for the current financial year
+    final validSequentialOrders = state.where((order) {
+      // Check if order number matches the expected format: YYYY + 6 digits
+      if (!order.orderNo.startsWith(yearPrefix) || order.orderNo.length != 10) {
+        return false;
+      }
+
+      // Check if the last 6 characters are all digits
+      final sequencePart = order.orderNo.substring(4);
+      return RegExp(r'^\d{6}$').hasMatch(sequencePart);
+    }).toList();
+
+    // If no valid sequential orders exist for this financial year, start from 1
+    if (validSequentialOrders.isEmpty) {
+      return '${yearPrefix}000001';
     }
 
-    // Get last 2 digits of current and next year
-    final currentYearStr = academicYear.toString().substring(2);
-    final nextYearStr = (academicYear + 1).toString().substring(2);
+    // Extract and parse sequence numbers from valid orders only
+    final sequenceNumbers = validSequentialOrders.map((order) {
+      return int.parse(order.orderNo.substring(4));
+    }).toList();
 
-    // Generate 6 random digits
-    final random = Random();
-    final randomDigits = List.generate(6, (_) => random.nextInt(10)).join();
+    // Find the highest sequence number and increment by 1
+    final nextSequence = sequenceNumbers.reduce((a, b) => a > b ? a : b) + 1;
 
-    // Combine to form order number (e.g., 2425010198)
-    return '$currentYearStr$nextYearStr$randomDigits';
+    // Format as 6-digit number with leading zeros
+    final sequenceStr = nextSequence.toString().padLeft(6, '0');
+
+    return '$yearPrefix$sequenceStr'; // e.g., 2526000001, 2526000002, etc.
+  }
+
+  String generateJobNumber() {
+    // Get current financial year (April to March)
+    final now = DateTime.now();
+    int financialYear = now.year;
+    if (now.month < 4) {
+      financialYear--; // If before April, use previous financial year
+    }
+    final nextFinancialYear = financialYear + 1;
+
+    // Get last 2 digits of current and next financial year
+    final currentYearStr = financialYear.toString().substring(2);
+    final nextYearStr = nextFinancialYear.toString().substring(2);
+    final yearPrefix =
+        'JN$currentYearStr$nextYearStr'; // JN prefix for Job number
+
+    // Find all VALID sequential job numbers for the current financial year
+    final validSequentialJobs = state.where((order) {
+      // Check if job number matches the expected format: JYY + 5 digits
+      if (!order.jobNo.startsWith(yearPrefix) || order.jobNo.length != 8) {
+        return false;
+      }
+
+      // Check if the last 5 characters are all digits
+      final sequencePart = order.jobNo.substring(3);
+      return RegExp(r'^\d{5}$').hasMatch(sequencePart);
+    }).toList();
+
+    // If no valid sequential jobs exist for this financial year, start from 1
+    if (validSequentialJobs.isEmpty) {
+      return '${yearPrefix}00001';
+    }
+
+    // Extract and parse sequence numbers from valid jobs only
+    final sequenceNumbers = validSequentialJobs.map((order) {
+      return int.parse(order.jobNo.substring(3));
+    }).toList();
+
+    // Find the highest sequence number and increment by 1
+    final nextSequence = sequenceNumbers.reduce((a, b) => a > b ? a : b) + 1;
+
+    // Format as 5-digit number with leading zeros
+    final sequenceStr = nextSequence.toString().padLeft(5, '0');
+
+    return '$yearPrefix$sequenceStr'; // e.g., J25260001, J25260002, etc.
   }
 
   // Search and filter methods
   List<SaleOrder> searchOrders(String query) {
-    return search(
-        query,
-        (order, query) =>
-            order.orderNo.toLowerCase().contains(query) ||
-            order.customerName.toLowerCase().contains(query) ||
-            order.boardNo.toLowerCase().contains(query));
+    final searchTerm = query.toLowerCase();
+    return state
+        .where((order) =>
+            order.orderNo.toLowerCase().contains(searchTerm) ||
+            order.customerName.toLowerCase().contains(searchTerm) ||
+            order.boardNo.toLowerCase().contains(searchTerm))
+        .toList();
   }
 
   List<SaleOrder> getActiveOrders() {

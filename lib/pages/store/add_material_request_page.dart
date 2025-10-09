@@ -55,6 +55,18 @@ class _AddMaterialRequestPageState
     if (widget.existingIssue != null) {
       _issuedByController.text = widget.existingIssue!.issuedBy;
       _selectedJobNo = widget.existingIssue!.jobNo;
+
+      // Validate that the job number exists in the sale orders
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final saleOrders = ref.read(saleOrderProvider);
+        if (_selectedJobNo != null && !saleOrders.any((order) => order.boardNo == _selectedJobNo)) {
+          // If the job number doesn't exist in sale orders, set it to null
+          setState(() {
+            _selectedJobNo = null;
+          });
+        }
+      });
+
       for (var item in widget.existingIssue!.items) {
         _items.add(MaterialRequestItemFormData(
           selectedMaterial: item.materialDescription,

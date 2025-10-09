@@ -36,6 +36,7 @@ class _AddQualityInspectionPageState
   Supplier? selectedSupplier;
   List<InspectionItem> _items = [];
   final Map<String, Map<String, TextEditingController>> _prQtyControllers = {};
+  final Map<String, TextEditingController> _acceptedQtyControllers = {};
 
   @override
   void initState() {
@@ -55,7 +56,19 @@ class _AddQualityInspectionPageState
     _inspectionDateController.dispose();
     _inspectedByController.dispose();
     _approvedByController.dispose();
+
+    // Dispose of all accepted quantity controllers
+    for (var controller in _acceptedQtyControllers.values) {
+      controller.dispose();
+    }
+
     super.dispose();
+  }
+
+  // Helper method to get or create persistent accepted quantity controller
+  TextEditingController _getAcceptedQtyController(String grnNo, double acceptedQty) {
+    _acceptedQtyControllers[grnNo] ??= TextEditingController(text: acceptedQty.toString());
+    return _acceptedQtyControllers[grnNo]!;
   }
 
   // Generate a new inspection number
@@ -223,8 +236,9 @@ class _AddQualityInspectionPageState
         if (grnQuantities.isNotEmpty) {
           // Get category-specific parameters only
           final categoryParams = ref.read(categoryParameterProvider);
-          
-          print('Loading parameters for material: ${material.partNo}, category: ${material.category}');
+
+          print(
+              'Loading parameters for material: ${material.partNo}, category: ${material.category}');
 
           // Get only the parameters selected for this material's category
           final categoryMapping = categoryParams
@@ -232,15 +246,15 @@ class _AddQualityInspectionPageState
               .firstOrNull;
 
           final parameters = <QualityParameter>[];
-          
+
           if (categoryMapping != null) {
-            print('Found category mapping for ${material.category} with ${categoryMapping.parameters.length} parameters');
+            print(
+                'Found category mapping for ${material.category} with ${categoryMapping.parameters.length} parameters');
             parameters.addAll(
-              categoryMapping.parameters.map((paramName) => QualityParameter(
-                parameter: paramName,
-                isAcceptable: true,
-              ))
-            );
+                categoryMapping.parameters.map((paramName) => QualityParameter(
+                      parameter: paramName,
+                      isAcceptable: true,
+                    )));
           } else {
             print('No category mapping found for ${material.category}');
             // If no category mapping exists, create a default parameter
@@ -249,8 +263,9 @@ class _AddQualityInspectionPageState
               isAcceptable: true,
             ));
           }
-          
-          print('Final parameters for ${material.partNo}: ${parameters.map((p) => p.parameter).toList()}');
+
+          print(
+              'Final parameters for ${material.partNo}: ${parameters.map((p) => p.parameter).toList()}');
 
           final inspectionItem = InspectionItem(
             materialCode: materialCode,
@@ -698,7 +713,14 @@ class _AddQualityInspectionPageState
         } else if (selectedGRNQty.recheckType == 'Partial Acceptance') {
           // For partial acceptance, use the quantities from PR distribution
           double totalAcceptedQty = 0.0;
-          for (var poEntry in selectedGRN.items.first.prQuantities.entries) {
+
+          // Find the matching item in the GRN
+          final grnItem = selectedGRN.items.firstWhere(
+            (item) => item.materialCode == selectedItem?.materialCode,
+            orElse: () => throw Exception('Material not found in selected GRN'),
+          );
+
+          for (var poEntry in grnItem.prQuantities.entries) {
             final prMap = poEntry.value;
             if (prMap != null) {
               for (var prEntry in prMap.entries) {
@@ -913,7 +935,9 @@ class _AddQualityInspectionPageState
                             // Usage Decision Dropdown
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: grnQty.usageDecision,
+                                value: grnQty.usageDecision == 'Partially Accepted After 100% Recheck' ||
+                                       grnQty.usageDecision == 'Accepted After 100% Recheck'
+                                       ? '100% Recheck' : grnQty.usageDecision,
                                 decoration: const InputDecoration(
                                   labelText: 'Usage Decision',
                                   border: OutlineInputBorder(),
@@ -1095,8 +1119,7 @@ class _AddQualityInspectionPageState
                                   keyboardType:
                                       const TextInputType.numberWithOptions(
                                           decimal: true),
-                                  controller: TextEditingController(
-                                      text: grnQty.acceptedQty.toString()),
+                                  controller: _getAcceptedQtyController(grnNo, grnQty.acceptedQty),
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
                                       return null;
@@ -1116,47 +1139,24 @@ class _AddQualityInspectionPageState
                                         grnQty.acceptedQty = 0;
                                         grnQty.rejectedQty = grnQty.receivedQty;
                                       });
+                                      // Update controller text to reflect the change
+                                      _acceptedQtyControllers[grnNo]?.text = '0';
                                       return;
                                     }
 
                                     final qty = double.tryParse(value) ?? 0;
                                     setState(() {
-                                      // Auto-adjust if exceeds received quantity
-                                      if (qty > grnQty.receivedQty) {
-                                        grnQty.acceptedQty = grnQty.receivedQty;
-                                        grnQty.rejectedQty = 0;
-                                        // Update the text field outside setState
-                                        WidgetsBinding.instance
-                                            .addPostFrameCallback((_) {
-                                          final controller =
-                                              TextEditingController(
-                                                  text: grnQty.receivedQty
-                                                      .toString());
-                                          controller.selection =
-                                              TextSelection.fromPosition(
-                                                  TextPosition(
-                                                      offset: controller
-                                                          .text.length));
-                                          // Find the current focus node
-                                          final focusNode =
-                                              FocusScope.of(context)
-                                                  .focusedChild;
-                                          // Update the controller while maintaining focus
-                                          setState(() {
-                                            controller.text =
-                                                grnQty.receivedQty.toString();
-                                            if (focusNode != null) {
-                                              FocusScope.of(context)
-                                                  .requestFocus(focusNode);
-                                            }
-                                          });
-                                        });
-                                      } else {
-                                        grnQty.acceptedQty = qty;
-                                        grnQty.rejectedQty =
-                                            grnQty.receivedQty - qty;
-                                      }
+                                      // Clamp the value to the received quantity
+                                      grnQty.acceptedQty =
+                                          qty > grnQty.receivedQty
+                                              ? grnQty.receivedQty
+                                              : qty;
+                                      grnQty.rejectedQty = grnQty.receivedQty -
+                                          grnQty.acceptedQty;
                                     });
+
+                                    // Update controller text to reflect the actual value
+                                    _acceptedQtyControllers[grnNo]?.text = grnQty.acceptedQty.toString();
                                   },
                                   onEditingComplete: () {
                                     // Allow zero value when focus is lost

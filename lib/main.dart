@@ -1,6 +1,8 @@
 // ignore_for_file: non_constant_identifier_names
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -42,11 +44,33 @@ import 'provider/sale_order_provider.dart';
 import 'provider/stock_maintenance_provider.dart';
 import 'provider/universal_parameter_provider.dart';
 import 'provider/material_issue_provider.dart';
+import 'provider/state_provider.dart';
+import 'provider/gst_provider.dart';
+import 'provider/inventory_classification_provider.dart';
+import 'provider/customer_scope_material_issue_master_provider.dart';
 import 'firebase_options.dart';
 import 'pages/login_page.dart';
 import 'models/material_request.dart';
 import 'models/material_issue.dart';
+import 'models/delivery_challan.dart';
+import 'models/state.dart';
+import 'models/gst.dart';
+import 'models/inventory_classification.dart';
+import 'models/customer_scope_material_issue_master.dart';
+import 'models/customer_scope_stock_maintenance.dart';
+import 'models/payment_terms.dart';
+import 'provider/customer_scope_stock_maintenance_provider.dart';
+import 'provider/payment_terms_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'models/material_rating_rule.dart';
+import 'provider/material_rating_rule_provider.dart';
+import 'models/service_master.dart';
+import 'provider/service_master_provider.dart';
+import 'models/service_name.dart';
+import 'models/service_type.dart';
+import 'provider/service_name_provider.dart';
+import 'provider/service_type_provider.dart';
+import 'provider/service_supplier_provider.dart';
 
 Future<void> _setupHiveDirectory() async {
   try {
@@ -96,13 +120,14 @@ void main() async {
   // await Hive.initFlutter();
 
   // Then clear incompatible data
-  // await clearIncompatibleData();
+  await clearIncompatibleData();
 
   // Finally initialize adapters and boxes
   await initializeHive();
 
   // Get references to boxes for providers
   final supplierBox = Hive.box<Supplier>('suppliers');
+  final serviceSupplierBox = Hive.box<Supplier>('service_suppliers');
   final materialBox = Hive.box<MaterialItem>('materials');
   final purchaseRequestBox = Hive.box<PurchaseRequest>('purchaseRequests');
   final purchaseOrderBox = Hive.box<PurchaseOrder>('purchaseOrders');
@@ -122,6 +147,16 @@ void main() async {
   final stockMaintenanceBox = Hive.box<StockMaintenance>('stock_maintenance');
   final materialRequestBox = Hive.box<MaterialRequest>('material_requests');
   final materialIssueBox = Hive.box<MaterialIssue>('material_issues');
+  final stateBox = Hive.box<StateModel>('states');
+  final gstBox = Hive.box<GSTModel>('gst');
+  final inventoryClassificationBox = Hive.box<InventoryClassification>('inventory_classifications');
+  final customerScopeMaterialIssueMasterBox = Hive.box<CustomerScopeMaterialIssueMaster>('customer_scope_material_issue_masters');
+  final customerScopeStockMaintenanceBox = Hive.box<CustomerScopeStockMaintenance>('customer_scope_stock_maintenance');
+  final paymentTermsBox = Hive.box<PaymentTerms>('paymentTerms');
+  final materialRatingRuleBox = Hive.box<MaterialRatingRule>('materialRatingRules');
+  final serviceMasterBox = Hive.box<ServiceMaster>('serviceMasters');
+  final serviceNameBox = Hive.box<ServiceName>('serviceNames');
+  final serviceTypeBox = Hive.box<ServiceType>('serviceTypes');
 
   final user = FirebaseAuth.instance.currentUser;
 
@@ -129,6 +164,7 @@ void main() async {
     ProviderScope(
       overrides: [
         supplierBoxProvider.overrideWithValue(supplierBox),
+        serviceSupplierBoxProvider.overrideWithValue(serviceSupplierBox),
         materialBoxProvider.overrideWithValue(materialBox),
         customerBoxProvider.overrideWithValue(customerBox),
         purchaseOrderBoxProvider.overrideWithValue(purchaseOrderBox),
@@ -147,6 +183,16 @@ void main() async {
         stockMaintenanceBoxProvider.overrideWithValue(stockMaintenanceBox),
         materialRequestBoxProvider.overrideWithValue(materialRequestBox),
         materialIssueBoxProvider.overrideWithValue(materialIssueBox),
+        stateBoxProvider.overrideWithValue(stateBox),
+        gstBoxProvider.overrideWithValue(gstBox),
+        inventoryClassificationBoxProvider.overrideWithValue(inventoryClassificationBox),
+        customerScopeMaterialIssueMasterBoxProvider.overrideWithValue(customerScopeMaterialIssueMasterBox),
+        customerScopeStockMaintenanceBoxProvider.overrideWithValue(customerScopeStockMaintenanceBox),
+        paymentTermsBoxProvider.overrideWithValue(paymentTermsBox),
+        materialRatingRuleBoxProvider.overrideWithValue(materialRatingRuleBox),
+        serviceMasterBoxProvider.overrideWithValue(serviceMasterBox),
+        serviceNameBoxProvider.overrideWithValue(serviceNameBox),
+        serviceTypeBoxProvider.overrideWithValue(serviceTypeBox),
       ],
       child: IMSApp(isLoggedIn: user != null),
     ),
@@ -164,10 +210,18 @@ class IMSApp extends StatelessWidget {
         return MaterialApp(
           title: 'MPT IMS',
           debugShowCheckedModeBanner: false,
+          builder: (context, child) {
+            return _GlobalZoomWrapper(child: child ?? const SizedBox.shrink());
+          },
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
               seedColor: const Color.fromRGBO(75, 85, 115, 1),
               brightness: Brightness.dark,
+            ),
+            textSelectionTheme: const TextSelectionThemeData(
+              selectionColor: Color(0xFF9E9E9E),
+              selectionHandleColor: Color(0xFFBDBDBD),
+              cursorColor: Color(0xFFE0E0E0),
             ),
             scaffoldBackgroundColor: const Color.fromRGBO(75, 85, 115, 1),
             appBarTheme: const AppBarTheme(
@@ -179,6 +233,123 @@ class IMSApp extends StatelessWidget {
           home: isLoggedIn ? const AppScaffold() : const LoginPage(),
         );
       },
+    );
+  }
+}
+
+class _GlobalZoomWrapper extends StatefulWidget {
+  final Widget child;
+  const _GlobalZoomWrapper({required this.child});
+
+  @override
+  State<_GlobalZoomWrapper> createState() => _GlobalZoomWrapperState();
+}
+
+class _GlobalZoomWrapperState extends State<_GlobalZoomWrapper> {
+  static const _boxName = 'ui_settings';
+  static const _zoomKey = 'app_zoom';
+
+  // Excel-ish ranges
+  static const double _minZoom = 1.0;
+  static const double _maxZoom = 1.75;
+
+  late final Box _box;
+  double _zoom = 1.0;
+  final ScrollController _hScroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _box = Hive.box(_boxName);
+    final saved = _box.get(_zoomKey);
+    final parsed = saved is num ? saved.toDouble() : 1.0;
+    _zoom = parsed.clamp(_minZoom, _maxZoom);
+    if (_zoom != parsed) {
+      _box.put(_zoomKey, _zoom);
+    }
+  }
+
+  @override
+  void dispose() {
+    _hScroll.dispose();
+    super.dispose();
+  }
+
+  void _setZoom(double value) {
+    final next = value.clamp(_minZoom, _maxZoom);
+    if (next == _zoom) return;
+    setState(() => _zoom = next);
+    _box.put(_zoomKey, _zoom);
+  }
+
+  bool _isCtrlPressed() {
+    final keys = RawKeyboard.instance.keysPressed;
+    return keys.contains(LogicalKeyboardKey.controlLeft) ||
+        keys.contains(LogicalKeyboardKey.controlRight);
+  }
+
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    if (!_isCtrlPressed()) return;
+
+    // On most mice: scroll up => dy < 0
+    final dy = event.scrollDelta.dy;
+    final step = 0.05;
+    if (dy < 0) {
+      _setZoom(_zoom + step);
+    } else if (dy > 0) {
+      _setZoom(_zoom - step);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // When zoomed in, the app becomes larger than the viewport.
+    // Wrap in 2D scroll views so users can pan (incl. left/right) without clipping.
+    return Listener(
+      onPointerSignal: _onPointerSignal,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final baseW = constraints.maxWidth;
+          final baseH = constraints.maxHeight;
+          final contentW = baseW * _zoom;
+
+          // Put horizontal scrollbar at the top of the viewport (window frame area)
+          // so it doesn't require scrolling to the bottom to access.
+          return Column(
+            children: [
+              Expanded(
+                child: Scrollbar(
+                  controller: _hScroll,
+                  thumbVisibility: _zoom > 1.0,
+                  scrollbarOrientation: ScrollbarOrientation.bottom,
+                  notificationPredicate: (n) =>
+                      n.metrics.axis == Axis.horizontal,
+                  child: SingleChildScrollView(
+                    controller: _hScroll,
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: contentW,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Transform.scale(
+                          alignment: Alignment.topLeft,
+                          scale: _zoom,
+                          child: SizedBox(
+                            width: baseW,
+                            height: baseH,
+                            child: widget.child,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

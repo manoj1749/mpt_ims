@@ -6,7 +6,11 @@ import 'package:intl/intl.dart';
 import '../models/quality_inspection.dart';
 import 'base_provider.dart';
 import 'stock_maintenance_provider.dart';
+import 'customer_scope_stock_maintenance_provider.dart';
 import 'store_inward_provider.dart';
+import '../models/store_inward.dart';
+import '../services/supplier_rating_service.dart';
+import 'supplier_provider.dart';
 
 final qualityInspectionBoxProvider = Provider<Box<QualityInspection>>((ref) {
   throw UnimplementedError();
@@ -17,17 +21,19 @@ final qualityInspectionProvider =
   (ref) {
     final box = ref.watch(qualityInspectionBoxProvider);
     final stockMaintenance = ref.watch(stockMaintenanceProvider.notifier);
+    final customerScopeStockMaintenance = ref.watch(customerScopeStockMaintenanceProvider.notifier);
     final storeInward = ref.watch(storeInwardProvider.notifier);
-    return QualityInspectionNotifier(box, stockMaintenance, storeInward);
+    return QualityInspectionNotifier(box, stockMaintenance, customerScopeStockMaintenance, storeInward);
   },
 );
 
 class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
   final StockMaintenanceNotifier stockMaintenance;
+  final CustomerScopeStockMaintenanceNotifier customerScopeStockMaintenance;
   final StoreInwardNotifier storeInward;
 
   QualityInspectionNotifier(
-      Box<QualityInspection> box, this.stockMaintenance, this.storeInward)
+      Box<QualityInspection> box, this.stockMaintenance, this.customerScopeStockMaintenance, this.storeInward)
       : super(box, 'qualityInspections');
 
   @override
@@ -45,6 +51,7 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
       'inspectedBy': inspection.inspectedBy,
       'approvedBy': inspection.approvedBy,
       'status': inspection.status,
+      'parameterValidationTimestamp': inspection.parameterValidationTimestamp,
       'prNumbers': inspection.prNumbers,
       'jobNumbers': inspection.jobNumbers,
       'capaNo': inspection.capaNo,
@@ -112,6 +119,7 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
       inspectedBy: map['inspectedBy'] ?? '',
       approvedBy: map['approvedBy'] ?? '',
       status: map['status'] ?? 'Pending',
+      parameterValidationTimestamp: map['parameterValidationTimestamp'],
       prNumbers: Map<String, String>.from(map['prNumbers'] ?? {}),
       jobNumbers: Map<String, String>.from(map['jobNumbers'] ?? {}),
       capaNo: map['capaNo'],
@@ -197,11 +205,30 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
 
   // Backward compatibility methods
   Future<void> loadInspections() => loadData();
-  Future<void> addInspection(QualityInspection inspection) => add(inspection);
-  Future<void> updateInspection(QualityInspection inspection) =>
-      update(inspection);
+  
+  Future<void> addInspection(QualityInspection inspection) async {
+    await add(inspection);
+    // Auto-update supplier rating after adding inspection
+    _updateSupplierRatingAfterInspection(inspection);
+  }
+  
+  Future<void> updateInspection(QualityInspection inspection) async {
+    await update(inspection);
+    // Auto-update supplier rating after updating inspection
+    _updateSupplierRatingAfterInspection(inspection);
+  }
+  
   Future<bool> deleteInspection(QualityInspection inspection) =>
       delete(inspection);
+  
+  // Helper method to update supplier rating after inspection
+  void _updateSupplierRatingAfterInspection(QualityInspection inspection) {
+    // Note: This method cannot directly call SupplierRatingService.updateSupplierRating
+    // because it needs a WidgetRef which is not available in the provider.
+    // The rating update should be triggered from the UI after saving an inspection.
+    print('Inspection saved for supplier: ${inspection.supplierName}');
+    print('Remember to call SupplierRatingService.updateSupplierRating() from the UI');
+  }
 
   // Search and filter methods
   List<QualityInspection> searchInspections(String query) {
@@ -366,16 +393,22 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
   Future<void> add(QualityInspection inspection) async {
     try {
       print('\n=== Adding Quality Inspection ${inspection.inspectionNo} ===');
-      
+
+      // Set parameter validation timestamp for new inspections
+      if (inspection.status.startsWith('Completed')) {
+        inspection.parameterValidationTimestamp = DateTime.now().toIso8601String();
+        print('DEBUG: Set parameterValidationTimestamp for completed inspection: ${inspection.parameterValidationTimestamp}');
+      }
+
       // Call parent add method first to save the inspection
       await super.add(inspection);
-      
+
       // Update stock maintenance after inspection is saved
       await updateStockAfterInspection(inspection);
-      
+
       // Update GRN status
       await storeInward.updateGRNStatus(inspection.grnNo);
-      
+
       print('Successfully added inspection and updated related systems');
     } catch (e) {
       print('Error adding inspection: $e');
@@ -388,8 +421,30 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
     try {
       print('Updating stock after inspection: ${inspection.inspectionNo}');
       
-      // Delegate to stock maintenance provider
-      await stockMaintenance.updateStockFromInspection(inspection);
+      // Get the GRN to check if it's customer scope
+      final grn = storeInward.state.firstWhere(
+        (g) => g.grnNo == inspection.grnNo,
+        orElse: () => StoreInward(
+          grnNo: '',
+          grnDate: '',
+          supplierName: '',
+          poNo: '',
+          poDate: '',
+          invoiceNo: '',
+          invoiceDate: '',
+          invoiceAmount: 0.0,
+          receivedBy: '',
+          checkedBy: '',
+          items: [],
+        ),
+      );
+      
+      // Update appropriate stock maintenance based on GRN type
+      if (grn.isCustomerScope) {
+        await customerScopeStockMaintenance.updateStockFromInspection(inspection, grn.customerId);
+      } else {
+        await stockMaintenance.updateStockFromInspection(inspection);
+      }
       
       print('Stock updated successfully for inspection: ${inspection.inspectionNo}');
     } catch (e) {
@@ -404,6 +459,12 @@ class QualityInspectionNotifier extends BaseProvider<QualityInspection> {
     final inspection = getInspectionByNo(inspectionNo);
     if (inspection != null) {
       inspection.status = newStatus;
+      
+      // Set parameter validation timestamp when inspection is completed (any completed variant)
+      if (newStatus.startsWith('Completed')) {
+        inspection.parameterValidationTimestamp = DateTime.now().toIso8601String();
+      }
+      
       await update(inspection);
     }
   }

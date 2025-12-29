@@ -9,10 +9,12 @@ import 'dart:io';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/purchase_order.dart';
 import '../../provider/purchase_order.dart';
+import '../../provider/store_inward_provider.dart';
 import '../../provider/purchase_request_provider.dart';
 import '../../provider/supplier_provider.dart';
 import '../../services/pdf_service.dart';
 import 'add_purchase_order_page.dart';
+import 'service_bills_po_page.dart';
 
 class PurchaseOrderListPage extends ConsumerStatefulWidget {
   const PurchaseOrderListPage({super.key});
@@ -22,16 +24,44 @@ class PurchaseOrderListPage extends ConsumerStatefulWidget {
       _PurchaseOrderListPageState();
 }
 
-class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
+class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   String _selectedStatus = 'Active';
   final Set<String> _expandedPOs = {};
   final Set<String> _fullyExpandedPOs = {};
   PlutoGridStateManager? stateManager;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {}); // Rebuild to update FAB label
+    });
+  }
 
   List<PurchaseOrder> _filterOrders(List<PurchaseOrder> orders) {
     return orders.where((order) {
-      // Status filter only
-      return _matchesStatus(order);
+      // Filter out service bills - only show material POs
+      if (order.isServiceBill) return false;
+      
+      // Status filter
+      if (!_matchesStatus(order)) return false;
+      
+      // Search filter
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+        final matchesPONo = order.poNo.toLowerCase().contains(query);
+        final matchesSupplier = order.supplierName.toLowerCase().contains(query);
+        final matchesDate = order.poDate.contains(query);
+        
+        return matchesPONo || matchesSupplier || matchesDate;
+      }
+      
+      return true;
     }).toList();
   }
 
@@ -54,6 +84,9 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
         break;
       case 'placed':
         color = Colors.blue;
+        break;
+      case 'foreclosed':
+        color = Colors.red;
         break;
       default:
         color = Colors.grey;
@@ -158,13 +191,15 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
   }
 
   Widget _buildExportButton() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
       children: [
-        // Status Filter Dropdown
-        SizedBox(
-          width: 200,
-          child: DropdownButtonFormField<String>(
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Status Filter Dropdown
+            SizedBox(
+              width: 200,
+              child: DropdownButtonFormField<String>(
             decoration: InputDecoration(
               labelText: 'Status Filter',
               labelStyle: TextStyle(color: Colors.grey[300]),
@@ -180,7 +215,7 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
             dropdownColor: Colors.grey[800],
             value: _selectedStatus,
             items:
-                ['Active', 'Placed', 'Partially Received', 'Completed', 'All']
+                ['Active', 'Placed', 'Partially Received', 'Completed', 'Foreclosed', 'All']
                     .map((status) => DropdownMenuItem(
                           value: status,
                           child: Text(status,
@@ -196,11 +231,95 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
             },
           ),
         ),
-        // Export Button
-        FilledButton.icon(
-          onPressed: _showExportOptions,
-          icon: const Icon(Icons.download),
-          label: const Text('Export Report'),
+            // Export Button
+            FilledButton.icon(
+              onPressed: _showExportOptions,
+              icon: const Icon(Icons.download),
+              label: const Text('Export Report'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Search Field with Date Picker
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Search by PO Number, Supplier, or Date',
+                  hintStyle: TextStyle(color: Colors.grey[500]),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.clear, color: Colors.grey[400]),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: Colors.grey[800],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Date Picker Button
+            Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: IconButton(
+                icon: Icon(Icons.calendar_today, color: Colors.grey[400]),
+                tooltip: 'Search by Date',
+                onPressed: () async {
+                  final DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2030),
+                    builder: (context, child) {
+                      return Theme(
+                        data: ThemeData.dark().copyWith(
+                          colorScheme: ColorScheme.dark(
+                            primary: Colors.blue,
+                            onPrimary: Colors.white,
+                            surface: Colors.grey[850]!,
+                            onSurface: Colors.white,
+                          ),
+                          dialogBackgroundColor: Colors.grey[850],
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    final formattedDate = DateFormat('yyyy-MM-dd').format(picked);
+                    setState(() {
+                      _searchController.text = formattedDate;
+                      _searchQuery = formattedDate;
+                    });
+                  }
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -291,7 +410,8 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                     'Active',
                     'Placed',
                     'Partially Received',
-                    'Completed'
+                    'Completed',
+                    'Foreclosed'
                   ]
                       .map((status) => DropdownMenuItem(
                             value: status,
@@ -491,6 +611,59 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (order.hasAmendments) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withOpacity(0.1),
+                      border: Border.all(color: Colors.purple.withOpacity(0.5)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Amended',
+                      style: TextStyle(color: Colors.purple, fontSize: 11, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+                if (order.isForeclosed) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      border: Border.all(color: Colors.red.withOpacity(0.5)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Foreclosed',
+                      style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+                if (order.hasGR && !order.isForeclosed) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.lock, size: 10, color: Colors.orange),
+                        SizedBox(width: 2),
+                        Text(
+                          'Locked',
+                          style: TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 8),
                 Text(
                   NumberFormat.currency(
                     symbol: '₹',
@@ -508,11 +681,55 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                   'Date: ${order.poDate}',
                   style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                 ),
+                if (order.isForeclosed && order.foreclosureReason != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Foreclosure Reason: ${order.foreclosureReason}',
+                    style: TextStyle(fontSize: 11, color: Colors.red[300], fontStyle: FontStyle.italic),
+                  ),
+                ],
+                if (order.previousPONo != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Replaces PO: ${order.previousPONo}',
+                    style: TextStyle(fontSize: 11, color: Colors.blue[300], fontStyle: FontStyle.italic),
+                  ),
+                ],
               ],
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Amend PO only if no GR exists and not foreclosed
+                if (!order.hasGR && !order.isForeclosed)
+                  IconButton(
+                    icon: Icon(Icons.edit, color: Colors.grey[300]),
+                    iconSize: 20,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    tooltip: 'Amend PO',
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AddPurchaseOrderPage(
+                                existingPO: order,
+                                index: index,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                // Foreclose PO only if not already foreclosed and not completed
+                if (!order.isForeclosed && order.status != 'Completed')
+                  IconButton(
+                    icon: Icon(Icons.block, color: Colors.grey[300]),
+                    iconSize: 20,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    tooltip: 'Foreclose PO',
+                    onPressed: () => _showForeclosureDialog(context, ref, order),
+                  ),
                 IconButton(
                   icon: Icon(Icons.picture_as_pdf, color: Colors.grey[300]),
                   iconSize: 20,
@@ -639,6 +856,49 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                                     ),
                                   ],
                                 ),
+                                // Show amendment information if available
+                                if (item.originalCostPerUnit != null || item.amendmentHistory.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      if (item.originalCostPerUnit != null) ...[
+                                        Text(
+                                          'Original: ₹${item.originalCostPerUnit!.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey[400]),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      if (item.amendedCostPerUnit != null) ...[
+                                        Text(
+                                          'Amended: ₹${item.amendedCostPerUnit!.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.orange[300],
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      if (item.amendmentHistory.isNotEmpty) ...[
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.purple.withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            '${item.amendmentHistory.length} amendment${item.amendmentHistory.length > 1 ? 's' : ''}',
+                                            style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.purple[200],
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
                                 const SizedBox(height: 4),
                                 Row(
                                   mainAxisAlignment:
@@ -652,6 +912,29 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
                                     ),
                                   ],
                                 ),
+                                // Show amendment history details if available
+                                if (item.amendmentHistory.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  const Divider(),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Amendment History:',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[400],
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  ...item.amendmentHistory.map((amendment) => Padding(
+                                    padding: const EdgeInsets.only(left: 8, bottom: 2),
+                                    child: Text(
+                                      '${amendment.dateTime.split('T')[0]} ${amendment.dateTime.split('T').length > 1 ? amendment.dateTime.split('T')[1].substring(0, 8) : ''}: ₹${amendment.oldPrice.toStringAsFixed(2)} → ₹${amendment.newPrice.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[400]),
+                                    ),
+                                  )),
+                                ],
                                 if (item.prDetails.isNotEmpty) ...[
                                   const SizedBox(height: 8),
                                   const Divider(),
@@ -717,6 +1000,153 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  void _showForeclosureDialog(
+      BuildContext context, WidgetRef ref, PurchaseOrder order) {
+    final reasonController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[850],
+        title: Text('Foreclose Purchase Order',
+            style: TextStyle(color: Colors.grey[200])),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to foreclose PO ${order.poNo}?',
+              style: TextStyle(color: Colors.grey[200]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This action is typically used when price changes occur and a new PO needs to be created.',
+              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: reasonController,
+              decoration: InputDecoration(
+                labelText: 'Reason for Foreclosure',
+                labelStyle: TextStyle(color: Colors.grey[300]),
+                hintText: 'e.g., Price increase from ₹500 to ₹1000',
+                hintStyle: TextStyle(color: Colors.grey[500]),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                fillColor: Colors.grey[800],
+                filled: true,
+              ),
+              style: const TextStyle(color: Colors.white),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              reasonController.dispose();
+              Navigator.pop(context);
+            },
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[200])),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (reasonController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Please provide a reason for foreclosure',
+                      style: TextStyle(color: Colors.black),
+                    ),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              await ref
+                  .read(purchaseOrderListProvider.notifier)
+                  .foreclosePO(order, reasonController.text.trim());
+              
+              reasonController.dispose();
+              Navigator.pop(context);
+
+              // Show success message and prompt to create new PO
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Purchase order ${order.poNo} foreclosed successfully',
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                  backgroundColor: Colors.white,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+
+              // Show dialog to create new PO
+              _showCreateNewPODialog(context, order);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Foreclose'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateNewPODialog(BuildContext context, PurchaseOrder foreClosedPO) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[850],
+        title: Text('Create New Purchase Order',
+            style: TextStyle(color: Colors.grey[200])),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Would you like to create a new PO for ${foreClosedPO.supplierName}?',
+              style: TextStyle(color: Colors.grey[200]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'The new PO will reference the foreclosed PO ${foreClosedPO.poNo} and can include updated prices.',
+              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Not Now', style: TextStyle(color: Colors.grey[200])),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Navigate to create new PO page with reference to foreclosed PO
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddPurchaseOrderPage(
+                    foreClosedPONo: foreClosedPO.poNo,
+                  ),
+                ),
+              );
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.blue,
+            ),
+            child: const Text('Create New PO'),
+          ),
         ],
       ),
     );
@@ -953,6 +1383,13 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final purchaseOrders = ref.watch(purchaseOrderListProvider);
     final filteredOrders = _filterOrders(purchaseOrders);
@@ -962,67 +1399,86 @@ class _PurchaseOrderListPageState extends ConsumerState<PurchaseOrderListPage> {
       appBar: AppBar(
         title: const Text('Purchase Orders'),
         elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Material PO'),
+            Tab(text: 'Service Bills PO'),
+          ],
+        ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: _buildExportButton(),
-          ),
-          Expanded(
-            child: filteredOrders.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.shopping_cart_outlined,
-                          size: 64,
-                          color: Colors.grey[300],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No purchase orders found',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        FilledButton(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AddPurchaseOrderPage(),
+          // Material PO Tab
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: _buildExportButton(),
+              ),
+              Expanded(
+                child: filteredOrders.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.shopping_cart_outlined,
+                              size: 64,
+                              color: Colors.grey[300],
                             ),
-                          ),
-                          child: const Text('Add New Order'),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No purchase orders found',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            FilledButton(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AddPurchaseOrderPage(),
+                                ),
+                              ),
+                              child: const Text('Add New Order'),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: filteredOrders.length,
-                    padding: const EdgeInsets.only(bottom: 72),
-                    itemBuilder: (context, index) {
-                      final order = filteredOrders[index];
-                      return _buildPOCard(
-                        order,
-                        purchaseOrders.indexOf(order),
+                      )
+                    : ListView.builder(
+                        itemCount: filteredOrders.length,
+                        padding: const EdgeInsets.only(bottom: 72),
+                        itemBuilder: (context, index) {
+                          final order = filteredOrders[index];
+                          return _buildPOCard(
+                            order,
+                            purchaseOrders.indexOf(order),
                       );
                     },
                   ),
+              ),
+            ],
           ),
+          // Service Bills PO Tab
+          const ServiceBillsPOPage(),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AddPurchaseOrderPage()),
-        ),
-        icon: const Icon(Icons.add),
-        label: const Text('New PO'),
-      ),
+      floatingActionButton: _tabController.index == 0
+          ? FloatingActionButton.extended(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AddPurchaseOrderPage(),
+                ),
+              ),
+              icon: const Icon(Icons.add),
+              label: const Text('New PO'),
+            )
+          : null, // Hide FAB on Service Bills tab as it has its own add button
     );
   }
 }

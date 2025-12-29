@@ -30,6 +30,8 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
   final _customerNameFocusNode = FocusNode();
   final _customerCodeFocusNode = FocusNode();
   final _jobNoController = TextEditingController();
+  final _customerPoNoController = TextEditingController();
+  final _customerPoDateController = TextEditingController();
   final _planningStartDateController = TextEditingController();
   final _planningEndDateController = TextEditingController();
   final _actualStartDateController = TextEditingController();
@@ -38,6 +40,7 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
   final _actualCustomerDeliveryDateController = TextEditingController();
   final _jobNotesController = TextEditingController();
   String _jobStatus = 'Not Started';
+  bool _isCustomerFreeIssueAvailable = false;
   List<Customer> _filteredCustomers = [];
   bool _showCustomerSuggestions = false;
   late String _orderNo;
@@ -61,6 +64,10 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
       _boardNoController.text = widget.order!.boardNo;
       _customerNameController.text = widget.order!.customerName;
       _jobNoController.text = widget.order!.jobNo;
+      _isCustomerFreeIssueAvailable =
+          widget.order!.isCustomerFreeIssueAvailable ?? false;
+      _customerPoNoController.text = widget.order!.customerPoNo ?? '';
+      _customerPoDateController.text = widget.order!.customerPoDate ?? '';
       _planningStartDateController.text = widget.order!.planningStartDate ?? '';
       _planningEndDateController.text = widget.order!.planningEndDate ?? '';
       _actualStartDateController.text = widget.order!.actualStartDate ?? '';
@@ -102,6 +109,8 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
     _customerNameController.dispose();
     _customerCodeController.dispose();
     _jobNoController.dispose();
+    _customerPoNoController.dispose();
+    _customerPoDateController.dispose();
     _planningStartDateController.dispose();
     _planningEndDateController.dispose();
     _actualStartDateController.dispose();
@@ -265,6 +274,17 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
         jobStatus: _jobStatus,
         jobNotes:
             _jobNotesController.text.isEmpty ? null : _jobNotesController.text,
+        isCustomerFreeIssueAvailable: _isCustomerFreeIssueAvailable,
+        customerPoNo: _isCustomerFreeIssueAvailable
+            ? (_customerPoNoController.text.isEmpty
+                ? null
+                : _customerPoNoController.text)
+            : null,
+        customerPoDate: _isCustomerFreeIssueAvailable
+            ? (_customerPoDateController.text.isEmpty
+                ? null
+                : _customerPoDateController.text)
+            : null,
       );
 
       if (widget.order != null) {
@@ -528,6 +548,72 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                               return null;
                             },
                           ),
+
+                          const SizedBox(height: 16),
+
+                          SwitchListTile(
+                            title: const Text(
+                                'Is Customer Free Issue Available?'),
+                            value: _isCustomerFreeIssueAvailable,
+                            contentPadding: EdgeInsets.zero,
+                            onChanged: (v) {
+                              setState(() {
+                                _isCustomerFreeIssueAvailable = v;
+                                if (!v) {
+                                  _customerPoNoController.clear();
+                                  _customerPoDateController.clear();
+                                }
+                              });
+                            },
+                          ),
+
+                          if (_isCustomerFreeIssueAvailable) ...[
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _customerPoNoController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Customer PO No',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    validator: (v) {
+                                      if (!_isCustomerFreeIssueAvailable) {
+                                        return null;
+                                      }
+                                      if (v == null || v.trim().isEmpty) {
+                                        return 'Required';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _customerPoDateController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Customer PO Date',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    readOnly: true,
+                                    onTap: () => _selectDate(
+                                        context, _customerPoDateController),
+                                    validator: (v) {
+                                      if (!_isCustomerFreeIssueAvailable) {
+                                        return null;
+                                      }
+                                      if (v == null || v.trim().isEmpty) {
+                                        return 'Required';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -581,9 +667,19 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _planningStartDateController,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: 'Planning Target Start Date',
-                                    border: OutlineInputBorder(),
+                                    border: const OutlineInputBorder(),
+                                    suffixIcon: _planningStartDateController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear),
+                                            onPressed: () {
+                                              setState(() {
+                                                _planningStartDateController.clear();
+                                              });
+                                            },
+                                          )
+                                        : null,
                                   ),
                                   readOnly: true,
                                   onTap: () => _selectDate(
@@ -594,9 +690,19 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _actualStartDateController,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: 'Actual Start Date',
-                                    border: OutlineInputBorder(),
+                                    border: const OutlineInputBorder(),
+                                    suffixIcon: _actualStartDateController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear),
+                                            onPressed: () {
+                                              setState(() {
+                                                _actualStartDateController.clear();
+                                              });
+                                            },
+                                          )
+                                        : null,
                                   ),
                                   readOnly: true,
                                   onTap: () => _selectDate(
@@ -649,9 +755,19 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _planningEndDateController,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: 'Planning Target End Date',
-                                    border: OutlineInputBorder(),
+                                    border: const OutlineInputBorder(),
+                                    suffixIcon: _planningEndDateController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear),
+                                            onPressed: () {
+                                              setState(() {
+                                                _planningEndDateController.clear();
+                                              });
+                                            },
+                                          )
+                                        : null,
                                   ),
                                   readOnly: true,
                                   onTap: () => _selectDate(
@@ -665,6 +781,16 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                                   decoration: InputDecoration(
                                     labelText: 'Actual End Date',
                                     border: const OutlineInputBorder(),
+                                    suffixIcon: _endDateController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear),
+                                            onPressed: () {
+                                              setState(() {
+                                                _endDateController.clear();
+                                              });
+                                            },
+                                          )
+                                        : null,
                                   ),
                                   readOnly: true,
                                   onTap: () =>
@@ -687,9 +813,19 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                                 child: TextFormField(
                                   controller:
                                       _customerRequirementDateController,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: 'Customer Requirement Date',
-                                    border: OutlineInputBorder(),
+                                    border: const OutlineInputBorder(),
+                                    suffixIcon: _customerRequirementDateController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear),
+                                            onPressed: () {
+                                              setState(() {
+                                                _customerRequirementDateController.clear();
+                                              });
+                                            },
+                                          )
+                                        : null,
                                   ),
                                   readOnly: true,
                                   onTap: () => _selectDate(context,
@@ -700,9 +836,19 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _customerCommitmentDateController,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: 'Customer Commitment Date Given',
-                                    border: OutlineInputBorder(),
+                                    border: const OutlineInputBorder(),
+                                    suffixIcon: _customerCommitmentDateController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear),
+                                            onPressed: () {
+                                              setState(() {
+                                                _customerCommitmentDateController.clear();
+                                              });
+                                            },
+                                          )
+                                        : null,
                                   ),
                                   readOnly: true,
                                   onTap: () => _selectDate(context,
@@ -714,9 +860,19 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
                                 child: TextFormField(
                                   controller:
                                       _actualCustomerDeliveryDateController,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: 'Actual Customer Delivery Date',
-                                    border: OutlineInputBorder(),
+                                    border: const OutlineInputBorder(),
+                                    suffixIcon: _actualCustomerDeliveryDateController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear),
+                                            onPressed: () {
+                                              setState(() {
+                                                _actualCustomerDeliveryDateController.clear();
+                                              });
+                                            },
+                                          )
+                                        : null,
                                   ),
                                   readOnly: true,
                                   onTap: () => _selectDate(context,

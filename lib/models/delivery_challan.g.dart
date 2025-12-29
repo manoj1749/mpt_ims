@@ -74,13 +74,28 @@ class DeliveryChallanAdapter extends TypeAdapter<DeliveryChallan> {
       items: (fields[5] as List).cast<DeliveryChallanItem>(),
       isReturnable: fields[6] as bool,
       note: fields[7] as String?,
+      dcType: fields[8] == null ? 'regular' : fields[8] as String,
+      invoiceNumber: fields[9] == null ? '' : fields[9] as String?,
+      invoiceAmount: fields[10] == null ? 0.0 : fields[10] as double?,
+      paymentStatus: fields[11] == null ? '' : fields[11] as String?,
+      jobOrderNumber: fields[12] == null ? '' : fields[12] as String?,
+      inspectionNumber: fields[13] == null ? '' : fields[13] as String?,
+      grnNumber: fields[14] == null ? '' : fields[14] as String?,
+      rejectionReason: fields[15] == null ? '' : fields[15] as String?,
+      debitNoteNumber: fields[16] == null ? '' : fields[16] as String?,
+      fromVendor: fields[17] == null ? '' : fields[17] as String?,
+      toVendor: fields[18] == null ? '' : fields[18] as String?,
+      siteAddress: fields[19] == null ? '' : fields[19] as String?,
+      expectedReturnDate: fields[20] == null ? '' : fields[20] as String?,
+      returnStatus: fields[21] == null ? '' : fields[21] as String?,
+      internalFlow: fields[22] == null ? 'outward' : fields[22] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, DeliveryChallan obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(23)
       ..writeByte(0)
       ..write(obj.dcNo)
       ..writeByte(1)
@@ -96,7 +111,37 @@ class DeliveryChallanAdapter extends TypeAdapter<DeliveryChallan> {
       ..writeByte(6)
       ..write(obj.isReturnable)
       ..writeByte(7)
-      ..write(obj.note);
+      ..write(obj.note)
+      ..writeByte(8)
+      ..write(obj.dcType)
+      ..writeByte(9)
+      ..write(obj.invoiceNumber)
+      ..writeByte(10)
+      ..write(obj.invoiceAmount)
+      ..writeByte(11)
+      ..write(obj.paymentStatus)
+      ..writeByte(12)
+      ..write(obj.jobOrderNumber)
+      ..writeByte(13)
+      ..write(obj.inspectionNumber)
+      ..writeByte(14)
+      ..write(obj.grnNumber)
+      ..writeByte(15)
+      ..write(obj.rejectionReason)
+      ..writeByte(16)
+      ..write(obj.debitNoteNumber)
+      ..writeByte(17)
+      ..write(obj.fromVendor)
+      ..writeByte(18)
+      ..write(obj.toVendor)
+      ..writeByte(19)
+      ..write(obj.siteAddress)
+      ..writeByte(20)
+      ..write(obj.expectedReturnDate)
+      ..writeByte(21)
+      ..write(obj.returnStatus)
+      ..writeByte(22)
+      ..write(obj.internalFlow);
   }
 
   @override

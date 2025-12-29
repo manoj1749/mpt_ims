@@ -76,6 +76,51 @@ class DeliveryChallan extends HiveObject {
   @HiveField(7)
   String? note;
 
+  @HiveField(8, defaultValue: 'regular')
+  String dcType; // 'internal', 'regular', 'job_order', 'material_return'
+
+  @HiveField(9, defaultValue: '')
+  String? invoiceNumber; // For regular DC
+
+  @HiveField(10, defaultValue: 0.0)
+  double? invoiceAmount; // For regular DC
+
+  @HiveField(11, defaultValue: '')
+  String? paymentStatus; // For regular DC: 'pending', 'paid', 'partial'
+
+  @HiveField(12, defaultValue: '')
+  String? jobOrderNumber; // For job order DC
+
+  @HiveField(13, defaultValue: '')
+  String? inspectionNumber; // For material return DC
+
+  @HiveField(14, defaultValue: '')
+  String? grnNumber; // For material return DC
+
+  @HiveField(15, defaultValue: '')
+  String? rejectionReason; // For material return DC
+
+  @HiveField(16, defaultValue: '')
+  String? debitNoteNumber; // For material return DC
+
+  @HiveField(17, defaultValue: '')
+  String? fromVendor; // For internal DC
+
+  @HiveField(18, defaultValue: '')
+  String? toVendor; // For internal DC
+
+  @HiveField(19, defaultValue: '')
+  String? siteAddress; // For job order DC
+
+  @HiveField(20, defaultValue: '')
+  String? expectedReturnDate; // For job order DC
+
+  @HiveField(21, defaultValue: '')
+  String? returnStatus; // For material return DC: 'pending', 'returned', 'accepted'
+
+  @HiveField(22, defaultValue: 'outward')
+  String internalFlow; // For internal DC: 'inward' or 'outward'
+
   DeliveryChallan({
     required this.dcNo,
     required this.dcDate,
@@ -85,6 +130,21 @@ class DeliveryChallan extends HiveObject {
     required this.items,
     required this.isReturnable,
     this.note,
+    this.dcType = 'regular',
+    this.invoiceNumber,
+    this.invoiceAmount,
+    this.paymentStatus,
+    this.jobOrderNumber,
+    this.inspectionNumber,
+    this.grnNumber,
+    this.rejectionReason,
+    this.debitNoteNumber,
+    this.fromVendor,
+    this.toVendor,
+    this.siteAddress,
+    this.expectedReturnDate,
+    this.returnStatus,
+    this.internalFlow = 'outward',
   });
 
   DeliveryChallan copyWith({
@@ -96,6 +156,21 @@ class DeliveryChallan extends HiveObject {
     List<DeliveryChallanItem>? items,
     bool? isReturnable,
     String? note,
+    String? dcType,
+    String? invoiceNumber,
+    double? invoiceAmount,
+    String? paymentStatus,
+    String? jobOrderNumber,
+    String? inspectionNumber,
+    String? grnNumber,
+    String? rejectionReason,
+    String? debitNoteNumber,
+    String? fromVendor,
+    String? toVendor,
+    String? siteAddress,
+    String? expectedReturnDate,
+    String? returnStatus,
+    String? internalFlow,
   }) {
     return DeliveryChallan(
       dcNo: dcNo ?? this.dcNo,
@@ -106,6 +181,21 @@ class DeliveryChallan extends HiveObject {
       items: items ?? List.from(this.items),
       isReturnable: isReturnable ?? this.isReturnable,
       note: note ?? this.note,
+      dcType: dcType ?? this.dcType,
+      invoiceNumber: invoiceNumber ?? this.invoiceNumber,
+      invoiceAmount: invoiceAmount ?? this.invoiceAmount,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      jobOrderNumber: jobOrderNumber ?? this.jobOrderNumber,
+      inspectionNumber: inspectionNumber ?? this.inspectionNumber,
+      grnNumber: grnNumber ?? this.grnNumber,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      debitNoteNumber: debitNoteNumber ?? this.debitNoteNumber,
+      fromVendor: fromVendor ?? this.fromVendor,
+      toVendor: toVendor ?? this.toVendor,
+      siteAddress: siteAddress ?? this.siteAddress,
+      expectedReturnDate: expectedReturnDate ?? this.expectedReturnDate,
+      returnStatus: returnStatus ?? this.returnStatus,
+      internalFlow: internalFlow ?? this.internalFlow,
     );
   }
 }

@@ -37,8 +37,7 @@ class PDFService {
   static const _companyConfig = {
     'name': 'Aimant Industries',
     'address': '''SF.NO.215, ORATTUKUPPAI,
-ORATTUKUPPAI, Chettipalayam,
-Coimbatore, Tamil Nadu - 641201''',
+Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
     'gstn': '33ACKFA4542P1Z3',
     'mobile': '+91 97913 66775',
     'email': 'info@aimantindustries.com',
@@ -99,6 +98,10 @@ Coimbatore, Tamil Nadu - 641201''',
               _buildTotalsSection(purchaseOrder, font, fontBold),
 
               pw.SizedBox(height: 20),
+
+              // Amendment comparison section (if PO has amendments)
+              if (purchaseOrder.hasAmendments)
+                _buildAmendmentComparisonSection(purchaseOrder, font, fontBold),
 
               // Terms and conditions
               // _buildTermsAndConditions(supplier, font, fontBold),
@@ -193,12 +196,54 @@ Coimbatore, Tamil Nadu - 641201''',
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(
-                    'Purchase Order',
-                    style: pw.TextStyle(
-                      fontSize: 16,
-                      font: fontBold,
-                    ),
+                  pw.Row(
+                    children: [
+                      pw.Text(
+                        'Purchase Order',
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          font: fontBold,
+                        ),
+                      ),
+                      if (purchaseOrder.isServiceBill) ...[
+                        pw.SizedBox(width: 10),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.blue,
+                            borderRadius: const pw.BorderRadius.all(
+                                pw.Radius.circular(4)),
+                          ),
+                          child: pw.Text(
+                            'SERVICE BILL',
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              font: fontBold,
+                              color: PdfColors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (purchaseOrder.hasAmendments) ...[
+                        pw.SizedBox(width: 10),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.red,
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                          ),
+                          child: pw.Text(
+                            'AMENDED',
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              font: fontBold,
+                              color: PdfColors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -366,32 +411,50 @@ Coimbatore, Tamil Nadu - 641201''',
                         ),
                         pw.SizedBox(height: 4),
                       ],
-                      if (purchaseOrder.transport.isNotEmpty) ...[
-                        pw.Text(
-                          'Transport: ${purchaseOrder.transport}',
-                          style: pw.TextStyle(fontSize: 10, font: font),
-                        ),
-                        pw.SizedBox(height: 4),
-                      ],
-                      if (purchaseOrder.deliveryRequirements.isNotEmpty) ...[
-                        pw.Text(
-                          'Delivery Requirements:',
-                          style: pw.TextStyle(
-                            fontSize: 10,
-                            font: fontBold,
+                      if (purchaseOrder.isServiceBill) ...[
+                        if (purchaseOrder.items.isNotEmpty) ...[
+                          pw.Text(
+                            'CAT No: ${purchaseOrder.items.map((i) => i.materialCode).toSet().join(", ")}',
+                            style: pw.TextStyle(fontSize: 10, font: font),
                           ),
-                        ),
-                        pw.Text(
-                          purchaseOrder.deliveryRequirements,
-                          style: pw.TextStyle(fontSize: 10, font: font),
-                        ),
-                      ],
-                      if (purchaseOrder.formattedBoardNo.isNotEmpty) ...[
-                        pw.SizedBox(height: 4),
-                        pw.Text(
-                          'Board No: ${purchaseOrder.formattedBoardNo}',
-                          style: pw.TextStyle(fontSize: 10, font: font),
-                        ),
+                          pw.SizedBox(height: 4),
+                        ],
+                        if (purchaseOrder.formattedBoardNo.isNotEmpty) ...[
+                          pw.Text(
+                            'Board No: ${purchaseOrder.formattedBoardNo}',
+                            style: pw.TextStyle(fontSize: 10, font: font),
+                          ),
+                        ],
+                      ] else ...[
+                        if (purchaseOrder.transport.isNotEmpty) ...[
+                          pw.Text(
+                            'Transport: ${purchaseOrder.transport}',
+                            style: pw.TextStyle(fontSize: 10, font: font),
+                          ),
+                          pw.SizedBox(height: 4),
+                        ],
+                        if (purchaseOrder.deliveryRequirements.isNotEmpty) ...[
+                          pw.Text(
+                            'Delivery Requirements: ${purchaseOrder.deliveryRequirements}',
+                            style: pw.TextStyle(fontSize: 10, font: font),
+                          ),
+                          pw.SizedBox(height: 4),
+                        ],
+                        if (purchaseOrder.formattedBoardNo.isNotEmpty) ...[
+                          pw.Text(
+                            'Board No: ${purchaseOrder.formattedBoardNo}',
+                            style: pw.TextStyle(fontSize: 10, font: font),
+                          ),
+                          pw.SizedBox(height: 4),
+                        ],
+                        if (purchaseOrder.items
+                            .map((i) => (i.termsAndConditions ?? '').trim())
+                            .any((t) => t.isNotEmpty)) ...[
+                          pw.Text(
+                            'Terms & Conditions: ${purchaseOrder.items.map((i) => (i.termsAndConditions ?? '').trim()).firstWhere((t) => t.isNotEmpty, orElse: () => "")}',
+                            style: pw.TextStyle(fontSize: 10, font: font),
+                          ),
+                        ],
                       ],
                     ],
                   ),
@@ -439,35 +502,90 @@ Coimbatore, Tamil Nadu - 641201''',
               ],
             ),
           ),
-          // Table rows
-          ...purchaseOrder.items.asMap().entries.map((entry) {
+          // Table rows with terms and conditions
+          ...purchaseOrder.items.asMap().entries.expand((entry) {
             final index = entry.key;
             final item = entry.value;
-            return pw.Container(
-              decoration: const pw.BoxDecoration(
-                border: pw.Border(
-                  bottom: pw.BorderSide(color: PdfColors.black, width: 0.5),
+            // Use amended price if available, otherwise use current cost
+            final effectivePrice = item.amendedCostPerUnit ?? double.tryParse(item.costPerUnit) ?? 0.0;
+            final effectiveTotal = effectivePrice * (double.tryParse(item.quantity) ?? 0.0);
+            
+            final widgets = <pw.Widget>[
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                    bottom: item.termsAndConditions != null && item.termsAndConditions!.isNotEmpty
+                        ? const pw.BorderSide(color: PdfColors.black, width: 0.2)
+                        : const pw.BorderSide(color: PdfColors.black, width: 0.5),
+                  ),
+                ),
+                child: pw.Row(
+                  children: [
+                    _buildTableCell((index + 1).toString(),
+                        width: 40, font: font, fontBold: fontBold),
+                    _buildTableCell(item.materialCode,
+                        width: 80, font: font, fontBold: fontBold),
+                    _buildTableCell(item.materialDescription,
+                        width: 200, font: font, fontBold: fontBold),
+                    _buildTableCell(item.quantity,
+                        width: 50, font: font, fontBold: fontBold),
+                    _buildTableCell(item.unit,
+                        width: 50, font: font, fontBold: fontBold),
+                    _buildTableCell('Rs.${effectivePrice.toStringAsFixed(2)}',
+                        width: 60, font: font, fontBold: fontBold),
+                    _buildTableCell('Rs.${effectiveTotal.toStringAsFixed(2)}',
+                        width: 60, font: font, fontBold: fontBold),
+                  ],
                 ),
               ),
-              child: pw.Row(
-                children: [
-                  _buildTableCell((index + 1).toString(),
-                      width: 40, font: font, fontBold: fontBold),
-                  _buildTableCell(item.materialCode,
-                      width: 80, font: font, fontBold: fontBold),
-                  _buildTableCell(item.materialDescription,
-                      width: 200, font: font, fontBold: fontBold),
-                  _buildTableCell(item.quantity,
-                      width: 50, font: font, fontBold: fontBold),
-                  _buildTableCell(item.unit,
-                      width: 50, font: font, fontBold: fontBold),
-                  _buildTableCell('Rs.${item.costPerUnit}',
-                      width: 60, font: font, fontBold: fontBold),
-                  _buildTableCell('Rs.${item.totalCost}',
-                      width: 60, font: font, fontBold: fontBold),
-                ],
-              ),
-            );
+            ];
+            
+            // Add terms and conditions row if present
+            if (item.termsAndConditions != null && item.termsAndConditions!.isNotEmpty) {
+              widgets.add(
+                pw.Container(
+                  decoration: const pw.BoxDecoration(
+                    border: pw.Border(
+                      bottom: pw.BorderSide(color: PdfColors.black, width: 0.5),
+                    ),
+                    color: PdfColors.grey100,
+                  ),
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.SizedBox(width: 40), // Align with SR NO column
+                      pw.Expanded(
+                        child: pw.RichText(
+                          text: pw.TextSpan(
+                            children: [
+                              pw.TextSpan(
+                                text: 'Terms & Conditions: ',
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  font: fontBold,
+                                  fontStyle: pw.FontStyle.italic,
+                                ),
+                              ),
+                              pw.TextSpan(
+                                text: item.termsAndConditions,
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  font: font,
+                                  fontStyle: pw.FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+            
+            return widgets;
           }).toList(),
         ],
       ),
@@ -602,6 +720,151 @@ Coimbatore, Tamil Nadu - 641201''',
     return '0';
   }
 
+  static pw.Widget _buildAmendmentComparisonSection(
+      PurchaseOrder purchaseOrder, pw.Font font, pw.Font fontBold) {
+    // Filter items that have amendments
+    final amendedItems = purchaseOrder.items
+        .where((item) => item.originalCostPerUnit != null && item.amendedCostPerUnit != null)
+        .toList();
+
+    if (amendedItems.isEmpty) {
+      return pw.SizedBox.shrink();
+    }
+
+    // Format the original PO date text
+    String originalDateText = '';
+    if (purchaseOrder.originalPoDate != null && purchaseOrder.originalPoDate!.isNotEmpty) {
+      originalDateText = 'Original PO Date: ${purchaseOrder.originalPoDate}';
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Container(
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.black, width: 1),
+          ),
+          child: pw.Column(
+            children: [
+              // Header
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(8),
+                decoration: const pw.BoxDecoration(
+                  color: PdfColors.grey300,
+                  border: pw.Border(
+                    bottom: pw.BorderSide(color: PdfColors.black, width: 1),
+                  ),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'ORIGINAL PO PRICES (For Reference)',
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        font: fontBold,
+                      ),
+                    ),
+                    if (originalDateText.isNotEmpty)
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.only(top: 2),
+                        child: pw.Text(
+                          originalDateText,
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            font: font,
+                            fontStyle: pw.FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // Table header
+              pw.Container(
+                decoration: const pw.BoxDecoration(
+                  color: PdfColors.grey200,
+                  border: pw.Border(
+                    bottom: pw.BorderSide(color: PdfColors.black, width: 1),
+                  ),
+                ),
+                child: pw.Row(
+                  children: [
+                    _buildTableCell('SR NO:',
+                        width: 40, isHeader: true, font: font, fontBold: fontBold),
+                    _buildTableCell('CAT NO:',
+                        width: 100, isHeader: true, font: font, fontBold: fontBold),
+                    _buildTableCell('DESCRIPTION:',
+                        width: 180, isHeader: true, font: font, fontBold: fontBold),
+                    _buildTableCell('ORIGINAL\nCOST/UNIT:',
+                        width: 70, isHeader: true, font: font, fontBold: fontBold),
+                    _buildTableCell('AMENDED\nCOST/UNIT:',
+                        width: 70, isHeader: true, font: font, fontBold: fontBold),
+                    _buildTableCell('DIFFERENCE:',
+                        width: 80, isHeader: true, font: font, fontBold: fontBold),
+                  ],
+                ),
+              ),
+              // Table rows
+              ...amendedItems.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final originalPrice = item.originalCostPerUnit!;
+                final amendedPrice = item.amendedCostPerUnit!;
+                final difference = amendedPrice - originalPrice;
+                final differenceText = difference >= 0
+                    ? '+Rs.${difference.toStringAsFixed(2)}'
+                    : 'Rs.${difference.toStringAsFixed(2)}';
+
+                return pw.Container(
+                  decoration: const pw.BoxDecoration(
+                    border: pw.Border(
+                      bottom: pw.BorderSide(color: PdfColors.black, width: 0.5),
+                    ),
+                  ),
+                  child: pw.Row(
+                    children: [
+                      _buildTableCell((index + 1).toString(),
+                          width: 40, font: font, fontBold: fontBold),
+                      _buildTableCell(item.materialCode,
+                          width: 100, font: font, fontBold: fontBold),
+                      _buildTableCell(item.materialDescription,
+                          width: 180, font: font, fontBold: fontBold),
+                      _buildTableCell('Rs.${originalPrice.toStringAsFixed(2)}',
+                          width: 70, font: font, fontBold: fontBold),
+                      _buildTableCell('Rs.${amendedPrice.toStringAsFixed(2)}',
+                          width: 70, font: font, fontBold: fontBold),
+                      _buildTableCell(differenceText,
+                          width: 80, font: font, fontBold: fontBold),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 8),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(8),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.grey100,
+            border: pw.Border.all(color: PdfColors.grey400, width: 1),
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+          ),
+          child: pw.Text(
+            'Note: The prices shown in the items table above reflect the amended rates. This section shows the original PO prices for reference.',
+            style: pw.TextStyle(
+              fontSize: 9,
+              font: font,
+              fontStyle: pw.FontStyle.italic,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   // static pw.Widget _buildTermsAndConditions(
   //     Supplier supplier, pw.Font font, pw.Font fontBold) {
   //   return pw.Container(
@@ -726,6 +989,10 @@ Coimbatore, Tamil Nadu - 641201''',
         // Create MPT_IMS/Purchase_Orders folder structure
         final mptImsDirectory = Directory('${baseDirectory.path}/MPT_IMS');
         final poDirectory = Directory('${mptImsDirectory.path}/Purchase_Orders');
+        final poTypeDirectoryName =
+            purchaseOrder.isServiceBill ? 'Service_Bill_PO' : 'Material_PO';
+        final poTypeDirectory =
+            Directory('${poDirectory.path}/$poTypeDirectoryName');
         
         // Create directories if they don't exist
         if (!await mptImsDirectory.exists()) {
@@ -734,9 +1001,12 @@ Coimbatore, Tamil Nadu - 641201''',
         if (!await poDirectory.exists()) {
           await poDirectory.create(recursive: true);
         }
+        if (!await poTypeDirectory.exists()) {
+          await poTypeDirectory.create(recursive: true);
+        }
 
         final fileName = 'PurchaseOrder_${purchaseOrder.poNo}.pdf';
-        final file = File('${poDirectory.path}/$fileName');
+        final file = File('${poTypeDirectory.path}/$fileName');
         await file.writeAsBytes(pdfData);
         return true;
       }

@@ -52,6 +52,15 @@ class SaleOrder extends HiveObject {
   @HiveField(15)
   String? jobNotes; // Job Notes
 
+  @HiveField(16)
+  bool? isCustomerFreeIssueAvailable;
+
+  @HiveField(17)
+  String? customerPoNo;
+
+  @HiveField(18)
+  String? customerPoDate;
+
   SaleOrder({
     required this.orderNo,
     required this.orderDate,
@@ -69,6 +78,9 @@ class SaleOrder extends HiveObject {
     this.actualCustomerDeliveryDate,
     this.jobStatus,
     this.jobNotes,
+    this.isCustomerFreeIssueAvailable,
+    this.customerPoNo,
+    this.customerPoDate,
   });
 
   bool get isCompleted => endDate != null;

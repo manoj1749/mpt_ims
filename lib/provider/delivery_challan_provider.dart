@@ -38,6 +38,8 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
       'vendorName': dc.vendorName,
       'vendorEmail': dc.vendorEmail,
       'vendorGstin': dc.vendorGstin,
+      'dcType': dc.dcType,
+      'internalFlow': dc.internalFlow,
       'items': dc.items
           .map((item) => {
                 'materialCode': item.materialCode,
@@ -73,6 +75,8 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
           .toList(),
       isReturnable: map['isReturnable'] ?? false,
       note: map['note'],
+      dcType: map['dcType'] ?? 'regular',
+      internalFlow: map['internalFlow'] ?? 'outward',
     );
   }
 
@@ -160,26 +164,39 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
 
       for (var stock in stockItems) {
         final jobNo = item.jobNo ?? 'General';
-        final multiplier = isAdd ? 1.0 : -1.0;
-        final deliveryQty = item.quantity * multiplier;
+        // CRITICAL FIX: When isAdd=true (creating DC), we DEDUCT stock (negative qty)
+        // When isAdd=false (deleting DC), we ADD stock back (positive qty)
+        final multiplier = isAdd ? -1.0 : 1.0;
+        final qty = item.quantity * multiplier;
 
-        print(
-            'Job No: $jobNo, Multiplier: $multiplier, Delivery Qty: $deliveryQty');
+        print('Job No: $jobNo, Multiplier: $multiplier, Qty: $qty');
         print('Current job details: ${stock.jobDetails}');
 
         try {
-          // Use the proper stock delivery method (similar to MI's issueStockForJob)
-          stock.deliverStockForJob(jobNo, dc.dcNo, deliveryQty);
-          print('Successfully delivered stock for job $jobNo');
+          if (dc.dcType == 'internal') {
+            if (dc.internalFlow == 'inward') {
+              // Increase General stock via synthetic GRN (qty is already signed correctly)
+              final grnNo = 'IDCIN-${dc.dcNo}';
+              stock.receiveToGeneral(grnNo, qty.abs() * (isAdd ? 1.0 : -1.0));
+              print('Received to General via $grnNo: ${qty.abs() * (isAdd ? 1.0 : -1.0)}');
+            } else {
+              // Outward: reduce stock (qty is already negative when isAdd=true)
+              stock.deliverStockForJob(jobNo, dc.dcNo, qty.abs());
+              print('Delivered stock outward for job $jobNo: ${qty.abs()}');
+            }
+          } else {
+            // Regular/job order/material return flows: deduct stock when creating DC
+            stock.deliverStockForJob(jobNo, dc.dcNo, qty.abs());
+            print('Delivered stock for non-internal DC: ${qty.abs()}');
+          }
         } catch (e) {
-          print('Error delivering stock for job $jobNo: $e');
-          // Fallback to simple stock update if proper tracking fails
-          if (stock.currentStock >= deliveryQty.abs()) {
-            stock.currentStock +=
-                deliveryQty; // Note: delivery reduces stock, so we add the negative value
+          print('Error updating stock: $e');
+          // Fallback: adjust currentStock directly for General
+          if (jobNo == 'General') {
+            stock.currentStock += qty;
             print('Fallback: Updated current stock to: ${stock.currentStock}');
           } else {
-            print('Insufficient stock for job $jobNo');
+            print('Fallback not applied for job-specific stock');
           }
         }
 

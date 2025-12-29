@@ -43,6 +43,7 @@ class CustomerNotifier extends BaseProvider<Customer> {
       'account': customer.account,
       'ifsc': customer.ifsc,
       'paymentTerms': customer.paymentTerms,
+      'attachments': customer.attachments,
     };
   }
 
@@ -72,6 +73,7 @@ class CustomerNotifier extends BaseProvider<Customer> {
       account: map['account'] ?? '',
       ifsc: map['ifsc'] ?? '',
       paymentTerms: map['paymentTerms'] ?? '',
+      attachments: (map['attachments'] as List?)?.cast<String>() ?? const [],
     );
   }
 

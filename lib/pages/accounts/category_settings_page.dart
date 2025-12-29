@@ -7,6 +7,7 @@ import '../../provider/sub_category_provider.dart';
 import '../../provider/category_parameter_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
 import '../../models/category.dart';
+import '../../models/sub_category.dart';
 import '../../models/category_parameter_mapping.dart';
 import 'package:hive/hive.dart';
 
@@ -32,6 +33,13 @@ class _CategorySettingsPageState extends ConsumerState<CategorySettingsPage> {
   Category? _selectedCategory;
   Category? _unsavedCategory;
   bool _hasUnsavedChanges = false;
+  bool _hasUnsavedParameterChanges = false;
+  Set<String> _unsavedParameters = {};
+  bool _unsavedRequiresExpiryDate = false;
+
+  bool _hasUnsavedSubCategoryChanges = false;
+  final Set<String> _pendingSubCategoryAdds = {};
+  final Set<String> _pendingSubCategoryDeletes = {};
 
   @override
   void initState() {
@@ -248,6 +256,22 @@ Mapping for Category: ${mapping.category}
           shelfLifeValue: category.shelfLifeValue,
           shelfLifeUnit: category.shelfLifeUnit,
         );
+        final mappings = ref.read(categoryParameterProvider);
+        final mapping = mappings.firstWhere(
+          (m) => m.category == category.name,
+          orElse: () => CategoryParameterMapping(
+            category: category.name,
+            parameters: [],
+            requiresExpiryDate: false,
+          ),
+        );
+        _unsavedParameters = Set<String>.from(mapping.parameters);
+        _unsavedRequiresExpiryDate = mapping.requiresExpiryDate;
+        _hasUnsavedParameterChanges = false;
+
+        _pendingSubCategoryAdds.clear();
+        _pendingSubCategoryDeletes.clear();
+        _hasUnsavedSubCategoryChanges = false;
       });
       _updateTextControllers(category);
     }
@@ -255,15 +279,65 @@ Mapping for Category: ${mapping.category}
 
   Future<void> _saveChanges() async {
     if (_unsavedCategory != null) {
-      await ref
-          .read(categoryListProvider.notifier)
-          .updateCategory(_unsavedCategory!);
+      await ref.read(categoryListProvider.notifier).updateCategory(_unsavedCategory!);
       setState(() {
         _selectedCategory = _unsavedCategory!.copyWith();
         _hasUnsavedChanges = false;
       });
       _updateTextControllers(_selectedCategory!);
       _printBoxContents();
+    }
+
+    if (_selectedCategory != null && _hasUnsavedParameterChanges) {
+      final mappings = ref.read(categoryParameterProvider);
+      final existing = mappings.firstWhere(
+        (m) => m.category == _selectedCategory!.name,
+        orElse: () => CategoryParameterMapping(
+          category: _selectedCategory!.name,
+          parameters: [],
+          requiresExpiryDate: false,
+        ),
+      );
+
+      final updatedMapping = CategoryParameterMapping(
+        category: existing.category,
+        parameters: _unsavedParameters.toList(),
+        requiresExpiryDate: _unsavedRequiresExpiryDate,
+        lastModified: existing.lastModified,
+      );
+      await ref.read(categoryParameterProvider.notifier).updateMapping(updatedMapping);
+      setState(() {
+        _hasUnsavedParameterChanges = false;
+      });
+    }
+
+    if (_selectedCategory != null && _hasUnsavedSubCategoryChanges) {
+      final catName = _selectedCategory!.name;
+      final existingSubs = ref
+          .read(subCategoryListProvider)
+          .where((sc) => sc.categoryName == catName)
+          .toList();
+
+      // Apply deletes first
+      for (final name in _pendingSubCategoryDeletes) {
+        final toDelete = existingSubs.where((sc) => sc.name == name).toList();
+        for (final sc in toDelete) {
+          await ref.read(subCategoryListProvider.notifier).deleteSubCategory(sc);
+        }
+      }
+
+      // Apply adds
+      for (final name in _pendingSubCategoryAdds) {
+        await ref.read(subCategoryListProvider.notifier).addSubCategory(name, catName);
+      }
+
+      if (mounted) {
+        setState(() {
+          _pendingSubCategoryAdds.clear();
+          _pendingSubCategoryDeletes.clear();
+          _hasUnsavedSubCategoryChanges = false;
+        });
+      }
     }
   }
 
@@ -478,31 +552,22 @@ Mapping for Category: ${mapping.category}
                       spacing: 8,
                       runSpacing: 8,
                       children: universalParams.map((param) {
-                        final isSelected = mappings.any((m) =>
-                            m.category == _selectedCategory!.name &&
-                            m.parameters.contains(param.name));
+                        final isSelected = _unsavedParameters.contains(param.name);
 
                         return FilterChip(
                           label: Text(param.name),
                           selected: isSelected,
                           onSelected: (selected) {
-                            final mapping = mappings.firstWhere(
-                              (m) => m.category == _selectedCategory!.name,
-                              orElse: () => CategoryParameterMapping(
-                                category: _selectedCategory!.name,
-                                parameters: [],
-                                requiresExpiryDate: false,
-                              ),
-                            );
-
-                            if (selected) {
-                              mapping.parameters.add(param.name);
-                            } else {
-                              mapping.parameters.remove(param.name);
-                            }
-                            ref
-                                .read(categoryParameterProvider.notifier)
-                                .updateMapping(mapping);
+                            setState(() {
+                              final newParams = Set<String>.from(_unsavedParameters);
+                              if (selected) {
+                                newParams.add(param.name);
+                              } else {
+                                newParams.remove(param.name);
+                              }
+                              _unsavedParameters = newParams;
+                              _hasUnsavedParameterChanges = true;
+                            });
                           },
                         );
                       }).toList(),
@@ -619,50 +684,90 @@ Mapping for Category: ${mapping.category}
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: CheckboxListTile(
-                        title: const Text('Has Expiry Date'),
-                        value: _unsavedCategory!.hasExpiryDate,
-                        onChanged: (value) {
-                          if (value != null) {
-                            final updatedCategory = _unsavedCategory!.copyWith(
-                              hasExpiryDate: value,
-                              hasShelfLife: value
-                                  ? false
-                                  : _unsavedCategory!.hasShelfLife,
-                            );
-                            _updateUnsavedCategory(updatedCategory);
-                          }
-                        },
-                      ),
-                    ),
-                    Expanded(
-                      child: CheckboxListTile(
-                        title: const Text('Has Shelf Life'),
-                        value: _unsavedCategory!.hasShelfLife,
-                        onChanged: (value) {
-                          if (value != null) {
-                            final updatedCategory = _unsavedCategory!.copyWith(
-                              hasShelfLife: value,
-                              hasExpiryDate: value
-                                  ? false
-                                  : _unsavedCategory!.hasExpiryDate,
-                              shelfLifeValue: value
-                                  ? _unsavedCategory!.shelfLifeValue
-                                  : null,
-                              shelfLifeUnit: value
-                                  ? _unsavedCategory!.shelfLifeUnit ?? 'days'
-                                  : null,
-                            );
-                            _updateUnsavedCategory(updatedCategory);
-                          }
-                        },
-                      ),
-                    ),
-                  ],
+                // Master toggle for expiry/shelf life tracking
+                SwitchListTile(
+                  title: const Text('Requires Expiry/Shelf Life Tracking'),
+                  subtitle: const Text(
+                      'Enable if materials in this category require expiry or shelf life management'),
+                  value: (_unsavedCategory!.hasExpiryDate == true || _unsavedCategory!.hasShelfLife == true),
+                  onChanged: (value) {
+                    if (value) {
+                      // If enabling, default to expiry date
+                      final updatedCategory = _unsavedCategory!.copyWith(
+                        hasExpiryDate: true,
+                        hasShelfLife: false,
+                      );
+                      _updateUnsavedCategory(updatedCategory);
+                    } else {
+                      // If disabling, turn off both expiry and shelf life
+                      final updatedCategory = _unsavedCategory!.copyWith(
+                        hasExpiryDate: false,
+                        hasShelfLife: false,
+                        shelfLifeValue: null,
+                        shelfLifeUnit: null,
+                      );
+                      _updateUnsavedCategory(updatedCategory);
+                    }
+                    
+                    setState(() {
+                      _unsavedRequiresExpiryDate =
+                          value && _unsavedCategory!.hasExpiryDate == true;
+                      _hasUnsavedParameterChanges = true;
+                    });
+                  },
                 ),
+                const SizedBox(height: 16),
+                // Show expiry/shelf life options only if tracking is enabled
+                if (_unsavedCategory!.hasExpiryDate == true || _unsavedCategory!.hasShelfLife == true) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CheckboxListTile(
+                          title: const Text('Has Expiry Date'),
+                          value: _unsavedCategory!.hasExpiryDate,
+                          onChanged: (value) {
+                            if (value != null) {
+                              final updatedCategory = _unsavedCategory!.copyWith(
+                                hasExpiryDate: value,
+                                hasShelfLife: value
+                                    ? false
+                                    : _unsavedCategory!.hasShelfLife,
+                              );
+                              _updateUnsavedCategory(updatedCategory);
+
+                              setState(() {
+                                _unsavedRequiresExpiryDate = value;
+                                _hasUnsavedParameterChanges = true;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      Expanded(
+                        child: CheckboxListTile(
+                          title: const Text('Has Shelf Life'),
+                          value: _unsavedCategory!.hasShelfLife,
+                          onChanged: (value) {
+                            if (value != null) {
+                              final updatedCategory = _unsavedCategory!.copyWith(
+                                hasShelfLife: value,
+                                hasExpiryDate: value
+                                    ? false
+                                    : _unsavedCategory!.hasExpiryDate,
+                                shelfLifeValue: value
+                                    ? _unsavedCategory!.shelfLifeValue
+                                    : null,
+                                shelfLifeUnit: value
+                                    ? _unsavedCategory!.shelfLifeUnit ?? 'days'
+                                    : null,
+                              );
+                              _updateUnsavedCategory(updatedCategory);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 if (_unsavedCategory!.hasShelfLife == true) ...[
                   const SizedBox(height: 16),
                   Row(
@@ -715,6 +820,7 @@ Mapping for Category: ${mapping.category}
                     ],
                   ),
                 ],
+                ],
               ],
             ),
           ),
@@ -734,33 +840,46 @@ Mapping for Category: ${mapping.category}
         appBar: AppBar(
           title: const Text('Category Settings'),
           actions: [
-            if (_hasUnsavedChanges)
-              TextButton.icon(
-                onPressed: () {
-                  _saveChanges();
-                  setState(() {
-                    _selectedCategory = _unsavedCategory;
+            TextButton.icon(
+              onPressed: () async {
+                if (!_hasUnsavedChanges &&
+                    !_hasUnsavedParameterChanges &&
+                    !_hasUnsavedSubCategoryChanges) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('No changes to save')),
+                  );
+                  return;
+                }
+
+                await _saveChanges();
+
+                if (!mounted) return;
+                setState(() {
+                  _selectedCategory = _unsavedCategory;
+                  if (_selectedCategory != null) {
                     _unsavedCategory = Category(
                       name: _selectedCategory!.name,
-                      requiresQualityCheck:
-                          _selectedCategory!.requiresQualityCheck,
-                      sampleSizeLessThan100:
-                          _selectedCategory!.sampleSizeLessThan100,
+                      requiresQualityCheck: _selectedCategory!.requiresQualityCheck,
+                      sampleSizeLessThan100: _selectedCategory!.sampleSizeLessThan100,
                       sampleSize100To500: _selectedCategory!.sampleSize100To500,
-                      sampleSizeGreaterThan500:
-                          _selectedCategory!.sampleSizeGreaterThan500,
+                      sampleSizeGreaterThan500: _selectedCategory!.sampleSizeGreaterThan500,
                       hasExpiryDate: _selectedCategory!.hasExpiryDate,
                       hasShelfLife: _selectedCategory!.hasShelfLife,
                       shelfLifeValue: _selectedCategory!.shelfLifeValue,
                       shelfLifeUnit: _selectedCategory!.shelfLifeUnit,
                     );
-                    _hasUnsavedChanges = false;
-                  });
-                },
-                icon: const Icon(Icons.save, color: Colors.white),
-                label: const Text('Save Changes',
-                    style: TextStyle(color: Colors.white)),
-              ),
+                  }
+                  _hasUnsavedChanges = false;
+                });
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Saved successfully')),
+                );
+              },
+              icon: const Icon(Icons.save, color: Colors.white),
+              label:
+                  const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
           ],
         ),
         body: SingleChildScrollView(
@@ -790,26 +909,53 @@ Mapping for Category: ${mapping.category}
               if (_selectedCategory != null) ...[
                 _buildSection(
                   'Sub-Category',
-                  subCategories
-                      .where((sc) => sc.categoryName == _selectedCategory!.name)
-                      .toList(),
+                  () {
+                    final catName = _selectedCategory!.name;
+                    final existing = subCategories
+                        .where((sc) => sc.categoryName == catName)
+                        .map((sc) => sc.name)
+                        .toSet();
+
+                    final pendingAdds = Set<String>.from(_pendingSubCategoryAdds);
+                    final pendingDeletes = Set<String>.from(_pendingSubCategoryDeletes);
+
+                    final visibleExisting = existing
+                        .where((name) => !pendingDeletes.contains(name))
+                        .map((name) => SubCategory(name: name, categoryName: catName));
+
+                    final visibleAdds = pendingAdds
+                        .where((name) => !existing.contains(name))
+                        .where((name) => !pendingDeletes.contains(name))
+                        .map((name) => SubCategory(name: name, categoryName: catName));
+
+                    final all = [...visibleExisting, ...visibleAdds]
+                      ..sort((a, b) => a.name.compareTo(b.name));
+                    return all;
+                  }(),
                   (name) {
-                    ref.read(subCategoryListProvider.notifier).addSubCategory(
-                          name,
-                          _selectedCategory!.name,
-                        );
+                    final trimmed = name.trim();
+                    if (trimmed.isEmpty) return;
+                    setState(() {
+                      _pendingSubCategoryAdds.add(trimmed);
+                      _pendingSubCategoryDeletes.remove(trimmed);
+                      _hasUnsavedSubCategoryChanges = true;
+                    });
                   },
                   onDelete: (subCategory) {
-                    ref
-                        .read(subCategoryListProvider.notifier)
-                        .deleteSubCategory(subCategory);
+                    final name = (subCategory as SubCategory).name;
+                    setState(() {
+                      // If it was a newly-added (pending) subcategory, just unstage it
+                      if (_pendingSubCategoryAdds.remove(name)) {
+                        // nothing else
+                      } else {
+                        _pendingSubCategoryDeletes.add(name);
+                      }
+                      _hasUnsavedSubCategoryChanges =
+                          _pendingSubCategoryAdds.isNotEmpty ||
+                              _pendingSubCategoryDeletes.isNotEmpty;
+                    });
                   },
                 ),
-                _buildQualityParameterSection(),
-                if (_unsavedCategory?.requiresQualityCheck == true) ...[
-                  _buildSamplePlanSection(),
-                  _buildExpiryShelfLifeSection(),
-                ],
               ],
             ],
           ),

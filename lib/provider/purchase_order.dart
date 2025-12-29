@@ -45,6 +45,15 @@ class PurchaseOrderNotifier extends BaseProvider<PurchaseOrder> {
                       'quantity': value.quantity,
                     })),
                 'receivedQuantities': item.receivedQuantities,
+                'originalCostPerUnit': item.originalCostPerUnit,
+                'amendedCostPerUnit': item.amendedCostPerUnit,
+                'amendmentHistory': item.amendmentHistory
+                    .map((e) => {
+                          'dateTime': e.dateTime,
+                          'oldPrice': e.oldPrice,
+                          'newPrice': e.newPrice,
+                        })
+                    .toList(),
               })
           .toList(),
       'total': order.total,
@@ -53,39 +62,134 @@ class PurchaseOrderNotifier extends BaseProvider<PurchaseOrder> {
       'sgst': order.sgst,
       'grandTotal': order.grandTotal,
       'status': order.status,
+      'hasAmendments': order.hasAmendments,
+      'isForeclosed': order.isForeclosed,
+      'foreclosureReason': order.foreclosureReason,
+      'foreclosureDate': order.foreclosureDate,
+      'hasGR': order.hasGR,
+      'previousPONo': order.previousPONo,
+      'isServiceBill': order.isServiceBill,
+    };
+  }
+
+  Map<String, dynamic> mapFromModel(PurchaseOrder order) {
+    return {
+      'poNo': order.poNo,
+      'poDate': order.poDate,
+      'supplierName': order.supplierName,
+      'transport': order.transport,
+      'deliveryRequirements': order.deliveryRequirements,
+      'items': order.items
+          .map((item) => {
+                'materialCode': item.materialCode,
+                'materialDescription': item.materialDescription,
+                'unit': item.unit,
+                'quantity': item.quantity,
+                'costPerUnit': item.costPerUnit,
+                'totalCost': item.totalCost,
+                'saleRate': item.saleRate,
+                'marginPerUnit': item.marginPerUnit,
+                'totalMargin': item.totalMargin,
+                'prDetails': item.prDetails.map((key, value) => MapEntry(key, {
+                      'prNo': value.prNo,
+                      'jobNo': value.jobNo,
+                      'quantity': value.quantity,
+                    })),
+                'receivedQuantities': item.receivedQuantities,
+                'originalCostPerUnit': item.originalCostPerUnit,
+                'amendedCostPerUnit': item.amendedCostPerUnit,
+                'amendmentHistory': item.amendmentHistory
+                    .map((e) => {
+                          'dateTime': e.dateTime,
+                          'oldPrice': e.oldPrice,
+                          'newPrice': e.newPrice,
+                        })
+                    .toList(),
+                'termsAndConditions': item.termsAndConditions,
+              })
+          .toList(),
+      'total': order.total,
+      'igst': order.igst,
+      'cgst': order.cgst,
+      'sgst': order.sgst,
+      'grandTotal': order.grandTotal,
+      'status': order.status,
+      'hasAmendments': order.hasAmendments,
+      'isForeclosed': order.isForeclosed,
+      'foreclosureReason': order.foreclosureReason,
+      'foreclosureDate': order.foreclosureDate,
+      'hasGR': order.hasGR,
+      'previousPONo': order.previousPONo,
+      'isServiceBill': order.isServiceBill,
     };
   }
 
   @override
   PurchaseOrder mapToModel(Map<String, dynamic> map) {
+    final items = (map['items'] as List<dynamic>? ?? [])
+        .map((item) => POItem(
+              materialCode: item['materialCode'] ?? '',
+              materialDescription: item['materialDescription'] ?? '',
+              unit: item['unit'] ?? '',
+              quantity: item['quantity'] ?? '0',
+              costPerUnit: item['costPerUnit'] ?? '0',
+              totalCost: item['totalCost'] ?? '0',
+              saleRate: item['saleRate'] ?? '0',
+              marginPerUnit: item['marginPerUnit'] ?? '0',
+              totalMargin: item['totalMargin'] ?? '0',
+              prDetails: POItem.castPRDetails(item['prDetails']),
+              receivedQuantities:
+                  POItem.castReceivedQuantities(item['receivedQuantities']),
+              originalCostPerUnit: (item['originalCostPerUnit'] as num?)?.toDouble(),
+              amendedCostPerUnit: (item['amendedCostPerUnit'] as num?)?.toDouble(),
+              amendmentHistory: (item['amendmentHistory'] as List<dynamic>?)
+                      ?.map((e) => AmendmentEntry(
+                            dateTime: e['dateTime'] ?? '',
+                            oldPrice: (e['oldPrice'] as num?)?.toDouble() ?? 0.0,
+                            newPrice: (e['newPrice'] as num?)?.toDouble() ?? 0.0,
+                          ))
+                      .toList() ??
+                  [],
+            ))
+        .toList();
+
+    final inferredServiceBill =
+        (map['poNo']?.toString().startsWith('SB-PO-') ?? false) ||
+            (items.isNotEmpty && items.every((i) => i.materialCode == 'SERVICE'));
+
+    bool? parseBool(dynamic v) {
+      if (v is bool) return v;
+      if (v is num) return v != 0;
+      if (v is String) {
+        final s = v.trim().toLowerCase();
+        if (s == 'true' || s == '1' || s == 'yes') return true;
+        if (s == 'false' || s == '0' || s == 'no') return false;
+      }
+      return null;
+    }
+
+    final parsedIsServiceBill = parseBool(map['isServiceBill']);
+
     return PurchaseOrder(
       poNo: map['poNo'] ?? '',
       poDate: map['poDate'] ?? '',
       supplierName: map['supplierName'] ?? '',
       transport: map['transport'] ?? '',
       deliveryRequirements: map['deliveryRequirements'] ?? '',
-      items: (map['items'] as List<dynamic>? ?? [])
-          .map((item) => POItem(
-                materialCode: item['materialCode'] ?? '',
-                materialDescription: item['materialDescription'] ?? '',
-                unit: item['unit'] ?? '',
-                quantity: item['quantity'] ?? '0',
-                costPerUnit: item['costPerUnit'] ?? '0',
-                totalCost: item['totalCost'] ?? '0',
-                saleRate: item['saleRate'] ?? '0',
-                marginPerUnit: item['marginPerUnit'] ?? '0',
-                totalMargin: item['totalMargin'] ?? '0',
-                prDetails: POItem.castPRDetails(item['prDetails']),
-                receivedQuantities:
-                    POItem.castReceivedQuantities(item['receivedQuantities']),
-              ))
-          .toList(),
+      items: items,
       total: (map['total'] as num?)?.toDouble() ?? 0.0,
       igst: (map['igst'] as num?)?.toDouble() ?? 0.0,
       cgst: (map['cgst'] as num?)?.toDouble() ?? 0.0,
       sgst: (map['sgst'] as num?)?.toDouble() ?? 0.0,
       grandTotal: (map['grandTotal'] as num?)?.toDouble() ?? 0.0,
       status: map['status'],
+      hasAmendments: map['hasAmendments'] ?? false,
+      isForeclosed: map['isForeclosed'] ?? false,
+      foreclosureReason: map['foreclosureReason'],
+      foreclosureDate: map['foreclosureDate'],
+      hasGR: map['hasGR'] ?? false,
+      previousPONo: map['previousPONo'],
+      isServiceBill: parsedIsServiceBill ?? inferredServiceBill,
     );
   }
 
@@ -112,10 +216,27 @@ class PurchaseOrderNotifier extends BaseProvider<PurchaseOrder> {
   Future<void> loadOrders() => loadData();
   Future<void> addOrder(PurchaseOrder order) => add(order);
   Future<void> updateOrder(int index, PurchaseOrder order) async {
-    final existingOrder = box.getAt(index);
-    if (existingOrder != null) {
-      await update(order);
+    final existingIndex =
+        box.values.toList().indexWhere((o) => o.poNo == order.poNo);
+    final resolvedIndex = existingIndex != -1 ? existingIndex : index;
+
+    final existingOrder = box.getAt(resolvedIndex);
+    if (existingOrder == null) return;
+
+    // Enforce GR lock: block updates if any GR exists for this PO
+    if (_ref != null) {
+      final storeInwardBox = _ref!.read(storeInwardBoxProvider);
+      final hasGRs = storeInwardBox.values.any((inward) =>
+          inward.poNo == existingOrder.poNo &&
+          inward.items.any((item) => item.prQuantities.containsKey(existingOrder.poNo)));
+      if (hasGRs) {
+        return; // silently ignore updates; UI should also block
+      }
     }
+
+    // Amendment tracking is now handled in add_purchase_order_page.dart
+    // Just save the order as-is
+    await update(order);
   }
 
   Future<bool> deleteOrder(PurchaseOrder order) => delete(order);
@@ -153,7 +274,18 @@ class PurchaseOrderNotifier extends BaseProvider<PurchaseOrder> {
   }
 
   List<PurchaseOrder> getPendingOrders() {
-    return state.where((order) => !order.isFullyReceived).toList();
+    return state.where((order) => !order.isFullyReceived && !order.isForeclosed).toList();
+  }
+
+  // Foreclose a PO with reason
+  Future<void> foreclosePO(PurchaseOrder order, String reason) async {
+    final updatedOrder = order.copyWith(
+      isForeclosed: true,
+      foreclosureReason: reason,
+      foreclosureDate: DateTime.now().toIso8601String(),
+      status: 'Foreclosed',
+    );
+    await update(updatedOrder);
   }
 
   String generateOrderNumber() {

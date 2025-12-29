@@ -40,13 +40,15 @@ class SupplierAdapter extends TypeAdapter<Supplier> {
       account: fields[20] as String,
       ifsc: fields[21] as String,
       email1: fields[22] as String,
+      qualityRating: fields[23] as double?,
+      attachments: (fields[24] as List?)?.cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Supplier obj) {
     writer
-      ..writeByte(23)
+      ..writeByte(25)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -92,7 +94,11 @@ class SupplierAdapter extends TypeAdapter<Supplier> {
       ..writeByte(21)
       ..write(obj.ifsc)
       ..writeByte(22)
-      ..write(obj.email1);
+      ..write(obj.email1)
+      ..writeByte(23)
+      ..write(obj.qualityRating)
+      ..writeByte(24)
+      ..write(obj.attachments);
   }
 
   @override

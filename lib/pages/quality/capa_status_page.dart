@@ -6,6 +6,8 @@ import 'package:pluto_grid/pluto_grid.dart';
 import '../../provider/quality_inspection_provider.dart';
 import '../../models/quality_inspection.dart';
 import '../../widgets/pluto_grid_configuration.dart';
+import '../../provider/material_rating_rule_provider.dart';
+import '../../models/material_rating_rule.dart';
 
 class CapaStatusPage extends ConsumerStatefulWidget {
   const CapaStatusPage({super.key});
@@ -113,6 +115,16 @@ class _CapaStatusPageState extends ConsumerState<CapaStatusPage> {
         textAlign: PlutoColumnTextAlign.start,
         enableEditingMode: false,
       ),
+      PlutoColumn(
+        title: 'Quality Rating',
+        field: 'qualityRating',
+        type: PlutoColumnType.number(),
+        width: 130,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
     ];
   }
 
@@ -143,6 +155,7 @@ class _CapaStatusPageState extends ConsumerState<CapaStatusPage> {
       // Add a row for each item that requires CAPA
       for (var item in inspection.items) {
         if (item.capaRequired == true) {
+          final rating = _computeQualityRating(item);
           rows.add(
             PlutoRow(
               cells: {
@@ -151,6 +164,7 @@ class _CapaStatusPageState extends ConsumerState<CapaStatusPage> {
                 'poNo': PlutoCell(value: inspection.poNo),
                 'supplier': PlutoCell(value: inspection.supplierName),
                 'material': PlutoCell(value: item.materialDescription),
+                'materialCode': PlutoCell(value: item.materialCode),
                 'inspectionDate': PlutoCell(value: inspection.inspectionDate),
                 'usageDecision': PlutoCell(value: item.usageDecision),
                 'capaStatus': PlutoCell(
@@ -162,6 +176,7 @@ class _CapaStatusPageState extends ConsumerState<CapaStatusPage> {
                     value: item.inspectionRemark?.isEmpty ?? true
                         ? '-'
                         : item.inspectionRemark),
+                'qualityRating': PlutoCell(value: rating),
               },
             ),
           );
@@ -181,6 +196,7 @@ class _CapaStatusPageState extends ConsumerState<CapaStatusPage> {
       appBar: AppBar(
         title: const Text('CAPA Status'),
         elevation: 0,
+        actions: const [],
       ),
       body: Column(
         children: [
@@ -235,7 +251,20 @@ class _CapaStatusPageState extends ConsumerState<CapaStatusPage> {
                 : Padding(
                     padding: const EdgeInsets.all(16),
                     child: PlutoGrid(
-                      columns: columns,
+                      columns: [
+                        ...columns,
+                        PlutoColumn(
+                          title: 'Material Code',
+                          field: 'materialCode',
+                          type: PlutoColumnType.text(),
+                          width: 140,
+                          backgroundColor: Colors.grey[850],
+                          titleTextAlign: PlutoColumnTextAlign.center,
+                          textAlign: PlutoColumnTextAlign.center,
+                          enableEditingMode: false,
+                          hide: true,
+                        ),
+                      ],
                       rows: _getRows(inspections),
                       onLoaded: (PlutoGridOnLoadedEvent event) {
                         stateManager = event.stateManager;
@@ -248,5 +277,47 @@ class _CapaStatusPageState extends ConsumerState<CapaStatusPage> {
         ],
       ),
     );
+  }
+
+  double _computeQualityRating(InspectionItem item) {
+    List<MaterialRatingRule> rules = const [];
+    try {
+      rules = ref.read(materialRatingRuleProvider);
+    } catch (_) {
+      // Provider not available (e.g., hot reload before overrides). Use defaults.
+    }
+    final rule = rules.firstWhere(
+      (r) => r.materialCode == item.materialCode,
+      orElse: () => MaterialRatingRule(materialCode: item.materialCode),
+    );
+
+    final received = item.receivedQty;
+    final rejected = item.rejectedQty;
+    final percent = received > 0 ? (rejected / received) * 100.0 : 0.0;
+    final decision = (item.usageDecision).toLowerCase();
+
+    if (decision.contains('rejected') && rejected >= received) {
+      return rule.lotRejectedRating;
+    }
+
+    if (decision.contains('lot accepted') && rejected == 0) {
+      return rule.lotAcceptedRating;
+    }
+
+    if (decision.contains('recheck')) {
+      for (final slab in rule.recheck100Slabs) {
+        if (percent >= slab.minPercent && percent <= slab.maxPercent) {
+          return slab.rating;
+        }
+      }
+    }
+
+    for (final slab in rule.partialAcceptanceSlabs) {
+      if (percent >= slab.minPercent && percent <= slab.maxPercent) {
+        return slab.rating;
+      }
+    }
+
+    return 3.0;
   }
 }

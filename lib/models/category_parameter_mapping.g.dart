@@ -21,19 +21,22 @@ class CategoryParameterMappingAdapter
       category: fields[0] as String,
       parameters: (fields[1] as List).cast<String>(),
       requiresExpiryDate: fields[2] as bool,
+      lastModified: fields[3] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, CategoryParameterMapping obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.category)
       ..writeByte(1)
       ..write(obj.parameters)
       ..writeByte(2)
-      ..write(obj.requiresExpiryDate);
+      ..write(obj.requiresExpiryDate)
+      ..writeByte(3)
+      ..write(obj.lastModified);
   }
 
   @override

@@ -249,7 +249,7 @@ class _StoreInwardListPageState extends ConsumerState<StoreInwardListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final storeInwards = ref.watch(storeInwardProvider);
+    final storeInwards = ref.watch(storeInwardProvider).where((inward) => !inward.isCustomerScope).toList();
     // Debug: Print all GRs when data is loaded
     if (storeInwards.isNotEmpty) {
       print('==== ALL GRs in store_inwards box (from provider) ====');

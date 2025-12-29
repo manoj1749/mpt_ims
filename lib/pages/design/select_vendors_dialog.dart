@@ -47,7 +47,7 @@ class _SelectVendorsDialogState extends ConsumerState<SelectVendorsDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Select Vendors',
+              'Select Suppliers',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -57,7 +57,7 @@ class _SelectVendorsDialogState extends ConsumerState<SelectVendorsDialog> {
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                labelText: 'Search Vendors',
+                labelText: 'Search Suppliers',
                 prefixIcon: const Icon(Icons.search),
                 border: const OutlineInputBorder(),
                 suffixIcon: _searchQuery.isNotEmpty

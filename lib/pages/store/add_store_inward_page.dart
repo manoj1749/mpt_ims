@@ -38,11 +38,14 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
   final _invoiceAmountController = TextEditingController();
   final _receivedByController = TextEditingController();
   final _checkedByController = TextEditingController();
+  final TextEditingController _supplierSearchController = TextEditingController();
 
   Supplier? selectedSupplier;
   List<String> selectedJobs = ['All'];
   Map<String, Map<String, Map<String, TextEditingController>>>
       prQtyControllers = {};
+  // Controllers for price input per Material -> PO
+  Map<String, Map<String, TextEditingController>> priceControllers = {};
   Map<String, Map<String, Map<String, bool>>> selectedPRs = {};
   Map<String, Map<String, PlutoGridStateManager?>> gridStateManagers = {};
   bool _isLoading = false;
@@ -111,11 +114,17 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     _invoiceAmountController.dispose();
     _receivedByController.dispose();
     _checkedByController.dispose();
+    _supplierSearchController.dispose();
     for (var materialControllers in prQtyControllers.values) {
       for (var poControllers in materialControllers.values) {
         for (var controller in poControllers.values) {
           controller.dispose();
         }
+      }
+    }
+    for (var poMap in priceControllers.values) {
+      for (var controller in poMap.values) {
+        controller.dispose();
       }
     }
     super.dispose();
@@ -167,9 +176,11 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         } catch (_) {
           poItem = null;
         }
-
-        // Get cost per unit from PO item
-        final cost = double.tryParse(poItem?.costPerUnit ?? '0') ?? 0.0;
+        // Get cost per unit from user input if available, else use amended price or costPerUnit
+        final enteredPriceText = priceControllers[materialCode]?[poNo]?.text;
+        final cost = enteredPriceText != null && enteredPriceText.isNotEmpty
+            ? (double.tryParse(enteredPriceText) ?? 0.0)
+            : (poItem?.amendedCostPerUnit ?? double.tryParse(poItem?.costPerUnit ?? '0') ?? 0.0);
 
         // Sum all PR quantities for this PO
         double poTotal = 0.0;
@@ -210,6 +221,7 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
     if (!selectedPRs.containsKey(material.partNo)) {
       selectedPRs[material.partNo] = {};
       prQtyControllers[material.partNo] = {};
+      priceControllers[material.partNo] = {};
       for (var po in pos) {
         selectedPRs[material.partNo]![po.poNo] = {};
         prQtyControllers[material.partNo]![po.poNo] = {};
@@ -221,6 +233,10 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
         final poItem = po.items.firstWhere(
           (item) => item.materialCode == material.partNo,
         );
+
+        // Initialize price controller as empty - user must enter manually
+        priceControllers[material.partNo]![po.poNo] =
+            TextEditingController();
 
         // Initialize General PR if needed
         if (poItem.prDetails.isEmpty ||
@@ -371,6 +387,37 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                           ],
                         ),
                       ),
+                      // Price Input
+                      SizedBox(
+                        width: 140,
+                        child: TextFormField(
+                          controller:
+                              priceControllers[material.partNo]![po.poNo],
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 8),
+                            labelText: 'Price (per ${material.unit})',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            // Only validate price if quantity is entered for this PO
+                            final qtyText = prQtyControllers[material.partNo]![po.poNo]!['_po']?.text ?? '';
+                            final qty = double.tryParse(qtyText) ?? 0;
+                            if (qty > 0) {
+                              if (value == null || value.isEmpty) return 'Required';
+                              final p = double.tryParse(value);
+                              if (p == null || p < 0) return 'Invalid price';
+                            }
+                            return null;
+                          },
+                          onChanged: (_) => _updateInvoiceAmount(),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
                       // Inward Quantity Input
                       SizedBox(
                         width: 120,
@@ -681,35 +728,39 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
                                       // Calculate total from PR quantities
                                       double total = 0;
-                                      // First calculate non-General PR quantities
+                                      // Calculate all PR quantities including General
                                       for (var prEntry
                                           in filteredPRDetails.entries) {
                                         final currentPrNo = prEntry.key;
-                                        if (currentPrNo != 'General') {
-                                          final prQty = double.tryParse(
-                                                  prQtyControllers[material
-                                                                      .partNo]![
-                                                                  po.poNo]![
-                                                              currentPrNo]
-                                                          ?.text ??
-                                                      '') ??
-                                              0;
-                                          total += prQty;
-                                        }
+                                        // If this is the PR we're currently editing, use the qty variable
+                                        // Otherwise read from controller
+                                        final prQty = currentPrNo == prNo
+                                            ? qty
+                                            : (double.tryParse(
+                                                    prQtyControllers[material
+                                                                        .partNo]![
+                                                                    po.poNo]![
+                                                                currentPrNo]
+                                                            ?.text ??
+                                                        '') ??
+                                                0);
+                                        total += prQty;
                                       }
-
-                                      // Then add General PR quantity if it exists and we're not currently editing it
+                                      
+                                      // Also check if General PR exists in controllers but not in filteredPRDetails
                                       if (prQtyControllers[material.partNo]![
                                                   po.poNo]!
                                               .containsKey('General') &&
-                                          prNo != 'General') {
-                                        final generalQty = double.tryParse(
-                                                prQtyControllers[material
-                                                                .partNo]![
-                                                            po.poNo]!['General']
-                                                        ?.text ??
-                                                    '') ??
-                                            0;
+                                          !filteredPRDetails.containsKey('General')) {
+                                        final generalQty = prNo == 'General'
+                                            ? qty
+                                            : (double.tryParse(
+                                                    prQtyControllers[material
+                                                                    .partNo]![
+                                                                po.poNo]!['General']
+                                                            ?.text ??
+                                                        '') ??
+                                                0);
                                         total += generalQty;
                                       }
 
@@ -789,11 +840,171 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
       return;
     }
 
+    // Validate price mismatch vs PO price
+    final priceMismatches = <String>[];
+    final purchaseOrders = ref.read(purchaseOrderListProvider);
+    for (var materialEntry in priceControllers.entries) {
+      final materialCode = materialEntry.key;
+      for (var poEntry in materialEntry.value.entries) {
+        final poNo = poEntry.key;
+        // Skip validation if no quantity is being received for this PO
+        final poControllersForMaterial = prQtyControllers[materialCode]?[poNo];
+        double totalQtyForPO = 0.0;
+        if (poControllersForMaterial != null) {
+          for (var prEnt in poControllersForMaterial.entries) {
+            if (prEnt.key == '_po') continue;
+            totalQtyForPO += double.tryParse(prEnt.value.text) ?? 0.0;
+          }
+          // Consider also the PO-level field if used
+          totalQtyForPO += double.tryParse(
+                  poControllersForMaterial['_po']?.text ?? '0') ??
+              0.0;
+        }
+        if (totalQtyForPO <= 0.0) continue;
+
+        final enteredText = poEntry.value.text;
+        final entered = double.tryParse(enteredText) ?? double.nan;
+        final po = purchaseOrders.firstWhere(
+          (p) => p.poNo == poNo,
+          orElse: () => PurchaseOrder(
+            poNo: poNo,
+            poDate: '',
+            supplierName: '',
+            transport: '',
+            deliveryRequirements: '',
+            items: [],
+            total: 0,
+            igst: 0,
+            cgst: 0,
+            sgst: 0,
+            grandTotal: 0,
+          ),
+        );
+        POItem? poItem;
+        try {
+          poItem = po.items.firstWhere((i) => i.materialCode == materialCode);
+        } catch (_) {
+          poItem = null;
+        }
+        // Use amended price if available, otherwise use costPerUnit
+        final poPrice = poItem?.amendedCostPerUnit ?? 
+                        (double.tryParse(poItem?.costPerUnit ?? '') ?? double.nan);
+        if (!entered.isNaN && !poPrice.isNaN) {
+          if ((entered - poPrice).abs() > 0.0001) {
+            priceMismatches.add(
+                '$materialCode (PO: $poNo) Entered: ₹${entered.toStringAsFixed(2)} vs PO: ₹${poPrice.toStringAsFixed(2)}');
+          }
+        }
+      }
+    }
+
+    if (priceMismatches.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 28),
+              SizedBox(width: 8),
+              Text('Price Mismatch')
+            ],
+          ),
+          content: const Text(
+            'Please check prices with Purchase',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Check for materials without HSN code
+    final materialsWithoutHSN = <String>[];
+    for (var materialCode in prQtyControllers.keys) {
+      // Check if this material has any quantity entered
+      bool hasQuantity = false;
+      for (var poControllers in prQtyControllers[materialCode]!.values) {
+        final poQty = double.tryParse(poControllers['_po']?.text ?? '0') ?? 0;
+        if (poQty > 0) {
+          hasQuantity = true;
+          break;
+        }
+      }
+      
+      if (hasQuantity) {
+        final material = ref
+            .read(materialListProvider)
+            .firstWhere((m) => m.partNo == materialCode);
+        if (material.hsnCode == null || material.hsnCode!.isEmpty) {
+          materialsWithoutHSN.add('${material.description} (${material.partNo})');
+        }
+      }
+    }
+
+    if (materialsWithoutHSN.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 28),
+              SizedBox(width: 8),
+              Text('HSN Code Missing'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Cannot create Goods Receipt. The following materials do not have HSN Code:',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 12),
+              ...materialsWithoutHSN.map((material) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.warning_amber, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        material,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+              const SizedBox(height: 12),
+              const Text(
+                'Please update the Material Master with HSN Code before creating GR.',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final grnNo = widget.existingGR?.grnNo ?? _generateGRNNo();
-      final purchaseOrders = ref.read(purchaseOrderListProvider);
       final poNotifier = ref.read(purchaseOrderListProvider.notifier);
       final grNotifier = ref.read(storeInwardProvider.notifier);
 
@@ -828,8 +1039,15 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
           try {
             poItem = po.items
                 .firstWhere((item) => item.materialCode == materialCode);
-            // Set cost per unit from PO item
-            inwardItem.costPerUnit = poItem.costPerUnit;
+            // Set cost per unit from entered price (fallback to PO)
+            final enteredPriceText =
+                priceControllers[materialCode]?[poNo]?.text ?? '';
+            final enteredPrice = double.tryParse(enteredPriceText);
+            if (enteredPrice != null) {
+              inwardItem.costPerUnit = enteredPrice.toStringAsFixed(2);
+            } else {
+              inwardItem.costPerUnit = poItem.costPerUnit;
+            }
           } catch (_) {
             poItem = null;
           }
@@ -977,9 +1195,22 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.existingGR != null
-            ? "Edit Goods Receipt"
-            : "Create Goods Receipt"),
+        title: Row(
+          children: [
+            Text(widget.existingGR != null
+                ? "Edit Goods Receipt"
+                : "Create Goods Receipt"),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'GR cannot be created without HSN Code in Material Master',
+              child: Icon(
+                Icons.info_outline,
+                size: 20,
+                color: Colors.white70,
+              ),
+            ),
+          ],
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -996,12 +1227,18 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                         child: DropdownButtonFormField2<Supplier>(
                           isExpanded: true,
                           decoration: const InputDecoration(
-                            labelText: 'Select Supplier',
+                            labelText: 'Select Supplier *',
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(vertical: 0),
                           ),
                           hint: const Text("Select Supplier"),
                           value: selectedSupplier,
+                          validator: (value) {
+                            if (value == null) {
+                              return 'Supplier is required';
+                            }
+                            return null;
+                          },
                           items: suppliers
                               .map((supplier) => DropdownMenuItem<Supplier>(
                                     value: supplier,
@@ -1021,6 +1258,37 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                                     selectedJobs = ['All'];
                                   });
                                 },
+                          dropdownSearchData: suppliers.isEmpty
+                              ? null
+                              : DropdownSearchData(
+                                  searchController: _supplierSearchController,
+                                  searchInnerWidgetHeight: 56,
+                                  searchInnerWidget: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: TextFormField(
+                                      controller: _supplierSearchController,
+                                      decoration: const InputDecoration(
+                                        hintText: 'Search Supplier...',
+                                        border: OutlineInputBorder(),
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  searchMatchFn: (item, searchValue) {
+                                    final name = item.value?.name ?? '';
+                                    return name
+                                        .toLowerCase()
+                                        .contains(searchValue.toLowerCase());
+                                  },
+                                ),
+                          onMenuStateChange: (isOpen) {
+                            if (!isOpen) {
+                              _supplierSearchController.clear();
+                            }
+                          },
                           dropdownStyleData: DropdownStyleData(
                             maxHeight: 300,
                             decoration: BoxDecoration(
@@ -1040,6 +1308,13 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                       // Replace job filter with button to open SelectJobsDialog
                       Expanded(
                         child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
                           icon: const Icon(Icons.filter_list),
                           label: Text(
                             selectedJobs.contains('All')
@@ -1073,18 +1348,20 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                           },
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
+                      const SizedBox(width: 16),
                       Expanded(
                         child: TextFormField(
                           controller: _grnDateController,
                           decoration: const InputDecoration(
-                            labelText: 'GR Date',
+                            labelText: 'GR Date *',
                             border: OutlineInputBorder(),
                           ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'GR Date is required';
+                            }
+                            return null;
+                          },
                           readOnly: true,
                           onTap: () async {
                             final date = await showDatePicker(
@@ -1103,14 +1380,40 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                           },
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _invoiceNoController,
+                          decoration: const InputDecoration(
+                            labelText: 'Invoice No *',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Invoice No is required';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: TextFormField(
                           controller: _invoiceDateController,
                           decoration: const InputDecoration(
-                            labelText: 'Invoice Date',
+                            labelText: 'Invoice Date *',
                             border: OutlineInputBorder(),
                           ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Invoice Date is required';
+                            }
+                            return null;
+                          },
                           readOnly: true,
                           onTap: () async {
                             final date = await showDatePicker(
@@ -1129,20 +1432,6 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                           },
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _invoiceNoController,
-                          decoration: const InputDecoration(
-                            labelText: 'Invoice No',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: TextFormField(
@@ -1155,30 +1444,6 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
                           style: TextStyle(
                             color: Colors.grey[700],
                             fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _receivedByController,
-                          decoration: const InputDecoration(
-                            labelText: 'Received By',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _checkedByController,
-                          decoration: const InputDecoration(
-                            labelText: 'Checked By',
-                            border: OutlineInputBorder(),
                           ),
                         ),
                       ),
@@ -1204,27 +1469,67 @@ class _AddStoreInwardPageState extends ConsumerState<AddStoreInwardPage> {
               ),
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveGR,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 48, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _receivedByController,
+                            decoration: const InputDecoration(
+                              labelText: 'Received By *',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Received By is required';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _checkedByController,
+                            decoration: const InputDecoration(
+                              labelText: 'Checked By *',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Checked By is required';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _saveGR,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 48, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator()
+                            : const Text(
+                                "Save Goods Receipt",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator()
-                        : const Text(
-                            "Save Goods Receipt",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
+                  ],
                 ),
               ),
             ],

@@ -28,13 +28,16 @@ class StoreInwardAdapter extends TypeAdapter<StoreInward> {
       receivedBy: fields[8] as String,
       checkedBy: fields[9] as String,
       items: (fields[10] as List).cast<InwardItem>(),
+      isCustomerScope: fields[12] == null ? false : fields[12] as bool,
+      customerId: fields[13] == null ? '' : fields[13] as String,
+      customerName: fields[14] == null ? '' : fields[14] as String,
     ).._status = fields[11] as String?;
   }
 
   @override
   void write(BinaryWriter writer, StoreInward obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.grnNo)
       ..writeByte(1)
@@ -58,7 +61,13 @@ class StoreInwardAdapter extends TypeAdapter<StoreInward> {
       ..writeByte(10)
       ..write(obj.items)
       ..writeByte(11)
-      ..write(obj._status);
+      ..write(obj._status)
+      ..writeByte(12)
+      ..write(obj.isCustomerScope)
+      ..writeByte(13)
+      ..write(obj.customerId)
+      ..writeByte(14)
+      ..write(obj.customerName);
   }
 
   @override

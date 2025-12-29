@@ -41,6 +41,30 @@ class PurchaseOrder extends HiveObject {
   @HiveField(12)
   String? _status;
 
+  @HiveField(13, defaultValue: false)
+  bool hasAmendments = false;
+
+  @HiveField(14, defaultValue: false)
+  bool isForeclosed = false;
+
+  @HiveField(15)
+  String? foreclosureReason;
+
+  @HiveField(16)
+  String? foreclosureDate;
+
+  @HiveField(17, defaultValue: false)
+  bool hasGR = false;
+
+  @HiveField(18)
+  String? previousPONo;
+
+  @HiveField(19)
+  String? originalPoDate;
+
+  @HiveField(20, defaultValue: false)
+  bool isServiceBill = false;
+
   String get status => _status ?? 'Placed';
 
   set status(String value) {
@@ -119,8 +143,17 @@ class PurchaseOrder extends HiveObject {
     required this.sgst,
     required this.grandTotal,
     String? status,
+    bool? hasAmendments,
+    this.isForeclosed = false,
+    this.foreclosureReason,
+    this.foreclosureDate,
+    this.hasGR = false,
+    this.previousPONo,
+    this.originalPoDate,
+    this.isServiceBill = false,
   }) {
     _status = status;
+    this.hasAmendments = hasAmendments ?? false;
   }
 
   PurchaseOrder copyWith({
@@ -136,6 +169,14 @@ class PurchaseOrder extends HiveObject {
     double? sgst,
     double? grandTotal,
     String? status,
+    bool? hasAmendments,
+    bool? isForeclosed,
+    String? foreclosureReason,
+    String? foreclosureDate,
+    bool? hasGR,
+    String? previousPONo,
+    String? originalPoDate,
+    bool? isServiceBill,
   }) {
     return PurchaseOrder(
       poNo: poNo ?? this.poNo,
@@ -150,6 +191,14 @@ class PurchaseOrder extends HiveObject {
       sgst: sgst ?? this.sgst,
       grandTotal: grandTotal ?? this.grandTotal,
       status: status ?? _status,
+      hasAmendments: hasAmendments ?? this.hasAmendments,
+      isForeclosed: isForeclosed ?? this.isForeclosed,
+      foreclosureReason: foreclosureReason ?? this.foreclosureReason,
+      foreclosureDate: foreclosureDate ?? this.foreclosureDate,
+      hasGR: hasGR ?? this.hasGR,
+      previousPONo: previousPONo ?? this.previousPONo,
+      originalPoDate: originalPoDate ?? this.originalPoDate,
+      isServiceBill: isServiceBill ?? this.isServiceBill,
     );
   }
 }

@@ -46,6 +46,15 @@ class StoreInward extends HiveObject {
   @HiveField(11)
   String? _status;
 
+  @HiveField(12, defaultValue: false)
+  bool isCustomerScope;
+
+  @HiveField(13, defaultValue: '')
+  String customerId;
+
+  @HiveField(14, defaultValue: '')
+  String customerName;
+
   String get status => _status ?? 'Pending';
 
   set status(String value) {
@@ -166,6 +175,9 @@ class StoreInward extends HiveObject {
     required this.checkedBy,
     required this.items,
     String? status,
+    this.isCustomerScope = false,
+    this.customerId = '',
+    this.customerName = '',
   }) {
     _status = status;
   }

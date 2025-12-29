@@ -30,13 +30,14 @@ class StockMaintenanceAdapter extends TypeAdapter<StockMaintenance> {
       jobDetails: (fields[10] as Map?)?.cast<String, StockJobDetails>(),
       vendorDetails: (fields[11] as Map?)?.cast<String, StockVendorDetails>(),
       totalStockValue: fields[12] as double,
+      transferHistory: (fields[13] as List?)?.cast<StockTransferHistoryEntry>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, StockMaintenance obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -62,7 +63,9 @@ class StockMaintenanceAdapter extends TypeAdapter<StockMaintenance> {
       ..writeByte(11)
       ..write(obj.vendorDetails)
       ..writeByte(12)
-      ..write(obj.totalStockValue);
+      ..write(obj.totalStockValue)
+      ..writeByte(13)
+      ..write(obj.transferHistory);
   }
 
   @override
@@ -330,6 +333,56 @@ class StockVendorDetailsAdapter extends TypeAdapter<StockVendorDetails> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is StockVendorDetailsAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class StockTransferHistoryEntryAdapter
+    extends TypeAdapter<StockTransferHistoryEntry> {
+  @override
+  final int typeId = 76;
+
+  @override
+  StockTransferHistoryEntry read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return StockTransferHistoryEntry(
+      dateTime: fields[0] as String,
+      basePrNo: fields[1] as String,
+      boardJobNo: fields[2] as String,
+      fromJobNo: fields[3] as String,
+      toJobNo: fields[4] as String,
+      quantity: fields[5] as double,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, StockTransferHistoryEntry obj) {
+    writer
+      ..writeByte(6)
+      ..writeByte(0)
+      ..write(obj.dateTime)
+      ..writeByte(1)
+      ..write(obj.basePrNo)
+      ..writeByte(2)
+      ..write(obj.boardJobNo)
+      ..writeByte(3)
+      ..write(obj.fromJobNo)
+      ..writeByte(4)
+      ..write(obj.toJobNo)
+      ..writeByte(5)
+      ..write(obj.quantity);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StockTransferHistoryEntryAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

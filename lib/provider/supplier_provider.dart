@@ -41,6 +41,7 @@ class SupplierNotifier extends BaseProvider<Supplier> {
       'account': supplier.account,
       'ifsc': supplier.ifsc,
       'email1': supplier.email1,
+      'attachments': supplier.attachments,
     };
   }
 
@@ -70,6 +71,7 @@ class SupplierNotifier extends BaseProvider<Supplier> {
       account: map['account'] ?? '',
       ifsc: map['ifsc'] ?? '',
       email1: map['email1'] ?? '',
+      attachments: (map['attachments'] as List?)?.cast<String>() ?? const [],
     );
   }
 
@@ -80,10 +82,9 @@ class SupplierNotifier extends BaseProvider<Supplier> {
   Future<void> loadSuppliers() => loadData();
   Future<void> addSupplier(Supplier supplier) => add(supplier);
   Future<void> updateSupplier(int key, Supplier supplier) async {
-    final existingSupplier = box.getAt(key);
-    if (existingSupplier != null) {
-      await update(supplier);
-    }
+    // Use the base provider's update method which uses the unique identifier
+    // This is more reliable than index-based lookup which can become stale
+    await update(supplier);
   }
 
   Future<void> deleteSupplier(Supplier supplier) => delete(supplier);

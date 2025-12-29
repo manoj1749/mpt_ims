@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/customer.dart';
 import '../../provider/customer_provider.dart';
 import 'add_customer_page.dart';
+import 'package:open_file/open_file.dart';
 
 class CustomerListPage extends ConsumerStatefulWidget {
   const CustomerListPage({super.key});
@@ -156,6 +157,46 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
                 _buildExcelRowLabel("Account No", customer.account),
                 _buildExcelRowLabel("IFSC Code", customer.ifsc),
                 _buildExcelRowLabel("Payment Terms", customer.paymentTerms),
+                if (customer.attachments.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Attachments',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: customer.attachments.map((p) {
+                      final name = p.split('\\').isNotEmpty ? p.split('\\').last : p.split('/').last;
+                      final ext = name.split('.').length > 1 ? name.split('.').last.toLowerCase() : '';
+                      final icon = ext == 'pdf' ? Icons.picture_as_pdf : Icons.description;
+                      return InkWell(
+                        onTap: () => _showAttachmentViewer(context, p, name),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              Icon(icon, size: 16, color: Colors.grey[400]),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  name,
+                                  style: const TextStyle(color: Colors.white),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.open_in_new, size: 14, color: Colors.grey[500]),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -191,6 +232,126 @@ class _CustomerListPageState extends ConsumerState<CustomerListPage> {
             ),
           ),
       ],
+    );
+  }
+
+  void _showAttachmentViewer(BuildContext context, String filePath, String fileName) {
+    final ext = fileName.split('.').last.toLowerCase();
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      fileName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const Divider(),
+              Expanded(
+                child: ext == 'pdf'
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.picture_as_pdf, size: 64, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text(
+                              'PDF Viewer',
+                              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'File: $fileName',
+                              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                try {
+                                  final result = await OpenFile.open(filePath);
+                                  if (result.type != ResultType.done && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error: ${result.message}')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error opening file: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                              icon: const Icon(Icons.open_in_new),
+                              label: const Text('Open with System Viewer'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.description, size: 64, color: Colors.blue),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Document Viewer',
+                              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'File: $fileName',
+                              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                try {
+                                  final result = await OpenFile.open(filePath);
+                                  if (result.type != ResultType.done && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error: ${result.message}')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error opening file: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                              icon: const Icon(Icons.open_in_new),
+                              label: const Text('Open with System Viewer'),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

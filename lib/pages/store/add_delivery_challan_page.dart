@@ -11,13 +11,16 @@ import '../../provider/material_provider.dart';
 import '../../provider/stock_maintenance_provider.dart' as stock;
 import '../../provider/supplier_provider.dart';
 import '../../provider/sale_order_provider.dart';
+import '../../models/stock_maintenance.dart';
 
 // Use the provider from the provider file
 
 class AddDeliveryChallanPage extends ConsumerStatefulWidget {
   final DeliveryChallan? deliveryChallan;
+  final String? presetDcType; // e.g., 'internal'
+  final String? presetInternalFlow; // 'inward' | 'outward'
 
-  const AddDeliveryChallanPage({super.key, this.deliveryChallan});
+  const AddDeliveryChallanPage({super.key, this.deliveryChallan, this.presetDcType, this.presetInternalFlow});
 
   @override
   ConsumerState<AddDeliveryChallanPage> createState() =>
@@ -299,54 +302,68 @@ class _AddDeliveryChallanPageState
         return;
       }
 
-      if (_selectedSupplier == null) {
+      final isInternal = (widget.presetDcType == 'internal');
+      if (!isInternal && _selectedSupplier == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select a vendor')),
         );
         return;
       }
 
-      // Check stock availability
-      final stockBox = ref.read(stock.stockMaintenanceBoxProvider);
-      for (var item in _items) {
-        final stockItem = stockBox.values
-            .firstWhere((stock) => stock.materialCode == item.materialCode);
+      // Check stock availability only for outward flows
+      if (!isInternal || (widget.presetInternalFlow ?? 'outward') == 'outward') {
+        final stockBox = ref.read(stock.stockMaintenanceBoxProvider);
+        for (var item in _items) {
+          StockMaintenance? stockItem;
+          try {
+            stockItem = stockBox.values
+                .firstWhere((stock) => stock.materialCode == item.materialCode);
+          } catch (_) {
+            stockItem = null;
+          }
 
-        final jobNo = item.jobNo ?? 'General';
+          if (stockItem == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Stock entry not found for ${item.materialDescription} (${item.materialCode}). Please sync stock before issuing.',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
 
-        // Calculate available quantity based on job number
-        double availableQty = 0.0;
-        if (jobNo == 'General') {
-          // For general stock, use calculatedCurrentStock which is more accurate
-          availableQty = stockItem.calculatedCurrentStock;
+          final jobNo = item.jobNo ?? 'General';
 
-          // Subtract any quantities allocated to specific jobs
-          for (var jobDetail in stockItem.jobDetails.entries) {
-            if (jobDetail.key != 'General') {
-              availableQty -= jobDetail.value.allocatedQuantity;
+          // Calculate available quantity based on job number
+          double availableQty = 0.0;
+          if (jobNo == 'General') {
+            availableQty = stockItem.calculatedCurrentStock;
+            for (var jobDetail in stockItem.jobDetails.entries) {
+              if (jobDetail.key != 'General') {
+                availableQty -= jobDetail.value.allocatedQuantity;
+              }
+            }
+          } else {
+            final jobDetail = stockItem.jobDetails[jobNo];
+            if (jobDetail != null) {
+              availableQty =
+                  jobDetail.allocatedQuantity - jobDetail.consumedQuantity;
             }
           }
 
-          // General stock calculation (no pending deliveries to subtract)
-        } else {
-          // For specific job numbers, check the allocated quantity for that job
-          final jobDetail = stockItem.jobDetails[jobNo];
-          if (jobDetail != null) {
-            availableQty =
-                jobDetail.allocatedQuantity - jobDetail.consumedQuantity;
-          }
-        }
-
-        if (item.quantity > availableQty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Insufficient stock for ${item.materialDescription} in ${jobNo == 'General' ? 'general stock' : 'job $jobNo'}. Available: $availableQty, Requested: ${item.quantity}',
+          if (item.quantity > availableQty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Insufficient stock for ${item.materialDescription} in ${jobNo == 'General' ? 'general stock' : 'job $jobNo'}. Available: $availableQty, Requested: ${item.quantity}',
+                ),
+                backgroundColor: Colors.red,
               ),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
+            );
+            return;
+          }
         }
       }
 
@@ -354,12 +371,16 @@ class _AddDeliveryChallanPageState
       final dc = DeliveryChallan(
         dcNo: widget.deliveryChallan?.dcNo ?? notifier.generateDcNo(),
         dcDate: _selectedDate,
-        vendorName: _selectedSupplier!.name,
-        vendorEmail: _selectedSupplier!.email,
-        vendorGstin: _selectedSupplier!.gstNo,
+        vendorName: isInternal ? 'Internal' : _selectedSupplier!.name,
+        vendorEmail: isInternal ? null : _selectedSupplier!.email,
+        vendorGstin: isInternal ? null : _selectedSupplier!.gstNo,
         items: _items,
         isReturnable: _isReturnable,
         note: _noteController.text,
+        dcType: widget.presetDcType ?? 'regular',
+        internalFlow: (widget.presetDcType == 'internal')
+            ? (widget.presetInternalFlow ?? 'outward')
+            : 'outward',
       );
 
       try {
@@ -806,7 +827,7 @@ class _AddDeliveryChallanPageState
                               },
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 12),
                           // Material Description Selection
                           Expanded(
                             flex: 4,
@@ -936,9 +957,10 @@ class _AddDeliveryChallanPageState
                               },
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField2<String>(
+                              isExpanded: true,
                               value: item.jobNo ?? 'General',
                               decoration: const InputDecoration(
                                 labelText: 'Job No',
@@ -949,10 +971,14 @@ class _AddDeliveryChallanPageState
                                   value: 'General',
                                   child: Text('General'),
                                 ),
-                                ...saleOrders.map((order) => DropdownMenuItem(
-                                      value: order.boardNo,
-                                      child: Text(order.boardNo),
-                                    )),
+                                ...saleOrders
+                                    .where((order) => order.boardNo.isNotEmpty)
+                                    .map((order) => order.boardNo)
+                                    .toSet() // Remove duplicates
+                                    .map((boardNo) => DropdownMenuItem(
+                                          value: boardNo,
+                                          child: Text(boardNo),
+                                        )),
                               ],
                               onChanged: (value) {
                                 setState(() {

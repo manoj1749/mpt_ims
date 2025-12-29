@@ -29,13 +29,17 @@ class POItemAdapter extends TypeAdapter<POItem> {
       prDetails: (fields[9] as Map?)?.cast<String, ItemPRDetails>(),
       receivedQuantities: (fields[10] as Map?)?.map((dynamic k, dynamic v) =>
           MapEntry(k as String, (v as Map).cast<String, double>())),
+      originalCostPerUnit: fields[11] as double?,
+      amendedCostPerUnit: fields[12] as double?,
+      amendmentHistory: (fields[13] as List?)?.cast<AmendmentEntry>(),
+      termsAndConditions: fields[14] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, POItem obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -57,7 +61,15 @@ class POItemAdapter extends TypeAdapter<POItem> {
       ..writeByte(9)
       ..write(obj.prDetails)
       ..writeByte(10)
-      ..write(obj.receivedQuantities);
+      ..write(obj.receivedQuantities)
+      ..writeByte(11)
+      ..write(obj.originalCostPerUnit)
+      ..writeByte(12)
+      ..write(obj.amendedCostPerUnit)
+      ..writeByte(13)
+      ..write(obj.amendmentHistory)
+      ..writeByte(14)
+      ..write(obj.termsAndConditions);
   }
 
   @override
@@ -67,6 +79,46 @@ class POItemAdapter extends TypeAdapter<POItem> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is POItemAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class AmendmentEntryAdapter extends TypeAdapter<AmendmentEntry> {
+  @override
+  final int typeId = 42;
+
+  @override
+  AmendmentEntry read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return AmendmentEntry(
+      dateTime: fields[0] as String,
+      oldPrice: fields[1] as double,
+      newPrice: fields[2] as double,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, AmendmentEntry obj) {
+    writer
+      ..writeByte(3)
+      ..writeByte(0)
+      ..write(obj.dateTime)
+      ..writeByte(1)
+      ..write(obj.oldPrice)
+      ..writeByte(2)
+      ..write(obj.newPrice);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AmendmentEntryAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

@@ -9,6 +9,7 @@ import '../models/po_item.dart';
 import '../models/quality_inspection.dart';
 import '../provider/base_provider.dart';
 import '../provider/stock_maintenance_provider.dart';
+import '../provider/customer_scope_stock_maintenance_provider.dart';
 import '../provider/purchase_order.dart';
 import '../provider/quality_inspection_provider.dart';
 
@@ -49,6 +50,9 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
       'receivedBy': inward.receivedBy,
       'checkedBy': inward.checkedBy,
       'status': inward.status,
+      'isCustomerScope': inward.isCustomerScope,
+      'customerId': inward.customerId,
+      'customerName': inward.customerName,
       'items': inward.items
           .map((item) => {
                 'materialCode': item.materialCode,
@@ -86,6 +90,9 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
       invoiceAmount: (data['invoiceAmount'] as num?)?.toDouble() ?? 0.0,
       receivedBy: data['receivedBy'] ?? '',
       checkedBy: data['checkedBy'] ?? '',
+      isCustomerScope: data['isCustomerScope'] ?? false,
+      customerId: data['customerId'] ?? '',
+      customerName: data['customerName'] ?? '',
       items: (data['items'] as List<dynamic>?)
               ?.map((item) => InwardItem(
                     materialCode: item['materialCode'] ?? '',
@@ -304,10 +311,21 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
     // Call parent add method which handles Hive and Firestore
     await super.add(inward);
 
-    // Update stock maintenance
-    await _ref
-        .read(stockMaintenanceProvider.notifier)
-        .updateStockFromGRN(inward);
+    // Mark PO as having GR
+    await _markPOAsHavingGR(inward);
+
+    // Update stock maintenance based on type
+    if (inward.isCustomerScope) {
+      // Update customer scope stock maintenance
+      await _ref
+          .read(customerScopeStockMaintenanceProvider.notifier)
+          .updateStockFromGRN(inward, inward.customerId, inward.customerName);
+    } else {
+      // Update regular stock maintenance
+      await _ref
+          .read(stockMaintenanceProvider.notifier)
+          .updateStockFromGRN(inward);
+    }
 
     print('Successfully added inward ${inward.grnNo}');
   }
@@ -317,10 +335,18 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
     // Call parent update method which handles Hive and Firestore
     await super.update(inward);
 
-    // Update stock maintenance
-    await _ref
-        .read(stockMaintenanceProvider.notifier)
-        .updateStockFromGRN(inward);
+    // Update stock maintenance based on type
+    if (inward.isCustomerScope) {
+      // Update customer scope stock maintenance
+      await _ref
+          .read(customerScopeStockMaintenanceProvider.notifier)
+          .updateStockFromGRN(inward, inward.customerId, inward.customerName);
+    } else {
+      // Update regular stock maintenance
+      await _ref
+          .read(stockMaintenanceProvider.notifier)
+          .updateStockFromGRN(inward);
+    }
 
     print('Successfully updated inward ${inward.grnNo}');
   }
@@ -677,5 +703,29 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
     await _ref
         .read(stockMaintenanceProvider.notifier)
         .updateStockFromGRN(inward);
+  }
+
+  // Helper method to mark PO as having GR
+  Future<void> _markPOAsHavingGR(StoreInward inward) async {
+    try {
+      final poNotifier = _ref.read(purchaseOrderListProvider.notifier);
+      
+      // Get all unique PO numbers from the GR
+      final poNumbers = <String>{};
+      for (var item in inward.items) {
+        poNumbers.addAll(item.prQuantities.keys);
+      }
+      
+      // Mark each PO as having GR
+      for (var poNo in poNumbers) {
+        final po = poNotifier.getOrderByNo(poNo);
+        if (po != null && !po.hasGR) {
+          final updatedPO = po.copyWith(hasGR: true);
+          await poNotifier.update(updatedPO);
+        }
+      }
+    } catch (e) {
+      print('Error marking PO as having GR: $e');
+    }
   }
 }

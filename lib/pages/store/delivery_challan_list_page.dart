@@ -22,7 +22,9 @@ class _DeliveryChallanListPageState
     extends ConsumerState<DeliveryChallanListPage> {
   @override
   Widget build(BuildContext context) {
-    final deliveryChallans = ref.watch(deliveryChallanListProvider);
+    final allDeliveryChallans = ref.watch(deliveryChallanListProvider);
+    // Filter for regular delivery challans only (with invoice)
+    final deliveryChallans = allDeliveryChallans.where((dc) => dc.dcType == 'regular').toList();
 
     final columns = [
       PlutoColumn(

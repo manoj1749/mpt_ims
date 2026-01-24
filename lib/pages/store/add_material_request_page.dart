@@ -1,6 +1,10 @@
 // ignore_for_file: use_build_context_synchronously, non_constant_identifier_names
 
+import 'dart:io';
+
+import 'package:csv/csv.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -31,6 +35,7 @@ class _AddMaterialRequestPageState
   final List<MaterialRequestItemFormData> _items = [];
   final _issuedByController = TextEditingController();
   String? _selectedJobNo;
+  final _jobSearchController = TextEditingController();
 
   // Controllers for bulk entry
   final _materialCodesController = TextEditingController();
@@ -59,7 +64,7 @@ class _AddMaterialRequestPageState
       // Validate that the job number exists in the sale orders
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final saleOrders = ref.read(saleOrderProvider);
-        if (_selectedJobNo != null && !saleOrders.any((order) => order.boardNo == _selectedJobNo)) {
+        if (_selectedJobNo != null && !saleOrders.any((order) => order.jobNo == _selectedJobNo)) {
           // If the job number doesn't exist in sale orders, set it to null
           setState(() {
             _selectedJobNo = null;
@@ -82,11 +87,278 @@ class _AddMaterialRequestPageState
     }
   }
 
+  Future<void> _downloadBulkTemplate() async {
+    try {
+      final headers = ['Part No', 'Description', 'Qty', 'Unit'];
+      final csvData = const ListToCsvConverter().convert([headers]);
+
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Material Request Bulk Template',
+        fileName: 'material_request_bulk_template.csv',
+        type: FileType.any,
+      );
+
+      if (outputFile == null) {
+        return;
+      }
+
+      if (!outputFile.toLowerCase().endsWith('.csv')) {
+        outputFile = '$outputFile.csv';
+      }
+
+      final file = File(outputFile);
+      await file.writeAsString(csvData);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Template saved successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save template: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _uploadBulkCsv() async {
+    try {
+      var materials = ref.read(materialListProvider);
+      if (materials.isEmpty) {
+        try {
+          await ref.read(materialListProvider.notifier).loadMaterials();
+          materials = ref.read(materialListProvider);
+        } catch (_) {}
+      }
+
+      if (materials.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Material master is empty. Please add materials first.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      FilePickerResult? result;
+      try {
+        result = await FilePicker.platform.pickFiles(
+          type: FileType.any,
+          allowMultiple: false,
+        );
+      } catch (_) {
+        result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['csv'],
+          allowMultiple: false,
+        );
+      }
+
+      if (result == null || result.files.single.path == null) {
+        return;
+      }
+
+      final file = File(result.files.single.path!);
+      final ext = result.files.single.extension?.toLowerCase();
+      if (ext != null && ext != 'csv') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Unsupported file type: $ext. Please upload a CSV file.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      String norm(String s) => s
+          .replaceAll('\r', '')
+          .replaceAll('\u00A0', ' ')
+          .replaceAll('\u200B', '')
+          .replaceAll('\uFEFF', '')
+          .trim()
+          .toLowerCase()
+          .replaceAll(RegExp(r'\s+'), '')
+          .replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+      final input = await file.readAsString();
+      final rows = const CsvToListConverter().convert(input);
+      if (rows.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('CSV file is empty'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final headers = rows.first.map((e) => e.toString().toLowerCase()).toList();
+      int codeIndex = -1;
+      int qtyIndex = -1;
+
+      for (int i = 0; i < headers.length; i++) {
+        final h = headers[i];
+        if (h.contains('material code') ||
+            h.contains('part no') ||
+            h.contains('partno')) {
+          codeIndex = i;
+        } else if (h.contains('qty') || h.contains('quantity')) {
+          qtyIndex = i;
+        }
+      }
+
+      if (codeIndex == -1 || qtyIndex == -1) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'CSV must have at least Material Code and Quantity columns.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final dataRows = rows.sublist(1);
+      final invalidRows = <String>[];
+      final newItems = <MaterialRequestItemFormData>[];
+
+      for (int rowIndex = 0; rowIndex < dataRows.length; rowIndex++) {
+        final row = dataRows[rowIndex];
+        if (row.isEmpty) continue;
+        if (row.length <= codeIndex || row.length <= qtyIndex) continue;
+
+        final rawCode = row[codeIndex]?.toString().trim() ?? '';
+        final qtyStr = row[qtyIndex]?.toString().trim() ?? '';
+        if (rawCode.isEmpty && qtyStr.isEmpty) continue;
+
+        final material = materials.firstWhere(
+          (m) => norm(m.partNo) == norm(rawCode),
+          orElse: () => MaterialItem(
+            slNo: '',
+            description: '',
+            partNo: '',
+            unit: '',
+            category: '',
+            subCategory: '',
+          ),
+        );
+
+        if (material.partNo.isEmpty) {
+          invalidRows.add('${rowIndex + 2}: $rawCode (invalid material code)');
+          continue;
+        }
+
+        if (qtyStr.isEmpty) {
+          invalidRows.add('${rowIndex + 2}: ${material.partNo} (missing quantity)');
+          continue;
+        }
+
+        newItems.add(
+          MaterialRequestItemFormData(
+            selectedMaterial: material.description,
+            quantity: qtyStr,
+            partNoController: TextEditingController(text: material.partNo),
+            unitController: TextEditingController(text: material.unit),
+            materialController: TextEditingController(text: material.description),
+          ),
+        );
+      }
+
+      if (invalidRows.isNotEmpty && mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Some rows could not be imported'),
+            content: SizedBox(
+              width: 500,
+              child: SingleChildScrollView(
+                child: Text(invalidRows.join('\n')),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+
+      if (newItems.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No valid rows to import from CSV'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      setState(() {
+        if (_items.length == 1 &&
+            _items[0].selectedMaterial == null &&
+            _items[0].quantity == null) {
+          final first = newItems.first;
+          _items[0].selectedMaterial = first.selectedMaterial;
+          _items[0].quantity = first.quantity;
+          _items[0].quantityController.text = first.quantity ?? '';
+          _items[0].partNoController.text = first.partNoController.text;
+          _items[0].unitController.text = first.unitController.text;
+          _items[0].materialController.text = first.materialController.text;
+          _items.addAll(newItems.skip(1));
+        } else {
+          _items.addAll(newItems);
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Imported ${newItems.length} items from CSV'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error importing CSV: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _issuedByController.dispose();
     _materialCodesController.dispose();
     _quantitiesController.dispose();
+    _jobSearchController.dispose();
     for (var item in _items) {
       item.dispose();
     }
@@ -118,8 +390,27 @@ class _AddMaterialRequestPageState
     _quantitiesController.clear();
     bool isQuantityStep = false;
     List<String> materialCodes = [];
-    final materials = ref.read(materialListProvider);
+    // Ensure materials are loaded before validation
+    var materials = ref.read(materialListProvider);
+    if (materials.isEmpty) {
+      try {
+        await ref.read(materialListProvider.notifier).loadMaterials();
+        materials = ref.read(materialListProvider);
+      } catch (_) {}
+    }
 
+    // Normalization helper for matching part numbers robustly
+    String norm(String s) => s
+        .replaceAll('\r', '')
+        .replaceAll('\u00A0', ' ')
+        .replaceAll('\u200B', '')
+        .replaceAll('\uFEFF', '')
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), '')
+        .replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+    bool didModify = false;
     await showDialog(
       context: context,
       builder: (context) {
@@ -174,16 +465,24 @@ class _AddMaterialRequestPageState
                   onPressed: () {
                     if (!isQuantityStep) {
                       // Process material codes
-                      materialCodes = _materialCodesController.text
-                          .split('\n')
-                          .where((code) => code.trim().isNotEmpty)
-                          .map((code) => code.trim())
+                      // Normalize and split by any whitespace or commas (handles NBSP too)
+                      final rawCodes = _materialCodesController.text
+                          .replaceAll('\r', '')
+                          .replaceAll('\u00A0', ' ')
+                          .replaceAll('\u200B', '')
+                          .replaceAll('\uFEFF', '');
+                      materialCodes = rawCodes
+                          .split(RegExp(r'[\s,]+'))
+                          .map((code) => code
+                              .trim()
+                              .replaceAll(RegExp(r'^[,;]+|[.,;]+$'), ''))
+                          .where((code) => code.isNotEmpty)
                           .toList();
 
                       // Validate material codes
                       final invalidCodes = materialCodes
-                          .where(
-                              (code) => !materials.any((m) => m.partNo == code))
+                          .where((code) =>
+                              !materials.any((m) => norm(m.partNo) == norm(code)))
                           .toList();
 
                       if (invalidCodes.isNotEmpty) {
@@ -218,9 +517,13 @@ class _AddMaterialRequestPageState
                     } else {
                       // Process quantities
                       final quantities = _quantitiesController.text
-                          .split('\n')
-                          .where((qty) => qty.trim().isNotEmpty)
+                          .replaceAll('\r', '')
+                          .replaceAll('\u00A0', ' ')
+                          .replaceAll('\u200B', '')
+                          .replaceAll('\uFEFF', '')
+                          .split(RegExp(r'[\s,]+'))
                           .map((qty) => qty.trim())
+                          .where((qty) => qty.isNotEmpty)
                           .toList();
 
                       if (quantities.length != materialCodes.length) {
@@ -245,8 +548,9 @@ class _AddMaterialRequestPageState
                       // If we have an empty first item, use that instead of adding a new one
                       bool hasUsedFirstItem = false;
                       for (var i = 0; i < materialCodes.length; i++) {
+                        final code = materialCodes[i];
                         final material = materials
-                            .firstWhere((m) => m.partNo == materialCodes[i]);
+                            .firstWhere((m) => norm(m.partNo) == norm(code));
                         final quantity = quantities[i];
 
                         if (!hasUsedFirstItem &&
@@ -257,11 +561,13 @@ class _AddMaterialRequestPageState
                           setState(() {
                             _items[0].selectedMaterial = material.description;
                             _items[0].quantity = quantity;
+                            _items[0].quantityController.text = quantity;
                             _items[0].partNoController.text = material.partNo;
                             _items[0].unitController.text = material.unit;
                             _items[0].materialController.text =
                                 material.description;
                           });
+                          didModify = true;
                           hasUsedFirstItem = true;
                         } else {
                           // Add new item
@@ -275,6 +581,7 @@ class _AddMaterialRequestPageState
                             materialController: TextEditingController(
                                 text: material.description),
                           ));
+                          didModify = true;
                         }
                       }
 
@@ -289,6 +596,9 @@ class _AddMaterialRequestPageState
         );
       },
     );
+    if (didModify) {
+      setState(() {});
+    }
   }
 
   Future<void> _saveMaterialRequest() async {
@@ -381,14 +691,43 @@ class _AddMaterialRequestPageState
                         labelText: 'Job No',
                         border: OutlineInputBorder(),
                       ),
+                      dropdownSearchData: DropdownSearchData(
+                        searchController: _jobSearchController,
+                        searchInnerWidgetHeight: 56,
+                        searchInnerWidget: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: TextFormField(
+                            controller: _jobSearchController,
+                            decoration: const InputDecoration(
+                              hintText: 'Search Job No...',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+                        ),
+                        searchMatchFn: (item, searchValue) {
+                          final val = (item.value ?? '').toString();
+                          return val
+                              .toLowerCase()
+                              .contains(searchValue.toLowerCase());
+                        },
+                      ),
+                      onMenuStateChange: (isOpen) {
+                        if (!isOpen) {
+                          _jobSearchController.clear();
+                        }
+                      },
                       items: [
                         const DropdownMenuItem(
                           value: null,
                           child: Text('None'),
                         ),
                         ...saleOrders.map((order) => DropdownMenuItem(
-                              value: order.boardNo,
-                              child: Text(order.boardNo),
+                              value: order.jobNo,
+                              child: Text(order.jobNo),
                             )),
                       ],
                       onChanged: (value) {
@@ -435,6 +774,18 @@ class _AddMaterialRequestPageState
                   ),
                   Row(
                     children: [
+                      TextButton.icon(
+                        onPressed: _downloadBulkTemplate,
+                        icon: const Icon(Icons.download),
+                        label: const Text('Template'),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: _uploadBulkCsv,
+                        icon: const Icon(Icons.upload_file),
+                        label: const Text('Upload CSV'),
+                      ),
+                      const SizedBox(width: 8),
                       OutlinedButton.icon(
                         onPressed: _showBulkEntryDialog,
                         icon: const Icon(Icons.playlist_add),
@@ -660,22 +1011,6 @@ class _AddMaterialRequestPageState
                           const SizedBox(width: 16),
                           Expanded(
                             child: TextFormField(
-                              controller: item.unitController,
-                              decoration: const InputDecoration(
-                                labelText: 'Unit',
-                                border: OutlineInputBorder(),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter unit';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
                               controller: item.quantityController,
                               keyboardType: TextInputType.number,
                               decoration: const InputDecoration(
@@ -689,6 +1024,22 @@ class _AddMaterialRequestPageState
                                 final qty = double.tryParse(value);
                                 if (qty == null || qty <= 0) {
                                   return 'Please enter a valid quantity';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: item.unitController,
+                              decoration: const InputDecoration(
+                                labelText: 'Unit',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter unit';
                                 }
                                 return null;
                               },

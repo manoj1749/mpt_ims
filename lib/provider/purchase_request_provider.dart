@@ -104,6 +104,38 @@ class PurchaseRequestNotifier extends BaseProvider<PurchaseRequest> {
 
   Future<bool> deleteRequest(PurchaseRequest request) => delete(request);
 
+  Future<bool> deleteRequestItem(PurchaseRequest request, PRItem item) async {
+    // Block deletion if there is any PO referencing this PR + material code
+    final hasActivePOForItem = poBox.values.any((po) => po.items.any((poItem) {
+          final matchesPR = poItem.prDetails.containsKey(request.prNo);
+          final matchesMaterial = poItem.materialCode == item.materialCode;
+          return matchesPR && matchesMaterial;
+        }));
+
+    if (hasActivePOForItem) {
+      return false;
+    }
+
+    final newItems = request.items
+        .where((i) =>
+            !(i.materialCode == item.materialCode &&
+              i.materialDescription == item.materialDescription &&
+              i.unit == item.unit &&
+              i.quantity == item.quantity))
+        .toList();
+
+    // If all items removed, delete entire PR (reuses existing PR deletion rules)
+    if (newItems.isEmpty) {
+      return delete(request);
+    }
+
+    final updated = request.copyWith(items: newItems);
+    updated.updateStatus();
+
+    await update(updated);
+    return true;
+  }
+
   // Helper methods
   List<PurchaseRequest> searchRequests(String query) {
     return search(

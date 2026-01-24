@@ -50,6 +50,11 @@ class Supplier extends HiveObject {
   String ifsc;
   @HiveField(22)
   String email1;
+  @HiveField(23)
+  double? qualityRating; // 0-5 star rating (nullable for backward compatibility)
+
+  @HiveField(24)
+  List<String>? attachments; // file paths or URLs (nullable for backward compatibility)
 
   Supplier({
     required this.name,
@@ -75,5 +80,7 @@ class Supplier extends HiveObject {
     required this.account,
     required this.ifsc,
     required this.email1,
+    this.qualityRating = 0.0,
+    this.attachments,
   });
 }

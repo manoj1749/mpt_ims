@@ -23,7 +23,231 @@ final stockMaintenanceProvider =
 
 class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
   StockMaintenanceNotifier(Box<StockMaintenance> stockBox, Ref ref)
-      : super(stockBox, 'stockMaintenance');
+      : super(stockBox, 'stockMaintenance') {
+    if (!Hive.isAdapterRegistered(76)) {
+      Hive.registerAdapter(StockTransferHistoryEntryAdapter());
+    }
+  }
+
+  StockMaintenance? _getStockByCode(String materialCode) {
+    try {
+      return state.firstWhere((s) => s.materialCode == materialCode);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _transferBucketKey({
+    required String basePrNo,
+    required String jobNo,
+  }) {
+    return '$basePrNo|XFER|$jobNo|${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  bool _isTransferBucketKey(String key, String basePrNo, String jobNo) {
+    return key.startsWith('$basePrNo|XFER|$jobNo|');
+  }
+
+  double _availableForPrBucket(StockPRDetails prDetail) {
+    return prDetail.receivedQuantity - prDetail.issuedQuantity;
+  }
+
+  double _availableForBasePrInJob(StockMaintenance stock, String basePrNo, String jobNo) {
+    double total = 0.0;
+    for (final entry in stock.prDetails.entries) {
+      final key = entry.key;
+      final prDetail = entry.value;
+      if (prDetail.jobNo != jobNo) continue;
+      if (key == basePrNo || _isTransferBucketKey(key, basePrNo, jobNo)) {
+        total += _availableForPrBucket(prDetail);
+      }
+    }
+    return total;
+  }
+
+  double _availableForJobTotal(StockMaintenance stock, String jobNo) {
+    double total = 0.0;
+    for (final prDetail in stock.prDetails.values) {
+      if (prDetail.jobNo != jobNo) continue;
+      total += _availableForPrBucket(prDetail);
+    }
+    return total;
+  }
+
+  List<String> _sourceKeysForJobTotal(StockMaintenance stock, String jobNo) {
+    final keys = stock.prDetails.entries
+        .where((e) => e.value.jobNo == jobNo && _availableForPrBucket(e.value) > 0)
+        .map((e) => e.key)
+        .toList();
+
+    // Prefer stable order: by prDate (if parseable) then key.
+    keys.sort((a, b) {
+      final pa = stock.prDetails[a];
+      final pb = stock.prDetails[b];
+      final da = pa?.prDate ?? '';
+      final db = pb?.prDate ?? '';
+      if (da != db) return da.compareTo(db);
+      return a.compareTo(b);
+    });
+    return keys;
+  }
+
+  void _ensureJobDetailsForTransfer(StockMaintenance stock, String jobNo) {
+    if (stock.jobDetails.containsKey(jobNo)) return;
+    stock.jobDetails[jobNo] = StockJobDetails(
+      jobNo: jobNo,
+      allocatedQuantity: 0.0,
+      consumedQuantity: 0.0,
+      prNo: 'General',
+    );
+  }
+
+  void _recalculateJobAllocatedFromPrDetails(StockMaintenance stock, String jobNo) {
+    final jobDetail = stock.jobDetails[jobNo];
+    if (jobDetail == null) return;
+    double allocated = 0.0;
+    for (final pr in stock.prDetails.values) {
+      if (pr.jobNo == jobNo) {
+        allocated += pr.receivedQuantity;
+      }
+    }
+    jobDetail.allocatedQuantity = allocated;
+  }
+
+  /// Partial transfer for a given PR+Material between Board(job) and General.
+  ///
+  /// This is implemented by moving quantities between PR buckets inside `stock.prDetails`.
+  ///
+  /// - Source bucket(s): the base PR bucket (key = basePrNo) and any existing transfer buckets
+  ///   that belong to `fromJobNo`.
+  /// - Destination bucket: a new synthetic PR bucket under `toJobNo`.
+  ///
+  /// Stock value and GRN/PO traces remain unchanged; this is a classification change for
+  /// job-wise availability calculations.
+  Future<void> transferStockForPRMaterial({
+    required String materialCode,
+    required String basePrNo,
+    required String boardJobNo,
+    required String fromJobNo,
+    required String toJobNo,
+    required double quantity,
+  }) async {
+    if (quantity <= 0) {
+      throw Exception('Transfer quantity must be > 0');
+    }
+    if (fromJobNo == toJobNo) {
+      throw Exception('From and To cannot be the same');
+    }
+    if (boardJobNo.trim().isEmpty || boardJobNo == 'General') {
+      throw Exception('Invalid board job number');
+    }
+
+    final stock = _getStockByCode(materialCode);
+    if (stock == null) {
+      throw Exception('Stock not found');
+    }
+
+    final available = fromJobNo == 'General'
+        ? _availableForJobTotal(stock, 'General')
+        : _availableForBasePrInJob(stock, basePrNo, fromJobNo);
+    if (quantity > available + 0.0001) {
+      throw Exception('Insufficient stock for transfer');
+    }
+
+    // Source buckets:
+    // - If from General: drain from overall General pool.
+    // - Else (board/job): drain only from the base PR bucket and its transfer buckets.
+    final sourceKeys = <String>[];
+    if (fromJobNo == 'General') {
+      sourceKeys.addAll(_sourceKeysForJobTotal(stock, 'General'));
+    } else {
+      if (stock.prDetails.containsKey(basePrNo) &&
+          stock.prDetails[basePrNo]!.jobNo == fromJobNo) {
+        sourceKeys.add(basePrNo);
+      }
+      final transferKeys = stock.prDetails.keys
+          .where((k) => _isTransferBucketKey(k, basePrNo, fromJobNo))
+          .toList()
+        ..sort();
+      sourceKeys.addAll(transferKeys);
+    }
+
+    double remaining = quantity;
+    for (final key in sourceKeys) {
+      if (remaining <= 0) break;
+      final prDetail = stock.prDetails[key];
+      if (prDetail == null) continue;
+      if (prDetail.jobNo != fromJobNo) continue;
+      final availableInBucket = _availableForPrBucket(prDetail);
+      if (availableInBucket <= 0) continue;
+
+      final move = math.min(availableInBucket, remaining);
+
+      // Reduce receivedQuantity in source bucket (keep issuedQuantity as-is).
+      // Since move <= available, received will stay >= issued.
+      prDetail.receivedQuantity = prDetail.receivedQuantity - move;
+
+      // Create destination bucket record.
+      // If destination is General, keep it in the pooled General namespace.
+      final destKey = toJobNo == 'General'
+          ? _transferBucketKey(basePrNo: 'General', jobNo: 'General')
+          : _transferBucketKey(basePrNo: basePrNo, jobNo: toJobNo);
+      stock.prDetails[destKey] = StockPRDetails(
+        prNo: destKey,
+        prDate: DateTime.now().toString().split(' ').first,
+        requestedQuantity: 0.0,
+        orderedQuantity: 0.0,
+        receivedQuantity: move,
+        issuedQuantity: 0.0,
+        jobNo: toJobNo,
+      );
+
+      remaining -= move;
+    }
+
+    // Clean up empty transfer buckets (optional). Never remove basePrNo or 'General'.
+    final keysToRemove = <String>[];
+    for (final entry in stock.prDetails.entries) {
+      final key = entry.key;
+      final pr = entry.value;
+      if (key == basePrNo || key == 'General') continue;
+      final isFromBucket = fromJobNo == 'General'
+          ? pr.jobNo == 'General' && key.startsWith('General|XFER|General|')
+          : _isTransferBucketKey(key, basePrNo, fromJobNo);
+      if (!isFromBucket) continue;
+      if (_availableForPrBucket(pr) <= 0.0000001 && pr.issuedQuantity <= 0.0000001) {
+        keysToRemove.add(key);
+      }
+    }
+    for (final k in keysToRemove) {
+      stock.prDetails.remove(k);
+    }
+
+    // Ensure jobDetails exist and update allocated quantities to match received totals.
+    _ensureJobDetailsForTransfer(stock, fromJobNo);
+    _ensureJobDetailsForTransfer(stock, toJobNo);
+    _recalculateJobAllocatedFromPrDetails(stock, fromJobNo);
+    _recalculateJobAllocatedFromPrDetails(stock, toJobNo);
+
+    // Log transfer history (material-level) for audit.
+    stock.transferHistory.add(
+      StockTransferHistoryEntry(
+        dateTime: DateTime.now().toIso8601String(),
+        basePrNo: basePrNo,
+        boardJobNo: boardJobNo,
+        fromJobNo: fromJobNo,
+        toJobNo: toJobNo,
+        quantity: quantity,
+      ),
+    );
+    // Keep recent entries only to avoid document bloat.
+    if (stock.transferHistory.length > 200) {
+      stock.transferHistory = stock.transferHistory
+          .sublist(stock.transferHistory.length - 200);
+    }
+
+    await update(stock);
+  }
 
   @override
   Map<String, dynamic> modelToMap(StockMaintenance stock) {
@@ -36,6 +260,16 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
       'currentStock': stock.currentStock,
       'stockUnderInspection': stock.stockUnderInspection,
       'totalStockValue': stock.totalStockValue,
+      'transferHistory': stock.transferHistory
+          .map((e) => {
+                'dateTime': e.dateTime,
+                'basePrNo': e.basePrNo,
+                'boardJobNo': e.boardJobNo,
+                'fromJobNo': e.fromJobNo,
+                'toJobNo': e.toJobNo,
+                'quantity': e.quantity,
+              })
+          .toList(),
       'grnDetails': stock.grnDetails.map((key, value) => MapEntry(key, {
             'grnNo': value.grnNo,
             'grnDate': value.grnDate,
@@ -93,6 +327,24 @@ class StockMaintenanceNotifier extends BaseProvider<StockMaintenance> {
           (map['stockUnderInspection'] as num?)?.toDouble() ?? 0.0,
       totalStockValue: (map['totalStockValue'] as num?)?.toDouble() ?? 0.0,
     );
+
+    // Load Transfer history (optional/backward compatible)
+    if (map['transferHistory'] is List) {
+      for (final entry in (map['transferHistory'] as List)) {
+        if (entry is Map) {
+          stock.transferHistory.add(
+            StockTransferHistoryEntry(
+              dateTime: (entry['dateTime'] ?? '').toString(),
+              basePrNo: (entry['basePrNo'] ?? '').toString(),
+              boardJobNo: (entry['boardJobNo'] ?? '').toString(),
+              fromJobNo: (entry['fromJobNo'] ?? '').toString(),
+              toJobNo: (entry['toJobNo'] ?? '').toString(),
+              quantity: (entry['quantity'] as num?)?.toDouble() ?? 0.0,
+            ),
+          );
+        }
+      }
+    }
 
     // Load GRN details
     if (map['grnDetails'] != null) {

@@ -44,6 +44,9 @@ class StockMaintenance extends HiveObject {
   @HiveField(12)
   double totalStockValue; // Total value of current stock
 
+  @HiveField(13)
+  List<StockTransferHistoryEntry> transferHistory = [];
+
   // New getters for accurate stock calculations
   double get calculatedCurrentStock {
     return grnDetails.values
@@ -88,12 +91,14 @@ class StockMaintenance extends HiveObject {
     Map<String, StockJobDetails>? jobDetails,
     Map<String, StockVendorDetails>? vendorDetails,
     this.totalStockValue = 0.0,
+    List<StockTransferHistoryEntry>? transferHistory,
   }) {
     this.grnDetails = grnDetails ?? {};
     this.poDetails = poDetails ?? {};
     this.prDetails = prDetails ?? {};
     this.jobDetails = jobDetails ?? {};
     this.vendorDetails = vendorDetails ?? {};
+    this.transferHistory = transferHistory ?? [];
   }
 
   // Helper method to add GRN details
@@ -471,6 +476,30 @@ class StockMaintenance extends HiveObject {
     _updateStockQuantities();
     print('=== End Stock Delivery ===');
   }
+
+  // Receive stock to General via a synthetic GRN (supports negative qty to revert)
+  void receiveToGeneral(String grnNo, double quantity,
+      {double? rate, String vendorId = 'internal'}) {
+    if (quantity == 0) return;
+    final effectiveRate = rate ?? averageRate;
+    final existing = grnDetails[grnNo];
+    if (existing != null) {
+      existing.receivedQuantity += quantity;
+      existing.acceptedQuantity += quantity;
+      // Keep rejectedQuantity and issuedQuantity unchanged
+    } else {
+      grnDetails[grnNo] = StockGRNDetails(
+        grnNo: grnNo,
+        grnDate: DateTime.now().toString().split(' ').first,
+        receivedQuantity: quantity,
+        acceptedQuantity: quantity,
+        rejectedQuantity: 0,
+        vendorId: vendorId,
+        rate: effectiveRate,
+      );
+    }
+    _updateStockQuantities();
+  }
 }
 
 @HiveType(typeId: 25)
@@ -718,4 +747,34 @@ class StockVendorDetails {
   String toString() {
     return 'StockVendorDetails(vendorId: $vendorId, vendorName: $vendorName, quantity: $quantity, rate: $rate, lastPurchaseDate: $lastPurchaseDate)';
   }
+}
+
+@HiveType(typeId: 76)
+class StockTransferHistoryEntry {
+  @HiveField(0)
+  String dateTime;
+
+  @HiveField(1)
+  String basePrNo;
+
+  @HiveField(2)
+  String boardJobNo;
+
+  @HiveField(3)
+  String fromJobNo;
+
+  @HiveField(4)
+  String toJobNo;
+
+  @HiveField(5)
+  double quantity;
+
+  StockTransferHistoryEntry({
+    required this.dateTime,
+    required this.basePrNo,
+    required this.boardJobNo,
+    required this.fromJobNo,
+    required this.toJobNo,
+    required this.quantity,
+  });
 }

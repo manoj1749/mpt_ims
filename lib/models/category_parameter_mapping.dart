@@ -13,9 +13,18 @@ class CategoryParameterMapping extends HiveObject {
   @HiveField(2)
   bool requiresExpiryDate;
 
+  @HiveField(3)
+  String lastModified;
+
   CategoryParameterMapping({
     required this.category,
     required this.parameters,
     required this.requiresExpiryDate,
-  });
+    String? lastModified,
+  }) : lastModified = lastModified ?? DateTime.now().toIso8601String();
+
+  // Helper method to update the last modified timestamp
+  void updateTimestamp() {
+    lastModified = DateTime.now().toIso8601String();
+  }
 }

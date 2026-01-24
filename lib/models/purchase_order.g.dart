@@ -28,13 +28,21 @@ class PurchaseOrderAdapter extends TypeAdapter<PurchaseOrder> {
       cgst: fields[9] as double,
       sgst: fields[10] as double,
       grandTotal: fields[11] as double,
+      hasAmendments: fields[13] == null ? false : fields[13] as bool?,
+      isForeclosed: fields[14] == null ? false : fields[14] as bool,
+      foreclosureReason: fields[15] as String?,
+      foreclosureDate: fields[16] as String?,
+      hasGR: fields[17] == null ? false : fields[17] as bool,
+      previousPONo: fields[18] as String?,
+      originalPoDate: fields[19] as String?,
+      isServiceBill: fields[20] == null ? false : fields[20] as bool,
     ).._status = fields[12] as String?;
   }
 
   @override
   void write(BinaryWriter writer, PurchaseOrder obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(20)
       ..writeByte(0)
       ..write(obj.poNo)
       ..writeByte(1)
@@ -58,7 +66,23 @@ class PurchaseOrderAdapter extends TypeAdapter<PurchaseOrder> {
       ..writeByte(11)
       ..write(obj.grandTotal)
       ..writeByte(12)
-      ..write(obj._status);
+      ..write(obj._status)
+      ..writeByte(13)
+      ..write(obj.hasAmendments)
+      ..writeByte(14)
+      ..write(obj.isForeclosed)
+      ..writeByte(15)
+      ..write(obj.foreclosureReason)
+      ..writeByte(16)
+      ..write(obj.foreclosureDate)
+      ..writeByte(17)
+      ..write(obj.hasGR)
+      ..writeByte(18)
+      ..write(obj.previousPONo)
+      ..writeByte(19)
+      ..write(obj.originalPoDate)
+      ..writeByte(20)
+      ..write(obj.isServiceBill);
   }
 
   @override

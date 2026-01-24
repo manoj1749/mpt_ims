@@ -40,6 +40,18 @@ class POItem extends HiveObject {
   Map<String, Map<String, double>> receivedQuantities =
       {}; // GRN_PR -> received quantity
 
+  @HiveField(11)
+  double? originalCostPerUnit;
+
+  @HiveField(12)
+  double? amendedCostPerUnit;
+
+  @HiveField(13)
+  List<AmendmentEntry> amendmentHistory = [];
+
+  @HiveField(14)
+  String? termsAndConditions;
+
   // Factory constructor to handle migration from old format
   factory POItem.fromFields(Map<int, dynamic> fields) {
     // Handle old format where quantities were stored as doubles
@@ -67,6 +79,12 @@ class POItem extends HiveObject {
       totalMargin: fields[8] as String,
       prDetails: (fields[9] as Map?)?.cast<String, ItemPRDetails>(),
       receivedQuantities: receivedQuantities,
+      originalCostPerUnit: fields.length > 11 ? fields[11] as double? : null,
+      amendedCostPerUnit: fields.length > 12 ? fields[12] as double? : null,
+      amendmentHistory: fields.length > 13
+          ? (fields[13] as List?)?.cast<AmendmentEntry>()
+          : [],
+      termsAndConditions: fields.length > 14 ? fields[14] as String? : null,
     );
   }
 
@@ -169,9 +187,14 @@ class POItem extends HiveObject {
     required this.totalMargin,
     Map<String, ItemPRDetails>? prDetails,
     Map<String, Map<String, double>>? receivedQuantities,
+    this.originalCostPerUnit,
+    this.amendedCostPerUnit,
+    List<AmendmentEntry>? amendmentHistory,
+    this.termsAndConditions,
   }) {
     this.prDetails = prDetails ?? {};
     this.receivedQuantities = receivedQuantities ?? {};
+    this.amendmentHistory = amendmentHistory ?? [];
   }
 
   void updateQuantity(String newQuantity) {
@@ -219,6 +242,10 @@ class POItem extends HiveObject {
     String? totalMargin,
     Map<String, ItemPRDetails>? prDetails,
     Map<String, Map<String, double>>? receivedQuantities,
+    double? originalCostPerUnit,
+    double? amendedCostPerUnit,
+    List<AmendmentEntry>? amendmentHistory,
+    String? termsAndConditions,
   }) {
     return POItem(
       materialCode: materialCode ?? this.materialCode,
@@ -233,6 +260,10 @@ class POItem extends HiveObject {
       prDetails: prDetails ?? Map<String, ItemPRDetails>.from(this.prDetails),
       receivedQuantities: receivedQuantities ??
           Map<String, Map<String, double>>.from(this.receivedQuantities),
+      originalCostPerUnit: originalCostPerUnit ?? this.originalCostPerUnit,
+      amendedCostPerUnit: amendedCostPerUnit ?? this.amendedCostPerUnit,
+      amendmentHistory: amendmentHistory ?? List<AmendmentEntry>.from(this.amendmentHistory),
+      termsAndConditions: termsAndConditions ?? this.termsAndConditions,
     );
   }
 
@@ -303,6 +334,24 @@ class POItem extends HiveObject {
       return {};
     }
   }
+}
+
+@HiveType(typeId: 42)
+class AmendmentEntry {
+  @HiveField(0)
+  String dateTime; // ISO string
+
+  @HiveField(1)
+  double oldPrice;
+
+  @HiveField(2)
+  double newPrice;
+
+  AmendmentEntry({
+    required this.dateTime,
+    required this.oldPrice,
+    required this.newPrice,
+  });
 }
 
 @HiveType(typeId: 24)

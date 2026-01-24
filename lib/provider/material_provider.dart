@@ -30,6 +30,7 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
       'binNumber': material.binNumber,
       'hsnCode': material.hsnCode,
       'actualWeight': material.actualWeight,
+      'inventoryClassification': material.inventoryClassification,
       'saleRate': material.saleRate,
       'vendorRates': material.vendorRates
           .map((rate) => {
@@ -70,6 +71,7 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
       binNumber: map['binNumber'],
       hsnCode: map['hsnCode'],
       actualWeight: map['actualWeight'],
+      inventoryClassification: map['inventoryClassification'] ?? '',
       saleRate: map['saleRate'] ?? '0',
       vendorRates: vendorRatesList,
     );
@@ -118,5 +120,15 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
             material.category.toLowerCase().contains(lowercaseQuery) ||
             material.subCategory.toLowerCase().contains(lowercaseQuery))
         .toList();
+  }
+
+  // One-time migration: ensure inventoryClassification is present in Firestore for all items
+  Future<void> migrateEnsureInventoryClassificationField() async {
+    for (final material in state) {
+      // Ensure non-null string
+      material.inventoryClassification = material.inventoryClassification ?? '';
+      await update(material);
+    }
+    await refresh();
   }
 }

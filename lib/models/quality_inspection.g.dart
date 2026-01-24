@@ -29,7 +29,7 @@ class QualityInspectionAdapter extends TypeAdapter<QualityInspection> {
       inspectedBy: fields[9] as String,
       approvedBy: fields[10] as String,
       items: (fields[12] as List).cast<InspectionItem>(),
-      status: fields[13] as String,
+      status: fields[11] as String,
       prNumbers: (fields[14] as Map?)?.cast<String, String>(),
       jobNumbers: (fields[15] as Map?)?.cast<String, String>(),
       capaNo: fields[16] as String?,
@@ -39,13 +39,14 @@ class QualityInspectionAdapter extends TypeAdapter<QualityInspection> {
       capaTargetDate: fields[20] as String?,
       capaCompletionDate: fields[21] as String?,
       capaActions: (fields[22] as List?)?.cast<String>(),
+      parameterValidationTimestamp: fields[23] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, QualityInspection obj) {
     writer
-      ..writeByte(22)
+      ..writeByte(23)
       ..writeByte(0)
       ..write(obj.inspectionNo)
       ..writeByte(1)
@@ -70,8 +71,10 @@ class QualityInspectionAdapter extends TypeAdapter<QualityInspection> {
       ..write(obj.approvedBy)
       ..writeByte(12)
       ..write(obj.items)
-      ..writeByte(13)
+      ..writeByte(11)
       ..write(obj.status)
+      ..writeByte(23)
+      ..write(obj.parameterValidationTimestamp)
       ..writeByte(14)
       ..write(obj.prNumbers)
       ..writeByte(15)

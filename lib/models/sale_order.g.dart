@@ -33,13 +33,16 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
       actualCustomerDeliveryDate: fields[13] as String?,
       jobStatus: fields[14] as String?,
       jobNotes: fields[15] as String?,
+      isCustomerFreeIssueAvailable: fields[16] as bool?,
+      customerPoNo: fields[17] as String?,
+      customerPoDate: fields[18] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, SaleOrder obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(19)
       ..writeByte(0)
       ..write(obj.orderNo)
       ..writeByte(1)
@@ -71,7 +74,13 @@ class SaleOrderAdapter extends TypeAdapter<SaleOrder> {
       ..writeByte(14)
       ..write(obj.jobStatus)
       ..writeByte(15)
-      ..write(obj.jobNotes);
+      ..write(obj.jobNotes)
+      ..writeByte(16)
+      ..write(obj.isCustomerFreeIssueAvailable)
+      ..writeByte(17)
+      ..write(obj.customerPoNo)
+      ..writeByte(18)
+      ..write(obj.customerPoDate);
   }
 
   @override

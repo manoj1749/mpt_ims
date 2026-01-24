@@ -35,6 +35,9 @@ class SaleOrderNotifier extends BaseProvider<SaleOrder> {
       'actualCustomerDeliveryDate': order.actualCustomerDeliveryDate,
       'jobStatus': order.jobStatus,
       'jobNotes': order.jobNotes,
+      'isCustomerFreeIssueAvailable': order.isCustomerFreeIssueAvailable,
+      'customerPoNo': order.customerPoNo,
+      'customerPoDate': order.customerPoDate,
     };
   }
 
@@ -57,6 +60,9 @@ class SaleOrderNotifier extends BaseProvider<SaleOrder> {
       actualCustomerDeliveryDate: map['actualCustomerDeliveryDate'],
       jobStatus: map['jobStatus'],
       jobNotes: map['jobNotes'],
+      isCustomerFreeIssueAvailable: map['isCustomerFreeIssueAvailable'],
+      customerPoNo: map['customerPoNo'],
+      customerPoDate: map['customerPoDate'],
     );
   }
 

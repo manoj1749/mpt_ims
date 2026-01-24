@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 import '../../models/material_item.dart';
 import '../../models/material_request.dart';
 import '../../models/material_request_item.dart';
@@ -40,6 +41,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
   // Track quantity controllers with composite key
   final Map<String, TextEditingController> qtyControllers = {};
   String? selectedVendor;
+  final _vendorSearchController = TextEditingController();
 
   // Store Job Numbers from MRs
   Set<String> jobNumbers = {};
@@ -148,6 +150,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
     for (var controller in qtyControllers.values) {
       controller.dispose();
     }
+    _vendorSearchController.dispose();
     super.dispose();
   }
 
@@ -430,6 +433,9 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                             vertical: 16, horizontal: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
                       icon: const Icon(Icons.filter_list),
                       label: Text(
@@ -466,7 +472,7 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                   const SizedBox(width: 16),
                   // Vendor Filter
                   Expanded(
-                    child: DropdownButtonFormField<String>(
+                    child: DropdownButtonFormField2<String>(
                       value: selectedVendor ?? 'All',
                       decoration: const InputDecoration(
                         labelText: 'Vendor',
@@ -474,6 +480,35 @@ class _AddMaterialIssuePageState extends ConsumerState<AddMaterialIssuePage> {
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       ),
+                      dropdownSearchData: DropdownSearchData(
+                        searchController: _vendorSearchController,
+                        searchInnerWidgetHeight: 56,
+                        searchInnerWidget: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: TextFormField(
+                            controller: _vendorSearchController,
+                            decoration: const InputDecoration(
+                              hintText: 'Search Vendor... ',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+                        ),
+                        searchMatchFn: (item, searchValue) {
+                          final val = (item.value ?? '').toString();
+                          return val
+                              .toLowerCase()
+                              .contains(searchValue.toLowerCase());
+                        },
+                      ),
+                      onMenuStateChange: (isOpen) {
+                        if (!isOpen) {
+                          _vendorSearchController.clear();
+                        }
+                      },
                       items: _getUniqueVendors()
                           .map((vendor) => DropdownMenuItem(
                                 value: vendor,

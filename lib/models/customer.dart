@@ -73,6 +73,9 @@ class Customer extends HiveObject {
   @HiveField(22)
   String email1;
 
+  @HiveField(23)
+  List<String> attachments;
+
   Customer({
     required this.name,
     required this.address1,
@@ -97,5 +100,6 @@ class Customer extends HiveObject {
     required this.account,
     required this.ifsc,
     required this.email1,
+    this.attachments = const [],
   });
 }

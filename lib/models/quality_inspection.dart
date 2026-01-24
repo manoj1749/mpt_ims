@@ -43,8 +43,11 @@ class QualityInspection extends HiveObject {
   @HiveField(12)
   List<InspectionItem> items;
 
-  @HiveField(13)
-  String status; // Pending, Approved, Rejected, Recheck
+  @HiveField(11)
+  String status; // Pending, Approved, Rejected, Recheck, Completed, Pending - Parameters Changed
+
+  @HiveField(23)
+  String? parameterValidationTimestamp; // When parameters were last validated
 
   @HiveField(14)
   Map<String, String> prNumbers = {}; // Map of PO No to PR No
@@ -97,6 +100,7 @@ class QualityInspection extends HiveObject {
     this.capaTargetDate,
     this.capaCompletionDate,
     List<String>? capaActions,
+    this.parameterValidationTimestamp,
   }) {
     this.prNumbers = prNumbers ?? {};
     this.jobNumbers = jobNumbers ?? {};
@@ -168,6 +172,7 @@ class QualityInspection extends HiveObject {
     String? capaTargetDate,
     String? capaCompletionDate,
     List<String>? capaActions,
+    String? parameterValidationTimestamp,
   }) {
     return QualityInspection(
       inspectionNo: inspectionNo ?? this.inspectionNo,
@@ -192,6 +197,7 @@ class QualityInspection extends HiveObject {
       capaTargetDate: capaTargetDate ?? this.capaTargetDate,
       capaCompletionDate: capaCompletionDate ?? this.capaCompletionDate,
       capaActions: capaActions ?? List.from(this.capaActions),
+      parameterValidationTimestamp: parameterValidationTimestamp ?? this.parameterValidationTimestamp,
     );
   }
 }
@@ -522,7 +528,7 @@ class QualityParameter extends HiveObject {
     required this.parameter,
     this.isAcceptable = true,
     this.observation = '',
-    this.result = 'OK',
+    this.result,
   });
 
   // Standard Quality Parameters - Exact names as per sheet

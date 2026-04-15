@@ -248,7 +248,7 @@ lib/
 
 ## 📄 License
 
-This project is private and proprietary. All rights reserved.
+Built as a freelance engagement for a manufacturing client. The production deployment is with the client.
 
 ## 📞 Support
 

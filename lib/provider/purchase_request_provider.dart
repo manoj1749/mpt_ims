@@ -35,6 +35,8 @@ class PurchaseRequestNotifier extends BaseProvider<PurchaseRequest> {
       'requiredBy': request.requiredBy,
       'status': request.status,
       'jobNo': request.jobNo,
+      'customerId': request.customerId,
+      'customerName': request.customerName,
       'items': request.items
           .map((item) => {
                 'materialCode': item.materialCode,
@@ -57,6 +59,8 @@ class PurchaseRequestNotifier extends BaseProvider<PurchaseRequest> {
       requiredBy: map['requiredBy'] ?? '',
       status: map['status'] ?? 'Draft',
       jobNo: map['jobNo'],
+      customerId: map['customerId'],
+      customerName: map['customerName'],
       items: (map['items'] as List<dynamic>?)
               ?.map((item) => PRItem(
                     materialCode: item['materialCode'] ?? '',

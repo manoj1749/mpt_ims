@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/delivery_challan.dart';
+import '../../models/supplier.dart';
 import '../../provider/delivery_challan_provider.dart';
 import '../../provider/supplier_provider.dart';
 import '../../provider/material_provider.dart';
@@ -23,8 +24,8 @@ class _JobOrderDeliveryChallanListPageState
   @override
   Widget build(BuildContext context) {
     final allDeliveryChallans = ref.watch(deliveryChallanListProvider);
-    // Filter for job order delivery challans only
-    final deliveryChallans = allDeliveryChallans.where((dc) => dc.dcType == 'job_order').toList();
+    // Filter for job order delivery challans only, excluding billing DCs (sale-order based, unit='JOB')
+    final deliveryChallans = allDeliveryChallans.where((dc) => dc.dcType == 'job_order' && !dc.items.any((i) => i.unit == 'JOB')).toList();
 
     final columns = [
       PlutoColumn(
@@ -81,7 +82,7 @@ class _JobOrderDeliveryChallanListPageState
         field: 'items',
         type: PlutoColumnType.text(),
         enableEditingMode: false,
-        width: 300,
+        width: 350,
         renderer: (rendererContext) {
           final dc = deliveryChallans.firstWhere(
             (dc) => dc.dcNo == rendererContext.row.cells['dcNo']!.value,
@@ -97,11 +98,31 @@ class _JobOrderDeliveryChallanListPageState
                   children: dc.items.map((item) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 4.0),
-                      child: Text(
-                        '${item.materialCode} - ${item.materialDescription} (${item.quantity} ${item.unit}) - Job: ${item.jobNo ?? "General"}${item.prNo != null ? " - PR: ${item.prNo}" : ""}',
-                        style: const TextStyle(fontSize: 12),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${item.materialCode}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '${item.materialDescription}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Text(
+                            'Qty: ${item.quantity} ${item.unit}${item.jobNo != null ? ' | Job: ${item.jobNo}' : ''}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                            ),
+                          ),
+                          const Divider(height: 4),
+                        ],
                       ),
                     );
                   }).toList(),
@@ -118,9 +139,7 @@ class _JobOrderDeliveryChallanListPageState
         enableEditingMode: false,
         width: 140,
         renderer: (rendererContext) {
-          final dc = deliveryChallans.firstWhere(
-            (dc) => dc.dcNo == rendererContext.cell.value,
-          );
+          final dc = rendererContext.cell.value as DeliveryChallan;
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
@@ -171,7 +190,7 @@ class _JobOrderDeliveryChallanListPageState
                               deliveryChallanListProvider.notifier,
                             );
                             notifier.deleteDeliveryChallan(
-                              rendererContext.cell.value,
+                              dc,
                               ref,
                             );
                             Navigator.pop(context);
@@ -203,7 +222,7 @@ class _JobOrderDeliveryChallanListPageState
         'returnable': PlutoCell(value: dc.isReturnable ? 'Yes' : 'No'),
         'note': PlutoCell(value: dc.note ?? ''),
         'items': PlutoCell(value: dc.dcNo),
-        'actions': PlutoCell(value: dc.dcNo),
+        'actions': PlutoCell(value: dc),
       });
     }).toList();
 
@@ -217,7 +236,9 @@ class _JobOrderDeliveryChallanListPageState
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AddDeliveryChallanPage(),
+                  builder: (context) => const AddDeliveryChallanPage(
+                    presetDcType: 'job_order',
+                  ),
                 ),
               );
             },

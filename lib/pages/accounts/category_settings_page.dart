@@ -165,7 +165,7 @@ Mapping for Category: ${mapping.category}
   }
 
   Future<bool> _onWillPop() async {
-    if (_hasUnsavedChanges) {
+    if (_hasUnsavedChanges || _hasUnsavedParameterChanges || _hasUnsavedSubCategoryChanges) {
       final result = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -839,6 +839,15 @@ Mapping for Category: ${mapping.category}
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Category Settings'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
+              final shouldPop = await _onWillPop();
+              if (shouldPop && mounted) {
+                Navigator.of(context).pop();
+              }
+            },
+          ),
           actions: [
             TextButton.icon(
               onPressed: () async {

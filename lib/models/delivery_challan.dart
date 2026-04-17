@@ -22,6 +22,9 @@ class DeliveryChallanItem extends HiveObject {
   @HiveField(5)
   String? prNo; // Optional PR number if issuing from specific PR
 
+  @HiveField(6, defaultValue: 0.0)
+  double price;
+
   DeliveryChallanItem({
     required this.materialCode,
     required this.materialDescription,
@@ -29,6 +32,7 @@ class DeliveryChallanItem extends HiveObject {
     required this.quantity,
     this.jobNo,
     this.prNo,
+    this.price = 0.0,
   });
 
   DeliveryChallanItem copyWith({
@@ -38,6 +42,7 @@ class DeliveryChallanItem extends HiveObject {
     double? quantity,
     String? jobNo,
     String? prNo,
+    double? price,
   }) {
     return DeliveryChallanItem(
       materialCode: materialCode ?? this.materialCode,
@@ -46,6 +51,7 @@ class DeliveryChallanItem extends HiveObject {
       quantity: quantity ?? this.quantity,
       jobNo: jobNo ?? this.jobNo,
       prNo: prNo ?? this.prNo,
+      price: price ?? this.price,
     );
   }
 }

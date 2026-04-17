@@ -22,13 +22,15 @@ class PurchaseRequestAdapter extends TypeAdapter<PurchaseRequest> {
       requiredBy: fields[2] as String,
       items: (fields[5] as List?)?.cast<PRItem>(),
       jobNo: fields[6] as String?,
+      customerId: fields[7] as String?,
+      customerName: fields[8] as String?,
     ).._status = fields[3] as String?;
   }
 
   @override
   void write(BinaryWriter writer, PurchaseRequest obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.prNo)
       ..writeByte(1)
@@ -40,7 +42,11 @@ class PurchaseRequestAdapter extends TypeAdapter<PurchaseRequest> {
       ..writeByte(5)
       ..write(obj.items)
       ..writeByte(6)
-      ..write(obj.jobNo);
+      ..write(obj.jobNo)
+      ..writeByte(7)
+      ..write(obj.customerId)
+      ..writeByte(8)
+      ..write(obj.customerName);
   }
 
   @override

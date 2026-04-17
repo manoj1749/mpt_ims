@@ -20,6 +20,8 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
 
   int _gridRebuildToken = 0;
   Timer? _refreshDebounce;
+  bool _hasUnsavedChanges = false;
+  Map<String, double> _pendingBillValues = {}; // Store pending changes
 
   String _searchMode = 'all';
   String _searchQuery = '';
@@ -58,6 +60,66 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
         _gridRebuildToken++;
       });
     });
+  }
+
+  Future<void> _saveAllBillValues() async {
+    print('DEBUG: Pending bill values to save: $_pendingBillValues');
+    
+    if (_pendingBillValues.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No final bill values to save'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    // Filter out zero values - only save values > 0
+    final filteredValues = <String, double>{};
+    for (final entry in _pendingBillValues.entries) {
+      if (entry.value > 0) {
+        filteredValues[entry.key] = entry.value;
+      }
+    }
+    
+    if (filteredValues.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No final bill values > 0 to save'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    print('DEBUG: Saving bill values for ${filteredValues.length} jobs');
+    
+    // Update each job with its bill value
+    for (final entry in filteredValues.entries) {
+      final jobNo = entry.key;
+      final billValue = entry.value;
+      
+      print('DEBUG: Updating job $jobNo with bill value $billValue');
+      await ref.read(saleOrderProvider.notifier).updateBillValueForJob(jobNo, billValue);
+    }
+    
+    // Force refresh the provider to ensure all changes are saved
+    ref.invalidate(saleOrderProvider);
+    await ref.read(saleOrderProvider.notifier).loadSaleOrders();
+    
+    // Clear pending values and reset unsaved changes flag
+    setState(() {
+      _pendingBillValues.clear();
+      _hasUnsavedChanges = false;
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Final bill values saved for ${filteredValues.length} job(s)'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   String _getSearchLabel() {
@@ -608,6 +670,28 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
         },
       ),
       PlutoColumn(
+        title: 'Final Bill Value',
+        field: 'finalBillValue',
+        type: PlutoColumnType.number(format: '#,##0.00'),
+        enableEditingMode: true,
+        minWidth: 120,
+        width: 150,
+        renderer: (rendererContext) {
+          final value = rendererContext.cell.value as double?;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            alignment: Alignment.centerRight,
+            child: Text(
+              value != null ? value.toStringAsFixed(2) : '0.00',
+              style: TextStyle(
+                color: value != null && value > 0 ? Colors.green : Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          );
+        },
+      ),
+      PlutoColumn(
         title: 'Actions',
         field: 'actions',
         type: PlutoColumnType.text(),
@@ -735,6 +819,7 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
         'jobStartDate': PlutoCell(value: order.jobStartDate),
         'targetDate': PlutoCell(value: order.targetDate),
         'endDate': PlutoCell(value: order.endDate ?? ''),
+        'finalBillValue': PlutoCell(value: order.finalBillValue ?? 0.0),
         'actions': PlutoCell(value: ''),
       });
     }).toList();
@@ -785,6 +870,33 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
       appBar: AppBar(
         title: const Text('Sale Orders'),
         elevation: 0,
+        actions: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.save),
+                tooltip: 'Save Final Bill Values',
+                onPressed: () async {
+                  await _saveAllBillValues();
+                },
+              ),
+              if (_hasUnsavedChanges)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
@@ -859,6 +971,36 @@ class _SaleOrderListPageState extends ConsumerState<SaleOrderListPage> {
                               stateManager = event.stateManager;
                               stateManager?.setShowColumnFilter(true);
                             });
+                          },
+                          onChanged: (PlutoGridOnChangedEvent event) {
+                            // Check if the Final Bill Value cell was changed
+                            if (event.column.field == 'finalBillValue') {
+                              final row = event.row;
+                              final order = row.cells['order']?.value as SaleOrder?;
+                              if (order != null) {
+                                final newBillValue = event.value as double?;
+                                print('DEBUG: Final Bill Value changed for order ${order.orderNo}, job ${order.jobNo} - New value: $newBillValue');
+                                
+                                // Store ALL values (including zero) to see what's happening
+                                _pendingBillValues[order.jobNo] = newBillValue ?? 0.0;
+                                print('DEBUG: Stored bill value for job ${order.jobNo}: ${newBillValue ?? 0.0}');
+                                print('DEBUG: Pending values after storing: $_pendingBillValues');
+                                
+                                // Mark as having unsaved changes
+                                setState(() {
+                                  _hasUnsavedChanges = true;
+                                });
+                                
+                                // Show notification that changes need to be saved
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Final bill value changed. Click Save to persist changes.'),
+                                    backgroundColor: Colors.orange,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            }
                           },
                           configuration:
                               PlutoGridConfigurations.darkMode().copyWith(

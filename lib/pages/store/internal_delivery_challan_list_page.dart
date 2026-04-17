@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/delivery_challan.dart';
+import '../../models/supplier.dart';
 import '../../provider/delivery_challan_provider.dart';
 import '../../provider/supplier_provider.dart';
 import '../../provider/material_provider.dart';
@@ -20,6 +21,88 @@ class InternalDeliveryChallanListPage extends ConsumerStatefulWidget {
 
 class _InternalDeliveryChallanListPageState
     extends ConsumerState<InternalDeliveryChallanListPage> {
+  PlutoGridStateManager? _stateManager;
+  ProviderSubscription<List<DeliveryChallan>>? _dcSub;
+
+  void _refreshGridRows({
+    List<DeliveryChallan>? deliveryChallans,
+  }) {
+    if (_stateManager == null) {
+      return;
+    }
+
+    final sourceDcs =
+        (deliveryChallans ?? ref.read(deliveryChallanListProvider)) ??
+            <DeliveryChallan>[];
+
+    final dcs = sourceDcs
+        .where((dc) => dc.dcType == 'internal' && dc.internalFlow == 'outward')
+        .toList();
+
+    final rowsNow = _buildRows(dcs);
+    _stateManager!
+      ..removeAllRows()
+      ..appendRows(rowsNow);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    _dcSub = ref.listenManual<List<DeliveryChallan>>(
+      deliveryChallanListProvider,
+      (previous, next) {
+        _refreshGridRows(deliveryChallans: next);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _dcSub?.close();
+    super.dispose();
+  }
+
+  List<PlutoRow> _buildRows(List<DeliveryChallan> deliveryChallans) {
+    return deliveryChallans.map((dc) {
+      final totalPrice = dc.items.fold<double>(
+        0.0,
+        (sum, item) => sum + (item.price * item.quantity),
+      );
+
+      // Build text representations for Items, Quantities, and Prices
+      final itemsText = dc.items
+          .map((item) =>
+              '${item.materialCode} - ${item.materialDescription} (Job: ${item.jobNo ?? "General"}${item.prNo != null ? " | PR: ${item.prNo}" : ""})')
+          .join('\n');
+
+      final quantitiesText = dc.items
+          .map((item) => '${item.quantity} ${item.unit}')
+          .join('\n');
+
+      final pricesText = dc.items
+          .map((item) =>
+              'Unit: ₹${item.price.toStringAsFixed(2)} | Total: ₹${(item.quantity * item.price).toStringAsFixed(2)}')
+          .join('\n');
+
+      return PlutoRow(cells: {
+        'dcNo': PlutoCell(value: dc.dcNo),
+        'date': PlutoCell(value: dc.dcDate),
+        'fromVendor': PlutoCell(value: dc.fromVendor ?? ''),
+        'toVendor': PlutoCell(value: dc.toVendor ?? ''),
+        'gstin': PlutoCell(value: dc.vendorGstin ?? ''),
+        'email': PlutoCell(value: dc.vendorEmail ?? ''),
+        'returnable': PlutoCell(value: dc.isReturnable ? 'Yes' : 'No'),
+        'note': PlutoCell(value: dc.note ?? ''),
+        'items': PlutoCell(value: itemsText),
+        'quantities': PlutoCell(value: quantitiesText),
+        'prices': PlutoCell(value: pricesText),
+        'totalPrice': PlutoCell(value: totalPrice.toStringAsFixed(2)),
+        'actions': PlutoCell(value: dc),
+      });
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final allDeliveryChallans = ref.watch(deliveryChallanListProvider);
@@ -90,33 +173,87 @@ class _InternalDeliveryChallanListPageState
         field: 'items',
         type: PlutoColumnType.text(),
         enableEditingMode: false,
-        width: 300,
+        width: 350,
         renderer: (rendererContext) {
-          final dc = deliveryChallans.firstWhere(
-            (dc) => dc.dcNo == rendererContext.row.cells['dcNo']!.value,
-          );
+          final itemsText = rendererContext.cell.value as String;
           return Container(
             constraints: const BoxConstraints(maxHeight: 200),
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: dc.items.map((item) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 4.0),
-                      child: Text(
-                        '${item.materialCode} - ${item.materialDescription} (${item.quantity} ${item.unit}) - Job: ${item.jobNo ?? "General"}${item.prNo != null ? " - PR: ${item.prNo}" : ""}',
-                        style: const TextStyle(fontSize: 12),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
-                      ),
-                    );
-                  }).toList(),
+                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                child: Text(
+                  itemsText,
+                  style: const TextStyle(fontSize: 12),
+                  maxLines: null,
+                  softWrap: true,
                 ),
               ),
             ),
+          );
+        },
+      ),
+      PlutoColumn(
+        title: 'Quantities',
+        field: 'quantities',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 120,
+        renderer: (rendererContext) {
+          final quantitiesText = rendererContext.cell.value as String;
+          return Container(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                child: Text(
+                  quantitiesText,
+                  style: const TextStyle(fontSize: 12),
+                  maxLines: null,
+                  softWrap: true,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+      PlutoColumn(
+        title: 'Individual Prices',
+        field: 'prices',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 200,
+        renderer: (rendererContext) {
+          final pricesText = rendererContext.cell.value as String;
+          return Container(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                child: Text(
+                  pricesText,
+                  style: const TextStyle(fontSize: 12),
+                  maxLines: null,
+                  softWrap: true,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+      PlutoColumn(
+        title: 'Total Price',
+        field: 'totalPrice',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 120,
+        titleTextAlign: PlutoColumnTextAlign.right,
+        textAlign: PlutoColumnTextAlign.right,
+        renderer: (rendererContext) {
+          final value = rendererContext.cell.value;
+          return Text(
+            value == null || value.toString().isEmpty ? '0.00' : value.toString(),
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 12),
           );
         },
       ),
@@ -127,13 +264,33 @@ class _InternalDeliveryChallanListPageState
         enableEditingMode: false,
         width: 140,
         renderer: (rendererContext) {
-          final dc = deliveryChallans.firstWhere(
-            (dc) => dc.dcNo == rendererContext.cell.value,
-          );
+          final dc = rendererContext.cell.value as DeliveryChallan;
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
+              IconButton(
+                icon: Icon(Icons.edit, color: Colors.grey[300]),
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 28,
+                  minHeight: 28,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddDeliveryChallanPage(
+                        deliveryChallan: dc,
+                        presetDcType: 'internal',
+                        presetInternalFlow: 'outward',
+                      ),
+                    ),
+                  );
+                },
+                tooltip: 'Edit DC',
+              ),
               IconButton(
                 icon: Icon(Icons.picture_as_pdf, color: Colors.grey[300]),
                 iconSize: 18,
@@ -180,7 +337,7 @@ class _InternalDeliveryChallanListPageState
                               deliveryChallanListProvider.notifier,
                             );
                             notifier.deleteDeliveryChallan(
-                              rendererContext.cell.value,
+                              dc,
                               ref,
                             );
                             Navigator.pop(context);
@@ -202,20 +359,7 @@ class _InternalDeliveryChallanListPageState
       ),
     ];
 
-    final rows = deliveryChallans.map((dc) {
-      return PlutoRow(cells: {
-        'dcNo': PlutoCell(value: dc.dcNo),
-        'date': PlutoCell(value: dc.dcDate),
-        'fromVendor': PlutoCell(value: dc.fromVendor ?? ''),
-        'toVendor': PlutoCell(value: dc.toVendor ?? ''),
-        'gstin': PlutoCell(value: dc.vendorGstin ?? ''),
-        'email': PlutoCell(value: dc.vendorEmail ?? ''),
-        'returnable': PlutoCell(value: dc.isReturnable ? 'Yes' : 'No'),
-        'note': PlutoCell(value: dc.note ?? ''),
-        'items': PlutoCell(value: dc.dcNo),
-        'actions': PlutoCell(value: dc.dcNo),
-      });
-    }).toList();
+    final rows = _buildRows(deliveryChallans);
 
     return Scaffold(
       appBar: AppBar(
@@ -242,7 +386,11 @@ class _InternalDeliveryChallanListPageState
         child: PlutoGrid(
           columns: columns,
           rows: rows,
-          onLoaded: (event) => event.stateManager.setShowColumnFilter(true),
+          onLoaded: (event) {
+            _stateManager = event.stateManager;
+            event.stateManager.setShowColumnFilter(true);
+            _refreshGridRows();
+          },
           configuration: PlutoGridConfigurations.darkMode(),
         ),
       ),

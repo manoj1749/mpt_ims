@@ -12,9 +12,11 @@ import '../../provider/purchase_request_provider.dart';
 import '../../provider/purchase_order.dart';
 import '../../provider/store_inward_provider.dart';
 import '../../provider/supplier_provider.dart';
+import '../../provider/bill_of_preparation_provider.dart';
 import '../../models/purchase_request.dart';
 import '../../models/purchase_order.dart';
 import '../../models/store_inward.dart';
+import '../../models/bill_of_preparation.dart';
 import '../../models/pr_item.dart';
 import '../../services/pdf_service.dart';
 import '../../widgets/pluto_grid_configuration.dart';
@@ -30,9 +32,11 @@ class PurchaseRequestListPage extends ConsumerStatefulWidget {
 }
 
 class _PurchaseRequestListPageState
-    extends ConsumerState<PurchaseRequestListPage> {
+    extends ConsumerState<PurchaseRequestListPage>
+    with SingleTickerProviderStateMixin {
   late final List<PlutoColumn> columns;
   PlutoGridStateManager? stateManager;
+  late TabController _tabController;
   String _selectedStatus = 'Active'; // Default to Active view
   String _searchMode = 'all'; // 'all', 'part', 'supplier', 'description', 'job', 'qty'
   String _searchQuery = '';
@@ -49,6 +53,7 @@ class _PurchaseRequestListPageState
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
 
     // Initialize controllers
     _fromQtyController = TextEditingController(text: _fromQty?.toString() ?? '');
@@ -368,6 +373,7 @@ class _PurchaseRequestListPageState
 
   @override
   void dispose() {
+    _tabController.dispose();
     _fromQtyController?.dispose();
     _toQtyController?.dispose();
     _dropdownSearchController.dispose();
@@ -488,7 +494,9 @@ class _PurchaseRequestListPageState
   }
 
   Widget _buildHeader() {
-    final requests = ref.read(purchaseRequestListProvider);
+    final allRequests = ref.read(purchaseRequestListProvider);
+    // Filter out CFI PRs for autocomplete options
+    final requests = allRequests.where((pr) => !pr.prNo.startsWith('CFI')).toList();
     final purchaseOrders = ref.read(purchaseOrderListProvider);
     // Build dynamic autocomplete options
     final partOptions = {
@@ -915,7 +923,9 @@ class _PurchaseRequestListPageState
   }
 
   void _quickExport() {
-    final requests = ref.read(purchaseRequestListProvider);
+    final allRequests = ref.read(purchaseRequestListProvider);
+    // Filter out CFI PRs from export
+    final requests = allRequests.where((pr) => !pr.prNo.startsWith('CFI')).toList();
     final purchaseOrders = ref.read(purchaseOrderListProvider);
     final storeInwards = ref.read(storeInwardProvider);
     _exportToExcel(requests, purchaseOrders, storeInwards);
@@ -1091,6 +1101,9 @@ class _PurchaseRequestListPageState
 
     // Apply filters
     final filteredRequests = allRequests.where((request) {
+      // Exclude CFI PRs - they should only show in Customer Free Issue List
+      if (request.prNo.startsWith('CFI')) return false;
+      
       // Date filter
       if (startDate != null) {
         final requestDate = DateTime.parse(request.date);
@@ -1147,6 +1160,9 @@ class _PurchaseRequestListPageState
   ) {
     // Apply status and date filters
     var filteredRequests = requests.where((pr) {
+      // Exclude CFI PRs - they should only show in Customer Free Issue List
+      if (pr.prNo.startsWith('CFI')) return false;
+      
       if (_selectedStatus == 'Active' && pr.status == 'Completed') return false;
       if (_selectedStatus != 'All' &&
           _selectedStatus != 'Active' &&
@@ -1557,17 +1573,228 @@ class _PurchaseRequestListPageState
     }
   }
 
+  Widget _buildBopTab(List<BillOfPreparation> bops) {
+    // Collect all BOP materials with source == 'material_master'
+    final bopItems = <Map<String, dynamic>>[];
+    for (final bop in bops) {
+      for (final mat in bop.materials) {
+        if (mat.materialSource == 'material_master') {
+          bopItems.add({
+            'jobNo': bop.jobNo,
+            'materialCode': mat.materialCode,
+            'materialDescription': mat.materialDescription,
+            'bop': bop,
+            'mat': mat,
+          });
+        }
+      }
+    }
+
+    if (bopItems.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[600]),
+            const SizedBox(height: 16),
+            Text(
+              'No BOP materials pending approval',
+              style: TextStyle(fontSize: 16, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Materials added to Bills of Preparation with source\n"Material Master" will appear here for approval.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: bopItems.length,
+      itemBuilder: (context, index) {
+        final item = bopItems[index];
+        final jobNo = item['jobNo'] as String;
+        final materialCode = item['materialCode'] as String;
+        final materialDescription = item['materialDescription'] as String;
+        final bop = item['bop'] as BillOfPreparation;
+        final mat = item['mat'] as BopMaterial;
+        final finalQty = mat.cktTypes.isNotEmpty ? mat.cktTypes.first.materialQuantity : 0.0;
+
+        return Card(
+          color: Colors.grey[850],
+          margin: const EdgeInsets.only(bottom: 10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.blue.withOpacity(0.5)),
+                            ),
+                            child: Text(
+                              'Job: $jobNo',
+                              style: const TextStyle(color: Colors.blue, fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                            ),
+                            child: const Text(
+                              'Material Master',
+                              style: TextStyle(color: Colors.orange, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        materialCode,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        materialDescription,
+                        style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Final Qty: ${finalQty.toStringAsFixed(2)}',
+                        style: TextStyle(color: Colors.grey[300], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                FilledButton.icon(
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AddPurchaseRequestPage(
+                          existingRequest: null,
+                          index: null,
+                          initialJobNo: jobNo,
+                          initialMaterialCode: materialCode,
+                          initialMaterialDescription: materialDescription,
+                          sourceBop: bop,
+                          sourceBopMaterial: mat,
+                        ),
+                      ),
+                    );
+                    setState(() {});
+                  },
+                  icon: const Icon(Icons.check, size: 16),
+                  label: const Text('Approve'),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.green[700]),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: () => _showRejectBopDialog(context, bop, mat),
+                  icon: const Icon(Icons.close, size: 16),
+                  label: const Text('Reject'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red[300],
+                    side: BorderSide(color: Colors.red[300]!),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showRejectBopDialog(BuildContext context, BillOfPreparation bop, BopMaterial mat) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[850],
+        title: Text('Reject BOP Material', style: TextStyle(color: Colors.grey[200])),
+        content: Text(
+          'Remove "${mat.materialCode} - ${mat.materialDescription}" from BOP for Job ${bop.jobNo}?\n\nThis will delete it from the BOP materials list.',
+          style: TextStyle(color: Colors.grey[300]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[400])),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(context);
+              final updatedBop = bop.copyWith(
+                materials: bop.materials.where((m) => m.materialCode != mat.materialCode).toList(),
+              );
+              await ref.read(billOfPreparationProvider.notifier).updateBillOfPreparation(
+                ref.read(billOfPreparationProvider).indexOf(bop),
+                updatedBop,
+                ref,
+              );
+              setState(() {});
+            },
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final requests = ref.watch(purchaseRequestListProvider);
     final purchaseOrders = ref.watch(purchaseOrderListProvider);
     final storeInwards = ref.watch(storeInwardProvider);
+    final bops = ref.watch(billOfPreparationProvider);
 
     return Scaffold(
       backgroundColor: Colors.grey[900],
       appBar: AppBar(
         title: const Text('Purchase Requests'),
         elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: 'Purchase Requests (${requests.where((pr) => !pr.prNo.startsWith('CFI')).length})'),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('BOP Materials'),
+                  const SizedBox(width: 6),
+                  Builder(builder: (ctx) {
+                    final count = bops.fold<int>(0, (sum, b) => sum + b.materials.where((m) => m.materialSource == 'material_master').length);
+                    if (count == 0) return const SizedBox.shrink();
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(10)),
+                      child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
           // Add refresh button
           IconButton(
@@ -1627,88 +1854,85 @@ class _PurchaseRequestListPageState
           const SizedBox(width: 8),
         ],
       ),
-      body: requests.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 64,
-                    color: Colors.grey[300],
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Tab 1: Regular Purchase Requests
+          requests.where((pr) => !pr.prNo.startsWith('CFI')).isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey[300]),
+                      const SizedBox(height: 16),
+                      Text('No purchase requests found', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+                      const SizedBox(height: 8),
+                      FilledButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AddPurchaseRequestPage(existingRequest: null, index: null)),
+                        ),
+                        child: const Text('Add New Request'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No purchase requests found',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddPurchaseRequestPage(
-                          existingRequest: null,
-                          index: null,
+                )
+              : Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${requests.where((pr) => !pr.prNo.startsWith('CFI')).length} Purchase Requests',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildHeader(),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: PlutoGrid(
+                          columns: columns,
+                          rows: _getRows(requests, purchaseOrders, storeInwards),
+                          onLoaded: (PlutoGridOnLoadedEvent event) {
+                            stateManager = event.stateManager;
+                            stateManager?.setShowColumnFilter(true);
+                          },
+                          configuration: PlutoGridConfigurations.darkMode(),
                         ),
                       ),
-                    ),
-                    child: const Text('Add New Request'),
+                    ],
                   ),
-                ],
-              ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${requests.length} Purchase Requests',
-                    style: Theme.of(context).textTheme.titleMedium,
+                ),
+          // Tab 2: BOP Materials
+          _buildBopTab(bops),
+        ],
+      ),
+      floatingActionButton: AnimatedBuilder(
+        animation: _tabController,
+        builder: (context, _) {
+          if (_tabController.index != 0) return const SizedBox.shrink();
+          return FloatingActionButton(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AddPurchaseRequestPage(
+                    existingRequest: null,
+                    index: null,
                   ),
-                  const SizedBox(height: 16),
-                  _buildHeader(),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: PlutoGrid(
-                      columns: columns,
-                      rows: _getRows(requests, purchaseOrders, storeInwards),
-                      onLoaded: (PlutoGridOnLoadedEvent event) {
-                        stateManager = event.stateManager;
-                        stateManager?.setShowColumnFilter(true);
-                      },
-                      configuration: PlutoGridConfigurations.darkMode(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const AddPurchaseRequestPage(
-                existingRequest: null,
-                index: null,
-              ),
-            ),
+                ),
+              );
+              if (stateManager != null) {
+                final requests = ref.read(purchaseRequestListProvider);
+                final purchaseOrders = ref.read(purchaseOrderListProvider);
+                final storeInwards = ref.read(storeInwardProvider);
+                stateManager!.removeAllRows();
+                stateManager!.appendRows(_getRows(requests, purchaseOrders, storeInwards));
+              }
+            },
+            child: const Icon(Icons.add),
           );
-          // Refresh the grid after returning from add page
-          if (stateManager != null) {
-            final requests = ref.read(purchaseRequestListProvider);
-            final purchaseOrders = ref.read(purchaseOrderListProvider);
-            final storeInwards = ref.read(storeInwardProvider);
-            stateManager!.removeAllRows();
-            stateManager!
-                .appendRows(_getRows(requests, purchaseOrders, storeInwards));
-          }
         },
-        child: const Icon(Icons.add),
       ),
     );
   }

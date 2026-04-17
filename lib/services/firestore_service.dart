@@ -134,6 +134,7 @@ class FirestoreService {
                 'quantity': item.quantity,
                 'jobNo': item.jobNo,
                 'prNo': item.prNo,
+                'price': item.price,
               })
           .toList(),
     };
@@ -156,6 +157,7 @@ class FirestoreService {
                 quantity: item['quantity'].toDouble(),
                 jobNo: item['jobNo'],
                 prNo: item['prNo'],
+                price: (item['price'] as num?)?.toDouble() ?? 0.0,
               ))
           .toList(),
     );

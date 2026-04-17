@@ -27,12 +27,18 @@ class _CustomerScopeGRListPageState extends ConsumerState<CustomerScopeGRListPag
         final costPerUnit = double.tryParse(item.costPerUnit) ?? 0;
         final totalCost = costPerUnit * item.receivedQty;
 
+        // Get all job numbers for this item
+        final jobNumbers = item.getJobNumbers()
+            .where((job) => job.isNotEmpty && job != 'General')
+            .join(', ');
+
         return PlutoRow(
           cells: {
             'grnNo': PlutoCell(value: inward.grnNo),
             'poNo': PlutoCell(value: inward.poNo),
             'customer': PlutoCell(value: inward.customerName),
             'grDate': PlutoCell(value: inward.grnDate),
+            'jobNo': PlutoCell(value: jobNumbers.isEmpty ? '-' : jobNumbers),
             'partNo': PlutoCell(value: item.materialCode),
             'description': PlutoCell(value: item.materialDescription),
             'qty': PlutoCell(value: item.receivedQty),
@@ -129,6 +135,15 @@ class _CustomerScopeGRListPageState extends ConsumerState<CustomerScopeGRListPag
         field: 'grDate',
         type: PlutoColumnType.text(),
         width: 120,
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Job No',
+        field: 'jobNo',
+        type: PlutoColumnType.text(),
+        width: 150,
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,

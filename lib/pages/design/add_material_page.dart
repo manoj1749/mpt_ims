@@ -49,6 +49,12 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
   String _selectedWeightUnit = 'kgs';
   final _weightValueController = TextEditingController();
 
+  // Raw material field
+  final _rawMaterialController = TextEditingController();
+
+  // Plating required toggle
+  bool _isPlatingRequired = false;
+
   // Add controllers for all text fields except category and subCategory
   final Map<String, TextEditingController> _controllers = {};
 
@@ -59,6 +65,10 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
 
   // Track selected vendors
   List<String> selectedVendors = [];
+
+  // Specifications management
+  bool _showSpecifications = false;
+  final List<MapEntry<TextEditingController, TextEditingController>> _specificationControllers = [];
 
   // Helper methods for discount calculations
   void _calculateDiscountFromRates() {
@@ -110,6 +120,14 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     _controllers['saleRate'] = TextEditingController(text: item.saleRate);
     _inspectionStockController = TextEditingController(text: '0');
 
+    // Initialize raw material controller
+    _rawMaterialController.text = item.rawMaterial;
+    print('DEBUG: Initializing raw material controller with: "${item.rawMaterial}"');
+
+    // Initialize plating required toggle
+    _isPlatingRequired = item.isPlatingRequired ?? false;
+    print('DEBUG: Initializing plating required with: $_isPlatingRequired');
+
     // Initialize weight value controller and parse existing weight
     _initializeWeightField();
 
@@ -122,6 +140,19 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
 
         // Get existing vendor rates from the material
         selectedVendors = item.vendorRates.map((r) => r.vendorId).toList();
+
+        // Initialize specifications if they exist
+        if (item.specifications != null && item.specifications!.isNotEmpty) {
+          _showSpecifications = true;
+          for (var entry in item.specifications!.entries) {
+            _specificationControllers.add(
+              MapEntry(
+                TextEditingController(text: entry.key),
+                TextEditingController(text: entry.value),
+              ),
+            );
+          }
+        }
 
         setState(() {
           // Deduplicate categories by name
@@ -168,6 +199,11 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     // Dispose all controllers
     for (var controller in _controllers.values) {
       controller.dispose();
+    }
+    // Dispose specification controllers
+    for (var entry in _specificationControllers) {
+      entry.key.dispose();
+      entry.value.dispose();
     }
     super.dispose();
   }
@@ -369,6 +405,12 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         item.unit = _controllers['unit']!.text;
         item.storageLocation = _controllers['storageLocation']!.text;
         item.rackNumber = _controllers['rackNumber']!.text;
+        item.rawMaterial = _rawMaterialController.text;
+        item.isPlatingRequired = _isPlatingRequired;
+        
+        print('DEBUG: Saving material - Raw Material: "${item.rawMaterial}"');
+        print('DEBUG: Raw Material Controller Text: "${_rawMaterialController.text}"');
+        print('DEBUG: Saving material - Plating Required: $_isPlatingRequired');
         item.binNumber = _controllers['binNumber']!.text;
         item.hsnCode = _controllers['hsnCode']!.text;
         item.actualWeight = _controllers['actualWeight']!.text;
@@ -377,6 +419,21 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         item.saleRate = _controllers['saleRate']?.text ?? '';
         // Persist inventory classification from the dropdown selection
         item.inventoryClassification = _selectedInventoryClassification?.name ?? item.inventoryClassification;
+
+        // Collect specifications if any
+        if (_showSpecifications && _specificationControllers.isNotEmpty) {
+          final specs = <String, String>{};
+          for (var entry in _specificationControllers) {
+            final key = entry.key.text.trim();
+            final value = entry.value.text.trim();
+            if (key.isNotEmpty && value.isNotEmpty) {
+              specs[key] = value;
+            }
+          }
+          item.specifications = specs.isEmpty ? null : specs;
+        } else {
+          item.specifications = null;
+        }
 
         if (widget.index != null) {
           // Update existing material
@@ -434,6 +491,42 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
         ),
         keyboardType: type,
         validator: validator,
+      ),
+    );
+  }
+
+  Widget _buildRawMaterialField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: TextFormField(
+        controller: _rawMaterialController,
+        decoration: const InputDecoration(
+          labelText: 'Raw Material',
+          border: OutlineInputBorder(),
+          hintText: 'Enter raw material information',
+        ),
+        maxLines: 1,
+        keyboardType: TextInputType.text,
+      ),
+    );
+  }
+
+  Widget _buildPlatingRequiredField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SwitchListTile(
+        title: const Text('Is Plating Required?'),
+        subtitle: const Text('Toggle if plating is required for this material'),
+        value: _isPlatingRequired,
+        onChanged: (bool value) {
+          setState(() {
+            _isPlatingRequired = value;
+          });
+          print('DEBUG: Plating required changed to: $value');
+        },
+        activeColor: Colors.blue,
+        inactiveThumbColor: Colors.grey,
+        inactiveTrackColor: Colors.grey[300],
       ),
     );
   }
@@ -927,6 +1020,123 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
     }
   }
 
+  Widget _buildSpecificationsSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Specifications (Optional)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(_showSpecifications ? Icons.remove : Icons.add),
+                  onPressed: () {
+                    setState(() {
+                      _showSpecifications = !_showSpecifications;
+                      if (_showSpecifications && _specificationControllers.isEmpty) {
+                        _specificationControllers.add(
+                          MapEntry(
+                            TextEditingController(),
+                            TextEditingController(),
+                          ),
+                        );
+                      }
+                    });
+                  },
+                  tooltip: _showSpecifications ? 'Hide Specifications' : 'Add Specifications',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            if (_showSpecifications) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Add key-value pairs for material specifications',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _specificationControllers.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextFormField(
+                            controller: _specificationControllers[index].key,
+                            decoration: const InputDecoration(
+                              labelText: 'Key',
+                              border: OutlineInputBorder(),
+                              hintText: 'e.g., Material, Color, Size',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 3,
+                          child: TextFormField(
+                            controller: _specificationControllers[index].value,
+                            decoration: const InputDecoration(
+                              labelText: 'Value',
+                              border: OutlineInputBorder(),
+                              hintText: 'e.g., Steel, Red, 10mm',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () {
+                            setState(() {
+                              _specificationControllers[index].key.dispose();
+                              _specificationControllers[index].value.dispose();
+                              _specificationControllers.removeAt(index);
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _specificationControllers.add(
+                      MapEntry(
+                        TextEditingController(),
+                        TextEditingController(),
+                      ),
+                    );
+                  });
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Add Another Specification'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildVendorRatesSection() {
     final rates = item.vendorRates;
 
@@ -1146,6 +1356,7 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                       }
                       return null;
                     }),
+                    _buildSpecificationsSection(),
                     widget.materialToEdit == null
                         ? _buildSearchableDropdown(
                             'Part No', 'partNo', _getAvailablePartNumbers(),
@@ -1170,6 +1381,8 @@ class _AddMaterialPageState extends ConsumerState<AddMaterialPage> {
                             }
                             return null;
                           }),
+                    _buildRawMaterialField(),
+                    _buildPlatingRequiredField(),
                     _buildWeightField(),
                     _buildSearchableDropdown(
                         'Unit', 'unit', _getAvailableUnits(),

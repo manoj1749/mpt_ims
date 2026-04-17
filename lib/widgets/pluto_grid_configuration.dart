@@ -4,7 +4,7 @@ import 'package:pluto_grid/pluto_grid.dart';
 class PlutoGridConfigurations {
   static PlutoGridConfiguration darkMode({
     double headerHeight = 56.0,
-    double rowHeight = 45.0,
+    double rowHeight = 80.0, // Increased default for multi-line content
     double columnFilterHeight = 50.0,
   }) {
     return PlutoGridConfiguration(

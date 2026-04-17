@@ -94,11 +94,11 @@ class SupplierNotifier extends BaseProvider<Supplier> {
     final suppliers = state;
     int maxNumber = 0;
 
-    // Find the highest existing number in AISM-xxxxx format
+    // Find the highest existing number in MPTSM-xxxxx format
     for (var supplier in suppliers) {
       final code = supplier.vendorCode;
-      if (code.startsWith('AISM-') && code.length >= 10) {
-        final numberPart = code.substring(5); // Remove "AISM-" prefix
+      if (code.startsWith('MPTSM-') && code.length >= 11) {
+        final numberPart = code.substring(6); // Remove "MPTSM-" prefix
         final number = int.tryParse(numberPart);
         if (number != null && number > maxNumber) {
           maxNumber = number;
@@ -108,7 +108,7 @@ class SupplierNotifier extends BaseProvider<Supplier> {
 
     // Generate next sequential number with leading zeros
     final nextNumber = maxNumber + 1;
-    return 'AISM-${nextNumber.toString().padLeft(5, '0')}';
+    return 'MPTSM-${nextNumber.toString().padLeft(5, '0')}';
   }
 
   // Helper methods

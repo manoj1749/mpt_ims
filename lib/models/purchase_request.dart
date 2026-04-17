@@ -23,6 +23,12 @@ class PurchaseRequest extends HiveObject {
   @HiveField(6)
   String? jobNo;
 
+  @HiveField(7)
+  String? customerId;
+
+  @HiveField(8)
+  String? customerName;
+
   String get status => _status ?? 'Draft';
 
   set status(String value) {
@@ -49,6 +55,8 @@ class PurchaseRequest extends HiveObject {
     String? status,
     List<PRItem>? items,
     this.jobNo,
+    this.customerId,
+    this.customerName,
   }) {
     _status = status;
     if (items != null) {
@@ -63,6 +71,8 @@ class PurchaseRequest extends HiveObject {
     String? status,
     List<PRItem>? items,
     String? jobNo,
+    String? customerId,
+    String? customerName,
   }) {
     return PurchaseRequest(
       prNo: prNo ?? this.prNo,
@@ -71,6 +81,8 @@ class PurchaseRequest extends HiveObject {
       status: status ?? _status,
       items: items ?? this.items.map((item) => item.copyWith()).toList(),
       jobNo: jobNo ?? this.jobNo,
+      customerId: customerId ?? this.customerId,
+      customerName: customerName ?? this.customerName,
     );
   }
 }

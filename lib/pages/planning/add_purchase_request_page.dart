@@ -11,16 +11,31 @@ import 'package:collection/collection.dart';
 import 'package:intl/intl.dart';
 import '../../models/purchase_request.dart';
 import '../../models/pr_item.dart';
+import '../../models/bill_of_preparation.dart';
 import '../../provider/material_provider.dart';
 import '../../provider/purchase_request_provider.dart';
 import '../../provider/sale_order_provider.dart';
+import '../../provider/bill_of_preparation_provider.dart';
 import '../../models/material_item.dart';
 
 class AddPurchaseRequestPage extends ConsumerStatefulWidget {
   final PurchaseRequest? existingRequest;
   final int? index;
-  const AddPurchaseRequestPage(
-      {super.key, required this.existingRequest, required this.index});
+  final String? initialJobNo;
+  final String? initialMaterialCode;
+  final String? initialMaterialDescription;
+  final BillOfPreparation? sourceBop;
+  final BopMaterial? sourceBopMaterial;
+  const AddPurchaseRequestPage({
+    super.key,
+    required this.existingRequest,
+    required this.index,
+    this.initialJobNo,
+    this.initialMaterialCode,
+    this.initialMaterialDescription,
+    this.sourceBop,
+    this.sourceBopMaterial,
+  });
 
   @override
   ConsumerState<AddPurchaseRequestPage> createState() =>
@@ -207,6 +222,24 @@ class _AddPurchaseRequestPageState
               TextEditingController(text: item.materialDescription),
         ));
       }
+    } else if (widget.initialMaterialCode != null) {
+      // Autofill from BOP approval
+      _selectedJobNo = widget.initialJobNo;
+      
+      // Extract quantity from BOP material
+      String materialQuantity = '1';
+      if (widget.sourceBopMaterial != null && widget.sourceBopMaterial!.cktTypes.isNotEmpty) {
+        materialQuantity = widget.sourceBopMaterial!.cktTypes.first.materialQuantity.toString();
+      }
+      
+      _items.add(PRItemFormData(
+        selectedMaterial: widget.initialMaterialDescription ?? '',
+        quantity: materialQuantity,
+        quantityController: TextEditingController(text: materialQuantity),
+        partNoController: TextEditingController(text: widget.initialMaterialCode ?? ''),
+        unitController: TextEditingController(text: ''),
+        materialController: TextEditingController(text: widget.initialMaterialDescription ?? ''),
+      ));
     } else {
       _addNewItem();
     }
@@ -1134,6 +1167,25 @@ class _AddPurchaseRequestPageState
                           ref
                               .read(purchaseRequestListProvider.notifier)
                               .addRequest(request);
+                        }
+
+                        // If approved from BOP tab, remove the material from the BOP
+                        if (widget.sourceBop != null && widget.sourceBopMaterial != null) {
+                          final bop = widget.sourceBop!;
+                          final mat = widget.sourceBopMaterial!;
+                          final updatedBop = bop.copyWith(
+                            materials: bop.materials
+                                .where((m) => m.materialCode != mat.materialCode)
+                                .toList(),
+                          );
+                          final bops = ref.read(billOfPreparationProvider);
+                          final bopIndex = bops.indexWhere(
+                              (b) => b.jobNo == bop.jobNo && b.createdDate == bop.createdDate);
+                          if (bopIndex != -1) {
+                            await ref
+                                .read(billOfPreparationProvider.notifier)
+                                .updateBillOfPreparation(bopIndex, updatedBop, ref);
+                          }
                         }
 
                         Navigator.pop(context);

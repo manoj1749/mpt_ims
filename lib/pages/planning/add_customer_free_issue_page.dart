@@ -10,15 +10,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/purchase_request.dart';
 import '../../models/pr_item.dart';
-import '../../provider/material_provider.dart';
+import '../../models/bill_of_preparation.dart';
+import '../../provider/customer_scope_material_issue_master_provider.dart';
 import '../../provider/purchase_request_provider.dart';
 import '../../provider/sale_order_provider.dart';
-import '../../models/material_item.dart';
+import '../../provider/bill_of_preparation_provider.dart';
+import '../../models/customer_scope_material_issue_master.dart';
 
 class AddCustomerFreeIssuePage extends ConsumerStatefulWidget {
   final PurchaseRequest? existingRequest;
   final int? index;
-  const AddCustomerFreeIssuePage({super.key, required this.existingRequest, required this.index});
+  final String? initialJobNo;
+  final String? initialMaterialCode;
+  final String? initialMaterialDescription;
+  final BillOfPreparation? sourceBop;
+  final BopMaterial? sourceBopMaterial;
+  const AddCustomerFreeIssuePage({
+    super.key,
+    required this.existingRequest,
+    required this.index,
+    this.initialJobNo,
+    this.initialMaterialCode,
+    this.initialMaterialDescription,
+    this.sourceBop,
+    this.sourceBopMaterial,
+  });
 
   @override
   ConsumerState<AddCustomerFreeIssuePage> createState() => _AddCustomerFreeIssuePageState();
@@ -54,7 +70,28 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
           materialController: TextEditingController(text: item.materialDescription),
         ));
       }
+    } else if (widget.initialMaterialCode != null) {
+      // Autofill from BOP approval
+      _selectedJobNo = widget.initialJobNo;
+      
+      // Extract quantity from BOP material
+      String materialQuantity = '1';
+      if (widget.sourceBopMaterial != null && widget.sourceBopMaterial!.cktTypes.isNotEmpty) {
+        materialQuantity = widget.sourceBopMaterial!.cktTypes.first.materialQuantity.toString();
+      }
+      
+      _items.add(CFIItemFormData(
+        selectedMaterial: widget.initialMaterialDescription ?? '',
+        quantity: materialQuantity,
+        partNoController: TextEditingController(text: widget.initialMaterialCode ?? ''),
+        unitController: TextEditingController(text: ''),
+        materialController: TextEditingController(text: widget.initialMaterialDescription ?? ''),
+      ));
     } else {
+      // Pre-select job number if provided
+      if (widget.initialJobNo != null) {
+        _selectedJobNo = widget.initialJobNo;
+      }
       _addNewItem();
     }
   }
@@ -103,7 +140,7 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
 
   Future<void> _uploadBulkCsv() async {
     try {
-      final materials = ref.read(materialListProvider);
+      final materials = ref.read(customerScopeMaterialIssueMasterListProvider);
       if (materials.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -214,7 +251,7 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
 
         final material = materials.firstWhere(
           (m) => norm(m.partNo) == norm(rawCode),
-          orElse: () => MaterialItem(
+          orElse: () => CustomerScopeMaterialIssueMaster(
             slNo: '',
             description: '',
             partNo: '',
@@ -350,7 +387,7 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
     _quantitiesController.clear();
     bool isQuantityStep = false;
     List<String> materialCodes = [];
-    final materials = ref.read(materialListProvider);
+    final materials = ref.read(customerScopeMaterialIssueMasterListProvider);
 
     await showDialog(
       context: context,
@@ -517,7 +554,7 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
 
   @override
   Widget build(BuildContext context) {
-    final materials = ref.watch(materialListProvider);
+    final materials = ref.watch(customerScopeMaterialIssueMasterListProvider);
     final saleOrders = ref.watch(saleOrderProvider);
 
     final eligibleSaleOrders = saleOrders
@@ -528,16 +565,23 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
       eligibleSaleOrders.addAll(saleOrders);
     }
 
+    // Ensure the initially selected job is in the list
     if (_selectedJobNo != null && _selectedJobNo!.isNotEmpty) {
-      final selectedOrder = saleOrders
-          .where((o) => o.jobNo == _selectedJobNo)
-          .toList();
-      for (final o in selectedOrder) {
-        if (!eligibleSaleOrders.any((e) => e.jobNo == o.jobNo)) {
-          eligibleSaleOrders.add(o);
-        }
+      if (!eligibleSaleOrders.any((e) => e.jobNo == _selectedJobNo)) {
+        final selectedOrder = saleOrders.firstWhere(
+          (o) => o.jobNo == _selectedJobNo,
+          orElse: () => saleOrders.first,
+        );
+        eligibleSaleOrders.add(selectedOrder);
       }
     }
+    
+    // Extract unique job numbers for dropdown
+    final uniqueJobNumbers = eligibleSaleOrders
+        .map((order) => order.jobNo?.trim() ?? '') // Trim whitespace
+        .where((jobNo) => jobNo.isNotEmpty)
+        .toSet()
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -578,9 +622,9 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                       },
                       items: [
                         const DropdownMenuItem(value: null, child: Text('None')),
-                        ...eligibleSaleOrders.map((order) => DropdownMenuItem(
-                              value: order.jobNo,
-                              child: Text(order.jobNo),
+                        ...uniqueJobNumbers.map((jobNo) => DropdownMenuItem(
+                              value: jobNo,
+                              child: Text(jobNo),
                             )),
                       ],
                       onChanged: (v) => setState(() => _selectedJobNo = v),
@@ -628,7 +672,7 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                       children: [
                         Expanded(
                           flex: 2,
-                          child: Autocomplete<MaterialItem>(
+                          child: Autocomplete<CustomerScopeMaterialIssueMaster>(
                             fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 if (textEditingController.text.isEmpty && item.partNoController.text.isNotEmpty) {
@@ -699,7 +743,7 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                         const SizedBox(width: 16),
                         Expanded(
                           flex: 3,
-                          child: Autocomplete<MaterialItem>(
+                          child: Autocomplete<CustomerScopeMaterialIssueMaster>(
                             fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 if (textEditingController.text.isEmpty && item.selectedMaterial != null) {
@@ -825,18 +869,45 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                           allItems.add(prItem);
                         }
 
+                        // Get customer info from selected Sale Order
+                        final selectedOrder = saleOrders.firstWhere(
+                          (o) => o.jobNo == _selectedJobNo,
+                          orElse: () => saleOrders.first,
+                        );
+
                         final request = PurchaseRequest(
                           prNo: cfiNo,
                           date: now,
                           requiredBy: _requestedByController.text,
                           items: allItems,
                           jobNo: _selectedJobNo,
+                          customerId: selectedOrder.customerName, // Using customer name as ID for now
+                          customerName: selectedOrder.customerName,
                         );
 
                         if (widget.existingRequest != null && widget.index != null) {
                           await ref.read(purchaseRequestListProvider.notifier).updateRequest(widget.index!, request);
                         } else {
                           await ref.read(purchaseRequestListProvider.notifier).addRequest(request);
+                        }
+
+                        // If approved from BOP tab, remove the material from the BOP
+                        if (widget.sourceBop != null && widget.sourceBopMaterial != null) {
+                          final bop = widget.sourceBop!;
+                          final mat = widget.sourceBopMaterial!;
+                          final updatedBop = bop.copyWith(
+                            materials: bop.materials
+                                .where((m) => m.materialCode != mat.materialCode)
+                                .toList(),
+                          );
+                          final bops = ref.read(billOfPreparationProvider);
+                          final bopIndex = bops.indexWhere(
+                              (b) => b.jobNo == bop.jobNo && b.createdDate == bop.createdDate);
+                          if (bopIndex != -1) {
+                            await ref
+                                .read(billOfPreparationProvider.notifier)
+                                .updateBillOfPreparation(bopIndex, updatedBop, ref);
+                          }
                         }
 
                         Navigator.pop(context);

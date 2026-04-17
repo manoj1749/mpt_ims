@@ -4,7 +4,7 @@ import '../models/customer_scope_material_issue_master.dart';
 import 'base_provider.dart';
 
 final customerScopeMaterialIssueMasterBoxProvider = Provider<Box<CustomerScopeMaterialIssueMaster>>((ref) {
-  throw UnimplementedError();
+  return Hive.box<CustomerScopeMaterialIssueMaster>('customer_scope_material_issue_masters');
 });
 
 final customerScopeMaterialIssueMasterListProvider =

@@ -92,9 +92,12 @@ class ServiceSupplierNotifier extends BaseProvider<Supplier> {
 
     for (var supplier in suppliers) {
       final code = supplier.vendorCode;
-      if ((code.startsWith('AISB-') || code.startsWith('SVS-')) &&
+      if ((code.startsWith('MPTSB-') ||
+              code.startsWith('AISB-') ||
+              code.startsWith('SVS-')) &&
           code.length >= 9) {
-        final numberPart = code.substring(5);
+        final prefixLength = code.startsWith('MPTSB-') ? 6 : 5;
+        final numberPart = code.substring(prefixLength);
         final number = int.tryParse(numberPart);
         if (number != null && number > maxNumber) {
           maxNumber = number;
@@ -103,7 +106,7 @@ class ServiceSupplierNotifier extends BaseProvider<Supplier> {
     }
 
     final nextNumber = maxNumber + 1;
-    return 'AISB-${nextNumber.toString().padLeft(5, '0')}';
+    return 'MPTSB-${nextNumber.toString().padLeft(5, '0')}';
   }
 
   Supplier? getServiceSupplierByCode(String code) {

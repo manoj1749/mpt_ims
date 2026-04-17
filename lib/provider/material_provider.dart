@@ -16,6 +16,28 @@ final materialListProvider =
 class MaterialNotifier extends BaseProvider<MaterialItem> {
   MaterialNotifier(Box<MaterialItem> box) : super(box, 'materials');
 
+  String _normalizeKey(String value) => value.trim().toUpperCase();
+
+  void _validateUniquePartNoAndDescription(MaterialItem material,
+      {String? existingMaterialId}) {
+    final partNoKey = _normalizeKey(material.partNo);
+    final descriptionKey = _normalizeKey(material.description);
+
+    for (final m in state) {
+      final id = getModelId(m);
+      if (existingMaterialId != null && id == existingMaterialId) {
+        continue;
+      }
+
+      if (_normalizeKey(m.partNo) == partNoKey) {
+        throw Exception('Part number already exists');
+      }
+      if (_normalizeKey(m.description) == descriptionKey) {
+        throw Exception('Description already exists');
+      }
+    }
+  }
+
   @override
   Map<String, dynamic> modelToMap(MaterialItem material) {
     return {
@@ -42,6 +64,9 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
                 'isPreferred': rate.isPreferred,
               })
           .toList(),
+      'specifications': material.specifications,
+      'rawMaterial': material.rawMaterial,
+      'isPlatingRequired': material.isPlatingRequired,
     };
   }
 
@@ -74,6 +99,11 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
       inventoryClassification: map['inventoryClassification'] ?? '',
       saleRate: map['saleRate'] ?? '0',
       vendorRates: vendorRatesList,
+      specifications: map['specifications'] != null
+          ? Map<String, String>.from(map['specifications'] as Map)
+          : null,
+      rawMaterial: map['rawMaterial'] ?? '',
+      isPlatingRequired: map['isPlatingRequired'] ?? false,
     );
   }
 
@@ -82,10 +112,17 @@ class MaterialNotifier extends BaseProvider<MaterialItem> {
 
   // Map old method names to new base provider methods
   Future<void> loadMaterials() => loadData();
-  Future<void> addMaterial(MaterialItem material) => add(material);
+  Future<void> addMaterial(MaterialItem material) {
+    _validateUniquePartNoAndDescription(material);
+    return add(material);
+  }
   Future<void> updateMaterial(int index, MaterialItem material) async {
     final existingMaterial = box.getAt(index);
     if (existingMaterial != null) {
+      _validateUniquePartNoAndDescription(
+        material,
+        existingMaterialId: getModelId(existingMaterial),
+      );
       await update(material);
     }
   }

@@ -38,6 +38,7 @@ class SaleOrderNotifier extends BaseProvider<SaleOrder> {
       'isCustomerFreeIssueAvailable': order.isCustomerFreeIssueAvailable,
       'customerPoNo': order.customerPoNo,
       'customerPoDate': order.customerPoDate,
+      'finalBillValue': order.finalBillValue,
     };
   }
 
@@ -63,6 +64,7 @@ class SaleOrderNotifier extends BaseProvider<SaleOrder> {
       isCustomerFreeIssueAvailable: map['isCustomerFreeIssueAvailable'],
       customerPoNo: map['customerPoNo'],
       customerPoDate: map['customerPoDate'],
+      finalBillValue: map['finalBillValue'],
     );
   }
 
@@ -199,6 +201,39 @@ class SaleOrderNotifier extends BaseProvider<SaleOrder> {
       return state.firstWhere((order) => order.orderNo == orderNo);
     } catch (e) {
       return null;
+    }
+  }
+
+  List<SaleOrder> getOrdersByJobNo(String jobNo) {
+    return state.where((order) => order.jobNo == jobNo).toList();
+  }
+
+  Future<void> updateBillValueForJob(String jobNo, double billValue) async {
+    final orders = getOrdersByJobNo(jobNo);
+    for (final order in orders) {
+      final updatedOrder = SaleOrder(
+        orderNo: order.orderNo,
+        orderDate: order.orderDate,
+        customerName: order.customerName,
+        boardNo: order.boardNo,
+        jobStartDate: order.jobStartDate,
+        targetDate: order.targetDate,
+        endDate: order.endDate,
+        jobNo: order.jobNo,
+        planningStartDate: order.planningStartDate,
+        planningEndDate: order.planningEndDate,
+        actualStartDate: order.actualStartDate,
+        customerRequirementDate: order.customerRequirementDate,
+        customerCommitmentDate: order.customerCommitmentDate,
+        actualCustomerDeliveryDate: order.actualCustomerDeliveryDate,
+        jobStatus: order.jobStatus,
+        jobNotes: order.jobNotes,
+        isCustomerFreeIssueAvailable: order.isCustomerFreeIssueAvailable,
+        customerPoNo: order.customerPoNo,
+        customerPoDate: order.customerPoDate,
+        finalBillValue: billValue,
+      );
+      await update(updatedOrder);
     }
   }
 

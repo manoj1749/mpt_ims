@@ -100,13 +100,15 @@ class EmployeeNotifier extends BaseProvider<Employee> {
     final employees = state;
     int maxNumber = 0;
 
-    // Find the highest existing number in EMP-XXXXX format
+    // Find the highest existing number in MPTEM-xxxxx format
     for (var employee in employees) {
       final code = employee.employeeCode;
-      if (code.startsWith('AIEM-') && code.length >= 5) {
-        final numberPart = code.substring(4); // Remove "EMP-" prefix
-        final number = int.tryParse(numberPart) ?? 0;
-        if (number > maxNumber) {
+      if ((code.startsWith('MPTEM-') || code.startsWith('AIEM-')) &&
+          code.length >= 10) {
+        final prefixLength = code.startsWith('MPTEM-') ? 6 : 5;
+        final numberPart = code.substring(prefixLength);
+        final number = int.tryParse(numberPart);
+        if (number != null && number > maxNumber) {
           maxNumber = number;
         }
       }
@@ -114,6 +116,6 @@ class EmployeeNotifier extends BaseProvider<Employee> {
 
     // Increment and format with leading zeros
     final nextNumber = maxNumber + 1;
-    return 'AIEM-${nextNumber.toString().padLeft(5, '0')}';
+    return 'MPTEM-${nextNumber.toString().padLeft(5, '0')}';
   }
 }

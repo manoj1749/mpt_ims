@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../models/delivery_challan.dart';
+import '../../models/supplier.dart';
 import '../../provider/delivery_challan_provider.dart';
 import '../../provider/supplier_provider.dart';
 import '../../provider/material_provider.dart';
 import '../../services/pdf_service.dart';
 import '../../widgets/pluto_grid_configuration.dart';
-import 'add_delivery_challan_page.dart';
+import 'add_material_return_delivery_challan_page.dart';
 
 class MaterialReturnDeliveryChallanListPage extends ConsumerStatefulWidget {
   const MaterialReturnDeliveryChallanListPage({super.key});
@@ -118,9 +119,7 @@ class _MaterialReturnDeliveryChallanListPageState
         enableEditingMode: false,
         width: 140,
         renderer: (rendererContext) {
-          final dc = deliveryChallans.firstWhere(
-            (dc) => dc.dcNo == rendererContext.cell.value,
-          );
+          final dc = rendererContext.cell.value as DeliveryChallan;
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
@@ -171,7 +170,7 @@ class _MaterialReturnDeliveryChallanListPageState
                               deliveryChallanListProvider.notifier,
                             );
                             notifier.deleteDeliveryChallan(
-                              rendererContext.cell.value,
+                              dc,
                               ref,
                             );
                             Navigator.pop(context);
@@ -203,7 +202,7 @@ class _MaterialReturnDeliveryChallanListPageState
         'returnable': PlutoCell(value: dc.isReturnable ? 'Yes' : 'No'),
         'note': PlutoCell(value: dc.note ?? ''),
         'items': PlutoCell(value: dc.dcNo),
-        'actions': PlutoCell(value: dc.dcNo),
+        'actions': PlutoCell(value: dc),
       });
     }).toList();
 
@@ -217,7 +216,8 @@ class _MaterialReturnDeliveryChallanListPageState
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AddDeliveryChallanPage(),
+                  builder: (context) =>
+                      const AddMaterialReturnDeliveryChallanPage(),
                 ),
               );
             },

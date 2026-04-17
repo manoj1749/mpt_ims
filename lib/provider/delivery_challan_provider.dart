@@ -40,6 +40,8 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
       'vendorGstin': dc.vendorGstin,
       'dcType': dc.dcType,
       'internalFlow': dc.internalFlow,
+      'fromVendor': dc.fromVendor,
+      'toVendor': dc.toVendor,
       'items': dc.items
           .map((item) => {
                 'materialCode': item.materialCode,
@@ -48,6 +50,7 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
                 'quantity': item.quantity,
                 'jobNo': item.jobNo,
                 'prNo': item.prNo,
+                'price': item.price,
               })
           .toList(),
       'isReturnable': dc.isReturnable,
@@ -71,12 +74,15 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
                 quantity: (item['quantity'] as num?)?.toDouble() ?? 0.0,
                 jobNo: item['jobNo'],
                 prNo: item['prNo'],
+                price: (item['price'] as num?)?.toDouble() ?? 0.0,
               ))
           .toList(),
       isReturnable: map['isReturnable'] ?? false,
       note: map['note'],
       dcType: map['dcType'] ?? 'regular',
       internalFlow: map['internalFlow'] ?? 'outward',
+      fromVendor: map['fromVendor'],
+      toVendor: map['toVendor'],
     );
   }
 
@@ -88,8 +94,10 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
 
   Future<void> addDeliveryChallan(DeliveryChallan dc, WidgetRef ref) async {
     try {
-      // Update stock maintenance first
-      await _updateStockForDeliveryChallan(dc, isAdd: true, ref: ref);
+      // Update stock for internal DCs (both inward and outward)
+      if (dc.dcType == 'internal') {
+        await _updateStockForInternalDC(dc, isAdd: true, ref: ref);
+      }
 
       // Add delivery challan
       await add(dc);
@@ -102,14 +110,16 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
   Future<void> updateDeliveryChallan(
       int index, DeliveryChallan dc, WidgetRef ref) async {
     try {
-      // Get the old DC to revert quantities
+      // Get the old DC to revert stock if it was internal
       final oldDc = box.getAt(index);
-      if (oldDc != null) {
-        await _updateStockForDeliveryChallan(oldDc, isAdd: false, ref: ref);
+      if (oldDc != null && oldDc.dcType == 'internal') {
+        await _updateStockForInternalDC(oldDc, isAdd: false, ref: ref);
       }
 
-      // Update with new quantities
-      await _updateStockForDeliveryChallan(dc, isAdd: true, ref: ref);
+      // Update stock for new DC if it's internal
+      if (dc.dcType == 'internal') {
+        await _updateStockForInternalDC(dc, isAdd: true, ref: ref);
+      }
 
       // Update delivery challan
       await update(dc);
@@ -121,8 +131,10 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
 
   Future<bool> deleteDeliveryChallan(DeliveryChallan dc, WidgetRef ref) async {
     try {
-      // Revert stock quantities
-      await _updateStockForDeliveryChallan(dc, isAdd: false, ref: ref);
+      // Revert stock for internal DCs
+      if (dc.dcType == 'internal') {
+        await _updateStockForInternalDC(dc, isAdd: false, ref: ref);
+      }
 
       // Delete delivery challan
       return await delete(dc);
@@ -146,10 +158,35 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
     return '$prefix${nextNo.toString().padLeft(4, '0')}';
   }
 
-  Future<void> _updateStockForDeliveryChallan(DeliveryChallan dc,
+  String generateInternalOutwardDcNo() {
+    // Get financial year (April to March)
+    final now = DateTime.now();
+    final currentYear = now.year;
+    final financialYear = now.month >= 4 
+        ? '${currentYear.toString().substring(2)}${(currentYear + 1).toString().substring(2)}'
+        : '${(currentYear - 1).toString().substring(2)}${currentYear.toString().substring(2)}';
+    
+    final prefix = 'MPTDC$financialYear';
+
+    final existingNos = state
+        .map((dc) => dc.dcNo)
+        .where((no) => no.startsWith(prefix))
+        .map((no) => int.tryParse(no.substring(prefix.length)) ?? 0)
+        .toList();
+
+    final nextNo = existingNos.isEmpty ? 1 : (existingNos.reduce(max) + 1);
+    return '$prefix${nextNo.toString().padLeft(4, '0')}';
+  }
+
+  Future<void> _updateStockForInternalDC(DeliveryChallan dc,
       {required bool isAdd, required WidgetRef ref}) async {
-    print('=== Updating Stock for Delivery Challan ===');
+    print('=== Updating Stock for Internal DC (${dc.internalFlow}) ===');
     print('DC No: ${dc.dcNo}, isAdd: $isAdd');
+    
+    // For inward: increase stock (isAdd=true means add, isAdd=false means revert)
+    // For outward: decrease stock (isAdd=true means subtract, isAdd=false means revert/add back)
+    final isInward = dc.internalFlow == 'inward';
+    final stockMultiplier = isInward ? 1.0 : -1.0;
 
     for (var item in dc.items) {
       print(
@@ -162,52 +199,82 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
       print(
           'Found ${stockItems.length} stock records for ${item.materialCode}');
 
-      for (var stock in stockItems) {
-        final jobNo = item.jobNo ?? 'General';
-        // CRITICAL FIX: When isAdd=true (creating DC), we DEDUCT stock (negative qty)
-        // When isAdd=false (deleting DC), we ADD stock back (positive qty)
-        final multiplier = isAdd ? -1.0 : 1.0;
-        final qty = item.quantity * multiplier;
-
-        print('Job No: $jobNo, Multiplier: $multiplier, Qty: $qty');
-        print('Current job details: ${stock.jobDetails}');
-
-        try {
-          if (dc.dcType == 'internal') {
-            if (dc.internalFlow == 'inward') {
-              // Increase General stock via synthetic GRN (qty is already signed correctly)
-              final grnNo = 'IDCIN-${dc.dcNo}';
-              stock.receiveToGeneral(grnNo, qty.abs() * (isAdd ? 1.0 : -1.0));
-              print('Received to General via $grnNo: ${qty.abs() * (isAdd ? 1.0 : -1.0)}');
-            } else {
-              // Outward: reduce stock (qty is already negative when isAdd=true)
-              stock.deliverStockForJob(jobNo, dc.dcNo, qty.abs());
-              print('Delivered stock outward for job $jobNo: ${qty.abs()}');
-            }
-          } else {
-            // Regular/job order/material return flows: deduct stock when creating DC
-            stock.deliverStockForJob(jobNo, dc.dcNo, qty.abs());
-            print('Delivered stock for non-internal DC: ${qty.abs()}');
-          }
-        } catch (e) {
-          print('Error updating stock: $e');
-          // Fallback: adjust currentStock directly for General
-          if (jobNo == 'General') {
-            stock.currentStock += qty;
-            print('Fallback: Updated current stock to: ${stock.currentStock}');
-          } else {
-            print('Fallback not applied for job-specific stock');
-          }
+      if (stockItems.isEmpty) {
+        print(
+            'No stock record found for ${item.materialCode}, creating new one');
+        // Create new stock record if it doesn't exist
+        final newStock = StockMaintenance(
+          materialCode: item.materialCode,
+          materialDescription: item.materialDescription,
+          unit: item.unit,
+          storageLocation: '',
+          rackNumber: '',
+          currentStock: isAdd ? item.quantity : 0.0,
+        );
+        
+        // Add to General job stock
+        newStock.jobDetails['General'] = StockJobDetails(
+          jobNo: 'General',
+          allocatedQuantity: isAdd ? item.quantity : 0.0,
+          consumedQuantity: 0.0,
+          prNo: '',
+        );
+        
+        // Add GRN details with price/rate for stock value calculation
+        final grnNo = isInward 
+            ? 'IDCIN-${dc.dcNo}-${item.materialCode}'
+            : 'IDCOUT-${dc.dcNo}-${item.materialCode}';
+        if (isAdd) {
+          newStock.receiveToGeneral(
+            grnNo,
+            item.quantity * stockMultiplier,
+            rate: item.price,
+            vendorId: isInward ? (dc.fromVendor ?? 'internal') : (dc.toVendor ?? 'internal'),
+          );
         }
-
-        // Use BaseProvider's update method for Firestore sync
+        
+        await _stockBox.add(newStock);
+        
         final stockMaintenanceNotifier =
             ref.read(stockMaintenanceProvider.notifier);
-        await stockMaintenanceNotifier.update(stock);
-        print('Successfully updated stock for ${stock.materialCode}');
+        await stockMaintenanceNotifier.update(newStock);
+        print('Created new stock record for ${item.materialCode}');
+      } else {
+        // Update existing stock record
+        for (var stock in stockItems) {
+          // Use unique GRN per material to avoid overwriting
+          final grnNo = isInward 
+              ? 'IDCIN-${dc.dcNo}-${item.materialCode}'
+              : 'IDCOUT-${dc.dcNo}-${item.materialCode}';
+          final qty = item.quantity * stockMultiplier * (isAdd ? 1.0 : -1.0);
+
+          print('Updating stock with GRN: $grnNo, Qty: $qty, Rate: ${item.price}');
+
+          try {
+            // Update General stock with rate for value calculation
+            stock.receiveToGeneral(
+              grnNo,
+              qty,
+              rate: item.price,
+              vendorId: isInward ? (dc.fromVendor ?? 'internal') : (dc.toVendor ?? 'internal'),
+            );
+            print('Updated General stock: $qty at rate ${item.price}');
+          } catch (e) {
+            print('Error updating stock: $e');
+            // Fallback: adjust currentStock directly
+            stock.currentStock += qty;
+            print('Fallback: Updated current stock to: ${stock.currentStock}');
+          }
+
+          // Use BaseProvider's update method for Firestore sync
+          final stockMaintenanceNotifier =
+              ref.read(stockMaintenanceProvider.notifier);
+          await stockMaintenanceNotifier.update(stock);
+          print('Successfully updated stock for ${stock.materialCode}');
+        }
       }
     }
-    print('=== End Stock Update for Delivery Challan ===');
+    print('=== End Stock Update for Internal Inward DC ===');
   }
 
   // Helper methods
@@ -231,5 +298,80 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
                     .toLowerCase()
                     .contains(lowercaseQuery)))
         .toList();
+  }
+
+  // ============== DC NUMBER AUTO-GENERATION ==============
+  
+  /// Get current financial year (e.g., 2026 for FY 2026-27)
+  int getCurrentFinancialYear() {
+    final now = DateTime.now();
+    // Financial year in India: April 1 to March 31
+    // If current month is Jan-Mar, FY is previous year
+    // If current month is Apr-Dec, FY is current year
+    if (now.month >= 4) {
+      return now.year;
+    } else {
+      return now.year - 1;
+    }
+  }
+
+  /// Generate next DC number for new delivery challans (DC prefix)
+  /// Format: DC{FY}{6-digit-sequence} e.g., DC2026000001
+  String generateNextDCNumber() {
+    final financialYear = getCurrentFinancialYear();
+    final prefix = 'DC$financialYear';
+    
+    // Get all DCs with the same prefix and financial year
+    final existingDCs = state.where((dc) => 
+      dc.dcNo.startsWith(prefix) && dc.dcType != 'job_order'
+    ).toList();
+    
+    if (existingDCs.isEmpty) {
+      return '${prefix}000001';
+    }
+    
+    // Extract sequence numbers and find max
+    int maxSequence = 0;
+    for (final dc in existingDCs) {
+      final sequenceStr = dc.dcNo.substring(prefix.length);
+      final sequence = int.tryParse(sequenceStr) ?? 0;
+      if (sequence > maxSequence) {
+        maxSequence = sequence;
+      }
+    }
+    
+    // Generate next sequence with 6 digits padding
+    final nextSequence = maxSequence + 1;
+    return '$prefix${nextSequence.toString().padLeft(6, '0')}';
+  }
+
+  /// Generate next JODC number for job order delivery challans
+  /// Format: JODC{FY}{6-digit-sequence} e.g., JODC2026000001
+  String generateNextJODCNumber() {
+    final financialYear = getCurrentFinancialYear();
+    final prefix = 'JODC$financialYear';
+    
+    // Get all job order DCs with the same prefix and financial year
+    final existingDCs = state.where((dc) => 
+      dc.dcNo.startsWith(prefix) && dc.dcType == 'job_order'
+    ).toList();
+    
+    if (existingDCs.isEmpty) {
+      return '${prefix}000001';
+    }
+    
+    // Extract sequence numbers and find max
+    int maxSequence = 0;
+    for (final dc in existingDCs) {
+      final sequenceStr = dc.dcNo.substring(prefix.length);
+      final sequence = int.tryParse(sequenceStr) ?? 0;
+      if (sequence > maxSequence) {
+        maxSequence = sequence;
+      }
+    }
+    
+    // Generate next sequence with 6 digits padding
+    final nextSequence = maxSequence + 1;
+    return '$prefix${nextSequence.toString().padLeft(6, '0')}';
   }
 }

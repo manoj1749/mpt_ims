@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../../provider/category_provider.dart';
+import '../../provider/sub_category_provider.dart';
 import '../../provider/category_parameter_provider.dart';
 import '../../provider/universal_parameter_provider.dart';
 import '../../models/category.dart';
+import '../../models/sub_category.dart';
 import '../../models/category_parameter_mapping.dart';
 
 class QualityCategorySettingsPage extends ConsumerStatefulWidget {
@@ -27,12 +29,17 @@ class _QualityCategorySettingsPageState extends ConsumerState<QualityCategorySet
   bool _hasUnsavedChanges = false;
   bool _hasUnsavedParameterChanges = false;
 
+  bool _hasUnsavedSubCategoryChanges = false;
+  final Set<String> _pendingSubCategoryAdds = {};
+  final Set<String> _pendingSubCategoryDeletes = {};
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         await ref.read(categoryListProvider.notifier).loadCategories();
+        await ref.read(subCategoryListProvider.notifier).loadSubCategories();
         await ref.read(categoryParameterProvider.notifier).loadMappings();
         await ref.read(universalParameterProvider.notifier).loadParameters();
         // Auto-select first category so parameters are visible immediately
@@ -101,6 +108,11 @@ class _QualityCategorySettingsPageState extends ConsumerState<QualityCategorySet
       _hasUnsavedChanges = false;
       _hasUnsavedParameterChanges = false;
       _updateTextControllers(category);
+      
+      // Reset subcategory changes
+      _pendingSubCategoryAdds.clear();
+      _pendingSubCategoryDeletes.clear();
+      _hasUnsavedSubCategoryChanges = false;
     });
   }
 
@@ -121,6 +133,36 @@ class _QualityCategorySettingsPageState extends ConsumerState<QualityCategorySet
       });
       _updateTextControllers(_selectedCategory!);
       _printBoxContents();
+    }
+
+    // Save subcategory changes
+    if (_selectedCategory != null && _hasUnsavedSubCategoryChanges) {
+      final catName = _selectedCategory!.name;
+      final existingSubs = ref
+          .read(subCategoryListProvider)
+          .where((sc) => sc.categoryName == catName)
+          .toList();
+
+      // Apply deletes first
+      for (final name in _pendingSubCategoryDeletes) {
+        final toDelete = existingSubs.where((sc) => sc.name == name).toList();
+        for (final sc in toDelete) {
+          await ref.read(subCategoryListProvider.notifier).deleteSubCategory(sc);
+        }
+      }
+
+      // Apply adds
+      for (final name in _pendingSubCategoryAdds) {
+        await ref.read(subCategoryListProvider.notifier).addSubCategory(name, catName);
+      }
+
+      if (mounted) {
+        setState(() {
+          _pendingSubCategoryAdds.clear();
+          _pendingSubCategoryDeletes.clear();
+          _hasUnsavedSubCategoryChanges = false;
+        });
+      }
     }
   }
 
@@ -155,6 +197,133 @@ class _QualityCategorySettingsPageState extends ConsumerState<QualityCategorySet
                   title: Text(cat.name),
                   onTap: () => _onCategorySelected(cat),
                   selected: cat.name == _selectedCategory?.name,
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubCategorySection() {
+    final subCategories = ref.watch(subCategoryListProvider);
+    
+    if (_selectedCategory == null) return const SizedBox.shrink();
+    
+    final catName = _selectedCategory!.name;
+    final existing = subCategories
+        .where((sc) => sc.categoryName == catName)
+        .map((sc) => sc.name)
+        .toSet();
+
+    final pendingAdds = Set<String>.from(_pendingSubCategoryAdds);
+    final pendingDeletes = Set<String>.from(_pendingSubCategoryDeletes);
+
+    final visibleExisting = existing
+        .where((name) => !pendingDeletes.contains(name))
+        .map((name) => SubCategory(name: name, categoryName: catName));
+
+    final visibleAdds = pendingAdds
+        .where((name) => !existing.contains(name))
+        .where((name) => !pendingDeletes.contains(name))
+        .map((name) => SubCategory(name: name, categoryName: catName));
+
+    final all = [...visibleExisting, ...visibleAdds]
+      ..sort((a, b) => a.name.compareTo(b.name));
+
+    return Card(
+      margin: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.black,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Sub-Categories',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  tooltip: 'Add Sub-Category',
+                  onPressed: () {
+                    final controller = TextEditingController();
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: Colors.grey[850],
+                        title: const Text('Add Sub-Category', style: TextStyle(color: Colors.white)),
+                        content: TextField(
+                          controller: controller,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            hintText: 'Enter sub-category name',
+                            hintStyle: TextStyle(color: Colors.grey),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final text = controller.text.trim();
+                              if (text.isNotEmpty) {
+                                setState(() {
+                                  _pendingSubCategoryAdds.add(text);
+                                  _pendingSubCategoryDeletes.remove(text);
+                                  _hasUnsavedSubCategoryChanges = true;
+                                });
+                                Navigator.pop(context);
+                              }
+                            },
+                            child: const Text('Add', style: TextStyle(color: Colors.blue)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          if (all.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('No sub-categories added yet', style: TextStyle(color: Colors.grey)),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: all.length,
+              itemBuilder: (context, index) {
+                final subCat = all[index];
+                final isPending = pendingAdds.contains(subCat.name);
+                return ListTile(
+                  title: Text(subCat.name),
+                  subtitle: isPending ? const Text('(New)', style: TextStyle(color: Colors.green, fontStyle: FontStyle.italic)) : null,
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: () {
+                      setState(() {
+                        // If it was a newly-added (pending) subcategory, just unstage it
+                        if (_pendingSubCategoryAdds.remove(subCat.name)) {
+                          // nothing else
+                        } else {
+                          _pendingSubCategoryDeletes.add(subCat.name);
+                        }
+                        _hasUnsavedSubCategoryChanges =
+                            _pendingSubCategoryAdds.isNotEmpty ||
+                            _pendingSubCategoryDeletes.isNotEmpty;
+                      });
+                    },
+                  ),
                 );
               },
             ),
@@ -518,17 +687,53 @@ class _QualityCategorySettingsPageState extends ConsumerState<QualityCategorySet
     );
   }
 
+  Future<bool> _onWillPop() async {
+    if (_hasUnsavedChanges || _hasUnsavedParameterChanges || _hasUnsavedSubCategoryChanges) {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.grey[850],
+          title: const Text('Unsaved Changes', style: TextStyle(color: Colors.white)),
+          content: const Text('Do you want to discard your unsaved changes?', style: TextStyle(color: Colors.grey)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Discard', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+      return result ?? false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(categoryListProvider);
 
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Category Settings (Quality)'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () async {
+            final shouldPop = await _onWillPop();
+            if (shouldPop && mounted) {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
         actions: [
           TextButton.icon(
             onPressed: () async {
-              if (!_hasUnsavedChanges && !_hasUnsavedParameterChanges) {
+              if (!_hasUnsavedChanges && !_hasUnsavedParameterChanges && !_hasUnsavedSubCategoryChanges) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('No changes to save')),
                 );
@@ -554,6 +759,7 @@ class _QualityCategorySettingsPageState extends ConsumerState<QualityCategorySet
           children: [
             _buildCategoryList(),
             if (_selectedCategory != null) ...[
+              _buildSubCategorySection(),
               _buildQualityParameterSection(),
               if (_unsavedCategory?.requiresQualityCheck == true) ...[
                 _buildSamplePlanSection(),
@@ -571,6 +777,7 @@ class _QualityCategorySettingsPageState extends ConsumerState<QualityCategorySet
           ],
         ),
       ),
+    ),
     );
   }
 }

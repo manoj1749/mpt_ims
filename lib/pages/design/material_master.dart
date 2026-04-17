@@ -209,8 +209,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         children: [
           Row(
             children: [
-              SizedBox(
-                width: 220,
+              Expanded(
                 child: DropdownButtonFormField<String>(
                   value: _selectedCategory,
                   decoration: const InputDecoration(
@@ -234,8 +233,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                 ),
               ),
               const SizedBox(width: 12),
-              SizedBox(
-                width: 220,
+              Expanded(
                 child: DropdownButtonFormField<String>(
                   value: _selectedSubCategory,
                   decoration: const InputDecoration(
@@ -256,8 +254,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                 ),
               ),
               const SizedBox(width: 12),
-              SizedBox(
-                width: 220,
+              Expanded(
                 child: DropdownButtonFormField<String>(
                   value: _selectedClassification,
                   decoration: const InputDecoration(
@@ -482,6 +479,20 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         enableEditingMode: false,
       ),
       PlutoColumn(
+        title: 'Raw Material',
+        field: 'rawMaterial',
+        type: PlutoColumnType.text(),
+        width: 150,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Plating Required',
+        field: 'isPlatingRequired',
+        type: PlutoColumnType.text(),
+        width: 120,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
         title: 'Category',
         field: 'category',
         type: PlutoColumnType.text(),
@@ -661,13 +672,24 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         enableEditingMode: false,
         renderer: (rendererContext) {
           final materials = ref.read(materialListProvider);
+          final partNo = rendererContext.row.cells['partNo']!.value as String;
+          final slNo = rendererContext.row.cells['slNo']!.value as String;
+          
+          // Try to find by partNo first (more reliable), then by slNo
           final material = materials
-              .where((m) => m.slNo == rendererContext.row.cells['slNo']!.value)
+              .where((m) => m.partNo == partNo)
+              .firstOrNull ?? 
+              materials
+              .where((m) => m.slNo == slNo)
               .firstOrNull;
 
           if (material == null) {
+            print('DEBUG: Material not found - PartNo: $partNo, SlNo: $slNo');
+            print('DEBUG: Available materials: ${materials.map((m) => '${m.partNo}/${m.slNo}').take(5).toList()}');
             return const SizedBox.shrink();
           }
+          
+          print('DEBUG: Found material - PartNo: ${material.partNo}, SlNo: ${material.slNo}');
 
           return Row(
             mainAxisSize: MainAxisSize.min,
@@ -803,6 +825,9 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       }).toList();
     }
     
+    // Get stock maintenance data
+    final stockMaintenanceList = ref.read(stockMaintenanceProvider);
+    
     return filteredMaterials.map((m) {
       final preferredSupplierName = m.getPreferredVendorName();
       final supplier = preferredSupplierName.isEmpty
@@ -816,12 +841,23 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       final refDate = _getMaterialReferenceDate(m);
       final dateText = refDate == null ? '-' : refDate.toIso8601String().split('T').first;
 
+      // Find stock data for this material
+      final stockData = stockMaintenanceList.firstWhereOrNull(
+        (stock) => stock.materialCode == m.partNo
+      );
+      
+      final currentStock = stockData?.currentStock ?? 0.0;
+      final inspectionStock = stockData?.stockUnderInspection ?? 0.0;
+      final stockValue = stockData?.totalStockValue ?? 0.0;
+
       return PlutoRow(
         cells: {
           'slNo': PlutoCell(value: m.slNo),
           'date': PlutoCell(value: dateText),
           'partNo': PlutoCell(value: m.partNo),
           'description': PlutoCell(value: m.description),
+          'rawMaterial': PlutoCell(value: m.rawMaterial.isEmpty ? '-' : m.rawMaterial),
+          'isPlatingRequired': PlutoCell(value: (m.isPlatingRequired ?? false) ? 'Yes' : 'No'),
           'category': PlutoCell(value: m.category),
           'subCategory': PlutoCell(value: m.subCategory),
           'inventoryClass': PlutoCell(value: (m.inventoryClassification ?? '').isEmpty ? '-' : m.inventoryClassification!),
@@ -843,11 +879,11 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           'saleRate':
               PlutoCell(value: m.saleRate.isEmpty ? '-' : '₹${m.saleRate}'),
           'stock':
-              PlutoCell(value: '-'), // Stock info moved to stock maintenance
+              PlutoCell(value: currentStock.toStringAsFixed(2)),
           'inspectionStock':
-              PlutoCell(value: '-'), // Inspection stock moved to quality
+              PlutoCell(value: inspectionStock.toStringAsFixed(2)),
           'stockValue':
-              PlutoCell(value: '-'), // Stock value moved to stock maintenance
+              PlutoCell(value: '₹${stockValue.toStringAsFixed(2)}'),
           'totalReceived': PlutoCell(value: '-'), // Moved to stock maintenance
           'vendorIssued': PlutoCell(value: '-'), // Moved to stock maintenance
           'vendorReceived': PlutoCell(value: '-'), // Moved to stock maintenance

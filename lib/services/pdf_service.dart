@@ -8,9 +8,11 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:hive/hive.dart';
 import '../models/purchase_order.dart';
 import '../models/delivery_challan.dart';
 import '../models/supplier.dart';
+import '../models/customer.dart';
 
 class PDFService {
   static Future<pw.Document> _setupPdfDocument({
@@ -33,15 +35,34 @@ class PDFService {
       marginRight: 15.0,
     );
   }
-  // Company configuration - can be modified as needed
-  static const _companyConfig = {
+  // Company configuration - comment/uncomment to switch between companies
+  static const bool useMagnetPowerTech = true;// Set to false for Aimant Industries
+
+  // Company configurations
+  static const Map<String, String> magnetPowerTech = {
+    'name': 'Magnet Power Tech Solutions',
+    'address': '''New Door No. 13E, SF.NO.11/1B,
+Near Chennai Silk Colony, Eachanari Road, Madukkarai Post,
+Coimbatore, Tamil Nadu - 641105''',
+    'gstn': '33CJXPS9565G1Z8',
+    'mobile': '+91 9791366775',
+    'email': 'mptspurchase@gmail.com',
+    'logo': 'assets/logo.jpeg',
+  };
+
+  static const Map<String, String> aimantIndustries = {
     'name': 'Aimant Industries',
     'address': '''SF.NO.215, ORATTUKUPPAI,
 Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
     'gstn': '33ACKFA4542P1Z3',
     'mobile': '+91 97913 66775',
     'email': 'info@aimantindustries.com',
+    'logo': 'assets/aimant_logo.jpg',
   };
+
+  // Get current company configuration
+  static Map<String, String> get _companyConfig => 
+      useMagnetPowerTech ? magnetPowerTech : aimantIndustries;
 
   static Future<Uint8List> generatePurchaseOrderPDF(
     PurchaseOrder purchaseOrder,
@@ -55,7 +76,7 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
     final pdf = await _setupPdfDocument(font: font, fontBold: fontBold);
 
     // Load company logo
-    final logoData = await rootBundle.load('assets/logo.jpeg');
+    final logoData = await rootBundle.load(_companyConfig['logo']!);
     final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
 
     // Company information (configurable)
@@ -1031,7 +1052,7 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
     final pdf = await _setupPdfDocument(font: font, fontBold: fontBold);
 
     // Load company logo
-    final logoData = await rootBundle.load('assets/logo.jpeg');
+    final logoData = await rootBundle.load(_companyConfig['logo']!);
     final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
 
     // Company information (configurable)
@@ -1112,7 +1133,7 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
     final pdf = await _setupPdfDocument(font: font, fontBold: fontBold);
 
     // Load company logo
-    final logoData = await rootBundle.load('assets/logo.jpeg');
+    final logoData = await rootBundle.load(_companyConfig['logo']!);
     final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
 
     // Company information (configurable)
@@ -1609,7 +1630,13 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
             String value = '0.00';
             double rateValue = 0.0;
 
-            if (materials != null) {
+            if (item.price > 0) {
+              rateValue = item.price;
+              rate = rateValue.toStringAsFixed(2);
+              value = (rateValue * item.quantity).toStringAsFixed(2);
+            }
+
+            if (rateValue == 0.0 && materials != null) {
               try {
                 // Find the material by part number (primary) or description (fallback)
                 dynamic materialData;
@@ -1779,8 +1806,17 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
       print('Supplier: ${supplier.name} (IGST: ${supplier.igst}, CGST: ${supplier.cgst}, SGST: ${supplier.sgst})');
     }
 
+    for (var item in deliveryChallan.items) {
+      if (item.price > 0) {
+        total += item.price * item.quantity;
+      }
+    }
+
     if (materials != null) {
       for (var item in deliveryChallan.items) {
+        if (item.price > 0) {
+          continue;
+        }
         try {
           // Find the material by part number (primary) or description (fallback)
           dynamic materialData;
@@ -2183,6 +2219,667 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
     } catch (e) {
       throw Exception('Failed to save PDF: $e');
     }
+  }
+
+  // ============== JOB DELIVERY CHALLAN PDF METHODS ==============
+
+  static Future<bool> saveJobDeliveryChallan(
+    DeliveryChallan deliveryChallan,
+  ) async {
+    try {
+      // Generate PDF data
+      final pdfData = await generateJobDeliveryChallanPDF(deliveryChallan);
+
+      // Use saveFile method which works better on macOS
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Delivery Challan PDF',
+        fileName: 'DeliveryChallan_${deliveryChallan.dcNo}.pdf',
+        type: FileType.any,
+      );
+
+      if (outputFile != null) {
+        // Ensure the file has .pdf extension
+        if (!outputFile.toLowerCase().endsWith('.pdf')) {
+          outputFile = '$outputFile.pdf';
+        }
+
+        // Write the PDF file
+        final file = File(outputFile);
+        await file.writeAsBytes(pdfData);
+        return true;
+      }
+      return false; // User cancelled
+    } catch (e) {
+      throw Exception('Failed to save PDF: $e');
+    }
+  }
+
+  static Future<bool> saveJobDeliveryChallanToDownloads(
+    DeliveryChallan deliveryChallan,
+  ) async {
+    try {
+      // Generate PDF data
+      final pdfData = await generateJobDeliveryChallanPDF(deliveryChallan);
+
+      // Get accessible directory and create MPT_IMS folder structure
+      Directory? baseDirectory;
+      if (Platform.isMacOS || Platform.isIOS) {
+        baseDirectory = await getApplicationDocumentsDirectory();
+      } else {
+        baseDirectory = await getDownloadsDirectory();
+      }
+
+      if (baseDirectory != null) {
+        // Create MPT_IMS/Delivery_Challans folder structure
+        final mptImsDirectory = Directory('${baseDirectory.path}/MPT_IMS');
+        final dcDirectory = Directory('${mptImsDirectory.path}/Delivery_Challans');
+        
+        // Create directories if they don't exist
+        if (!await mptImsDirectory.exists()) {
+          await mptImsDirectory.create(recursive: true);
+        }
+        if (!await dcDirectory.exists()) {
+          await dcDirectory.create(recursive: true);
+        }
+
+        final fileName = 'DeliveryChallan_${deliveryChallan.dcNo}.pdf';
+        final file = File('${dcDirectory.path}/$fileName');
+        await file.writeAsBytes(pdfData);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      throw Exception('Failed to save PDF: $e');
+    }
+  }
+
+  static Future<Uint8List> generateJobDeliveryChallanPDF(
+    DeliveryChallan deliveryChallan,
+  ) async {
+    // Load font that supports Unicode characters
+    final font = await PdfGoogleFonts.notoSansRegular();
+    final fontBold = await PdfGoogleFonts.notoSansBold();
+
+    // Initialize PDF document with custom theme
+    final pdf = await _setupPdfDocument(font: font, fontBold: fontBold);
+
+    // Load company logo
+    final logoData = await rootBundle.load(_companyConfig['logo']!);
+    final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+
+    // Company information (configurable)
+    final companyName = _companyConfig['name']!;
+    final companyAddress = _companyConfig['address']!;
+    final companyGSTN = _companyConfig['gstn']!;
+    final companyMobile = _companyConfig['mobile']!;
+    final companyEmail = _companyConfig['email']!;
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: _getPageFormat(),
+        maxPages: 2,
+        build: (pw.Context context) => [
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header with company details
+              _buildHeader(companyName, companyAddress, companyGSTN,
+                  companyMobile, companyEmail, logoImage, font, fontBold),
+
+              pw.SizedBox(height: 20),
+
+              // Job Delivery Challan title and details
+              _buildJobDCHeader(deliveryChallan, font, fontBold),
+
+              pw.SizedBox(height: 20),
+
+              // Customer details section
+              _buildJobCustomerDetails(deliveryChallan, font, fontBold),
+
+              pw.SizedBox(height: 20),
+
+              // Items table
+              _buildJobDCItemsTable(deliveryChallan, font, fontBold),
+
+              pw.SizedBox(height: 20),
+
+              // Totals section
+              _buildJobDCTotalsSection(deliveryChallan, font, fontBold),
+
+              pw.SizedBox(height: 20),
+
+              // Notes section (if any)
+              if (deliveryChallan.note != null &&
+                  deliveryChallan.note!.isNotEmpty)
+                _buildNotesSection(deliveryChallan.note!, font, fontBold),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  static pw.Widget _buildJobDCHeader(
+      DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            child: pw.Container(
+              padding: const pw.EdgeInsets.all(8),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'DELIVERY CHALLAN',
+                    style: pw.TextStyle(
+                      fontSize: 20,
+                      fontWeight: pw.FontWeight.bold,
+                      font: fontBold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 5),
+                  pw.Text(
+                    'DC No: ${deliveryChallan.dcNo}',
+                    style: pw.TextStyle(fontSize: 12, font: font),
+                  ),
+                  pw.Text(
+                    'Date: ${deliveryChallan.dcDate}',
+                    style: pw.TextStyle(fontSize: 12, font: font),
+                  ),
+                  if ((deliveryChallan.jobOrderNumber ?? '').isNotEmpty)
+                    pw.Text(
+                      'Job Order: ${deliveryChallan.jobOrderNumber}',
+                      style: pw.TextStyle(fontSize: 12, font: font),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildJobCustomerDetails(
+      DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+    // Try to find customer details from customer master
+    Customer? customer;
+    Supplier? supplierAsCustomer;
+    try {
+      if (!Hive.isBoxOpen('customers')) {
+        Hive.openBox<Customer>('customers');
+      }
+      if (!Hive.isBoxOpen('suppliers')) {
+        Hive.openBox<Supplier>('suppliers');
+      }
+
+      final customerBox = Hive.box<Customer>('customers');
+      final supplierBox = Hive.box<Supplier>('suppliers');
+
+      String normalize(String v) {
+        return v
+            .toLowerCase()
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+      }
+
+      final dcName = normalize(deliveryChallan.vendorName);
+      final dcGst = normalize(deliveryChallan.vendorGstin ?? '');
+      final customers = customerBox.values.toList();
+      final suppliers = supplierBox.values.toList();
+
+      Customer? found;
+
+      if (dcGst.isNotEmpty) {
+        try {
+          found = customers.firstWhere((c) => normalize(c.gstNo) == dcGst);
+        } catch (_) {}
+      }
+
+      try {
+        found = customers.firstWhere((c) => normalize(c.name) == dcName);
+      } catch (_) {}
+
+      if (found == null) {
+        try {
+          found = customers.firstWhere((c) => dcName.contains(normalize(c.name)));
+        } catch (_) {}
+      }
+
+      if (found == null) {
+        try {
+          found = customers.firstWhere((c) => normalize(c.name).contains(dcName));
+        } catch (_) {}
+      }
+
+      Supplier? supplierFound;
+      if (dcGst.isNotEmpty) {
+        try {
+          supplierFound = suppliers.firstWhere((s) => normalize(s.gstNo) == dcGst);
+        } catch (_) {}
+      }
+
+      if (supplierFound == null) {
+        try {
+          supplierFound = suppliers.firstWhere((s) => normalize(s.name) == dcName);
+        } catch (_) {}
+      }
+
+      if (supplierFound == null) {
+        try {
+          supplierFound = suppliers.firstWhere((s) => dcName.contains(normalize(s.name)));
+        } catch (_) {}
+      }
+
+      if (supplierFound == null) {
+        try {
+          supplierFound = suppliers.firstWhere((s) => normalize(s.name).contains(dcName));
+        } catch (_) {}
+      }
+
+      supplierAsCustomer = supplierFound;
+
+      customer = found ?? Customer(
+        name: deliveryChallan.vendorName,
+        address1: '',
+        address2: '',
+        address3: '',
+        address4: '',
+        gstNo: deliveryChallan.vendorGstin ?? '',
+        email: '',
+        contact: '',
+        paymentTerms: '',
+        phone: '',
+        customerCode: '',
+        state: '',
+        stateCode: '',
+        pan: '',
+        igst: '',
+        cgst: '',
+        sgst: '',
+        totalGst: '',
+        bank: '',
+        branch: '',
+        account: '',
+        ifsc: '',
+        email1: '',
+      );
+    } catch (e) {
+      // If customer not found, create a basic customer object
+      customer = Customer(
+        name: deliveryChallan.vendorName,
+        address1: '',
+        address2: '',
+        address3: '',
+        address4: '',
+        gstNo: deliveryChallan.vendorGstin ?? '',
+        email: '',
+        contact: '',
+        paymentTerms: '',
+        phone: '',
+        customerCode: '',
+        state: '',
+        stateCode: '',
+        pan: '',
+        igst: '',
+        cgst: '',
+        sgst: '',
+        totalGst: '',
+        bank: '',
+        branch: '',
+        account: '',
+        ifsc: '',
+        email1: '',
+      );
+    }
+
+    // Build full address string
+    final addressParts = <String>[];
+    if (customer!.address1.isNotEmpty) addressParts.add(customer.address1);
+    if (customer.address2.isNotEmpty) addressParts.add(customer.address2);
+    if (customer.address3.isNotEmpty) addressParts.add(customer.address3);
+    if (customer.address4.isNotEmpty) addressParts.add(customer.address4);
+
+    if (addressParts.isEmpty && supplierAsCustomer != null) {
+      if (supplierAsCustomer!.address1.isNotEmpty) {
+        addressParts.add(supplierAsCustomer!.address1);
+      }
+      if (supplierAsCustomer!.address2.isNotEmpty) {
+        addressParts.add(supplierAsCustomer!.address2);
+      }
+      if (supplierAsCustomer!.address3.isNotEmpty) {
+        addressParts.add(supplierAsCustomer!.address3);
+      }
+      if (supplierAsCustomer!.address4.isNotEmpty) {
+        addressParts.add(supplierAsCustomer!.address4);
+      }
+    }
+    
+    final fullAddress = addressParts.join(', ');
+    
+    // Use site address if available and no customer address
+    final displayAddress = fullAddress.isNotEmpty
+        ? fullAddress
+        : ((deliveryChallan.siteAddress ?? '').isNotEmpty
+            ? deliveryChallan.siteAddress!
+            : '');
+
+    // Use customer GST if available, otherwise use delivery challan GST
+    final displayGst = customer.gstNo.isNotEmpty
+        ? customer.gstNo
+        : ((supplierAsCustomer?.gstNo ?? '').isNotEmpty
+            ? supplierAsCustomer!.gstNo
+            : ((deliveryChallan.vendorGstin ?? '').isNotEmpty
+                ? deliveryChallan.vendorGstin!
+                : ''));
+
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Customer Details',
+            style: pw.TextStyle(
+              fontSize: 14,
+              fontWeight: pw.FontWeight.bold,
+              font: fontBold,
+            ),
+          ),
+          pw.SizedBox(height: 5),
+          pw.Text(
+            'Name: ${deliveryChallan.vendorName}',
+            style: pw.TextStyle(fontSize: 12, font: font),
+          ),
+          if (displayAddress.isNotEmpty) ...[
+            pw.SizedBox(height: 3),
+            pw.Text(
+              'Address: $displayAddress',
+              style: pw.TextStyle(fontSize: 12, font: font),
+            ),
+          ],
+          if (customer?.state?.isNotEmpty == true) ...[
+            pw.SizedBox(height: 3),
+            pw.Text(
+              'State: ${customer!.state}',
+              style: pw.TextStyle(fontSize: 12, font: font),
+            ),
+          ],
+          if (displayGst.isNotEmpty) ...[
+            pw.SizedBox(height: 3),
+            pw.Text(
+              'GST: $displayGst',
+              style: pw.TextStyle(fontSize: 12, font: font),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildJobDCItemsTable(
+      DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      child: pw.Column(
+        children: [
+          // Table header
+          pw.Container(
+            color: PdfColors.grey300,
+            padding: const pw.EdgeInsets.all(8),
+            child: pw.Row(
+              children: [
+                pw.Expanded(
+                  flex: 2,
+                  child: pw.Text(
+                    'Job No',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                      font: fontBold,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
+                pw.Expanded(
+                  flex: 1,
+                  child: pw.Text(
+                    'Qty',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                      font: fontBold,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
+                pw.Expanded(
+                  flex: 1,
+                  child: pw.Text(
+                    'Unit',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                      font: fontBold,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
+                pw.Expanded(
+                  flex: 2,
+                  child: pw.Text(
+                    'Value',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                      font: fontBold,
+                    ),
+                    textAlign: pw.TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Table rows
+          ...deliveryChallan.items.map((item) {
+            final lineValue = item.price * item.quantity;
+            final displayUnit = item.unit.toLowerCase() == 'job' ? 'SET' : item.unit;
+            return pw.Container(
+              padding: const pw.EdgeInsets.all(8),
+              decoration: pw.BoxDecoration(
+                border: pw.Border(
+                  bottom: pw.BorderSide(color: PdfColors.grey300),
+                ),
+              ),
+              child: pw.Row(
+                children: [
+                  pw.Expanded(
+                    flex: 2,
+                    child: pw.Text(
+                      item.jobNo ?? '',
+                      style: pw.TextStyle(fontSize: 10, font: font),
+                      textAlign: pw.TextAlign.center,
+                    ),
+                  ),
+                  pw.Expanded(
+                    flex: 1,
+                    child: pw.Text(
+                      item.quantity.toString(),
+                      style: pw.TextStyle(fontSize: 10, font: font),
+                      textAlign: pw.TextAlign.center,
+                    ),
+                  ),
+                  pw.Expanded(
+                    flex: 1,
+                    child: pw.Text(
+                      displayUnit,
+                      style: pw.TextStyle(fontSize: 10, font: font),
+                      textAlign: pw.TextAlign.center,
+                    ),
+                  ),
+                  pw.Expanded(
+                    flex: 2,
+                    child: pw.Text(
+                      lineValue.toStringAsFixed(2),
+                      style: pw.TextStyle(fontSize: 10, font: font),
+                      textAlign: pw.TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildJobDCTotalsSection(
+      DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+    final totalValue = deliveryChallan.items.fold<double>(
+      0,
+      (sum, item) => sum + (item.price * item.quantity),
+    );
+
+    final gstLabel = _getCustomerGstRateLabel(deliveryChallan);
+
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 1),
+      ),
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.end,
+        children: [
+          pw.Text(
+            'Total Value: ',
+            style: pw.TextStyle(
+              fontSize: 14,
+              fontWeight: pw.FontWeight.bold,
+              font: fontBold,
+            ),
+          ),
+          pw.Text(
+            totalValue.toStringAsFixed(2),
+            style: pw.TextStyle(
+              fontSize: 14,
+              fontWeight: pw.FontWeight.bold,
+              font: fontBold,
+            ),
+          ),
+          if (gstLabel.isNotEmpty)
+            pw.Text(
+              ' $gstLabel',
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight: pw.FontWeight.bold,
+                font: fontBold,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static String _getCustomerGstRateLabel(DeliveryChallan deliveryChallan) {
+    String normalize(String v) {
+      return v.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+    }
+
+    String toRate(String v) {
+      final cleaned = v.replaceAll('%', '').trim();
+      if (cleaned.isEmpty) return '';
+      final parsed = double.tryParse(cleaned);
+      if (parsed == null || parsed == 0) return '';
+      if (parsed == parsed.roundToDouble()) {
+        return '${parsed.toInt()}%';
+      }
+      return '${parsed.toStringAsFixed(2)}%';
+    }
+
+    Customer? customer;
+    Supplier? supplier;
+
+    try {
+      if (Hive.isBoxOpen('customers')) {
+        final customerBox = Hive.box<Customer>('customers');
+        final dcName = normalize(deliveryChallan.vendorName);
+        final dcGst = normalize(deliveryChallan.vendorGstin ?? '');
+        final customers = customerBox.values.toList();
+
+        if (dcGst.isNotEmpty) {
+          try {
+            customer = customers.firstWhere((c) => normalize(c.gstNo) == dcGst);
+          } catch (_) {}
+        }
+
+        if (customer == null) {
+          try {
+            customer = customers.firstWhere((c) => normalize(c.name) == dcName);
+          } catch (_) {}
+        }
+
+        if (customer == null) {
+          try {
+            customer = customers.firstWhere((c) => dcName.contains(normalize(c.name)));
+          } catch (_) {}
+        }
+
+        if (customer == null) {
+          try {
+            customer = customers.firstWhere((c) => normalize(c.name).contains(dcName));
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    try {
+      if (Hive.isBoxOpen('suppliers')) {
+        final supplierBox = Hive.box<Supplier>('suppliers');
+        final dcName = normalize(deliveryChallan.vendorName);
+        final dcGst = normalize(deliveryChallan.vendorGstin ?? '');
+        final suppliers = supplierBox.values.toList();
+
+        if (dcGst.isNotEmpty) {
+          try {
+            supplier = suppliers.firstWhere((s) => normalize(s.gstNo) == dcGst);
+          } catch (_) {}
+        }
+
+        if (supplier == null) {
+          try {
+            supplier = suppliers.firstWhere((s) => normalize(s.name) == dcName);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    final igst = toRate(customer?.igst ?? supplier?.igst ?? '');
+    final cgst = toRate(customer?.cgst ?? supplier?.cgst ?? '');
+    final sgst = toRate(customer?.sgst ?? supplier?.sgst ?? '');
+
+    if (igst.isNotEmpty) {
+      return '($igst)';
+    }
+
+    if (cgst.isNotEmpty || sgst.isNotEmpty) {
+      final left = cgst.isNotEmpty ? cgst : '0%';
+      final right = sgst.isNotEmpty ? sgst : '0%';
+      return '($left+$right)';
+    }
+
+    return '';
   }
 
   // ============== INVOICE PDF METHODS ==============

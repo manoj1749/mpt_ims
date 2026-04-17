@@ -48,6 +48,15 @@ class MaterialItem extends HiveObject {
   @HiveField(13, defaultValue: '')
   String inventoryClassification; // Inventory classification (e.g., A, B, C)
 
+  @HiveField(14)
+  Map<String, String>? specifications; // Optional key-value specifications
+
+  @HiveField(15, defaultValue: '')
+  String rawMaterial; // Raw material information
+
+  @HiveField(16, defaultValue: false)
+  bool? isPlatingRequired; // Whether plating is required for this material
+
   MaterialItem copy() {
     return MaterialItem(
       slNo: slNo,
@@ -64,6 +73,9 @@ class MaterialItem extends HiveObject {
       inventoryClassification: inventoryClassification,
       vendorRates: List<VendorMaterialRate>.from(vendorRates),
       saleRate: saleRate,
+      specifications: specifications != null ? Map<String, String>.from(specifications!) : null,
+      rawMaterial: rawMaterial,
+      isPlatingRequired: isPlatingRequired,
     );
   }
 
@@ -82,6 +94,9 @@ class MaterialItem extends HiveObject {
     this.inventoryClassification = '',
     List<VendorMaterialRate>? vendorRates,
     this.saleRate = '0',
+    this.specifications,
+    this.rawMaterial = '',
+    this.isPlatingRequired,
   }) : vendorRates = vendorRates ?? <VendorMaterialRate>[];
 
   // Helper methods to manage vendor rates

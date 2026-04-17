@@ -14,6 +14,7 @@ import 'package:mpt_ims/pages/design/material_master.dart';
 import 'package:mpt_ims/pages/hr/employee_list_page.dart';
 import 'package:mpt_ims/pages/login_page.dart';
 import 'package:mpt_ims/pages/planning/purchase_request_list_page.dart';
+import 'package:mpt_ims/pages/planning/bill_of_preparation_list_page.dart';
 import 'package:mpt_ims/pages/section_page.dart';
 import 'package:mpt_ims/pages/purchase/purchase_order_list_page.dart';
 import 'package:mpt_ims/pages/store/store_inward_list_page.dart';
@@ -48,6 +49,26 @@ class AppScaffold extends StatefulWidget {
 
 class _AppScaffoldState extends State<AppScaffold> {
   int? _selectedSectionIndex;
+  int? _selectedSubsectionIndex;
+  String _selectedPage = 'Dashboard';
+
+  // Company configuration - comment/uncomment to switch between companies
+  static const bool useMagnetPowerTech = true; // Set to false for Aimant Industries
+
+  // Company configurations
+  static const Map<String, String> magnetPowerTech = {
+    'logo': 'assets/logo.jpeg',
+    'name': 'Magnet Power Tech IMS Dashboard',
+  };
+
+  static const Map<String, String> aimantIndustries = {
+    'logo': 'assets/aimant_logo.jpg',
+    'name': 'Aimant Industries IMS Dashboard',
+  };
+
+  // Get current company configuration
+  Map<String, String> get currentCompany =>
+      useMagnetPowerTech ? magnetPowerTech : aimantIndustries;
 
   final List<String> sectionTitles = [
     'Home',
@@ -169,6 +190,8 @@ class _AppScaffoldState extends State<AppScaffold> {
         return const MaterialMasterPage();
       case 'PR Creation':
         return const PurchaseRequestListPage();
+      case 'Bill of Material Preparation':
+        return const BillOfPreparationListPage();
       case 'Customer Free Issue List':
         return const CustomerFreeIssueListPage();
       case 'Purchase Order Creation':
@@ -240,14 +263,14 @@ class _AppScaffoldState extends State<AppScaffold> {
         title: Row(
           children: [
             Image.asset(
-              'assets/logo.jpeg',
+              currentCompany['logo']!,
               height: 40,
               fit: BoxFit.contain,
             ),
             const SizedBox(width: 12),
             Text(
               _selectedSectionIndex == null
-                  ? 'Aimant Industries IMS Dashboard'
+                  ? currentCompany['name']!
                   : sectionTitles[_selectedSectionIndex!],
             ),
           ],

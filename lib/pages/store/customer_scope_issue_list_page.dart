@@ -76,6 +76,16 @@ class _CustomerScopeIssueListPageState extends ConsumerState<CustomerScopeIssueL
         enableEditingMode: false,
       ),
       PlutoColumn(
+        title: 'Issue Qty',
+        field: 'issueQty',
+        type: PlutoColumnType.number(),
+        width: 120,
+        backgroundColor: Colors.grey[850],
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.right,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
         title: 'Materials',
         field: 'materials',
         type: PlutoColumnType.text(),
@@ -199,12 +209,11 @@ class _CustomerScopeIssueListPageState extends ConsumerState<CustomerScopeIssueL
       final mrNumbers =
           issue.items.expand((item) => item.mrDetails.keys).toSet().join(', ');
 
-      // Get unique job numbers
-      final jobNumbers = issue.items
-          .expand((item) => item.mrDetails.values)
-          .map((detail) => detail.jobNo)
-          .toSet()
-          .join(', ');
+      // Get formatted job numbers from the issue
+      final jobNumbers = issue.formattedJobNo;
+
+      // Calculate total issue quantity
+      final totalIssueQty = issue.items.fold<double>(0.0, (sum, item) => sum + item.quantity);
 
       return PlutoRow(cells: {
         'serialNo': PlutoCell(value: index + 1),
@@ -212,6 +221,7 @@ class _CustomerScopeIssueListPageState extends ConsumerState<CustomerScopeIssueL
         'issueDate': PlutoCell(value: issue.issueDate),
         'mrNumbers': PlutoCell(value: mrNumbers),
         'jobNumbers': PlutoCell(value: jobNumbers),
+        'issueQty': PlutoCell(value: totalIssueQty),
         'materials': PlutoCell(value: ''),
         'actions': PlutoCell(value: ''),
       });

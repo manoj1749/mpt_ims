@@ -23,13 +23,14 @@ class DeliveryChallanItemAdapter extends TypeAdapter<DeliveryChallanItem> {
       quantity: fields[3] as double,
       jobNo: fields[4] as String?,
       prNo: fields[5] as String?,
+      price: fields[6] == null ? 0.0 : fields[6] as double,
     );
   }
 
   @override
   void write(BinaryWriter writer, DeliveryChallanItem obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.materialCode)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class DeliveryChallanItemAdapter extends TypeAdapter<DeliveryChallanItem> {
       ..writeByte(4)
       ..write(obj.jobNo)
       ..writeByte(5)
-      ..write(obj.prNo);
+      ..write(obj.prNo)
+      ..writeByte(6)
+      ..write(obj.price);
   }
 
   @override

@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:collection/collection.dart';
 import '../../models/sale_order.dart';
 import '../../models/customer.dart';
 import '../../provider/sale_order_provider.dart';
@@ -82,11 +83,10 @@ class _AddEditSaleOrderPageState extends ConsumerState<AddEditSaleOrderPage> {
 
       // Find customer code from customer list
       final customers = ref.read(customerListProvider);
-      final customer = customers.firstWhere(
+      final customer = customers.firstWhereOrNull(
         (c) => c.name == widget.order!.customerName,
-        orElse: () => customers.first,
       );
-      _customerCodeController.text = customer.customerCode;
+      _customerCodeController.text = customer?.customerCode ?? '';
     } else {
       // Add mode - set defaults
       _orderNo = ref.read(saleOrderProvider.notifier).generateOrderNumber();

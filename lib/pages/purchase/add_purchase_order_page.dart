@@ -627,55 +627,84 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Expanded(
                   flex: 3,
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Flexible(
-                        child: Text(
-                          material.description,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: textColor,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              material.description,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: textColor,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Code: ${material.partNo}',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: textColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Unit: ${material.unit}',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: textColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Rate: ₹${selectedRate.purchaseRate}',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: textColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 30),
-                      Text(
-                        'Code: ${material.partNo}',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: textColor,
-                          fontWeight: FontWeight.bold,
+                      if (material.specifications != null && material.specifications!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: material.specifications!.entries.map((spec) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '${spec.key}: ${spec.value}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: textColor,
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
-                      ),
-                      const SizedBox(width: 30),
-                      Text(
-                        'Unit: ${material.unit}',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: textColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 30),
-                      Text(
-                        'Rate: ₹${selectedRate.purchaseRate}',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: textColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -878,14 +907,14 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       width: tableWidth,
                       child: Table(
                       columnWidths: const {
-                        0: FlexColumnWidth(0.3), // Checkbox column
-                        1: FlexColumnWidth(0.9), // PR No
-                        2: FlexColumnWidth(0.9), // Job No
-                        3: FlexColumnWidth(0.7), // Need
-                        4: FlexColumnWidth(0.7), // Ordered
-                        5: FlexColumnWidth(0.8), // Order Qty
-                        6: FlexColumnWidth(0.9), // Available (Board/PR)
-                        7: FlexColumnWidth(0.9), // Available (General)
+                        0: FlexColumnWidth(0.25), // Checkbox column
+                        1: FlexColumnWidth(0.6), // PR No
+                        2: FlexColumnWidth(0.6), // Job No
+                        3: FlexColumnWidth(0.5), // Need
+                        4: FlexColumnWidth(0.5), // Ordered
+                        5: FlexColumnWidth(0.7), // Order Qty
+                        6: FlexColumnWidth(0.6), // Available (Board/PR)
+                        7: FlexColumnWidth(0.6), // Available (General)
                         8: FlexColumnWidth(0.9), // Stock Transfer
                       },
                       children: [
@@ -1073,14 +1102,14 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       width: tableWidth,
                       child: Table(
                       columnWidths: const {
-                        0: FlexColumnWidth(0.3), // Checkbox column
-                        1: FlexColumnWidth(0.9), // PR No
-                        2: FlexColumnWidth(0.9), // Job No
-                        3: FlexColumnWidth(0.7), // Need
-                        4: FlexColumnWidth(0.7), // Ordered
-                        5: FlexColumnWidth(0.8), // Order Qty
-                        6: FlexColumnWidth(0.9), // Available (Board/PR)
-                        7: FlexColumnWidth(0.9), // Available (General)
+                        0: FlexColumnWidth(0.25), // Checkbox column
+                        1: FlexColumnWidth(0.6), // PR No
+                        2: FlexColumnWidth(0.6), // Job No
+                        3: FlexColumnWidth(0.5), // Need
+                        4: FlexColumnWidth(0.5), // Ordered
+                        5: FlexColumnWidth(0.7), // Order Qty
+                        6: FlexColumnWidth(0.6), // Available (Board/PR)
+                        7: FlexColumnWidth(0.6), // Available (General)
                         8: FlexColumnWidth(0.9), // Stock Transfer
                       },
                       children: [
@@ -1156,7 +1185,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               SizedBox(
-                                width: 140,
+                                width: 120,
                                 height: 32,
                                 child: TextFormField(
                                   controller:
@@ -1244,7 +1273,22 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                         ),
                       ),
                       // Transfer
-                      const SizedBox(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Center(
+                          child: IconButton(
+                          icon: const Icon(Icons.swap_horiz_rounded, size: 20),
+                          tooltip: 'Stock Transfer',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          color: Colors.black,
+                          onPressed: () {
+                            // Handle stock transfer for General Stock
+                            // You can implement the stock transfer logic here
+                          },
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ...prItems.map((prItem) {

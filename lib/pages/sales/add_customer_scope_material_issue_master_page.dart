@@ -160,15 +160,6 @@ class _AddCustomerScopeMaterialIssueMasterPageState extends ConsumerState<AddCus
                       if (value == null || value.isEmpty) {
                         return 'Required';
                       }
-                      // Check for duplicate description (case-insensitive)
-                      final materials = ref.read(customerScopeMaterialIssueMasterListProvider);
-                      final duplicateExists = materials.any((m) =>
-                          m.description.toLowerCase() == value.toLowerCase() &&
-                          m.slNo !=
-                              item.slNo); // Exclude current item when editing
-                      if (duplicateExists) {
-                        return 'Description already exists';
-                      }
                       return null;
                     }),
                     widget.materialToEdit == null

@@ -93,11 +93,11 @@ class CustomerNotifier extends BaseProvider<Customer> {
     final customers = state;
     int maxNumber = 0;
 
-    // Find the highest existing number in AICM-xxxx format
+    // Find the highest existing number in MPTCM-xxxxx format
     for (var customer in customers) {
       final code = customer.customerCode;
-      if (code.startsWith('AICM-') && code.length >= 9) {
-        final numberPart = code.substring(5); // Remove "AICM-" prefix
+      if (code.startsWith('MPTCM-') && code.length >= 11) {
+        final numberPart = code.substring(6); // Remove "MPTCM-" prefix
         final number = int.tryParse(numberPart);
         if (number != null && number > maxNumber) {
           maxNumber = number;
@@ -107,7 +107,7 @@ class CustomerNotifier extends BaseProvider<Customer> {
 
     // Generate next sequential number with leading zeros
     final nextNumber = maxNumber + 1;
-    return 'AICM-${nextNumber.toString().padLeft(4, '0')}';
+    return 'MPTCM-${nextNumber.toString().padLeft(5, '0')}';
   }
 
   // Search customers with custom matcher

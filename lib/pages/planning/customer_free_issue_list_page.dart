@@ -12,6 +12,7 @@ import '../../provider/purchase_request_provider.dart';
 import '../../provider/purchase_order.dart';
 import '../../provider/store_inward_provider.dart';
 import '../../provider/bill_of_preparation_provider.dart';
+import '../../provider/material_provider.dart';
 import '../../models/purchase_request.dart';
 import '../../models/purchase_order.dart';
 import '../../models/store_inward.dart';
@@ -24,16 +25,17 @@ class CustomerFreeIssueListPage extends ConsumerStatefulWidget {
   const CustomerFreeIssueListPage({super.key});
 
   @override
-  ConsumerState<CustomerFreeIssueListPage> createState() => _CustomerFreeIssueListPageState();
+  ConsumerState<CustomerFreeIssueListPage> createState() =>
+      _CustomerFreeIssueListPageState();
 }
 
-class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueListPage>
+class _CustomerFreeIssueListPageState
+    extends ConsumerState<CustomerFreeIssueListPage>
     with SingleTickerProviderStateMixin {
-  late final List<PlutoColumn> columns;
-  PlutoGridStateManager? stateManager;
   late TabController _tabController;
   String _selectedStatus = 'Active'; // Default to Active view
-  String _searchMode = 'all'; // 'all', 'part', 'supplier', 'description', 'job', 'qty'
+  String _searchMode =
+      'all'; // 'all', 'part', 'customer', 'description', 'job', 'qty'
   String _searchQuery = '';
   double? _fromQty;
   double? _toQty;
@@ -43,6 +45,16 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
   // Controllers for quantity inputs to prevent focus loss
   TextEditingController? _fromQtyController;
   TextEditingController? _toQtyController;
+
+  // Multi-selection for BOP materials
+  Set<String> _selectedBopItems = <String>{};
+
+  // Manual CFIs and auto-created CFI-BOP- PRs
+  bool _isCfi(PurchaseRequest request) => request.prNo.startsWith('CFI');
+
+  // PlutoGrid state
+  PlutoGridStateManager? stateManager;
+  late final List<PlutoColumn> columns;
 
   @override
   void initState() {
@@ -70,7 +82,8 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
     });
 
     // Initialize controllers
-    _fromQtyController = TextEditingController(text: _fromQty?.toString() ?? '');
+    _fromQtyController =
+        TextEditingController(text: _fromQty?.toString() ?? '');
     _toQtyController = TextEditingController(text: _toQty?.toString() ?? '');
 
     // Add listeners to update state variables when text changes
@@ -108,7 +121,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'serialNo',
         type: PlutoColumnType.number(),
         width: 60,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -118,7 +131,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'jobNo',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -128,7 +141,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'prNo',
         type: PlutoColumnType.text(),
         width: 140,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -138,7 +151,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'prDate',
         type: PlutoColumnType.date(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -148,7 +161,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'partNo',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -158,7 +171,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'description',
         type: PlutoColumnType.text(),
         width: 240,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.start,
         enableEditingMode: false,
@@ -168,7 +181,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'prQty',
         type: PlutoColumnType.number(),
         width: 100,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
@@ -178,7 +191,27 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'unit',
         type: PlutoColumnType.text(),
         width: 80,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Category',
+        field: 'category',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Raw Material',
+        field: 'rawMaterial',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -188,7 +221,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'requestedBy',
         type: PlutoColumnType.text(),
         width: 140,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -198,7 +231,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'poDetails',
         type: PlutoColumnType.text(),
         width: 300,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.start,
         enableEditingMode: false,
@@ -239,7 +272,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'orderedQty',
         type: PlutoColumnType.number(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
@@ -249,7 +282,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'pendingQty',
         type: PlutoColumnType.number(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
@@ -259,7 +292,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'status',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -269,17 +302,19 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         field: 'actions',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
         renderer: (rendererContext) {
           final prNo = rendererContext.row.cells['prNo']?.value as String;
           final partNo = rendererContext.row.cells['partNo']?.value as String;
-          final description = rendererContext.row.cells['description']?.value as String;
+          final description =
+              rendererContext.row.cells['description']?.value as String;
           final unit = rendererContext.row.cells['unit']?.value as String;
           final prQtyVal = rendererContext.row.cells['prQty']?.value;
-          final prQty = prQtyVal is num ? prQtyVal.toString() : prQtyVal.toString();
+          final prQty =
+              prQtyVal is num ? prQtyVal.toString() : prQtyVal.toString();
           final request = ref
               .watch(purchaseRequestListProvider)
               .firstWhereOrNull((pr) => pr.prNo == prNo);
@@ -311,9 +346,11 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
                       // Refresh grid after returning from edit
                       if (stateManager != null) {
                         final requests = ref.read(purchaseRequestListProvider);
-                        final purchaseOrders = ref.read(purchaseOrderListProvider);
+                        final purchaseOrders =
+                            ref.read(purchaseOrderListProvider);
                         stateManager!.removeAllRows();
-                        stateManager!.appendRows(_getRows(requests, purchaseOrders));
+                        stateManager!
+                            .appendRows(_getRows(requests, purchaseOrders));
                       }
                     });
                   },
@@ -361,7 +398,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         title: Text('Delete Customer Free Issue',
             style: TextStyle(color: Colors.grey[200])),
         content: Text(
@@ -385,8 +422,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
                   final requests = ref.read(purchaseRequestListProvider);
                   final purchaseOrders = ref.read(purchaseOrderListProvider);
                   stateManager!.removeAllRows();
-                  stateManager!.appendRows(
-                      _getRows(requests, purchaseOrders));
+                  stateManager!.appendRows(_getRows(requests, purchaseOrders));
                 }
 
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -425,8 +461,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
                   final requests = ref.read(purchaseRequestListProvider);
                   final purchaseOrders = ref.read(purchaseOrderListProvider);
                   stateManager!.removeAllRows();
-                  stateManager!.appendRows(
-                      _getRows(requests, purchaseOrders));
+                  stateManager!.appendRows(_getRows(requests, purchaseOrders));
                 }
 
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -462,12 +497,13 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
     List<PurchaseRequest> allRequests,
     List<PurchaseOrder> purchaseOrders,
   ) {
-    // Only include CFI entries (prNo starting with CFI)
-    final base = allRequests.where((r) => r.prNo.startsWith('CFI')).toList();
+    final base = allRequests.where(_isCfi).toList();
     // Apply status and date filters on requests
     final requests = base.where((pr) {
       if (_selectedStatus == 'Active' && pr.status == 'Completed') return false;
-      if (_selectedStatus != 'All' && _selectedStatus != 'Active' && pr.status != _selectedStatus) return false;
+      if (_selectedStatus != 'All' &&
+          _selectedStatus != 'Active' &&
+          pr.status != _selectedStatus) return false;
       try {
         final prDate = DateTime.parse(pr.date);
         if (_startDate != null && prDate.isBefore(_startDate!)) return false;
@@ -479,7 +515,9 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
     // Apply status filter only
     var filteredRequests = requests.where((pr) {
       if (_selectedStatus == 'Active' && pr.status == 'Completed') return false;
-      if (_selectedStatus != 'All' && _selectedStatus != 'Active' && pr.status != _selectedStatus) return false;
+      if (_selectedStatus != 'All' &&
+          _selectedStatus != 'Active' &&
+          pr.status != _selectedStatus) return false;
       return true;
     }).toList();
 
@@ -490,8 +528,12 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
       for (var item in request.items) {
         // Part/Supplier search filters
         if (_searchMode == 'part' && _searchQuery.isNotEmpty) {
-          final matchesPart = item.materialCode.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              item.materialDescription.toLowerCase().contains(_searchQuery.toLowerCase());
+          final matchesPart = item.materialCode
+                  .toLowerCase()
+                  .contains(_searchQuery.toLowerCase()) ||
+              item.materialDescription
+                  .toLowerCase()
+                  .contains(_searchQuery.toLowerCase());
           if (!matchesPart) continue;
         }
 
@@ -500,7 +542,8 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         final relatedPOs = purchaseOrders
             .where((po) => po.items.any((poItem) =>
                 poItem.materialCode == item.materialCode &&
-                poItem.prDetails.values.any((detail) => detail.prNo == request.prNo)))
+                poItem.prDetails.values
+                    .any((detail) => detail.prNo == request.prNo)))
             .map((po) => '${po.poNo}\n(${po.poDate})')
             .join('\n\n');
 
@@ -525,21 +568,25 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
 
         if (_searchMode == 'supplier' && _searchQuery.isNotEmpty) {
           final matchesSupplier = purchaseOrders.any((po) =>
-              po.supplierName.toLowerCase().contains(_searchQuery.toLowerCase()) &&
-              po.items.any((poItem) => poItem.materialCode == item.materialCode &&
+              po.supplierName
+                  .toLowerCase()
+                  .contains(_searchQuery.toLowerCase()) &&
+              po.items.any((poItem) =>
+                  poItem.materialCode == item.materialCode &&
                   poItem.prDetails.values.any((d) => d.prNo == request.prNo)));
           if (!matchesSupplier) continue;
         }
 
         if (_searchMode == 'description' && _searchQuery.isNotEmpty) {
-          final matchesDesc = item.materialDescription.toLowerCase().contains(_searchQuery.toLowerCase());
+          final matchesDesc = item.materialDescription
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase());
           if (!matchesDesc) continue;
         }
 
         if (_searchMode == 'job' && _searchQuery.isNotEmpty) {
-          final matchesJob = displayJobNo
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase());
+          final matchesJob =
+              displayJobNo.toLowerCase().contains(_searchQuery.toLowerCase());
           if (!matchesJob) continue;
         }
 
@@ -547,11 +594,12 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         if (_fromQty != null || _toQty != null) {
           final itemQty = double.tryParse(item.quantity) ?? 0.0;
           final matchesQty = (_fromQty == null || itemQty >= _fromQty!) &&
-                             (_toQty == null || itemQty <= _toQty!);
+              (_toQty == null || itemQty <= _toQty!);
           if (!matchesQty) continue;
         }
 
-        final pendingQty = double.parse(item.quantity) - totalOrderedQty;
+        final itemQty = double.tryParse(item.quantity) ?? 0.0;
+        final pendingQty = itemQty - totalOrderedQty;
         final status = pendingQty <= 0
             ? 'Completed'
             : totalOrderedQty > 0
@@ -561,16 +609,22 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         rows.add(
           PlutoRow(
             cells: {
+              'select': PlutoCell(value: ''),
               'serialNo': PlutoCell(value: serialNo++),
               'jobNo': PlutoCell(value: displayJobNo),
               'prNo': PlutoCell(value: request.prNo),
               'prDate': PlutoCell(value: request.date),
               'partNo': PlutoCell(value: item.materialCode),
               'description': PlutoCell(value: item.materialDescription),
-              'prQty': PlutoCell(value: double.parse(item.quantity)),
+              'prQty': PlutoCell(value: itemQty),
               'unit': PlutoCell(value: item.unit),
+              'category':
+                  PlutoCell(value: _getMaterialCategory(item.materialCode)),
+              'rawMaterial':
+                  PlutoCell(value: _getMaterialRawMaterial(item.materialCode)),
               'requestedBy': PlutoCell(value: request.requiredBy),
-              'poDetails': PlutoCell(value: relatedPOs.isEmpty ? '-' : relatedPOs),
+              'poDetails':
+                  PlutoCell(value: relatedPOs.isEmpty ? '-' : relatedPOs),
               'orderedQty': PlutoCell(value: totalOrderedQty),
               'pendingQty': PlutoCell(value: pendingQty),
               'status': PlutoCell(value: status),
@@ -584,9 +638,10 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
     return rows;
   }
 
-  Future<void> _exportToExcel(List<PurchaseRequest> allRequests, List<PurchaseOrder> purchaseOrders) async {
+  Future<void> _exportToExcel(List<PurchaseRequest> allRequests,
+      List<PurchaseOrder> purchaseOrders) async {
     try {
-      final requests = allRequests.where((r) => r.prNo.startsWith('CFI')).toList();
+      final requests = allRequests.where(_isCfi).toList();
       final headers = [
         'Sl.No',
         'Job No',
@@ -617,7 +672,9 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         rowData.add(row.cells['prQty']?.value.toString() ?? '');
         rowData.add(row.cells['unit']?.value.toString() ?? '');
         rowData.add(row.cells['requestedBy']?.value.toString() ?? '');
-        rowData.add(row.cells['poDetails']?.value.toString().replaceAll('\n', '; ') ?? '');
+        rowData.add(
+            row.cells['poDetails']?.value.toString().replaceAll('\n', '; ') ??
+                '');
         rowData.add(row.cells['orderedQty']?.value.toString() ?? '');
         rowData.add(row.cells['pendingQty']?.value.toString() ?? '');
         rowData.add(row.cells['status']?.value.toString() ?? '');
@@ -654,23 +711,22 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
     }
   }
 
-  Widget _buildHeader(List<PurchaseRequest> requests, List<PurchaseOrder> purchaseOrders) {
+  Widget _buildHeader(
+      List<PurchaseRequest> requests, List<PurchaseOrder> purchaseOrders) {
     // Build dynamic autocomplete options
     final partOptions = {
       for (final r in requests) ...r.items.map((i) => i.materialCode)
     }.toList()
       ..sort();
-    final supplierOptions = {
-      for (final po in purchaseOrders) po.supplierName
-    }.toList()
-      ..sort();
+    final supplierOptions =
+        {for (final po in purchaseOrders) po.supplierName}.toList()..sort();
     final descriptionOptions = {
       for (final r in requests) ...r.items.map((i) => i.materialDescription)
     }.toList()
       ..sort();
-    final jobOptions = {
-      for (final r in requests) r.jobNo ?? ''
-    }.where((job) => job.isNotEmpty).toList()
+    final jobOptions = {for (final r in requests) r.jobNo ?? ''}
+        .where((job) => job.isNotEmpty)
+        .toList()
       ..sort();
     final qtyOptions = {
       for (final r in requests) ...r.items.map((i) => i.quantity)
@@ -695,7 +751,8 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
               ],
               onPressed: (index) {
                 setState(() {
-                  _searchMode = ['all', 'part', 'supplier', 'description', 'job'][index];
+                  _searchMode =
+                      ['all', 'part', 'supplier', 'description', 'job'][index];
                   _searchQuery = '';
                   _fromQty = null;
                   _toQty = null;
@@ -710,11 +767,21 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
                 }
               },
               children: const [
-                Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('All')),
-                Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Part')),
-                Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Supplier')),
-                Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Desc')),
-                Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Job')),
+                Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('All')),
+                Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('Part')),
+                Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('Supplier')),
+                Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('Desc')),
+                Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('Job')),
               ],
               borderColor: Colors.grey,
               selectedBorderColor: Colors.blue,
@@ -727,55 +794,60 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
               SizedBox(
                 width: 320,
                 child: Autocomplete<String>(
-                          optionsBuilder: (TextEditingValue tev) {
-                            List<String> opts;
-                            switch (_searchMode) {
-                              case 'part':
-                                opts = partOptions;
-                                break;
-                              case 'supplier':
-                                opts = supplierOptions;
-                                break;
-                              case 'description':
-                                opts = descriptionOptions;
-                                break;
-                              case 'job':
-                                opts = jobOptions;
-                                break;
-                              default:
-                                opts = [];
-                            }
-                            if (tev.text.isEmpty) return opts;
-                            return opts.where((o) => o.toLowerCase().contains(tev.text.toLowerCase()));
-                          },
-                          onSelected: (selection) {
-                            setState(() => _searchQuery = selection);
-                            if (stateManager != null) {
-                              stateManager!.removeAllRows();
-                              stateManager!.appendRows(_getRows(requests, purchaseOrders));
-                            }
-                          },
-                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) => TextField(
-                            controller: controller,
-                            focusNode: focusNode,
-                            decoration: InputDecoration(
-                              labelText: _getSearchLabel(),
-                              border: const OutlineInputBorder(),
-                              filled: true,
-                              fillColor: Colors.grey[800],
-                              labelStyle: const TextStyle(color: Colors.white),
-                            ),
-                            style: const TextStyle(color: Colors.white),
-                            onChanged: (v) {
-                              setState(() => _searchQuery = v);
-                              if (stateManager != null) {
-                                stateManager!.removeAllRows();
-                                stateManager!.appendRows(_getRows(requests, purchaseOrders));
-                              }
-                            },
-                          ),
-                        ),
-            ),
+                  optionsBuilder: (TextEditingValue tev) {
+                    List<String> opts;
+                    switch (_searchMode) {
+                      case 'part':
+                        opts = partOptions;
+                        break;
+                      case 'supplier':
+                        opts = supplierOptions;
+                        break;
+                      case 'description':
+                        opts = descriptionOptions;
+                        break;
+                      case 'job':
+                        opts = jobOptions;
+                        break;
+                      default:
+                        opts = [];
+                    }
+                    if (tev.text.isEmpty) return opts;
+                    return opts.where((o) =>
+                        o.toLowerCase().contains(tev.text.toLowerCase()));
+                  },
+                  onSelected: (selection) {
+                    setState(() => _searchQuery = selection);
+                    if (stateManager != null) {
+                      stateManager!.removeAllRows();
+                      stateManager!
+                          .appendRows(_getRows(requests, purchaseOrders));
+                    }
+                  },
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onFieldSubmitted) =>
+                          TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: InputDecoration(
+                      labelText: _getSearchLabel(),
+                      border: const OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.grey[800],
+                      labelStyle: const TextStyle(color: Colors.white),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                    onChanged: (v) {
+                      setState(() => _searchQuery = v);
+                      if (stateManager != null) {
+                        stateManager!.removeAllRows();
+                        stateManager!
+                            .appendRows(_getRows(requests, purchaseOrders));
+                      }
+                    },
+                  ),
+                ),
+              ),
           ],
         ),
         const SizedBox(height: 12),
@@ -788,23 +860,29 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
                 decoration: InputDecoration(
                   labelText: 'Status Filter',
                   labelStyle: TextStyle(color: Colors.grey[300]),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   fillColor: Colors.grey[800],
                   filled: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
                 style: const TextStyle(color: Colors.white),
                 dropdownColor: Colors.grey[800],
                 value: _selectedStatus,
                 items: ['Active', 'Completed', 'All']
-                    .map((status) => DropdownMenuItem(value: status, child: Text(status, style: const TextStyle(color: Colors.white))))
+                    .map((status) => DropdownMenuItem(
+                        value: status,
+                        child: Text(status,
+                            style: const TextStyle(color: Colors.white))))
                     .toList(),
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _selectedStatus = value);
                     if (stateManager != null) {
                       stateManager!.removeAllRows();
-                      stateManager!.appendRows(_getRows(requests, purchaseOrders));
+                      stateManager!
+                          .appendRows(_getRows(requests, purchaseOrders));
                     }
                   }
                 },
@@ -815,15 +893,25 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
               width: 180,
               child: TextFormField(
                 readOnly: true,
-                decoration: const InputDecoration(labelText: 'From Date', border: OutlineInputBorder()),
-                controller: TextEditingController(text: _startDate == null ? '' : _startDate!.toIso8601String().split('T').first),
+                decoration: const InputDecoration(
+                    labelText: 'From Date', border: OutlineInputBorder()),
+                controller: TextEditingController(
+                    text: _startDate == null
+                        ? ''
+                        : _startDate!.toIso8601String().split('T').first),
                 onTap: () async {
-                  final picked = await showDatePicker(context: context, initialDate: _startDate ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
+                  final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _startDate ?? DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100));
                   if (picked != null) {
-                    setState(() => _startDate = DateTime(picked.year, picked.month, picked.day));
+                    setState(() => _startDate =
+                        DateTime(picked.year, picked.month, picked.day));
                     if (stateManager != null) {
                       stateManager!.removeAllRows();
-                      stateManager!.appendRows(_getRows(requests, purchaseOrders));
+                      stateManager!
+                          .appendRows(_getRows(requests, purchaseOrders));
                     }
                   }
                 },
@@ -834,15 +922,25 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
               width: 180,
               child: TextFormField(
                 readOnly: true,
-                decoration: const InputDecoration(labelText: 'To Date', border: OutlineInputBorder()),
-                controller: TextEditingController(text: _endDate == null ? '' : _endDate!.toIso8601String().split('T').first),
+                decoration: const InputDecoration(
+                    labelText: 'To Date', border: OutlineInputBorder()),
+                controller: TextEditingController(
+                    text: _endDate == null
+                        ? ''
+                        : _endDate!.toIso8601String().split('T').first),
                 onTap: () async {
-                  final picked = await showDatePicker(context: context, initialDate: _endDate ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
+                  final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _endDate ?? DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100));
                   if (picked != null) {
-                    setState(() => _endDate = DateTime(picked.year, picked.month, picked.day));
+                    setState(() => _endDate =
+                        DateTime(picked.year, picked.month, picked.day));
                     if (stateManager != null) {
                       stateManager!.removeAllRows();
-                      stateManager!.appendRows(_getRows(requests, purchaseOrders));
+                      stateManager!
+                          .appendRows(_getRows(requests, purchaseOrders));
                     }
                   }
                 },
@@ -868,7 +966,8 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
                   });
                   if (stateManager != null) {
                     stateManager!.removeAllRows();
-                    stateManager!.appendRows(_getRows(requests, purchaseOrders));
+                    stateManager!
+                        .appendRows(_getRows(requests, purchaseOrders));
                   }
                 },
               ),
@@ -893,13 +992,17 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
                   });
                   if (stateManager != null) {
                     stateManager!.removeAllRows();
-                    stateManager!.appendRows(_getRows(requests, purchaseOrders));
+                    stateManager!
+                        .appendRows(_getRows(requests, purchaseOrders));
                   }
                 },
               ),
             ),
             const Spacer(),
-            FilledButton.icon(onPressed: () => _exportToExcel(requests, purchaseOrders), icon: const Icon(Icons.download), label: const Text('Export')),
+            FilledButton.icon(
+                onPressed: () => _exportToExcel(requests, purchaseOrders),
+                icon: const Icon(Icons.download),
+                label: const Text('Export')),
           ],
         ),
       ],
@@ -924,6 +1027,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
   }
 
   Widget _buildBopTab(List<BillOfPreparation> bops) {
+    // Collect all BOP materials with source == 'customer_scope'
     final bopItems = <Map<String, dynamic>>[];
     for (final bop in bops) {
       for (final mat in bop.materials) {
@@ -947,12 +1051,12 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
             Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[600]),
             const SizedBox(height: 16),
             Text(
-              'No BOP materials pending approval',
+              'No BOP materials available',
               style: TextStyle(fontSize: 16, color: Colors.grey[400]),
             ),
             const SizedBox(height: 8),
             Text(
-              'Materials added to Bills of Preparation with source\n"Customer Free Issue" will appear here for approval.',
+              'Materials added to Bills of Preparation with source\n"Customer Free Issue" will appear here.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
@@ -961,123 +1065,266 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
       );
     }
 
-    return ListView.builder(
+    return Padding(
       padding: const EdgeInsets.all(16),
-      itemCount: bopItems.length,
-      itemBuilder: (context, index) {
-        final item = bopItems[index];
-        final jobNo = item['jobNo'] as String;
-        final materialCode = item['materialCode'] as String;
-        final materialDescription = item['materialDescription'] as String;
-        final bop = item['bop'] as BillOfPreparation;
-        final mat = item['mat'] as BopMaterial;
-        final finalQty = mat.cktTypes.isNotEmpty ? mat.cktTypes.first.materialQuantity : 0.0;
-
-        return Card(
-          color: Colors.grey[850],
-          margin: const EdgeInsets.only(bottom: 10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.blue.withOpacity(0.5)),
-                            ),
-                            child: Text(
-                              'Job: $jobNo',
-                              style: const TextStyle(color: Colors.blue, fontSize: 12, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.purple.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.purple.withOpacity(0.5)),
-                            ),
-                            child: const Text(
-                              'Customer Free Issue',
-                              style: TextStyle(color: Colors.purple, fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        materialCode,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        materialDescription,
-                        style: TextStyle(color: Colors.grey[400], fontSize: 13),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Final Qty: ${finalQty.toStringAsFixed(2)}',
-                        style: TextStyle(color: Colors.grey[300], fontSize: 12),
-                      ),
-                    ],
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '${bopItems.length} BOP Materials',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const Spacer(),
+              Text(
+                'View Only',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
                 ),
-                const SizedBox(width: 12),
-                FilledButton.icon(
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => AddCustomerFreeIssuePage(
-                          existingRequest: null,
-                          index: null,
-                          initialJobNo: jobNo,
-                          initialMaterialCode: materialCode,
-                          initialMaterialDescription: materialDescription,
-                          sourceBop: bop,
-                          sourceBopMaterial: mat,
-                        ),
-                      ),
-                    );
-                    setState(() {});
-                  },
-                  icon: const Icon(Icons.check, size: 16),
-                  label: const Text('Approve'),
-                  style: FilledButton.styleFrom(backgroundColor: Colors.green[700]),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: () => _showRejectBopDialog(context, bop, mat),
-                  icon: const Icon(Icons.close, size: 16),
-                  label: const Text('Reject'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red[300],
-                    side: BorderSide(color: Colors.red[300]!),
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildHeader(ref.read(purchaseRequestListProvider),
+              ref.read(purchaseOrderListProvider)),
+          const SizedBox(height: 16),
+          Expanded(
+            child: PlutoGrid(
+              columns: _getBopColumns(),
+              rows: _getBopRows(bopItems),
+              onLoaded: (PlutoGridOnLoadedEvent event) {
+                stateManager = event.stateManager;
+              },
+              configuration: PlutoGridConfigurations.darkMode(),
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
-  void _showRejectBopDialog(BuildContext context, BillOfPreparation bop, BopMaterial mat) {
+  bool _getAllBopItemsSelected(List<Map<String, dynamic>> bopItems) {
+    return bopItems.isNotEmpty && _selectedBopItems.length == bopItems.length;
+  }
+
+  int _getBopMaterialCount() {
+    final bops = ref.read(billOfPreparationProvider);
+    return bops.fold<int>(
+        0,
+        (sum, bop) =>
+            sum +
+            bop.materials
+                .where((mat) => mat.materialSource == 'customer_scope')
+                .length);
+  }
+
+  String _getMaterialUnit(String materialCode) {
+    final materials = ref.read(materialListProvider);
+    final material =
+        materials.where((m) => m.partNo == materialCode).firstOrNull;
+    return material?.unit ?? 'PCS'; // Default to PCS if not found
+  }
+
+  String _getMaterialCategory(String materialCode) {
+    final materials = ref.read(materialListProvider);
+    final material =
+        materials.where((m) => m.partNo == materialCode).firstOrNull;
+    return material?.category ?? ''; // Return empty string if not found
+  }
+
+  String _getMaterialRawMaterial(String materialCode) {
+    final materials = ref.read(materialListProvider);
+    final material =
+        materials.where((m) => m.partNo == materialCode).firstOrNull;
+    return material?.subCategory ?? ''; // Return empty string if not found
+  }
+
+  List<PlutoColumn> _getBopColumns() {
+    return [
+      PlutoColumn(
+        title: 'S.No',
+        field: 'serialNo',
+        type: PlutoColumnType.number(),
+        width: 60,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Job No',
+        field: 'jobNo',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Part No',
+        field: 'materialCode',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Description',
+        field: 'materialDescription',
+        type: PlutoColumnType.text(),
+        width: 300,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.left,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Final Qty',
+        field: 'finalQty',
+        type: PlutoColumnType.number(),
+        width: 100,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Source',
+        field: 'source',
+        type: PlutoColumnType.text(),
+        width: 140,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+    ];
+  }
+
+  List<PlutoRow> _getBopRows(List<Map<String, dynamic>> bopItems) {
+    final rows = <PlutoRow>[];
+    int serialNo = 1;
+
+    for (final item in bopItems) {
+      final jobNo = item['jobNo'] as String;
+      final materialCode = item['materialCode'] as String;
+      final materialDescription = item['materialDescription'] as String;
+      final bop = item['bop'] as BillOfPreparation;
+      final mat = item['mat'] as BopMaterial;
+      final finalQty =
+          mat.cktTypes.isNotEmpty ? mat.cktTypes.first.materialQuantity : 0.0;
+      final itemKey = '${bop.jobNo}_${mat.materialCode}';
+
+      rows.add(
+        PlutoRow(
+          cells: {
+            'serialNo': PlutoCell(value: serialNo++),
+            'jobNo': PlutoCell(value: jobNo),
+            'materialCode': PlutoCell(value: materialCode),
+            'materialDescription': PlutoCell(value: materialDescription),
+            'finalQty': PlutoCell(value: finalQty),
+            'source': PlutoCell(value: 'Customer Free Issue'),
+          },
+        ),
+      );
+    }
+
+    return rows;
+  }
+
+  void _deleteSelectedBopItems() async {
+    if (_selectedBopItems.isEmpty) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: Text('Delete ${_selectedBopItems.length} BOP Items',
+            style: TextStyle(color: Colors.grey[200])),
+        content: Text(
+          'Are you sure you want to delete the selected BOP materials?\n\nThis action cannot be undone.',
+          style: TextStyle(color: Colors.grey[300]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[400])),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Process deletion for all selected BOP items
+    final bops = ref.read(billOfPreparationProvider);
+    int deletedCount = 0;
+
+    // Group items by BOP number
+    final itemsByBop = <String, List<String>>{};
+    for (final itemKey in _selectedBopItems) {
+      final parts = itemKey.split('_');
+      if (parts.length >= 2) {
+        final jobNo = parts.sublist(0, parts.length - 1).join('_');
+        final materialCode = parts.last;
+        itemsByBop.putIfAbsent(jobNo, () => []).add(materialCode);
+      }
+    }
+
+    // Delete items from each BOP
+    for (final entry in itemsByBop.entries) {
+      final jobNo = entry.key;
+      final materialCodes = entry.value;
+      final bop = bops.firstWhere((b) => b.jobNo == jobNo);
+
+      final updatedMaterials = bop.materials
+          .where((mat) =>
+              !materialCodes.contains(mat.materialCode) ||
+              mat.materialSource != 'customer_scope')
+          .toList();
+
+      if (updatedMaterials.length != bop.materials.length) {
+        final updatedBop = bop.copyWith(materials: updatedMaterials);
+        final bopIndex = bops.indexOf(bop);
+        await ref
+            .read(billOfPreparationProvider.notifier)
+            .updateBillOfPreparation(bopIndex, updatedBop, ref);
+        deletedCount += materialCodes.length;
+      }
+    }
+
+    setState(() {
+      _selectedBopItems.clear();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Deleted $deletedCount BOP materials'),
+        backgroundColor: Colors.red[700],
+      ),
+    );
+  }
+
+  void _showRejectBopDialog(
+      BuildContext context, BillOfPreparation bop, BopMaterial mat) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[850],
-        title: Text('Reject BOP Material', style: TextStyle(color: Colors.grey[200])),
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: Text('Reject BOP Material',
+            style: TextStyle(color: Colors.grey[200])),
         content: Text(
           'Remove "${mat.materialCode} - ${mat.materialDescription}" from BOP for Job ${bop.jobNo}?\n\nThis will delete it from the BOP materials list.',
           style: TextStyle(color: Colors.grey[300]),
@@ -1092,13 +1339,17 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
             onPressed: () async {
               Navigator.pop(context);
               final updatedBop = bop.copyWith(
-                materials: bop.materials.where((m) => m.materialCode != mat.materialCode).toList(),
+                materials: bop.materials
+                    .where((m) => m.materialCode != mat.materialCode)
+                    .toList(),
               );
-              await ref.read(billOfPreparationProvider.notifier).updateBillOfPreparation(
-                ref.read(billOfPreparationProvider).indexOf(bop),
-                updatedBop,
-                ref,
-              );
+              await ref
+                  .read(billOfPreparationProvider.notifier)
+                  .updateBillOfPreparation(
+                    ref.read(billOfPreparationProvider).indexOf(bop),
+                    updatedBop,
+                    ref,
+                  );
               setState(() {});
             },
             child: const Text('Reject'),
@@ -1122,7 +1373,7 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Tab(text: 'CFI List (${requests.where((r) => r.prNo.startsWith('CFI')).length})'),
+            Tab(text: 'CFI List (${requests.where(_isCfi).length})'),
             Tab(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1130,12 +1381,26 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
                   const Text('BOP Materials'),
                   const SizedBox(width: 6),
                   Builder(builder: (ctx) {
-                    final count = bops.fold<int>(0, (sum, b) => sum + b.materials.where((m) => m.materialSource == 'customer_scope').length);
+                    final count = bops.fold<int>(
+                        0,
+                        (sum, b) =>
+                            sum +
+                            b.materials
+                                .where(
+                                    (m) => m.materialSource == 'customer_scope')
+                                .length);
                     if (count == 0) return const SizedBox.shrink();
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(10)),
-                      child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(10)),
+                      child: Text('$count',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
                     );
                   }),
                 ],
@@ -1153,9 +1418,13 @@ class _CustomerFreeIssueListPageState extends ConsumerState<CustomerFreeIssueLis
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${requests.where((r) => r.prNo.startsWith('CFI')).length} Customer Free Issue Requests',
-                  style: Theme.of(context).textTheme.titleMedium,
+                Row(
+                  children: [
+                    Text(
+                      '${requests.where(_isCfi).length} Customer Free Issue Requests',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 _buildHeader(requests, purchaseOrders),

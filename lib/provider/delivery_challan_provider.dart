@@ -7,6 +7,7 @@ import '../models/delivery_challan.dart';
 import '../models/stock_maintenance.dart';
 import 'base_provider.dart';
 import 'stock_maintenance_provider.dart';
+import '../utils/company_config.dart';
 
 final deliveryChallanBoxProvider = Provider<Box<DeliveryChallan>>((ref) {
   return Hive.box<DeliveryChallan>('delivery_challans');
@@ -94,9 +95,22 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
 
   Future<void> addDeliveryChallan(DeliveryChallan dc, WidgetRef ref) async {
     try {
+      await _validateStockForDeliveryChallan(dc, ref);
+
       // Update stock for internal DCs (both inward and outward)
       if (dc.dcType == 'internal') {
         await _updateStockForInternalDC(dc, isAdd: true, ref: ref);
+      }
+
+      if (dc.dcType == 'job_order') {
+        final stockNotifier = ref.read(stockMaintenanceProvider.notifier);
+        for (final entry in _requiredJobStock(dc).entries) {
+          await stockNotifier.consumeStockFromJobBucket(
+            materialCode: entry.key.$1,
+            jobNo: entry.key.$2,
+            quantity: entry.value,
+          );
+        }
       }
 
       // Add delivery challan
@@ -104,6 +118,55 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
     } catch (e) {
       print('Error adding delivery challan: $e');
       rethrow;
+    }
+  }
+
+  Map<(String, String), double> _requiredJobStock(DeliveryChallan dc) {
+    final required = <(String, String), double>{};
+    for (final item in dc.items) {
+      final jobNo = item.jobNo?.trim() ?? '';
+      if (jobNo.isEmpty || jobNo == 'General') continue;
+      final key = (item.materialCode.trim(), jobNo);
+      required[key] = (required[key] ?? 0.0) + item.quantity;
+    }
+    return required;
+  }
+
+  Future<void> _validateStockForDeliveryChallan(
+      DeliveryChallan dc, WidgetRef ref) async {
+    // Skip stock validation for internal inward DCs
+    if (dc.dcType == 'internal' && dc.internalFlow == 'inward') {
+      return;
+    }
+
+    final stockNotifier = ref.read(stockMaintenanceProvider.notifier);
+    final required = <(String, String), double>{};
+
+    for (final item in dc.items) {
+      final materialCode = item.materialCode.trim();
+      final jobNo =
+          dc.dcType == 'job_order' ? (item.jobNo?.trim() ?? '') : 'General';
+
+      if (dc.dcType == 'job_order' && (jobNo.isEmpty || jobNo == 'General')) {
+        throw Exception(
+            'Select a Board / Job No with available stock for every job order item');
+      }
+
+      if (dc.dcType == 'internal' || dc.dcType == 'job_order') {
+        final key = (materialCode, jobNo);
+        required[key] = (required[key] ?? 0.0) + item.quantity;
+      }
+    }
+
+    for (final entry in required.entries) {
+      final available = stockNotifier.availableStockForJob(
+        entry.key.$1,
+        entry.key.$2,
+      );
+      if (entry.value > available + 0.0001) {
+        throw Exception(
+            'Insufficient available stock for ${entry.key.$1} in ${entry.key.$2}. Available: ${available.toStringAsFixed(2)}');
+      }
     }
   }
 
@@ -136,6 +199,17 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
         await _updateStockForInternalDC(dc, isAdd: false, ref: ref);
       }
 
+      if (dc.dcType == 'job_order') {
+        final stockNotifier = ref.read(stockMaintenanceProvider.notifier);
+        for (final entry in _requiredJobStock(dc).entries) {
+          await stockNotifier.restoreStockToJobBucket(
+            materialCode: entry.key.$1,
+            jobNo: entry.key.$2,
+            quantity: entry.value,
+          );
+        }
+      }
+
       // Delete delivery challan
       return await delete(dc);
     } catch (e) {
@@ -159,30 +233,56 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
   }
 
   String generateInternalOutwardDcNo() {
-    // Get financial year (April to March)
+    // Prefix depends on company configuration:
+    // MagnetPowerTech -> 'MD', Aimant Industries -> 'AD'
+    final prefix = companyCodePrefix == 'MPT' ? 'MD' : 'AD';
+
+    // Current year (last 2 digits) + current month (2 digits), e.g. 2609
     final now = DateTime.now();
-    final currentYear = now.year;
-    final financialYear = now.month >= 4 
-        ? '${currentYear.toString().substring(2)}${(currentYear + 1).toString().substring(2)}'
-        : '${(currentYear - 1).toString().substring(2)}${currentYear.toString().substring(2)}';
-    
-    final prefix = 'MPTDC$financialYear';
+    final yearStr = now.year.toString().substring(2);
+    final monthStr = now.month.toString().padLeft(2, '0');
+    final yearMonthPrefix = '$yearStr$monthStr';
 
-    final existingNos = state
-        .map((dc) => dc.dcNo)
-        .where((no) => no.startsWith(prefix))
-        .map((no) => int.tryParse(no.substring(prefix.length)) ?? 0)
-        .toList();
+    final fullPrefix = '$prefix$yearMonthPrefix';
+    final expectedLength = fullPrefix.length + 2;
 
-    final nextNo = existingNos.isEmpty ? 1 : (existingNos.reduce(max) + 1);
-    return '$prefix${nextNo.toString().padLeft(4, '0')}';
+    // Find all VALID sequential order numbers for the current prefix+month
+    final validSequentialOrders = state.where((order) {
+      // Check if DC number matches the expected format: prefix + YYMM + 2 digits
+      if (!order.dcNo.startsWith(fullPrefix) ||
+          order.dcNo.length != expectedLength) {
+        return false;
+      }
+
+      // Check if the last 2 characters are all digits
+      final sequencePart = order.dcNo.substring(fullPrefix.length);
+      return RegExp(r'^\d{2}$').hasMatch(sequencePart);
+    }).toList();
+
+    // If no valid sequential orders exist for this month, start from 1
+    if (validSequentialOrders.isEmpty) {
+      return '${fullPrefix}01';
+    }
+
+    // Extract and parse sequence numbers from valid orders only
+    final sequenceNumbers = validSequentialOrders.map((order) {
+      return int.parse(order.dcNo.substring(fullPrefix.length));
+    }).toList();
+
+    // Find the highest sequence number and increment by 1
+    final nextSequence = sequenceNumbers.reduce((a, b) => a > b ? a : b) + 1;
+
+    // Format as 2-digit number with leading zeros
+    final sequenceStr = nextSequence.toString().padLeft(2, '0');
+
+    return '$fullPrefix$sequenceStr'; // e.g., MD260901, AD260901, etc.
   }
 
   Future<void> _updateStockForInternalDC(DeliveryChallan dc,
       {required bool isAdd, required WidgetRef ref}) async {
     print('=== Updating Stock for Internal DC (${dc.internalFlow}) ===');
     print('DC No: ${dc.dcNo}, isAdd: $isAdd');
-    
+
     // For inward: increase stock (isAdd=true means add, isAdd=false means revert)
     // For outward: decrease stock (isAdd=true means subtract, isAdd=false means revert/add back)
     final isInward = dc.internalFlow == 'inward';
@@ -211,7 +311,7 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
           rackNumber: '',
           currentStock: isAdd ? item.quantity : 0.0,
         );
-        
+
         // Add to General job stock
         newStock.jobDetails['General'] = StockJobDetails(
           jobNo: 'General',
@@ -219,9 +319,9 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
           consumedQuantity: 0.0,
           prNo: '',
         );
-        
+
         // Add GRN details with price/rate for stock value calculation
-        final grnNo = isInward 
+        final grnNo = isInward
             ? 'IDCIN-${dc.dcNo}-${item.materialCode}'
             : 'IDCOUT-${dc.dcNo}-${item.materialCode}';
         if (isAdd) {
@@ -229,12 +329,14 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
             grnNo,
             item.quantity * stockMultiplier,
             rate: item.price,
-            vendorId: isInward ? (dc.fromVendor ?? 'internal') : (dc.toVendor ?? 'internal'),
+            vendorId: isInward
+                ? (dc.fromVendor ?? 'internal')
+                : (dc.toVendor ?? 'internal'),
           );
         }
-        
+
         await _stockBox.add(newStock);
-        
+
         final stockMaintenanceNotifier =
             ref.read(stockMaintenanceProvider.notifier);
         await stockMaintenanceNotifier.update(newStock);
@@ -243,12 +345,13 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
         // Update existing stock record
         for (var stock in stockItems) {
           // Use unique GRN per material to avoid overwriting
-          final grnNo = isInward 
+          final grnNo = isInward
               ? 'IDCIN-${dc.dcNo}-${item.materialCode}'
               : 'IDCOUT-${dc.dcNo}-${item.materialCode}';
           final qty = item.quantity * stockMultiplier * (isAdd ? 1.0 : -1.0);
 
-          print('Updating stock with GRN: $grnNo, Qty: $qty, Rate: ${item.price}');
+          print(
+              'Updating stock with GRN: $grnNo, Qty: $qty, Rate: ${item.price}');
 
           try {
             // Update General stock with rate for value calculation
@@ -256,7 +359,9 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
               grnNo,
               qty,
               rate: item.price,
-              vendorId: isInward ? (dc.fromVendor ?? 'internal') : (dc.toVendor ?? 'internal'),
+              vendorId: isInward
+                  ? (dc.fromVendor ?? 'internal')
+                  : (dc.toVendor ?? 'internal'),
             );
             print('Updated General stock: $qty at rate ${item.price}');
           } catch (e) {
@@ -301,7 +406,7 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
   }
 
   // ============== DC NUMBER AUTO-GENERATION ==============
-  
+
   /// Get current financial year (e.g., 2026 for FY 2026-27)
   int getCurrentFinancialYear() {
     final now = DateTime.now();
@@ -315,63 +420,99 @@ class DeliveryChallanNotifier extends BaseProvider<DeliveryChallan> {
     }
   }
 
-  /// Generate next DC number for new delivery challans (DC prefix)
-  /// Format: DC{FY}{6-digit-sequence} e.g., DC2026000001
+  /// Generate next DC number for new delivery challans (MDT/ADT prefix)
+  /// Format: MDT/ADT + YYMM + 2-digit sequence e.g., MDT260901, ADT260902
   String generateNextDCNumber() {
-    final financialYear = getCurrentFinancialYear();
-    final prefix = 'DC$financialYear';
-    
-    // Get all DCs with the same prefix and financial year
-    final existingDCs = state.where((dc) => 
-      dc.dcNo.startsWith(prefix) && dc.dcType != 'job_order'
-    ).toList();
-    
-    if (existingDCs.isEmpty) {
-      return '${prefix}000001';
-    }
-    
-    // Extract sequence numbers and find max
-    int maxSequence = 0;
-    for (final dc in existingDCs) {
-      final sequenceStr = dc.dcNo.substring(prefix.length);
-      final sequence = int.tryParse(sequenceStr) ?? 0;
-      if (sequence > maxSequence) {
-        maxSequence = sequence;
+    // Prefix depends on company configuration:
+    // MagnetPowerTech -> 'MDT', Aimant Industries -> 'ADT'
+    final prefix = companyCodePrefix == 'MPT' ? 'MDT' : 'ADT';
+
+    // Current year (last 2 digits) + current month (2 digits), e.g. 2609
+    final now = DateTime.now();
+    final yearStr = now.year.toString().substring(2);
+    final monthStr = now.month.toString().padLeft(2, '0');
+    final yearMonthPrefix = '$yearStr$monthStr';
+
+    final fullPrefix = '$prefix$yearMonthPrefix';
+    final expectedLength = fullPrefix.length + 2;
+
+    // Find all VALID sequential order numbers for the current prefix+month
+    final validSequentialOrders = state.where((order) {
+      // Check if DC number matches the expected format: prefix + YYMM + 2 digits
+      if (!order.dcNo.startsWith(fullPrefix) ||
+          order.dcNo.length != expectedLength) {
+        return false;
       }
+
+      // Check if the last 2 characters are all digits
+      final sequencePart = order.dcNo.substring(fullPrefix.length);
+      return RegExp(r'^\d{2}$').hasMatch(sequencePart);
+    }).toList();
+
+    // If no valid sequential orders exist for this month, start from 1
+    if (validSequentialOrders.isEmpty) {
+      return '${fullPrefix}01';
     }
-    
-    // Generate next sequence with 6 digits padding
-    final nextSequence = maxSequence + 1;
-    return '$prefix${nextSequence.toString().padLeft(6, '0')}';
+
+    // Extract and parse sequence numbers from valid orders only
+    final sequenceNumbers = validSequentialOrders.map((order) {
+      return int.parse(order.dcNo.substring(fullPrefix.length));
+    }).toList();
+
+    // Find the highest sequence number and increment by 1
+    final nextSequence = sequenceNumbers.reduce((a, b) => a > b ? a : b) + 1;
+
+    // Format as 2-digit number with leading zeros
+    final sequenceStr = nextSequence.toString().padLeft(2, '0');
+
+    return '$fullPrefix$sequenceStr'; // e.g., MDT260901, ADT260901, etc.
   }
 
   /// Generate next JODC number for job order delivery challans
-  /// Format: JODC{FY}{6-digit-sequence} e.g., JODC2026000001
+  /// Format: MJ/AJ + YYMM + 2-digit sequence e.g., MJ260901, AJ260902
   String generateNextJODCNumber() {
-    final financialYear = getCurrentFinancialYear();
-    final prefix = 'JODC$financialYear';
-    
-    // Get all job order DCs with the same prefix and financial year
-    final existingDCs = state.where((dc) => 
-      dc.dcNo.startsWith(prefix) && dc.dcType == 'job_order'
-    ).toList();
-    
-    if (existingDCs.isEmpty) {
-      return '${prefix}000001';
-    }
-    
-    // Extract sequence numbers and find max
-    int maxSequence = 0;
-    for (final dc in existingDCs) {
-      final sequenceStr = dc.dcNo.substring(prefix.length);
-      final sequence = int.tryParse(sequenceStr) ?? 0;
-      if (sequence > maxSequence) {
-        maxSequence = sequence;
+    // Prefix depends on company configuration:
+    // MagnetPowerTech -> 'MJ', Aimant Industries -> 'AJ'
+    final prefix = companyCodePrefix == 'MPT' ? 'MJ' : 'AJ';
+
+    // Current year (last 2 digits) + current month (2 digits), e.g. 2609
+    final now = DateTime.now();
+    final yearStr = now.year.toString().substring(2);
+    final monthStr = now.month.toString().padLeft(2, '0');
+    final yearMonthPrefix = '$yearStr$monthStr';
+
+    final fullPrefix = '$prefix$yearMonthPrefix';
+    final expectedLength = fullPrefix.length + 2;
+
+    // Find all VALID sequential order numbers for the current prefix+month
+    final validSequentialOrders = state.where((order) {
+      // Check if DC number matches the expected format: prefix + YYMM + 2 digits
+      if (!order.dcNo.startsWith(fullPrefix) ||
+          order.dcNo.length != expectedLength) {
+        return false;
       }
+
+      // Check if the last 2 characters are all digits
+      final sequencePart = order.dcNo.substring(fullPrefix.length);
+      return RegExp(r'^\d{2}$').hasMatch(sequencePart);
+    }).toList();
+
+    // If no valid sequential orders exist for this month, start from 1
+    if (validSequentialOrders.isEmpty) {
+      return '${fullPrefix}01';
     }
-    
-    // Generate next sequence with 6 digits padding
-    final nextSequence = maxSequence + 1;
-    return '$prefix${nextSequence.toString().padLeft(6, '0')}';
+
+    // Extract and parse sequence numbers from valid orders only
+    final sequenceNumbers = validSequentialOrders.map((order) {
+      return int.parse(order.dcNo.substring(fullPrefix.length));
+    }).toList();
+
+    // Find the highest sequence number and increment by 1
+    final nextSequence = sequenceNumbers.reduce((a, b) => a > b ? a : b) + 1;
+
+    // Format as 2-digit number with leading zeros
+    final sequenceStr = nextSequence.toString().padLeft(2, '0');
+
+    return '$fullPrefix$sequenceStr'; // e.g., MJ260901, AJ260901, etc.
   }
 }

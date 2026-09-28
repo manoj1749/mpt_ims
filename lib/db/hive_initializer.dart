@@ -35,6 +35,7 @@ import '../models/service_master.dart';
 import '../models/service_name.dart';
 import '../models/service_type.dart';
 import '../models/bill_of_preparation.dart';
+import '../models/job_order_request.dart';
 
 bool _adaptersRegistered = false;
 
@@ -110,6 +111,8 @@ Future<void> initializeHive() async {
     Hive.registerAdapter(CktTypeAdapter());
     Hive.registerAdapter(MaterialCktTypeAdapter());
     Hive.registerAdapter(BopMaterialAdapter());
+
+    Hive.registerAdapter(JobOrderRequestAdapter());
     
     _adaptersRegistered = true;
   }
@@ -147,6 +150,7 @@ Future<void> initializeHive() async {
     Hive.openBox<ServiceName>('serviceNames'),
     Hive.openBox<ServiceType>('serviceTypes'),
     Hive.openBox<BillOfPreparation>('billOfPreparations'),
+    Hive.openBox<JobOrderRequest>('job_order_requests'),
     Hive.openBox('ui_settings'),
   ]);
 }
@@ -184,6 +188,7 @@ Future<void> clearIncompatibleData() async {
       Hive.deleteBoxFromDisk('serviceNames'),
       Hive.deleteBoxFromDisk('serviceTypes'),
       Hive.deleteBoxFromDisk('billOfPreparations'),
+      Hive.deleteBoxFromDisk('job_order_requests'),
       // Intentionally do NOT delete 'ui_settings' so UI preferences persist
     ]);
 

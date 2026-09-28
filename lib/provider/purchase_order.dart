@@ -4,6 +4,7 @@ import '../models/purchase_order.dart';
 import '../models/po_item.dart';
 import 'base_provider.dart';
 import 'store_inward_provider.dart';
+import '../utils/company_config.dart';
 
 final purchaseOrderBoxProvider = Provider<Box<PurchaseOrder>>((ref) {
   throw UnimplementedError();
@@ -140,22 +141,26 @@ class PurchaseOrderNotifier extends BaseProvider<PurchaseOrder> {
               prDetails: POItem.castPRDetails(item['prDetails']),
               receivedQuantities:
                   POItem.castReceivedQuantities(item['receivedQuantities']),
-              originalCostPerUnit: (item['originalCostPerUnit'] as num?)?.toDouble(),
-              amendedCostPerUnit: (item['amendedCostPerUnit'] as num?)?.toDouble(),
+              originalCostPerUnit:
+                  (item['originalCostPerUnit'] as num?)?.toDouble(),
+              amendedCostPerUnit:
+                  (item['amendedCostPerUnit'] as num?)?.toDouble(),
               amendmentHistory: (item['amendmentHistory'] as List<dynamic>?)
                       ?.map((e) => AmendmentEntry(
                             dateTime: e['dateTime'] ?? '',
-                            oldPrice: (e['oldPrice'] as num?)?.toDouble() ?? 0.0,
-                            newPrice: (e['newPrice'] as num?)?.toDouble() ?? 0.0,
+                            oldPrice:
+                                (e['oldPrice'] as num?)?.toDouble() ?? 0.0,
+                            newPrice:
+                                (e['newPrice'] as num?)?.toDouble() ?? 0.0,
                           ))
                       .toList() ??
                   [],
             ))
         .toList();
 
-    final inferredServiceBill =
-        (map['poNo']?.toString().startsWith('SB-PO-') ?? false) ||
-            (items.isNotEmpty && items.every((i) => i.materialCode == 'SERVICE'));
+    final inferredServiceBill = (map['poNo']?.toString().startsWith('SB-PO-') ??
+            false) ||
+        (items.isNotEmpty && items.every((i) => i.materialCode == 'SERVICE'));
 
     bool? parseBool(dynamic v) {
       if (v is bool) return v;
@@ -228,7 +233,8 @@ class PurchaseOrderNotifier extends BaseProvider<PurchaseOrder> {
       final storeInwardBox = _ref!.read(storeInwardBoxProvider);
       final hasGRs = storeInwardBox.values.any((inward) =>
           inward.poNo == existingOrder.poNo &&
-          inward.items.any((item) => item.prQuantities.containsKey(existingOrder.poNo)));
+          inward.items.any(
+              (item) => item.prQuantities.containsKey(existingOrder.poNo)));
       if (hasGRs) {
         return; // silently ignore updates; UI should also block
       }
@@ -274,7 +280,9 @@ class PurchaseOrderNotifier extends BaseProvider<PurchaseOrder> {
   }
 
   List<PurchaseOrder> getPendingOrders() {
-    return state.where((order) => !order.isFullyReceived && !order.isForeclosed).toList();
+    return state
+        .where((order) => !order.isFullyReceived && !order.isForeclosed)
+        .toList();
   }
 
   // Foreclose a PO with reason
@@ -289,47 +297,49 @@ class PurchaseOrderNotifier extends BaseProvider<PurchaseOrder> {
   }
 
   String generateOrderNumber() {
-    // Get current financial year (April to March)
+    // Prefix depends on company configuration:
+    // MagnetPowerTech -> 'M', Aimant Industries -> 'AI'.
+    final prefix = poNumberPrefix;
+
+    // Current year (last 2 digits) + current month (2 digits), e.g. 2608
+    // for August 2026.
     final now = DateTime.now();
-    int financialYear = now.year;
-    if (now.month < 4) {
-      financialYear--; // If before April, use previous financial year
-    }
-    final nextFinancialYear = financialYear + 1;
+    final yearStr = now.year.toString().substring(2);
+    final monthStr = now.month.toString().padLeft(2, '0');
+    final yearMonthPrefix = '$yearStr$monthStr';
 
-    // Get last 2 digits of current and next financial year
-    final currentYearStr = financialYear.toString().substring(2);
-    final nextYearStr = nextFinancialYear.toString().substring(2);
-    final yearPrefix = '$currentYearStr$nextYearStr';
+    final fullPrefix = '$prefix$yearMonthPrefix';
+    final expectedLength = fullPrefix.length + 2;
 
-    // Find all VALID sequential order numbers for the current financial year
+    // Find all VALID sequential order numbers for the current prefix+month
     final validSequentialOrders = state.where((order) {
-      // Check if PO number matches the expected format: PO + YYYY + 6 digits
-      if (!order.poNo.startsWith('PO$yearPrefix') || order.poNo.length != 12) {
+      // Check if PO number matches the expected format: prefix + YYMM + 2 digits
+      if (!order.poNo.startsWith(fullPrefix) ||
+          order.poNo.length != expectedLength) {
         return false;
       }
 
-      // Check if the last 6 characters are all digits
-      final sequencePart = order.poNo.substring(6);
-      return RegExp(r'^\d{6}$').hasMatch(sequencePart);
+      // Check if the last 2 characters are all digits
+      final sequencePart = order.poNo.substring(fullPrefix.length);
+      return RegExp(r'^\d{2}$').hasMatch(sequencePart);
     }).toList();
 
-    // If no valid sequential orders exist for this financial year, start from 1
+    // If no valid sequential orders exist for this month, start from 1
     if (validSequentialOrders.isEmpty) {
-      return 'PO${yearPrefix}000001';
+      return '${fullPrefix}01';
     }
 
     // Extract and parse sequence numbers from valid orders only
     final sequenceNumbers = validSequentialOrders.map((order) {
-      return int.parse(order.poNo.substring(6));
+      return int.parse(order.poNo.substring(fullPrefix.length));
     }).toList();
 
     // Find the highest sequence number and increment by 1
     final nextSequence = sequenceNumbers.reduce((a, b) => a > b ? a : b) + 1;
 
-    // Format as 6-digit number with leading zeros
-    final sequenceStr = nextSequence.toString().padLeft(6, '0');
+    // Format as 2-digit number with leading zeros
+    final sequenceStr = nextSequence.toString().padLeft(2, '0');
 
-    return 'PO$yearPrefix$sequenceStr'; // e.g., PO25260001, PO25260002, etc.
+    return '$fullPrefix$sequenceStr'; // e.g., M260901, AI260901, etc.
   }
 }

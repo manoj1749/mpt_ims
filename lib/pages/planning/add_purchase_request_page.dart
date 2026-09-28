@@ -26,6 +26,7 @@ class AddPurchaseRequestPage extends ConsumerStatefulWidget {
   final String? initialMaterialDescription;
   final BillOfPreparation? sourceBop;
   final BopMaterial? sourceBopMaterial;
+  final List<Map<String, dynamic>>? initialBopMaterials;
   const AddPurchaseRequestPage({
     super.key,
     required this.existingRequest,
@@ -35,6 +36,7 @@ class AddPurchaseRequestPage extends ConsumerStatefulWidget {
     this.initialMaterialDescription,
     this.sourceBop,
     this.sourceBopMaterial,
+    this.initialBopMaterials,
   });
 
   @override
@@ -81,7 +83,8 @@ class _AddPurchaseRequestPageState
                   final counts = <String, int>{};
                   for (final r in preview) {
                     if (r.normalizedCode.isEmpty) continue;
-                    counts[r.normalizedCode] = (counts[r.normalizedCode] ?? 0) + 1;
+                    counts[r.normalizedCode] =
+                        (counts[r.normalizedCode] ?? 0) + 1;
                   }
 
                   for (final r in preview) {
@@ -92,7 +95,8 @@ class _AddPurchaseRequestPageState
                   }
                 }
 
-                final validCount = preview.where((r) => r.errors.isEmpty).length;
+                final validCount =
+                    preview.where((r) => r.errors.isEmpty).length;
                 final invalidCount = preview.length - validCount;
 
                 return AlertDialog(
@@ -106,9 +110,8 @@ class _AddPurchaseRequestPageState
                         Text(
                           'Valid: $validCount    Errors: $invalidCount',
                           style: TextStyle(
-                            color: invalidCount > 0
-                                ? Colors.orange
-                                : Colors.green,
+                            color:
+                                invalidCount > 0 ? Colors.orange : Colors.green,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -222,23 +225,54 @@ class _AddPurchaseRequestPageState
               TextEditingController(text: item.materialDescription),
         ));
       }
+    } else if (widget.initialBopMaterials != null &&
+        widget.initialBopMaterials!.isNotEmpty) {
+      // Autofill from multi-selected BOP materials
+      _selectedJobNo = widget.initialBopMaterials!.first['jobNo'] as String?;
+
+      for (final materialData in widget.initialBopMaterials!) {
+        final materialCode = materialData['materialCode'] as String;
+        final materialDescription =
+            materialData['materialDescription'] as String;
+        final mat = materialData['mat'] as BopMaterial;
+
+        // Extract quantity from BOP material
+        String materialQuantity = '1';
+        if (mat.cktTypes.isNotEmpty) {
+          materialQuantity = mat.cktTypes.first.materialQuantity.toString();
+        }
+
+        _items.add(PRItemFormData(
+          selectedMaterial: materialDescription,
+          quantity: materialQuantity,
+          quantityController: TextEditingController(text: materialQuantity),
+          partNoController: TextEditingController(text: materialCode),
+          unitController: TextEditingController(text: ''),
+          materialController: TextEditingController(text: materialDescription),
+        ));
+      }
     } else if (widget.initialMaterialCode != null) {
-      // Autofill from BOP approval
+      // Autofill from single BOP approval
       _selectedJobNo = widget.initialJobNo;
-      
+
       // Extract quantity from BOP material
       String materialQuantity = '1';
-      if (widget.sourceBopMaterial != null && widget.sourceBopMaterial!.cktTypes.isNotEmpty) {
-        materialQuantity = widget.sourceBopMaterial!.cktTypes.first.materialQuantity.toString();
+      if (widget.sourceBopMaterial != null &&
+          widget.sourceBopMaterial!.cktTypes.isNotEmpty) {
+        materialQuantity = widget
+            .sourceBopMaterial!.cktTypes.first.materialQuantity
+            .toString();
       }
-      
+
       _items.add(PRItemFormData(
         selectedMaterial: widget.initialMaterialDescription ?? '',
         quantity: materialQuantity,
         quantityController: TextEditingController(text: materialQuantity),
-        partNoController: TextEditingController(text: widget.initialMaterialCode ?? ''),
+        partNoController:
+            TextEditingController(text: widget.initialMaterialCode ?? ''),
         unitController: TextEditingController(text: ''),
-        materialController: TextEditingController(text: widget.initialMaterialDescription ?? ''),
+        materialController: TextEditingController(
+            text: widget.initialMaterialDescription ?? ''),
       ));
     } else {
       _addNewItem();
@@ -294,7 +328,8 @@ class _AddPurchaseRequestPageState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Material master is empty. Please add materials first.'),
+              content:
+                  Text('Material master is empty. Please add materials first.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -326,7 +361,8 @@ class _AddPurchaseRequestPageState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Unsupported file type: $ext. Please upload a CSV file.'),
+              content: Text(
+                  'Unsupported file type: $ext. Please upload a CSV file.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -344,7 +380,26 @@ class _AddPurchaseRequestPageState
           .replaceAll(RegExp(r'\s+'), '')
           .replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-      final input = await file.readAsString();
+      String input;
+      try {
+        input = await file.readAsString();
+      } catch (e) {
+        try {
+          final bytes = await file.readAsBytes();
+          input = String.fromCharCodes(bytes);
+        } catch (e2) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Failed to read file with UTF-8 or fallback encoding. Please save the CSV file as UTF-8.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
       final rows = const CsvToListConverter().convert(input);
       if (rows.isEmpty) {
         if (mounted) {
@@ -358,14 +413,17 @@ class _AddPurchaseRequestPageState
         return;
       }
 
-      final headers = rows.first.map((e) => e.toString().toLowerCase()).toList();
+      final headers =
+          rows.first.map((e) => e.toString().toLowerCase()).toList();
       int codeIndex = -1;
       int descIndex = -1;
       int qtyIndex = -1;
 
       for (int i = 0; i < headers.length; i++) {
         final h = headers[i];
-        if (h.contains('material code') || h.contains('part no') || h.contains('partno')) {
+        if (h.contains('material code') ||
+            h.contains('part no') ||
+            h.contains('partno')) {
           codeIndex = i;
         } else if (h.contains('material')) {
           descIndex = i;
@@ -378,7 +436,8 @@ class _AddPurchaseRequestPageState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('CSV must have at least Material Code and Quantity columns.'),
+              content: Text(
+                  'CSV must have at least Material Code and Quantity columns.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -413,7 +472,8 @@ class _AddPurchaseRequestPageState
         if (rawCode.isEmpty) {
           errors.add('Missing material code');
         } else {
-          matched = materials.firstWhereOrNull((m) => norm(m.partNo) == normalizedCode);
+          matched = materials
+              .firstWhereOrNull((m) => norm(m.partNo) == normalizedCode);
           if (matched == null) {
             errors.add('Material code not found');
           }
@@ -429,7 +489,9 @@ class _AddPurchaseRequestPageState
         }
 
         if (normalizedCode.isNotEmpty) {
-          normalizedCodeToRowNos.putIfAbsent(normalizedCode, () => []).add(rowNo);
+          normalizedCodeToRowNos
+              .putIfAbsent(normalizedCode, () => [])
+              .add(rowNo);
         }
 
         previewRows.add(
@@ -447,7 +509,8 @@ class _AddPurchaseRequestPageState
 
       for (final e in normalizedCodeToRowNos.entries) {
         if (e.value.length > 1) {
-          for (final r in previewRows.where((r) => norm(r.materialCode) == e.key)) {
+          for (final r
+              in previewRows.where((r) => norm(r.materialCode) == e.key)) {
             r.errors.add('Duplicate material code');
           }
         }
@@ -804,398 +867,438 @@ class _AddPurchaseRequestPageState
               24 + MediaQuery.of(context).viewInsets.bottom + 120,
             ),
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _requiredByController,
-                      decoration: const InputDecoration(
-                        labelText: 'Requested By',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Required' : null,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: DropdownButtonFormField2<String>(
-                      value: _selectedJobNo,
-                      decoration: const InputDecoration(
-                        labelText: 'Job No',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        const DropdownMenuItem(
-                          value: null,
-                          child: Text('None'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _requiredByController,
+                        decoration: const InputDecoration(
+                          labelText: 'Requested By',
+                          border: OutlineInputBorder(),
                         ),
-                        ...saleOrders.map((order) {
-                          final board = (order.boardNo).toString().trim();
-                          final label = board.isEmpty || board == 'null'
-                              ? order.jobNo
-                              : '${order.jobNo} ($board)';
-                          return DropdownMenuItem(
-                            value: order.jobNo,
-                            child: Text(label),
-                          );
-                        }),
-                      ],
-                      onChanged: (v) => setState(() => _selectedJobNo = v),
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Required' : null,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Items',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  Row(
-                    children: [
-                      TextButton.icon(
-                        onPressed: _downloadBulkTemplate,
-                        icon: const Icon(Icons.download),
-                        label: const Text('Template'),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: DropdownButtonFormField2<String>(
+                        value: _selectedJobNo,
+                        decoration: const InputDecoration(
+                          labelText: 'Job No',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('None'),
+                          ),
+                          ...saleOrders.map((order) {
+                            final board = (order.boardNo).toString().trim();
+                            final label = board.isEmpty || board == 'null'
+                                ? order.jobNo
+                                : '${order.jobNo} ($board)';
+                            return DropdownMenuItem(
+                              value: order.jobNo,
+                              child: Text(label),
+                            );
+                          }),
+                        ],
+                        onChanged: (v) => setState(() => _selectedJobNo = v),
                       ),
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        onPressed: _uploadBulkCsv,
-                        icon: const Icon(Icons.upload_file),
-                        label: const Text('Upload CSV'),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: _showBulkEntryDialog,
-                        icon: const Icon(Icons.playlist_add),
-                        label: const Text('Add Multiple Items'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ..._items.asMap().entries.map((entry) {
-                final index = entry.key;
-                final item = entry.value;
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Items',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Row(
                       children: [
-                        // Material Code Selection
-                        Expanded(
-                          flex: 2,
-                          child: Autocomplete<MaterialItem>(
-                            fieldViewBuilder: (context, textEditingController,
-                                focusNode, onFieldSubmitted) {
-                              // Set initial value without triggering rebuild
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (textEditingController.text.isEmpty &&
-                                    item.partNoController.text.isNotEmpty) {
-                                  textEditingController.text =
-                                      item.partNoController.text;
-                                }
-                              });
-                              return TextFormField(
-                                controller: textEditingController,
-                                focusNode: focusNode,
-                                decoration: const InputDecoration(
-                                  labelText: 'Material Code',
-                                  border: OutlineInputBorder(),
-                                ),
-                                validator: (v) => v == null || v.isEmpty
-                                    ? 'Required'
-                                    : !materials.any((m) =>
-                                            _norm(m.partNo) == _norm(v))
-                                        ? 'Invalid material code'
-                                        : null,
-                              );
-                            },
-                            optionsViewBuilder: (context, onSelected, options) {
-                              return Align(
-                                alignment: Alignment.topLeft,
-                                child: Material(
-                                  elevation: 4.0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    side: BorderSide(
-                                      color: Theme.of(context).dividerColor,
-                                    ),
-                                  ),
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxHeight: 200,
-                                      maxWidth: 400,
-                                    ),
-                                    child: ListView.builder(
-                                      padding: const EdgeInsets.all(8.0),
-                                      itemCount: options.length,
-                                      itemBuilder: (context, index) {
-                                        final option = options.elementAt(index);
-                                        return InkWell(
-                                          onTap: () => onSelected(option),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 12.0,
-                                              horizontal: 16.0,
-                                            ),
-                                            child: Text(
-                                              '${option.partNo} - ${option.description}',
-                                              style: const TextStyle(
-                                                fontSize: 14.0,
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                            displayStringForOption: (material) =>
-                                material.partNo,
-                            optionsBuilder: (textEditingValue) {
-                              if (textEditingValue.text.isEmpty) {
-                                return materials;
-                              }
-                              return materials.where((material) =>
-                                  material.partNo.toLowerCase().contains(
-                                      textEditingValue.text.toLowerCase()));
-                            },
-                            onSelected: (material) {
-                              setState(() {
-                                item.selectedMaterial = material.description;
-                                item.partNoController.text = material.partNo;
-                                item.unitController.text = material.unit;
-                                item.materialController.text =
-                                    material.description;
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Material Description Selection
-                        Expanded(
-                          flex: 3,
-                          child: Autocomplete<MaterialItem>(
-                            fieldViewBuilder: (context, textEditingController,
-                                focusNode, onFieldSubmitted) {
-                              // Set initial value without triggering rebuild
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (textEditingController.text.isEmpty &&
-                                    item.selectedMaterial != null) {
-                                  textEditingController.text =
-                                      item.selectedMaterial!;
-                                }
-                              });
-                              return TextFormField(
-                                controller: textEditingController,
-                                focusNode: focusNode,
-                                decoration: const InputDecoration(
-                                  labelText: 'Material',
-                                  border: OutlineInputBorder(),
-                                ),
-                                validator: (v) => v == null || v.isEmpty
-                                    ? 'Required'
-                                    : !materials.any((m) => m.description == v)
-                                        ? 'Invalid material'
-                                        : null,
-                              );
-                            },
-                            optionsViewBuilder: (context, onSelected, options) {
-                              return Align(
-                                alignment: Alignment.topLeft,
-                                child: Material(
-                                  elevation: 4.0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    side: BorderSide(
-                                      color: Theme.of(context).dividerColor,
-                                    ),
-                                  ),
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxHeight: 200,
-                                      maxWidth: 600,
-                                    ),
-                                    child: ListView.builder(
-                                      padding: const EdgeInsets.all(8.0),
-                                      itemCount: options.length,
-                                      itemBuilder: (context, index) {
-                                        final option = options.elementAt(index);
-                                        return InkWell(
-                                          onTap: () => onSelected(option),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 12.0,
-                                              horizontal: 16.0,
-                                            ),
-                                            child: Text(
-                                              option.description,
-                                              style: const TextStyle(
-                                                fontSize: 14.0,
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                            displayStringForOption: (material) =>
-                                material.description,
-                            optionsBuilder: (textEditingValue) {
-                              if (textEditingValue.text.isEmpty) {
-                                return materials;
-                              }
-                              return materials.where((material) =>
-                                  material.description.toLowerCase().contains(
-                                      textEditingValue.text.toLowerCase()));
-                            },
-                            onSelected: (material) {
-                              setState(() {
-                                item.selectedMaterial = material.description;
-                                item.partNoController.text = material.partNo;
-                                item.unitController.text = material.unit;
-                                item.materialController.text =
-                                    material.description;
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Quantity Field
-                        Expanded(
-                          flex: 1,
-                          child: TextFormField(
-                            key: ValueKey('quantity_${item.hashCode}'),
-                            controller: item.quantityController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Quantity',
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Required' : null,
-                            onChanged: (v) => item.quantity = v,
-                            onSaved: (v) => item.quantity = v,
-                          ),
+                        TextButton.icon(
+                          onPressed: _downloadBulkTemplate,
+                          icon: const Icon(Icons.download),
+                          label: const Text('Template'),
                         ),
                         const SizedBox(width: 8),
-                        // Delete Button
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _removeItem(index),
+                        TextButton.icon(
+                          onPressed: _uploadBulkCsv,
+                          icon: const Icon(Icons.upload_file),
+                          label: const Text('Upload CSV'),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: _showBulkEntryDialog,
+                          icon: const Icon(Icons.playlist_add),
+                          label: const Text('Add Multiple Items'),
                         ),
                       ],
                     ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _addNewItem,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Item'),
-                  ),
-                  FilledButton(
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        _formKey.currentState!.save();
-                        final now =
-                            DateFormat('yyyy-MM-dd').format(DateTime.now());
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ..._items.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final item = entry.value;
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Material Code Selection
+                          Expanded(
+                            flex: 2,
+                            child: Autocomplete<MaterialItem>(
+                              fieldViewBuilder: (context, textEditingController,
+                                  focusNode, onFieldSubmitted) {
+                                // Set initial value without triggering rebuild
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
+                                  if (textEditingController.text.isEmpty &&
+                                      item.partNoController.text.isNotEmpty) {
+                                    textEditingController.text =
+                                        item.partNoController.text;
+                                  }
+                                });
+                                return TextFormField(
+                                  controller: textEditingController,
+                                  focusNode: focusNode,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Material Code',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  validator: (v) => v == null || v.isEmpty
+                                      ? 'Required'
+                                      : !materials.any((m) =>
+                                              _norm(m.partNo) == _norm(v))
+                                          ? 'Invalid material code'
+                                          : null,
+                                );
+                              },
+                              optionsViewBuilder:
+                                  (context, onSelected, options) {
+                                return Align(
+                                  alignment: Alignment.topLeft,
+                                  child: Material(
+                                    elevation: 4.0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      side: BorderSide(
+                                        color: Theme.of(context).dividerColor,
+                                      ),
+                                    ),
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxHeight: 200,
+                                        maxWidth: 400,
+                                      ),
+                                      child: ListView.builder(
+                                        padding: const EdgeInsets.all(8.0),
+                                        itemCount: options.length,
+                                        itemBuilder: (context, index) {
+                                          final option =
+                                              options.elementAt(index);
+                                          return InkWell(
+                                            onTap: () => onSelected(option),
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                vertical: 12.0,
+                                                horizontal: 16.0,
+                                              ),
+                                              child: Text(
+                                                '${option.partNo} - ${option.description}',
+                                                style: const TextStyle(
+                                                  fontSize: 14.0,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                              displayStringForOption: (material) =>
+                                  material.partNo,
+                              optionsBuilder: (textEditingValue) {
+                                if (textEditingValue.text.isEmpty) {
+                                  return materials;
+                                }
+                                return materials.where((material) =>
+                                    material.partNo.toLowerCase().contains(
+                                        textEditingValue.text.toLowerCase()));
+                              },
+                              onSelected: (material) {
+                                setState(() {
+                                  item.selectedMaterial = material.description;
+                                  item.partNoController.text = material.partNo;
+                                  item.unitController.text = material.unit;
+                                  item.materialController.text =
+                                      material.description;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Material Description Selection
+                          Expanded(
+                            flex: 3,
+                            child: Autocomplete<MaterialItem>(
+                              fieldViewBuilder: (context, textEditingController,
+                                  focusNode, onFieldSubmitted) {
+                                // Set initial value without triggering rebuild
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
+                                  if (textEditingController.text.isEmpty &&
+                                      item.selectedMaterial != null) {
+                                    textEditingController.text =
+                                        item.selectedMaterial!;
+                                  }
+                                });
+                                return TextFormField(
+                                  controller: textEditingController,
+                                  focusNode: focusNode,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Material',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  validator: (v) => v == null || v.isEmpty
+                                      ? 'Required'
+                                      : !materials
+                                              .any((m) => m.description == v)
+                                          ? 'Invalid material'
+                                          : null,
+                                );
+                              },
+                              optionsViewBuilder:
+                                  (context, onSelected, options) {
+                                return Align(
+                                  alignment: Alignment.topLeft,
+                                  child: Material(
+                                    elevation: 4.0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      side: BorderSide(
+                                        color: Theme.of(context).dividerColor,
+                                      ),
+                                    ),
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxHeight: 200,
+                                        maxWidth: 600,
+                                      ),
+                                      child: ListView.builder(
+                                        padding: const EdgeInsets.all(8.0),
+                                        itemCount: options.length,
+                                        itemBuilder: (context, index) {
+                                          final option =
+                                              options.elementAt(index);
+                                          return InkWell(
+                                            onTap: () => onSelected(option),
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                vertical: 12.0,
+                                                horizontal: 16.0,
+                                              ),
+                                              child: Text(
+                                                option.description,
+                                                style: const TextStyle(
+                                                  fontSize: 14.0,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                              displayStringForOption: (material) =>
+                                  material.description,
+                              optionsBuilder: (textEditingValue) {
+                                if (textEditingValue.text.isEmpty) {
+                                  return materials;
+                                }
+                                return materials.where((material) =>
+                                    material.description.toLowerCase().contains(
+                                        textEditingValue.text.toLowerCase()));
+                              },
+                              onSelected: (material) {
+                                setState(() {
+                                  item.selectedMaterial = material.description;
+                                  item.partNoController.text = material.partNo;
+                                  item.unitController.text = material.unit;
+                                  item.materialController.text =
+                                      material.description;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Quantity Field
+                          Expanded(
+                            flex: 1,
+                            child: TextFormField(
+                              key: ValueKey('quantity_${item.hashCode}'),
+                              controller: item.quantityController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Quantity',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (v) =>
+                                  v == null || v.isEmpty ? 'Required' : null,
+                              onChanged: (v) => item.quantity = v,
+                              onSaved: (v) => item.quantity = v,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Delete Button
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () => _removeItem(index),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _addNewItem,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Item'),
+                    ),
+                    FilledButton(
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          _formKey.currentState!.save();
+                          final now =
+                              DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-                        final prNo = widget.existingRequest?.prNo ??
+                          final prNo = widget.existingRequest?.prNo ??
+                              ref
+                                  .read(purchaseRequestListProvider.notifier)
+                                  .generateOrderNumber();
+
+                          // Process all items (both new and existing)
+                          final allItems = <PRItem>[];
+
+                          // First, process the form items
+                          for (var item in _items) {
+                            final code = item.partNoController.text.trim();
+                            if (code.isEmpty) continue;
+
+                            final material = materials.firstWhereOrNull(
+                              (m) => _norm(m.partNo) == _norm(code),
+                            );
+                            if (material == null) continue;
+                            if (item.quantity == null ||
+                                item.quantity!.trim().isEmpty) {
+                              continue;
+                            }
+
+                            final prItem = PRItem(
+                              materialCode: material.partNo,
+                              materialDescription: material.description,
+                              unit: material.unit,
+                              quantity: item.quantity!,
+                              prNo: prNo,
+                            );
+
+                            allItems.add(prItem);
+                          }
+
+                          final request = PurchaseRequest(
+                            prNo: prNo,
+                            date: now,
+                            requiredBy: _requiredByController.text,
+                            items: allItems,
+                            jobNo: _selectedJobNo,
+                          );
+
+                          if (widget.existingRequest != null &&
+                              widget.index != null) {
                             ref
                                 .read(purchaseRequestListProvider.notifier)
-                                .generateOrderNumber();
-
-                        // Process all items (both new and existing)
-                        final allItems = <PRItem>[];
-
-                        // First, process the form items
-                        for (var item in _items) {
-                          final code = item.partNoController.text.trim();
-                          if (code.isEmpty) continue;
-
-                          final material = materials.firstWhereOrNull(
-                            (m) => _norm(m.partNo) == _norm(code),
-                          );
-                          if (material == null) continue;
-                          if (item.quantity == null || item.quantity!.trim().isEmpty) {
-                            continue;
+                                .updateRequest(widget.index!, request);
+                          } else {
+                            ref
+                                .read(purchaseRequestListProvider.notifier)
+                                .addRequest(request);
                           }
 
-                          final prItem = PRItem(
-                            materialCode: material.partNo,
-                            materialDescription: material.description,
-                            unit: material.unit,
-                            quantity: item.quantity!,
-                            prNo: prNo,
-                          );
-
-                          allItems.add(prItem);
-                        }
-
-                        final request = PurchaseRequest(
-                          prNo: prNo,
-                          date: now,
-                          requiredBy: _requiredByController.text,
-                          items: allItems,
-                          jobNo: _selectedJobNo,
-                        );
-
-                        if (widget.existingRequest != null &&
-                            widget.index != null) {
-                          ref
-                              .read(purchaseRequestListProvider.notifier)
-                              .updateRequest(widget.index!, request);
-                        } else {
-                          ref
-                              .read(purchaseRequestListProvider.notifier)
-                              .addRequest(request);
-                        }
-
-                        // If approved from BOP tab, remove the material from the BOP
-                        if (widget.sourceBop != null && widget.sourceBopMaterial != null) {
-                          final bop = widget.sourceBop!;
-                          final mat = widget.sourceBopMaterial!;
-                          final updatedBop = bop.copyWith(
-                            materials: bop.materials
-                                .where((m) => m.materialCode != mat.materialCode)
-                                .toList(),
-                          );
-                          final bops = ref.read(billOfPreparationProvider);
-                          final bopIndex = bops.indexWhere(
-                              (b) => b.jobNo == bop.jobNo && b.createdDate == bop.createdDate);
-                          if (bopIndex != -1) {
-                            await ref
-                                .read(billOfPreparationProvider.notifier)
-                                .updateBillOfPreparation(bopIndex, updatedBop, ref);
+                          // If approved from BOP tab, remove the materials from the BOP
+                          if (widget.initialBopMaterials != null &&
+                              widget.initialBopMaterials!.isNotEmpty) {
+                            // Handle multiple materials from multi-select
+                            for (final materialData
+                                in widget.initialBopMaterials!) {
+                              final bop =
+                                  materialData['bop'] as BillOfPreparation;
+                              final mat = materialData['mat'] as BopMaterial;
+                              final updatedBop = bop.copyWith(
+                                materials: bop.materials
+                                    .where((m) =>
+                                        m.materialCode != mat.materialCode)
+                                    .toList(),
+                              );
+                              final bops = ref.read(billOfPreparationProvider);
+                              final bopIndex = bops.indexWhere((b) =>
+                                  b.jobNo == bop.jobNo &&
+                                  b.createdDate == bop.createdDate);
+                              if (bopIndex != -1) {
+                                await ref
+                                    .read(billOfPreparationProvider.notifier)
+                                    .updateBillOfPreparation(
+                                        bopIndex, updatedBop, ref);
+                              }
+                            }
+                          } else if (widget.sourceBop != null &&
+                              widget.sourceBopMaterial != null) {
+                            // Handle single material from traditional approval
+                            final bop = widget.sourceBop!;
+                            final mat = widget.sourceBopMaterial!;
+                            final updatedBop = bop.copyWith(
+                              materials: bop.materials
+                                  .where(
+                                      (m) => m.materialCode != mat.materialCode)
+                                  .toList(),
+                            );
+                            final bops = ref.read(billOfPreparationProvider);
+                            final bopIndex = bops.indexWhere((b) =>
+                                b.jobNo == bop.jobNo &&
+                                b.createdDate == bop.createdDate);
+                            if (bopIndex != -1) {
+                              await ref
+                                  .read(billOfPreparationProvider.notifier)
+                                  .updateBillOfPreparation(
+                                      bopIndex, updatedBop, ref);
+                            }
                           }
-                        }
 
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: const Text('Save'),
-                  ),
-                ],
-              ),
-            ],
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

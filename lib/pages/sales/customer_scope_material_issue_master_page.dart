@@ -15,10 +15,12 @@ class CustomerScopeMaterialIssueMasterPage extends ConsumerStatefulWidget {
   const CustomerScopeMaterialIssueMasterPage({super.key});
 
   @override
-  ConsumerState<CustomerScopeMaterialIssueMasterPage> createState() => _CustomerScopeMaterialIssueMasterPageState();
+  ConsumerState<CustomerScopeMaterialIssueMasterPage> createState() =>
+      _CustomerScopeMaterialIssueMasterPageState();
 }
 
-class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerScopeMaterialIssueMasterPage> {
+class _CustomerScopeMaterialIssueMasterPageState
+    extends ConsumerState<CustomerScopeMaterialIssueMasterPage> {
   PlutoGridStateManager? stateManager;
   bool _isLoading = true;
 
@@ -187,7 +189,8 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
         width: 150,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final materials = ref.read(customerScopeMaterialIssueMasterListProvider);
+          final materials =
+              ref.read(customerScopeMaterialIssueMasterListProvider);
           final material = materials
               .where((m) => m.slNo == rendererContext.row.cells['slNo']!.value)
               .firstOrNull;
@@ -240,7 +243,8 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
     ];
   }
 
-  List<PlutoRow> _getRows(List<CustomerScopeMaterialIssueMaster> materials, WidgetRef ref) {
+  List<PlutoRow> _getRows(
+      List<CustomerScopeMaterialIssueMaster> materials, WidgetRef ref) {
     return materials.map((m) {
       return PlutoRow(
         cells: {
@@ -249,13 +253,16 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
           'description': PlutoCell(value: m.description),
           'category': PlutoCell(value: m.category),
           'subCategory': PlutoCell(value: m.subCategory),
-          'inventoryClass': PlutoCell(value: (m.inventoryClassification ?? '').isEmpty ? '-' : m.inventoryClassification!),
+          'inventoryClass': PlutoCell(
+              value: (m.inventoryClassification ?? '').isEmpty
+                  ? '-'
+                  : m.inventoryClassification!),
           'unit': PlutoCell(value: m.unit),
           'actualWeight': PlutoCell(value: m.actualWeight),
           'storageLocation': PlutoCell(value: m.storageLocation),
           'rackNumber': PlutoCell(value: m.rackNumber),
-          'binNumber':
-              PlutoCell(value: m.binNumber?.isEmpty ?? true ? '-' : m.binNumber),
+          'binNumber': PlutoCell(
+              value: m.binNumber?.isEmpty ?? true ? '-' : m.binNumber),
           'hsnCode':
               PlutoCell(value: m.hsnCode?.isEmpty ?? true ? '-' : m.hsnCode),
           'actions': PlutoCell(value: ''),
@@ -272,7 +279,8 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
         title: const Text('Bulk Master Upload'),
         content: const SizedBox(
           width: 500,
-          child: Text('Upload CSV with columns: Part Number, Description, Unit, Category, Sub Category, HSN Code, Storage Location, Rack Number, BIN Number, Actual Weight, Inventory Class'),
+          child: Text(
+              'Upload CSV with columns: Part Number, Description, Unit, Category, Sub Category, HSN Code, Storage Location, Rack Number, BIN Number, Actual Weight, Inventory Class'),
         ),
         actions: [
           TextButton(
@@ -295,9 +303,13 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
     try {
       FilePickerResult? result;
       try {
-        result = await FilePicker.platform.pickFiles(type: FileType.any, allowMultiple: false);
+        result = await FilePicker.platform
+            .pickFiles(type: FileType.any, allowMultiple: false);
       } catch (_) {
-        result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['csv'], allowMultiple: false);
+        result = await FilePicker.platform.pickFiles(
+            type: FileType.custom,
+            allowedExtensions: ['csv'],
+            allowMultiple: false);
       }
 
       if (result != null && result.files.single.path != null) {
@@ -308,7 +320,10 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Unsupported file type: $ext. Please select a CSV file.'), backgroundColor: Colors.red),
+              SnackBar(
+                  content: Text(
+                      'Unsupported file type: $ext. Please select a CSV file.'),
+                  backgroundColor: Colors.red),
             );
           }
         }
@@ -316,7 +331,9 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking file: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error picking file: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -324,27 +341,49 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
 
   Future<void> _processCsvFile(File file) async {
     try {
-      final input = await file.readAsString();
+      String input;
+      try {
+        input = await file.readAsString();
+      } catch (e) {
+        // Try alternative encodings if UTF-8 fails
+        try {
+          final bytes = await file.readAsBytes();
+          input = String.fromCharCodes(bytes);
+        } catch (e2) {
+          throw Exception(
+              'Failed to read file with UTF-8 or fallback encoding. Please save the CSV file as UTF-8.');
+        }
+      }
+
       final fields = const CsvToListConverter().convert(input);
       if (fields.isEmpty) throw Exception('File is empty');
 
       final headers = fields[0].map((e) => e.toString().toLowerCase()).toList();
       final dataRows = fields.sublist(1);
 
-      final partNoIndex = _findColumnIndex(headers, ['part number', 'material code', 'partno', 'part_number']);
-      final descriptionIndex = _findColumnIndex(headers, ['description', 'desc', 'material description']);
-      final unitIndex = _findColumnIndex(headers, ['unit', 'uom', 'unit of measure']);
+      final partNoIndex = _findColumnIndex(
+          headers, ['part number', 'material code', 'partno', 'part_number']);
+      final descriptionIndex = _findColumnIndex(
+          headers, ['description', 'desc', 'material description']);
+      final unitIndex =
+          _findColumnIndex(headers, ['unit', 'uom', 'unit of measure']);
       final categoryIndex = _findColumnIndex(headers, ['category']);
-      final subCategoryIndex = _findColumnIndex(headers, ['sub category', 'subcategory', 'sub_category']);
-      final hsnIndex = _findColumnIndex(headers, ['hsn code', 'hsn', 'hsncode', 'hsn_code']);
-      final storageIndex = _findColumnIndex(headers, ['storage location', 'storage']);
+      final subCategoryIndex = _findColumnIndex(
+          headers, ['sub category', 'subcategory', 'sub_category']);
+      final hsnIndex =
+          _findColumnIndex(headers, ['hsn code', 'hsn', 'hsncode', 'hsn_code']);
+      final storageIndex =
+          _findColumnIndex(headers, ['storage location', 'storage']);
       final rackIndex = _findColumnIndex(headers, ['rack number', 'rack']);
       final binIndex = _findColumnIndex(headers, ['bin number', 'bin']);
-      final weightIndex = _findColumnIndex(headers, ['actual weight', 'weight']);
-      final invClassIndex = _findColumnIndex(headers, ['inventory class', 'inventory classification']);
+      final weightIndex =
+          _findColumnIndex(headers, ['actual weight', 'weight']);
+      final invClassIndex = _findColumnIndex(
+          headers, ['inventory class', 'inventory classification']);
 
       if (partNoIndex == -1 || descriptionIndex == -1 || unitIndex == -1) {
-        throw Exception('Required columns not found. Need Part Number, Description, Unit');
+        throw Exception(
+            'Required columns not found. Need Part Number, Description, Unit');
       }
 
       await _showUploadPreview(
@@ -364,7 +403,9 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error processing file: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error processing file: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -397,7 +438,8 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
     final preview = <List<String>>[];
     for (int i = 0; i < dataRows.length && i < 10; i++) {
       final r = dataRows[i];
-      final get = (int idx) => idx != -1 && idx < r.length ? (r[idx]?.toString().trim() ?? '') : '';
+      final get = (int idx) =>
+          idx != -1 && idx < r.length ? (r[idx]?.toString().trim() ?? '') : '';
       preview.add([
         get(partNoIndex),
         get(descriptionIndex),
@@ -424,30 +466,79 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
           child: SingleChildScrollView(
             child: Table(
               border: TableBorder.all(),
-              columnWidths: const {0: FlexColumnWidth(1.2), 1: FlexColumnWidth(2), 2: FlexColumnWidth(1), 3: FlexColumnWidth(1), 4: FlexColumnWidth(1), 5: FlexColumnWidth(1), 6: FlexColumnWidth(1), 7: FlexColumnWidth(1), 8: FlexColumnWidth(1), 9: FlexColumnWidth(1), 10: FlexColumnWidth(1)},
+              columnWidths: const {
+                0: FlexColumnWidth(1.2),
+                1: FlexColumnWidth(2),
+                2: FlexColumnWidth(1),
+                3: FlexColumnWidth(1),
+                4: FlexColumnWidth(1),
+                5: FlexColumnWidth(1),
+                6: FlexColumnWidth(1),
+                7: FlexColumnWidth(1),
+                8: FlexColumnWidth(1),
+                9: FlexColumnWidth(1),
+                10: FlexColumnWidth(1)
+              },
               children: [
                 const TableRow(children: [
-                  Padding(padding: EdgeInsets.all(8), child: Text('Part No', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Unit', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Category', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Sub Category', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('HSN', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Storage', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Rack', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('BIN', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Weight', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Inv Class', style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Part No',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Description',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Unit',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Category',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Sub Category',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('HSN',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Storage',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Rack',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('BIN',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Weight',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Inv Class',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
                 ]),
                 ...preview.map((row) => TableRow(children: [
-                  for (final c in row) Padding(padding: const EdgeInsets.all(8), child: Text(c)),
-                ])),
+                      for (final c in row)
+                        Padding(
+                            padding: const EdgeInsets.all(8), child: Text(c)),
+                    ])),
               ],
             ),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(dctx),
+              child: const Text('Cancel')),
           FilledButton(
             onPressed: () async {
               final outer = context;
@@ -458,13 +549,31 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
                 barrierDismissible: false,
                 builder: (c) {
                   processing = c;
-                  return const AlertDialog(content: Row(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(), SizedBox(width: 16), Text('Processing upload...')]));
+                  return const AlertDialog(
+                      content: Row(mainAxisSize: MainAxisSize.min, children: [
+                    CircularProgressIndicator(),
+                    SizedBox(width: 16),
+                    Text('Processing upload...')
+                  ]));
                 },
               );
               try {
-                await _processUpload(dataRows, partNoIndex, descriptionIndex, unitIndex, categoryIndex, subCategoryIndex, hsnIndex, storageIndex, rackIndex, binIndex, weightIndex, invClassIndex);
+                await _processUpload(
+                    dataRows,
+                    partNoIndex,
+                    descriptionIndex,
+                    unitIndex,
+                    categoryIndex,
+                    subCategoryIndex,
+                    hsnIndex,
+                    storageIndex,
+                    rackIndex,
+                    binIndex,
+                    weightIndex,
+                    invClassIndex);
               } finally {
-                if (processing != null && Navigator.canPop(processing!)) Navigator.pop(processing!);
+                if (processing != null && Navigator.canPop(processing!))
+                  Navigator.pop(processing!);
               }
             },
             child: const Text('Upload'),
@@ -489,19 +598,30 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
     int invClassIndex,
   ) async {
     try {
-      final notifier = ref.read(customerScopeMaterialIssueMasterListProvider.notifier);
+      final notifier =
+          ref.read(customerScopeMaterialIssueMasterListProvider.notifier);
       final existing = ref.read(customerScopeMaterialIssueMasterListProvider);
-      int processed = 0, created = 0, updated = 0, errors = 0;
+      int created = 0, duplicateSkipped = 0, errors = 0;
+      final seenPartNumbers = <String>{};
 
       for (final row in dataRows) {
-        final maxIdx = [partNoIndex, descriptionIndex, unitIndex].reduce((a, b) => a > b ? a : b);
-        if (row.length <= maxIdx) { errors++; continue; }
+        final maxIdx = [partNoIndex, descriptionIndex, unitIndex]
+            .reduce((a, b) => a > b ? a : b);
+        if (row.length <= maxIdx) {
+          errors++;
+          continue;
+        }
 
-        final get = (int idx) => (idx != -1 && idx < row.length) ? (row[idx]?.toString().trim() ?? '') : '';
+        final get = (int idx) => (idx != -1 && idx < row.length)
+            ? (row[idx]?.toString().trim() ?? '')
+            : '';
         final partNo = get(partNoIndex);
         final description = get(descriptionIndex);
         final unit = get(unitIndex);
-        if (partNo.isEmpty || description.isEmpty || unit.isEmpty) { errors++; continue; }
+        if (partNo.isEmpty || description.isEmpty || unit.isEmpty) {
+          errors++;
+          continue;
+        }
 
         final category = get(categoryIndex);
         final subCategory = get(subCategoryIndex);
@@ -512,49 +632,46 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
         final weight = get(weightIndex);
         final invClass = get(invClassIndex);
 
-        final existingItem = existing.firstWhereOrNull((m) => m.partNo.toLowerCase() == partNo.toLowerCase());
-        if (existingItem != null) {
-          final updatedItem = CustomerScopeMaterialIssueMaster(
-            slNo: existingItem.slNo,
-            description: description,
-            partNo: partNo,
-            unit: unit,
-            category: category,
-            subCategory: subCategory,
-            storageLocation: storage,
-            rackNumber: rack,
-            binNumber: bin,
-            hsnCode: hsnCode,
-            actualWeight: weight,
-            inventoryClassification: invClass,
-          );
-          await notifier.updateCustomerScopeMaterialIssueMaster(existing.indexOf(existingItem), updatedItem);
-          updated++;
-        } else {
-          final newItem = CustomerScopeMaterialIssueMaster(
-            slNo: (existing.length + created + 1).toString(),
-            description: description,
-            partNo: partNo,
-            unit: unit,
-            category: category,
-            subCategory: subCategory,
-            storageLocation: storage,
-            rackNumber: rack,
-            binNumber: bin,
-            hsnCode: hsnCode,
-            actualWeight: weight,
-            inventoryClassification: invClass,
-          );
-          await notifier.addCustomerScopeMaterialIssueMaster(newItem);
-          created++;
+        // Check for duplicates in file
+        if (seenPartNumbers.contains(partNo.toLowerCase())) {
+          duplicateSkipped++;
+          continue;
         }
-        processed++;
+        seenPartNumbers.add(partNo.toLowerCase());
+
+        // Check if material already exists - skip silently
+        final existingItem = existing.firstWhereOrNull(
+            (m) => m.partNo.toLowerCase() == partNo.toLowerCase());
+        if (existingItem != null) {
+          duplicateSkipped++;
+          continue;
+        }
+
+        final newItem = CustomerScopeMaterialIssueMaster(
+          slNo: (existing.length + created + 1).toString(),
+          description: description,
+          partNo: partNo,
+          unit: unit,
+          category: category,
+          subCategory: subCategory,
+          storageLocation: storage,
+          rackNumber: rack,
+          binNumber: bin,
+          hsnCode: hsnCode,
+          actualWeight: weight,
+          inventoryClassification: invClass,
+        );
+        await notifier.addCustomerScopeMaterialIssueMaster(newItem);
+        created++;
       }
 
       if (mounted) {
+        final message = duplicateSkipped > 0
+            ? 'Upload completed! Created: $created, Skipped: $duplicateSkipped duplicates, Errors: $errors'
+            : 'Upload completed! Created: $created, Errors: $errors';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Upload completed! Processed: $processed, Created: $created, Updated: $updated, Errors: $errors'),
+            content: Text(message),
             backgroundColor: errors > 0 ? Colors.orange : Colors.green,
           ),
         );
@@ -562,14 +679,15 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Upload failed: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  void _confirmDelete(
-      BuildContext context, WidgetRef ref, CustomerScopeMaterialIssueMaster material) {
+  void _confirmDelete(BuildContext context, WidgetRef ref,
+      CustomerScopeMaterialIssueMaster material) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -646,7 +764,9 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const AddCustomerScopeMaterialIssueMasterPage()),
+            MaterialPageRoute(
+                builder: (_) =>
+                    const AddCustomerScopeMaterialIssueMasterPage()),
           );
         },
         child: const Icon(Icons.add),
@@ -678,7 +798,8 @@ class _CustomerScopeMaterialIssueMasterPageState extends ConsumerState<CustomerS
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => const AddCustomerScopeMaterialIssueMasterPage()),
+                              builder: (_) =>
+                                  const AddCustomerScopeMaterialIssueMasterPage()),
                         ),
                         child: const Text('Add New Material'),
                       ),

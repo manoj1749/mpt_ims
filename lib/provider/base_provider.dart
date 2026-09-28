@@ -3,6 +3,7 @@ import 'package:hive/hive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart'; // Added for WidgetsBinding
+import '../utils/company_config.dart';
 
 abstract class BaseProvider<T> extends StateNotifier<List<T>> {
   final Box<T> box;
@@ -11,6 +12,17 @@ abstract class BaseProvider<T> extends StateNotifier<List<T>> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoaded = false;
   bool _isLoading = false;
+
+  /// Resolves the actual Firestore collection reference. Shared collections
+  /// go under the 'Shared' root document; all others go under the
+  /// company-specific root ('Magnet' or 'Aimant').
+  /// Structure: {root}/{collectionName}/{docId}
+  CollectionReference<Map<String, dynamic>> get _firestoreCollection {
+    final root = sharedCollections.contains(collectionName)
+        ? firestoreSharedRoot
+        : firestoreRootCollection;
+    return _firestore.collection(root).doc(root).collection(collectionName);
+  }
 
   BaseProvider(this.box, this.collectionName) : super([]) {
     // Start with empty state - data will be loaded when needed
@@ -47,7 +59,7 @@ abstract class BaseProvider<T> extends StateNotifier<List<T>> {
       print('Loading fresh data from Firebase for $collectionName...');
 
       // Fetch from Firestore
-      final querySnapshot = await _firestore.collection(collectionName).get();
+      final querySnapshot = await _firestoreCollection.get();
       print(
           'Found ${querySnapshot.docs.length} documents in Firebase for $collectionName');
 
@@ -109,10 +121,7 @@ abstract class BaseProvider<T> extends StateNotifier<List<T>> {
       data['createdAt'] = FieldValue.serverTimestamp();
       data['createdBy'] = _auth.currentUser?.email ?? 'unknown';
 
-      await _firestore
-          .collection(collectionName)
-          .doc(getModelId(model))
-          .set(data);
+      await _firestoreCollection.doc(getModelId(model)).set(data);
 
       print('Successfully added ${getModelId(model)} to $collectionName');
     } catch (e) {
@@ -151,10 +160,7 @@ abstract class BaseProvider<T> extends StateNotifier<List<T>> {
       data['updatedBy'] = _auth.currentUser?.email ?? 'unknown';
 
       // Use .set() instead of .update() to handle cases where document might not exist
-      await _firestore
-          .collection(collectionName)
-          .doc(getModelId(model))
-          .set(data);
+      await _firestoreCollection.doc(getModelId(model)).set(data);
 
       print('Successfully updated ${getModelId(model)} in $collectionName');
     } catch (e) {
@@ -180,7 +186,7 @@ abstract class BaseProvider<T> extends StateNotifier<List<T>> {
       }
 
       // 3. Delete from Firebase in background
-      await _firestore.collection(collectionName).doc(modelId).delete();
+      await _firestoreCollection.doc(modelId).delete();
 
       print('Successfully deleted $modelId from $collectionName');
       return true;

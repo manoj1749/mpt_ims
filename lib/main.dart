@@ -73,6 +73,8 @@ import 'provider/service_type_provider.dart';
 import 'provider/service_supplier_provider.dart';
 import 'models/bill_of_preparation.dart';
 import 'provider/bill_of_preparation_provider.dart';
+import 'models/job_order_request.dart';
+import 'provider/job_order_request_provider.dart';
 
 Future<void> _setupHiveDirectory() async {
   try {
@@ -160,6 +162,7 @@ void main() async {
   final serviceNameBox = Hive.box<ServiceName>('serviceNames');
   final serviceTypeBox = Hive.box<ServiceType>('serviceTypes');
   final billOfPreparationBox = Hive.box<BillOfPreparation>('billOfPreparations');
+  final jobOrderRequestBox = Hive.box<JobOrderRequest>('job_order_requests');
 
   final user = FirebaseAuth.instance.currentUser;
 
@@ -197,6 +200,7 @@ void main() async {
         serviceNameBoxProvider.overrideWithValue(serviceNameBox),
         serviceTypeBoxProvider.overrideWithValue(serviceTypeBox),
         billOfPreparationBoxProvider.overrideWithValue(billOfPreparationBox),
+        jobOrderRequestBoxProvider.overrideWithValue(jobOrderRequestBox),
       ],
       child: IMSApp(isLoggedIn: user != null),
     ),

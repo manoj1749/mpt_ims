@@ -85,7 +85,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
   }
 
   DateTime? _getMaterialReferenceDate(MaterialItem material) {
-    final preferred = material.vendorRates.firstWhereOrNull((r) => r.isPreferred);
+    final preferred =
+        material.vendorRates.firstWhereOrNull((r) => r.isPreferred);
     final rate = preferred ?? material.vendorRates.firstOrNull;
     final dateStr = rate?.lastPurchaseDate;
     if (dateStr == null || dateStr.isEmpty) return null;
@@ -168,7 +169,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Material Master exported successfully to $outputFile'),
+            content:
+                Text('Material Master exported successfully to $outputFile'),
             backgroundColor: Colors.green,
           ),
         );
@@ -186,9 +188,9 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
   }
 
   Widget _buildFilters(List<MaterialItem> materials) {
-    final categories = {
-      for (final m in materials) m.category
-    }.where((c) => c.isNotEmpty).toList()
+    final categories = {for (final m in materials) m.category}
+        .where((c) => c.isNotEmpty)
+        .toList()
       ..sort();
 
     final subCategories = {
@@ -674,22 +676,21 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           final materials = ref.read(materialListProvider);
           final partNo = rendererContext.row.cells['partNo']!.value as String;
           final slNo = rendererContext.row.cells['slNo']!.value as String;
-          
+
           // Try to find by partNo first (more reliable), then by slNo
-          final material = materials
-              .where((m) => m.partNo == partNo)
-              .firstOrNull ?? 
-              materials
-              .where((m) => m.slNo == slNo)
-              .firstOrNull;
+          final material =
+              materials.where((m) => m.partNo == partNo).firstOrNull ??
+                  materials.where((m) => m.slNo == slNo).firstOrNull;
 
           if (material == null) {
             print('DEBUG: Material not found - PartNo: $partNo, SlNo: $slNo');
-            print('DEBUG: Available materials: ${materials.map((m) => '${m.partNo}/${m.slNo}').take(5).toList()}');
+            print(
+                'DEBUG: Available materials: ${materials.map((m) => '${m.partNo}/${m.slNo}').take(5).toList()}');
             return const SizedBox.shrink();
           }
-          
-          print('DEBUG: Found material - PartNo: ${material.partNo}, SlNo: ${material.slNo}');
+
+          print(
+              'DEBUG: Found material - PartNo: ${material.partNo}, SlNo: ${material.slNo}');
 
           return Row(
             mainAxisSize: MainAxisSize.min,
@@ -749,10 +750,12 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
 
     // Filter materials by selected classification if any
     var filteredMaterials = materials;
-    if (_selectedClassification != null && _selectedClassification!.isNotEmpty) {
-      filteredMaterials = materials.where((m) => 
-        (m.inventoryClassification ?? '') == _selectedClassification
-      ).toList();
+    if (_selectedClassification != null &&
+        _selectedClassification!.isNotEmpty) {
+      filteredMaterials = materials
+          .where((m) =>
+              (m.inventoryClassification ?? '') == _selectedClassification)
+          .toList();
     }
 
     if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
@@ -796,24 +799,42 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       filteredMaterials = filteredMaterials.where((m) {
         switch (_searchMode) {
           case 'part':
-            return m.partNo.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                   m.slNo.toLowerCase().contains(_searchQuery.toLowerCase());
+            return m.partNo
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase()) ||
+                m.slNo.toLowerCase().contains(_searchQuery.toLowerCase());
           case 'description':
-            return m.description.toLowerCase().contains(_searchQuery.toLowerCase());
+            return m.description
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase());
           case 'supplier':
-            return m.getPreferredVendorName().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                   m.vendorRates.any((v) => v.vendorId.toLowerCase().contains(_searchQuery.toLowerCase()));
+            return m
+                    .getPreferredVendorName()
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase()) ||
+                m.vendorRates.any((v) => v.vendorId
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase()));
           case 'qty':
             // For future use when quantity fields are added to Material model
             // Currently no quantity field exists in MaterialItem
             return true;
           default:
             // 'all' mode - search in part, description, and supplier
-            return m.partNo.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                   m.slNo.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                   m.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                   m.getPreferredVendorName().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                   m.vendorRates.any((v) => v.vendorId.toLowerCase().contains(_searchQuery.toLowerCase()));
+            return m.partNo
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase()) ||
+                m.slNo.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                m.description
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase()) ||
+                m
+                    .getPreferredVendorName()
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase()) ||
+                m.vendorRates.any((v) => v.vendorId
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase()));
         }
       }).toList();
     } else if (_searchMode == 'qty' && (_fromQty != null || _toQty != null)) {
@@ -824,10 +845,10 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         return true;
       }).toList();
     }
-    
+
     // Get stock maintenance data
     final stockMaintenanceList = ref.read(stockMaintenanceProvider);
-    
+
     return filteredMaterials.map((m) {
       final preferredSupplierName = m.getPreferredVendorName();
       final supplier = preferredSupplierName.isEmpty
@@ -839,13 +860,13 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           preferredSupplierName.isEmpty ? '-' : preferredSupplierName;
 
       final refDate = _getMaterialReferenceDate(m);
-      final dateText = refDate == null ? '-' : refDate.toIso8601String().split('T').first;
+      final dateText =
+          refDate == null ? '-' : refDate.toIso8601String().split('T').first;
 
       // Find stock data for this material
-      final stockData = stockMaintenanceList.firstWhereOrNull(
-        (stock) => stock.materialCode == m.partNo
-      );
-      
+      final stockData = stockMaintenanceList
+          .firstWhereOrNull((stock) => stock.materialCode == m.partNo);
+
       final currentStock = stockData?.currentStock ?? 0.0;
       final inspectionStock = stockData?.stockUnderInspection ?? 0.0;
       final stockValue = stockData?.totalStockValue ?? 0.0;
@@ -856,11 +877,16 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           'date': PlutoCell(value: dateText),
           'partNo': PlutoCell(value: m.partNo),
           'description': PlutoCell(value: m.description),
-          'rawMaterial': PlutoCell(value: m.rawMaterial.isEmpty ? '-' : m.rawMaterial),
-          'isPlatingRequired': PlutoCell(value: (m.isPlatingRequired ?? false) ? 'Yes' : 'No'),
+          'rawMaterial':
+              PlutoCell(value: m.rawMaterial.isEmpty ? '-' : m.rawMaterial),
+          'isPlatingRequired':
+              PlutoCell(value: (m.isPlatingRequired ?? false) ? 'Yes' : 'No'),
           'category': PlutoCell(value: m.category),
           'subCategory': PlutoCell(value: m.subCategory),
-          'inventoryClass': PlutoCell(value: (m.inventoryClassification ?? '').isEmpty ? '-' : m.inventoryClassification!),
+          'inventoryClass': PlutoCell(
+              value: (m.inventoryClassification ?? '').isEmpty
+                  ? '-'
+                  : m.inventoryClassification!),
           'unit': PlutoCell(value: m.unit),
           'actualWeight': PlutoCell(value: m.actualWeight),
           'storageLocation': PlutoCell(value: m.storageLocation),
@@ -878,12 +904,10 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           'vendorCount': PlutoCell(value: m.getVendorCount()),
           'saleRate':
               PlutoCell(value: m.saleRate.isEmpty ? '-' : '₹${m.saleRate}'),
-          'stock':
-              PlutoCell(value: currentStock.toStringAsFixed(2)),
+          'stock': PlutoCell(value: currentStock.toStringAsFixed(2)),
           'inspectionStock':
               PlutoCell(value: inspectionStock.toStringAsFixed(2)),
-          'stockValue':
-              PlutoCell(value: '₹${stockValue.toStringAsFixed(2)}'),
+          'stockValue': PlutoCell(value: '₹${stockValue.toStringAsFixed(2)}'),
           'totalReceived': PlutoCell(value: '-'), // Moved to stock maintenance
           'vendorIssued': PlutoCell(value: '-'), // Moved to stock maintenance
           'vendorReceived': PlutoCell(value: '-'), // Moved to stock maintenance
@@ -1012,7 +1036,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                           ),
                           OutlinedButton.icon(
                             onPressed: _downloadBulkTemplate,
-                            icon: const Icon(Icons.file_download_outlined, size: 18),
+                            icon: const Icon(Icons.file_download_outlined,
+                                size: 18),
                             label: const Text('Download Template'),
                           ),
                           const SizedBox(width: 8),
@@ -1066,15 +1091,31 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                 ],
                 onPressed: (index) {
                   setDialogState(() {
-                    _searchMode = ['all', 'part', 'description', 'supplier', 'qty'][index];
+                    _searchMode = [
+                      'all',
+                      'part',
+                      'description',
+                      'supplier',
+                      'qty'
+                    ][index];
                   });
                 },
                 children: const [
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('All')),
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Part No')),
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Description')),
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Supplier')),
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Qty')),
+                  Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('All')),
+                  Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('Part No')),
+                  Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('Description')),
+                  Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('Supplier')),
+                  Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('Qty')),
                 ],
                 borderColor: Colors.grey,
                 selectedBorderColor: Colors.blue,
@@ -1095,10 +1136,13 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                             ),
                             onChanged: (value) {
                               setDialogState(() {
-                                _fromQty = value.isEmpty ? null : double.tryParse(value);
+                                _fromQty = value.isEmpty
+                                    ? null
+                                    : double.tryParse(value);
                               });
                             },
-                            controller: TextEditingController(text: _fromQty?.toString() ?? ''),
+                            controller: TextEditingController(
+                                text: _fromQty?.toString() ?? ''),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1111,10 +1155,13 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                             ),
                             onChanged: (value) {
                               setDialogState(() {
-                                _toQty = value.isEmpty ? null : double.tryParse(value);
+                                _toQty = value.isEmpty
+                                    ? null
+                                    : double.tryParse(value);
                               });
                             },
-                            controller: TextEditingController(text: _toQty?.toString() ?? ''),
+                            controller: TextEditingController(
+                                text: _toQty?.toString() ?? ''),
                           ),
                         ),
                       ],
@@ -1368,10 +1415,10 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
     try {
       print('Starting file picker...');
       print('Platform: ${Theme.of(context).platform}');
-      
+
       // Try with the simplest approach first
       FilePickerResult? result;
-      
+
       // Try different approaches
       try {
         print('Attempting file picker with FileType.any...');
@@ -1382,7 +1429,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         print('FileType.any result: $result');
       } catch (e) {
         print('FileType.any failed: $e');
-        
+
         try {
           print('Attempting file picker with custom extensions...');
           result = await FilePicker.platform.pickFiles(
@@ -1402,13 +1449,13 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       if (result != null) {
         print('File selected: ${result.files.single.name}');
         print('File path: ${result.files.single.path}');
-        
+
         if (result.files.single.path != null) {
           final file = File(result.files.single.path!);
           final extension = result.files.single.extension?.toLowerCase();
-          
+
           print('File extension: $extension');
-          
+
           if (extension == 'csv') {
             await _processCsvFile(file);
           } else if (extension == 'xlsx' || extension == 'xls') {
@@ -1416,7 +1463,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Please convert Excel file to CSV format and try again'),
+                  content: Text(
+                      'Please convert Excel file to CSV format and try again'),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -1424,14 +1472,15 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           } else {
             // Check if the file might be a CSV without extension
             final fileName = result.files.single.name.toLowerCase();
-            if (fileName.endsWith('.csv') || 
+            if (fileName.endsWith('.csv') ||
                 (extension == null && fileName.contains('csv'))) {
               await _processCsvFile(file);
             } else {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Unsupported file type: $extension. Please select a CSV file.'),
+                    content: Text(
+                        'Unsupported file type: $extension. Please select a CSV file.'),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -1443,7 +1492,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Could not access the selected file. Please try again.'),
+                content: Text(
+                    'Could not access the selected file. Please try again.'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -1470,15 +1520,28 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
     try {
       print('=== Processing CSV File ===');
       print('File path: ${file.path}');
-      
+
       print('Reading file content...');
-      final input = await file.readAsString();
+      String input;
+      try {
+        input = await file.readAsString();
+      } catch (e) {
+        // Try alternative encodings if UTF-8 fails
+        try {
+          final bytes = await file.readAsBytes();
+          input = String.fromCharCodes(bytes);
+          print('Used fallback encoding for file reading');
+        } catch (e2) {
+          throw Exception(
+              'Failed to read file with UTF-8 or fallback encoding. Please save the CSV file as UTF-8.');
+        }
+      }
       print('File content length: ${input.length} characters');
-      
+
       print('Converting CSV to list...');
       final fields = const CsvToListConverter().convert(input);
       print('CSV fields parsed: ${fields.length} rows');
-      
+
       if (fields.isEmpty) {
         throw Exception('File is empty');
       }
@@ -1486,33 +1549,59 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       print('Processing headers...');
       final headers = fields[0].map((e) => e.toString().toLowerCase()).toList();
       print('Headers: $headers');
-      
+
       final dataRows = fields.sublist(1);
       print('Data rows: ${dataRows.length}');
 
       print('Finding column indices...');
       // Find required column indices
-      final partNoIndex = _findColumnIndex(headers, ['part number', 'material code', 'partno', 'part_number']);
-      final descriptionIndex = _findColumnIndex(headers, ['description', 'desc', 'material description']);
-      final unitIndex = _findColumnIndex(headers, ['unit', 'uom', 'unit of measure']);
+      final partNoIndex = _findColumnIndex(
+          headers, ['part number', 'material code', 'partno', 'part_number']);
+      final descriptionIndex = _findColumnIndex(
+          headers, ['description', 'desc', 'material description']);
+      final unitIndex =
+          _findColumnIndex(headers, ['unit', 'uom', 'unit of measure']);
       final categoryIndex = _findColumnIndex(headers, ['category']);
-      final subCategoryIndex = _findColumnIndex(headers, ['sub category', 'subcategory', 'sub_category']);
-      final hsnIndex = _findColumnIndex(headers, ['hsn code', 'hsn', 'hsncode']);
-      final invClassIndex = _findColumnIndex(headers, ['inventory classification', 'inventory class', 'inv class']);
-      final storageIndex = _findColumnIndex(headers, ['storage location', 'storage', 'location']);
-      final rackIndex = _findColumnIndex(headers, ['rack number', 'rack no', 'rack']);
-      final weightIndex = _findColumnIndex(headers, ['actual weight', 'weight', 'net weight']);
+      final subCategoryIndex = _findColumnIndex(
+          headers, ['sub category', 'subcategory', 'sub_category']);
+      final hsnIndex =
+          _findColumnIndex(headers, ['hsn code', 'hsn', 'hsncode']);
+      final invClassIndex = _findColumnIndex(headers,
+          ['inventory classification', 'inventory class', 'inv class']);
+      final storageIndex = _findColumnIndex(
+          headers, ['storage location', 'storage', 'location']);
+      final rackIndex =
+          _findColumnIndex(headers, ['rack number', 'rack no', 'rack']);
+      final weightIndex =
+          _findColumnIndex(headers, ['actual weight', 'weight', 'net weight']);
 
-      print('Column indices - Part: $partNoIndex, Description: $descriptionIndex, Unit: $unitIndex, Category: $categoryIndex, SubCategory: $subCategoryIndex, HSN: $hsnIndex, InvClass: $invClassIndex, Storage: $storageIndex, Rack: $rackIndex, Weight: $weightIndex');
+      print(
+          'Column indices - Part: $partNoIndex, Description: $descriptionIndex, Unit: $unitIndex, Category: $categoryIndex, SubCategory: $subCategoryIndex, HSN: $hsnIndex, InvClass: $invClassIndex, Storage: $storageIndex, Rack: $rackIndex, Weight: $weightIndex');
 
-      if (partNoIndex == -1 || descriptionIndex == -1 || unitIndex == -1 || categoryIndex == -1 || subCategoryIndex == -1 || invClassIndex == -1) {
-        throw Exception('Required columns not found. Please ensure your file has: Part Number, Description, Unit, Category, Sub Category, and Inventory Classification columns');
+      if (partNoIndex == -1 ||
+          descriptionIndex == -1 ||
+          unitIndex == -1 ||
+          categoryIndex == -1 ||
+          subCategoryIndex == -1 ||
+          invClassIndex == -1) {
+        throw Exception(
+            'Required columns not found. Please ensure your file has: Part Number, Description, Unit, Category, Sub Category, and Inventory Classification columns');
       }
 
       print('Showing upload preview...');
-      await _showUploadPreview(dataRows, partNoIndex, descriptionIndex, unitIndex, categoryIndex, subCategoryIndex, hsnIndex, invClassIndex, storageIndex, rackIndex, weightIndex);
+      await _showUploadPreview(
+          dataRows,
+          partNoIndex,
+          descriptionIndex,
+          unitIndex,
+          categoryIndex,
+          subCategoryIndex,
+          hsnIndex,
+          invClassIndex,
+          storageIndex,
+          rackIndex,
+          weightIndex);
       print('=== CSV Processing Complete ===');
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1548,22 +1637,31 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
   ) async {
     print('=== Showing Upload Preview ===');
     print('Data rows count: ${dataRows.length}');
-    
+
     final previewData = <Map<String, dynamic>>[];
     print('Getting existing materials...');
     final existingMaterials = ref.read(materialListProvider);
     print('Found ${existingMaterials.length} existing materials');
-    
+
     print('Processing preview data...');
     final seenPartNumbers = <String>{};
-    
-    for (int i = 0; i < dataRows.length && i < 10; i++) { // Show first 10 rows for preview
+
+    for (int i = 0; i < dataRows.length && i < 10; i++) {
+      // Show first 10 rows for preview
       print('Processing row $i of ${dataRows.length}');
       final row = dataRows[i];
-      final requiredMaxIndex = [partNoIndex, descriptionIndex, unitIndex, categoryIndex, subCategoryIndex, invClassIndex].reduce((a, b) => a > b ? a : b);
-      
+      final requiredMaxIndex = [
+        partNoIndex,
+        descriptionIndex,
+        unitIndex,
+        categoryIndex,
+        subCategoryIndex,
+        invClassIndex
+      ].reduce((a, b) => a > b ? a : b);
+
       if (row.length <= requiredMaxIndex) {
-        print('Row $i has insufficient columns: ${row.length} <= $requiredMaxIndex');
+        print(
+            'Row $i has insufficient columns: ${row.length} <= $requiredMaxIndex');
         previewData.add({
           'partNo': 'Row ${i + 1}',
           'description': 'ERROR',
@@ -1601,7 +1699,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           ? (row[weightIndex]?.toString().trim() ?? '')
           : '';
 
-      print('Row $i data: Part=$partNo, Desc=$description, Unit=$unit, Cat=$category, SubCat=$subCategory, HSN=$hsnCode, InvClass=$invClass, Storage=$storageLocation, Rack=$rackNumber, Weight=$actualWeight');
+      print(
+          'Row $i data: Part=$partNo, Desc=$description, Unit=$unit, Cat=$category, SubCat=$subCategory, HSN=$hsnCode, InvClass=$invClass, Storage=$storageLocation, Rack=$rackNumber, Weight=$actualWeight');
 
       // Validation
       String? error;
@@ -1627,7 +1726,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       if (error == null && hsnCode.isEmpty) {
         warning = true;
       }
-      
+
       seenPartNumbers.add(partNo);
       final status = error != null
           ? error
@@ -1651,12 +1750,12 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         'warning': warning,
       });
     }
-    
+
     print('Preview data prepared: ${previewData.length} items');
 
     if (mounted) {
       print('Showing preview dialog...');
-      
+
       showDialog(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -1687,47 +1786,111 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                         const TableRow(
                           decoration: BoxDecoration(color: Colors.grey),
                           children: [
-                            Padding(padding: EdgeInsets.all(8), child: Text('Part No', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(8), child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(8), child: Text('Unit', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(8), child: Text('Category', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(8), child: Text('Sub Category', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(8), child: Text('HSN', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(8), child: Text('Inv Class', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(8), child: Text('Storage', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(8), child: Text('Rack', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(8), child: Text('Weight', style: TextStyle(fontWeight: FontWeight.bold))),
-                            Padding(padding: EdgeInsets.all(8), child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text('Part No',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text('Description',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text('Unit',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text('Category',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text('Sub Category',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text('HSN',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text('Inv Class',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text('Storage',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text('Rack',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text('Weight',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text('Status',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
                           ],
                         ),
                         ...previewData.map((data) => TableRow(
-                          children: [
-                            Padding(padding: const EdgeInsets.all(8), child: Text(data['partNo'])),
-                            Padding(padding: const EdgeInsets.all(8), child: Text(data['description'])),
-                            Padding(padding: const EdgeInsets.all(8), child: Text(data['unit'])),
-                            Padding(padding: const EdgeInsets.all(8), child: Text(data['category'])),
-                            Padding(padding: const EdgeInsets.all(8), child: Text(data['subCategory'])),
-                            Padding(padding: const EdgeInsets.all(8), child: Text(data['hsnCode'] ?? '')),
-                            Padding(padding: const EdgeInsets.all(8), child: Text(data['invClass'])),
-                            Padding(padding: const EdgeInsets.all(8), child: Text(data['storageLocation'] ?? '')),
-                            Padding(padding: const EdgeInsets.all(8), child: Text(data['rackNumber'] ?? '')),
-                            Padding(padding: const EdgeInsets.all(8), child: Text(data['actualWeight'] ?? '')),
-                            Padding(
-                              padding: const EdgeInsets.all(8), 
-                              child: Text(
-                                data['status'],
-                                style: TextStyle(
-                                  color: data['error'] == true
-                                      ? Colors.red
-                                      : (data['warning'] == true
-                                          ? Colors.orange
-                                          : Colors.green),
-                                  fontWeight: FontWeight.bold,
+                              children: [
+                                Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(data['partNo'])),
+                                Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(data['description'])),
+                                Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(data['unit'])),
+                                Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(data['category'])),
+                                Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(data['subCategory'])),
+                                Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(data['hsnCode'] ?? '')),
+                                Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(data['invClass'])),
+                                Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(data['storageLocation'] ?? '')),
+                                Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(data['rackNumber'] ?? '')),
+                                Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(data['actualWeight'] ?? '')),
+                                Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Text(
+                                    data['status'],
+                                    style: TextStyle(
+                                      color: data['error'] == true
+                                          ? Colors.red
+                                          : (data['warning'] == true
+                                              ? Colors.orange
+                                              : Colors.green),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ],
-                        )),
+                              ],
+                            )),
                       ],
                     ),
                   ),
@@ -1743,11 +1906,11 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
             FilledButton(
               onPressed: () async {
                 print('Upload button pressed in preview dialog');
-                
+
                 // Store the main context before closing dialog
                 final mainContext = context;
                 Navigator.pop(dialogContext); // Close preview dialog
-                
+
                 // Show processing dialog
                 BuildContext? processingDialogContext;
                 showDialog(
@@ -1770,20 +1933,33 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                     );
                   },
                 );
-                
+
                 try {
-                  await _processUpload(dataRows, partNoIndex, descriptionIndex, unitIndex, categoryIndex, subCategoryIndex, hsnIndex, invClassIndex, storageIndex, rackIndex, weightIndex);
-                  
+                  await _processUpload(
+                      dataRows,
+                      partNoIndex,
+                      descriptionIndex,
+                      unitIndex,
+                      categoryIndex,
+                      subCategoryIndex,
+                      hsnIndex,
+                      invClassIndex,
+                      storageIndex,
+                      rackIndex,
+                      weightIndex);
+
                   // Close processing dialog
-                  if (processingDialogContext != null && Navigator.canPop(processingDialogContext!)) {
+                  if (processingDialogContext != null &&
+                      Navigator.canPop(processingDialogContext!)) {
                     Navigator.pop(processingDialogContext!);
                   }
                 } catch (e) {
                   // Close processing dialog
-                  if (processingDialogContext != null && Navigator.canPop(processingDialogContext!)) {
+                  if (processingDialogContext != null &&
+                      Navigator.canPop(processingDialogContext!)) {
                     Navigator.pop(processingDialogContext!);
                   }
-                  
+
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -1815,18 +1991,19 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
     int rackIndex,
     int weightIndex,
   ) async {
-    
     try {
       print('=== Starting Upload Process ===');
       print('Data rows to process: ${dataRows.length}');
-      
+
       final materialNotifier = ref.read(materialListProvider.notifier);
       final existingMaterials = ref.read(materialListProvider);
-      
-      print('Got notifiers and existing materials: ${existingMaterials.length}');
-      
+
+      print(
+          'Got notifiers and existing materials: ${existingMaterials.length}');
+
       int created = 0;
       int skipped = 0;
+      int duplicateSkipped = 0;
       final errors = <String>[];
       final seenPartNumbers = <String>{};
 
@@ -1835,7 +2012,14 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       int missingHsnCount = 0;
       for (int i = 0; i < dataRows.length; i++) {
         final row = dataRows[i];
-        final requiredMaxIndex = [partNoIndex, descriptionIndex, unitIndex, categoryIndex, subCategoryIndex, invClassIndex].reduce((a, b) => a > b ? a : b);
+        final requiredMaxIndex = [
+          partNoIndex,
+          descriptionIndex,
+          unitIndex,
+          categoryIndex,
+          subCategoryIndex,
+          invClassIndex
+        ].reduce((a, b) => a > b ? a : b);
         if (row.length <= requiredMaxIndex) {
           continue;
         }
@@ -1855,7 +2039,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
           builder: (dialogContext) => AlertDialog(
             title: const Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+                Icon(Icons.warning_amber_rounded,
+                    color: Colors.orange, size: 28),
                 SizedBox(width: 8),
                 Expanded(child: Text('HSN Code Not Available')),
               ],
@@ -1875,7 +2060,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                     style: TextStyle(color: Colors.red),
                   ),
                   const SizedBox(height: 12),
-                  const Text('Do you want to continue uploading without HSN Code?'),
+                  const Text(
+                      'Do you want to continue uploading without HSN Code?'),
                 ],
               ),
             ),
@@ -1889,7 +2075,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                 ),
-                child: const Text('Continue Without HSN', style: TextStyle(color: Colors.black)),
+                child: const Text('Continue Without HSN',
+                    style: TextStyle(color: Colors.black)),
               ),
             ],
           ),
@@ -1903,12 +2090,19 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       for (int i = 0; i < dataRows.length; i++) {
         final row = dataRows[i];
         final rowNum = i + 1;
-        
+
         try {
           print('Processing row $rowNum: $row');
-          
-          final maxIndex = [partNoIndex, descriptionIndex, unitIndex, categoryIndex, subCategoryIndex, invClassIndex].reduce((a, b) => a > b ? a : b);
-          
+
+          final maxIndex = [
+            partNoIndex,
+            descriptionIndex,
+            unitIndex,
+            categoryIndex,
+            subCategoryIndex,
+            invClassIndex
+          ].reduce((a, b) => a > b ? a : b);
+
           if (row.length <= maxIndex) {
             errors.add('Row $rowNum: Insufficient columns');
             skipped++;
@@ -1924,9 +2118,10 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
               ? (row[hsnIndex]?.toString().trim() ?? '')
               : '';
           final invClass = row[invClassIndex]?.toString().trim() ?? '';
-          final storageLocation = storageIndex != -1 && storageIndex < row.length
-              ? (row[storageIndex]?.toString().trim() ?? '')
-              : '';
+          final storageLocation =
+              storageIndex != -1 && storageIndex < row.length
+                  ? (row[storageIndex]?.toString().trim() ?? '')
+                  : '';
           final rackNumber = rackIndex != -1 && rackIndex < row.length
               ? (row[rackIndex]?.toString().trim() ?? '')
               : '';
@@ -1934,7 +2129,8 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
               ? (row[weightIndex]?.toString().trim() ?? '')
               : '';
 
-          print('Row $rowNum data: Part=$partNo, Desc=$description, Unit=$unit, Cat=$category, SubCat=$subCategory, HSN=$hsnCode, InvClass=$invClass, Storage=$storageLocation, Rack=$rackNumber, Weight=$actualWeight');
+          print(
+              'Row $rowNum data: Part=$partNo, Desc=$description, Unit=$unit, Cat=$category, SubCat=$subCategory, HSN=$hsnCode, InvClass=$invClass, Storage=$storageLocation, Rack=$rackNumber, Weight=$actualWeight');
 
           // Validation
           if (partNo.isEmpty) {
@@ -1963,23 +2159,22 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
             continue;
           }
           if (invClass.isEmpty) {
-            errors.add('Row $rowNum (Part: $partNo): Missing Inventory Classification');
+            errors.add(
+                'Row $rowNum (Part: $partNo): Missing Inventory Classification');
             skipped++;
             continue;
           }
-          
+
           // Check for duplicates in file
           if (seenPartNumbers.contains(partNo)) {
-            errors.add('Row $rowNum (Part: $partNo): Duplicate Part Number in file');
-            skipped++;
+            duplicateSkipped++;
             continue;
           }
           seenPartNumbers.add(partNo);
-          
-          // Check if material already exists
+
+          // Check if material already exists - skip silently
           if (existingMaterials.any((m) => m.partNo == partNo)) {
-            errors.add('Row $rowNum (Part: $partNo): Part Number already exists in database');
-            skipped++;
+            duplicateSkipped++;
             continue;
           }
 
@@ -2002,12 +2197,11 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
             actualWeight: actualWeight,
             vendorRates: [],
           );
-          
+
           print('Row $rowNum: Adding material to database...');
           await materialNotifier.addMaterial(newMaterial);
           print('Row $rowNum: Material added successfully');
           created++;
-          
         } catch (e) {
           print('Error processing row $rowNum: $e');
           errors.add('Row $rowNum: Error - $e');
@@ -2016,14 +2210,18 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       }
 
       print('=== Upload Process Complete ===');
-      print('Created: $created, Skipped: $skipped, Errors: ${errors.length}');
+      print(
+          'Created: $created, Skipped: $skipped, Duplicate Skipped: $duplicateSkipped, Errors: ${errors.length}');
 
       // Show completion message
       if (mounted) {
         if (errors.isEmpty) {
+          final message = duplicateSkipped > 0
+              ? 'Upload completed successfully!\nCreated: $created materials\nSkipped: $duplicateSkipped duplicates'
+              : 'Upload completed successfully!\nCreated: $created materials';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Upload completed successfully!\nCreated: $created materials'),
+              content: Text(message),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 3),
             ),
@@ -2040,19 +2238,33 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Created: $created materials', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                    Text('Skipped: $skipped rows', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                    Text('Created: $created materials',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.green)),
+                    Text('Skipped: $skipped rows',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.orange)),
+                    if (duplicateSkipped > 0)
+                      Text('Duplicate Skipped: $duplicateSkipped',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.blue)),
                     const SizedBox(height: 16),
-                    const Text('Errors:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Errors:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Expanded(
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: errors.map((e) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Text('• $e', style: TextStyle(color: Colors.red[700])),
-                          )).toList(),
+                          children: errors
+                              .map((e) => Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 2),
+                                    child: Text('• $e',
+                                        style:
+                                            TextStyle(color: Colors.red[700])),
+                                  ))
+                              .toList(),
                         ),
                       ),
                     ),
@@ -2068,14 +2280,13 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
             ),
           );
         }
-        
+
         // Force a rebuild of the material master page
         setState(() {});
       }
-
     } catch (e) {
       print('Error during upload process: $e');
-      
+
       // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2084,39 +2295,41 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
             backgroundColor: Colors.red,
           ),
         );
-        
+
         // Force a rebuild of the material master page
         setState(() {});
       }
     }
   }
 
-  Future<void> _addToGeneralStock(String partNo, double quantity, StockMaintenanceNotifier stockNotifier) async {
+  Future<void> _addToGeneralStock(String partNo, double quantity,
+      StockMaintenanceNotifier stockNotifier) async {
     try {
       print('\n=== Adding to General Stock ===');
       print('Part No: $partNo');
       print('Quantity: $quantity');
-      
+
       // Check if stock record exists
       final existingStocks = ref.read(stockMaintenanceProvider);
-      final existingStock = existingStocks.firstWhereOrNull((s) => s.materialCode == partNo);
-      
+      final existingStock =
+          existingStocks.firstWhereOrNull((s) => s.materialCode == partNo);
+
       if (existingStock != null) {
         print('Found existing stock record');
         print('Current stock: ${existingStock.currentStock}');
-        
+
         // Create synthetic records for the additional uploaded stock
         await _createSyntheticStockRecords(existingStock, quantity);
         await stockNotifier.update(existingStock);
-        
+
         print('Updated stock to: ${existingStock.currentStock}');
       } else {
         print('Creating new stock record');
-        
+
         // Create new stock record
         final materials = ref.read(materialListProvider);
         print('Found ${materials.length} materials');
-        
+
         final material = materials.firstWhere(
           (m) => m.partNo == partNo,
           orElse: () {
@@ -2130,17 +2343,18 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
             );
           },
         );
-        
+
         print('Found material: ${material.partNo} (${material.description})');
-        
+
         // Create stock record with synthetic GRN/PO/PR records
-        final newStock = await _createStockWithSyntheticRecords(material, quantity);
-        
+        final newStock =
+            await _createStockWithSyntheticRecords(material, quantity);
+
         print('Adding new stock record with quantity: $quantity');
         await stockNotifier.add(newStock);
         print('Stock record added successfully');
       }
-      
+
       print('=== Stock Update Complete ===');
     } catch (e) {
       print('Error adding to general stock for $partNo: $e');
@@ -2148,21 +2362,22 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
     }
   }
 
-  Future<StockMaintenance> _createStockWithSyntheticRecords(dynamic material, double quantity) async {
+  Future<StockMaintenance> _createStockWithSyntheticRecords(
+      dynamic material, double quantity) async {
     final now = DateTime.now();
     final dateStr = now.toIso8601String();
     final timestamp = now.millisecondsSinceEpoch.toString();
-    
+
     // Generate synthetic IDs
     final grnNo = 'GRN_UPLOAD_$timestamp';
     final poNo = 'PO_UPLOAD_$timestamp';
     final prNo = 'PR_UPLOAD_$timestamp';
-    
+
     print('Creating synthetic records:');
     print('  GRN: $grnNo');
     print('  PO: $poNo');
     print('  PR: $prNo');
-    
+
     // Create synthetic GRN details
     final grnDetails = {
       grnNo: StockGRNDetails(
@@ -2177,7 +2392,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         issuedQuantities: {},
       ),
     };
-    
+
     // Create synthetic PO details
     final poDetails = {
       poNo: StockPODetails(
@@ -2194,7 +2409,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         issuedQuantities: {},
       ),
     };
-    
+
     // Create synthetic PR details
     final prDetails = {
       'General': StockPRDetails(
@@ -2207,7 +2422,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         jobNo: 'General',
       ),
     };
-    
+
     // Create synthetic job details
     final jobDetails = {
       'General': StockJobDetails(
@@ -2217,7 +2432,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         prNo: 'General',
       ),
     };
-    
+
     // Create synthetic vendor details
     final vendorDetails = {
       'UPLOADED_STOCK': StockVendorDetails(
@@ -2228,7 +2443,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         lastPurchaseDate: dateStr,
       ),
     };
-    
+
     final newStock = StockMaintenance(
       materialCode: material.partNo,
       materialDescription: material.description,
@@ -2244,29 +2459,31 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       jobDetails: jobDetails,
       vendorDetails: vendorDetails,
     );
-    
+
     print('Created stock with synthetic records');
     return newStock;
   }
 
-  Future<void> _createSyntheticStockRecords(StockMaintenance existingStock, double quantity) async {
+  Future<void> _createSyntheticStockRecords(
+      StockMaintenance existingStock, double quantity) async {
     final now = DateTime.now();
     final dateStr = now.toIso8601String();
     final timestamp = now.millisecondsSinceEpoch.toString();
-    
+
     // Generate synthetic IDs
     final grnNo = 'GRN_UPLOAD_$timestamp';
     final poNo = 'PO_UPLOAD_$timestamp';
-    
+
     print('Adding synthetic records to existing stock:');
     print('  GRN: $grnNo');
     print('  PO: $poNo');
-    
+
     // Get material details for rate
     final materials = ref.read(materialListProvider);
-    final material = materials.firstWhereOrNull((m) => m.partNo == existingStock.materialCode);
+    final material = materials
+        .firstWhereOrNull((m) => m.partNo == existingStock.materialCode);
     final rate = material != null ? _getMaterialRate(material) : 0.0;
-    
+
     // Add synthetic GRN details
     existingStock.grnDetails[grnNo] = StockGRNDetails(
       grnNo: grnNo,
@@ -2279,7 +2496,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       issuedQuantity: 0.0,
       issuedQuantities: {},
     );
-    
+
     // Add synthetic PO details
     existingStock.poDetails[poNo] = StockPODetails(
       poNo: poNo,
@@ -2294,7 +2511,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
       issuedQuantity: 0.0,
       issuedQuantities: {},
     );
-    
+
     // Update or create General PR details
     if (existingStock.prDetails.containsKey('General')) {
       final generalPR = existingStock.prDetails['General']!;
@@ -2312,7 +2529,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         jobNo: 'General',
       );
     }
-    
+
     // Update or create General job details
     if (existingStock.jobDetails.containsKey('General')) {
       final generalJob = existingStock.jobDetails['General']!;
@@ -2325,7 +2542,7 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         prNo: 'General',
       );
     }
-    
+
     // Update or create vendor details for uploaded stock
     if (existingStock.vendorDetails.containsKey('UPLOADED_STOCK')) {
       final uploadedVendor = existingStock.vendorDetails['UPLOADED_STOCK']!;
@@ -2340,25 +2557,27 @@ class _MaterialMasterPageState extends ConsumerState<MaterialMasterPage> {
         lastPurchaseDate: dateStr,
       );
     }
-    
+
     // Update current stock and total stock value
     existingStock.currentStock += quantity;
     existingStock.totalStockValue += quantity * rate;
-    
+
     print('Added synthetic records to existing stock');
   }
 
   double _getMaterialRate(dynamic material) {
     // Try to get purchase rate first, then sale rate, then default to 100.0
-    if (material.purchaseRate != null && material.purchaseRate is num && (material.purchaseRate as num) > 0) {
+    if (material.purchaseRate != null &&
+        material.purchaseRate is num &&
+        (material.purchaseRate as num) > 0) {
       return (material.purchaseRate as num).toDouble();
     }
-    if (material.saleRate != null && material.saleRate is num && (material.saleRate as num) > 0) {
+    if (material.saleRate != null &&
+        material.saleRate is num &&
+        (material.saleRate as num) > 0) {
       return (material.saleRate as num).toDouble();
     }
     // Default rate for uploaded materials
     return 100.0;
   }
-
-
 }

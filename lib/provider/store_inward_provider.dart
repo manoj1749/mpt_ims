@@ -183,7 +183,8 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
     // Find all VALID sequential GRN numbers for the current financial year
     final validSequentialGRNs = state.where((inward) {
       // Check if GRN number matches the expected format: GR + YYYY + 6 digits
-      if (!inward.grnNo.startsWith('GR$yearPrefix') || inward.grnNo.length != 12) {
+      if (!inward.grnNo.startsWith('GR$yearPrefix') ||
+          inward.grnNo.length != 12) {
         return false;
       }
 
@@ -534,6 +535,32 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
     return total;
   }
 
+  // Get total value of Customer Scope GRs for a specific job
+  double getCustomerScopeGRValueForJob(String jobNo) {
+    double totalValue = 0.0;
+
+    for (var inward in state) {
+      if (!inward.isCustomerScope) continue;
+
+      for (var item in inward.items) {
+        // Check if this item is associated with the job
+        for (var poEntry in item.prQuantities.entries) {
+          for (var prEntry in poEntry.value.entries) {
+            final itemJobNo =
+                item.prJobNumbers[poEntry.key]?[prEntry.key] ?? 'General';
+            if (itemJobNo == jobNo) {
+              final price = double.tryParse(item.costPerUnit) ?? 0.0;
+              final quantity = prEntry.value;
+              totalValue += quantity * price;
+            }
+          }
+        }
+      }
+    }
+
+    return totalValue;
+  }
+
   // Check and delete PO if no GRs exist for it
   Future<void> deletePOIfNoGRs(String poNo) async {
     // Check if any GR exists for this PO
@@ -709,13 +736,13 @@ class StoreInwardNotifier extends BaseProvider<StoreInward> {
   Future<void> _markPOAsHavingGR(StoreInward inward) async {
     try {
       final poNotifier = _ref.read(purchaseOrderListProvider.notifier);
-      
+
       // Get all unique PO numbers from the GR
       final poNumbers = <String>{};
       for (var item in inward.items) {
         poNumbers.addAll(item.prQuantities.keys);
       }
-      
+
       // Mark each PO as having GR
       for (var poNo in poNumbers) {
         final po = poNotifier.getOrderByNo(poNo);

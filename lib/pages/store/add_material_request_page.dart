@@ -64,7 +64,8 @@ class _AddMaterialRequestPageState
       // Validate that the job number exists in the sale orders
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final saleOrders = ref.read(saleOrderProvider);
-        if (_selectedJobNo != null && !saleOrders.any((order) => order.jobNo == _selectedJobNo)) {
+        if (_selectedJobNo != null &&
+            !saleOrders.any((order) => order.jobNo == _selectedJobNo)) {
           // If the job number doesn't exist in sale orders, set it to null
           setState(() {
             _selectedJobNo = null;
@@ -195,7 +196,26 @@ class _AddMaterialRequestPageState
           .replaceAll(RegExp(r'\s+'), '')
           .replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-      final input = await file.readAsString();
+      String input;
+      try {
+        input = await file.readAsString();
+      } catch (e) {
+        try {
+          final bytes = await file.readAsBytes();
+          input = String.fromCharCodes(bytes);
+        } catch (e2) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Failed to read file with UTF-8 or fallback encoding. Please save the CSV file as UTF-8.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
       final rows = const CsvToListConverter().convert(input);
       if (rows.isEmpty) {
         if (mounted) {
@@ -209,7 +229,8 @@ class _AddMaterialRequestPageState
         return;
       }
 
-      final headers = rows.first.map((e) => e.toString().toLowerCase()).toList();
+      final headers =
+          rows.first.map((e) => e.toString().toLowerCase()).toList();
       int codeIndex = -1;
       int qtyIndex = -1;
 
@@ -268,7 +289,8 @@ class _AddMaterialRequestPageState
         }
 
         if (qtyStr.isEmpty) {
-          invalidRows.add('${rowIndex + 2}: ${material.partNo} (missing quantity)');
+          invalidRows
+              .add('${rowIndex + 2}: ${material.partNo} (missing quantity)');
           continue;
         }
 
@@ -278,7 +300,8 @@ class _AddMaterialRequestPageState
             quantity: qtyStr,
             partNoController: TextEditingController(text: material.partNo),
             unitController: TextEditingController(text: material.unit),
-            materialController: TextEditingController(text: material.description),
+            materialController:
+                TextEditingController(text: material.description),
           ),
         );
       }
@@ -481,8 +504,8 @@ class _AddMaterialRequestPageState
 
                       // Validate material codes
                       final invalidCodes = materialCodes
-                          .where((code) =>
-                              !materials.any((m) => norm(m.partNo) == norm(code)))
+                          .where((code) => !materials
+                              .any((m) => norm(m.partNo) == norm(code)))
                           .toList();
 
                       if (invalidCodes.isNotEmpty) {

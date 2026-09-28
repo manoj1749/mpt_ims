@@ -13,6 +13,7 @@ import '../../provider/purchase_order.dart';
 import '../../provider/store_inward_provider.dart';
 import '../../provider/supplier_provider.dart';
 import '../../provider/bill_of_preparation_provider.dart';
+import '../../provider/material_provider.dart';
 import '../../models/purchase_request.dart';
 import '../../models/purchase_order.dart';
 import '../../models/store_inward.dart';
@@ -44,6 +45,12 @@ class _PurchaseRequestListPageState
   double? _toQty;
   DateTime? _startDate;
   DateTime? _endDate;
+  
+  // Multi-selection for BOP materials
+  Set<String> _selectedBopItems = <String>{};
+  
+  // Multi-selection for regular PR materials (tracks individual items: prNo_materialCode)
+  Set<String> _selectedPrItems = <String>{};
 
   // Controllers for quantity inputs to prevent focus loss
   TextEditingController? _fromQtyController;
@@ -92,11 +99,40 @@ class _PurchaseRequestListPageState
 
     columns = [
       PlutoColumn(
+        title: '',
+        field: 'select',
+        type: PlutoColumnType.text(),
+        width: 50,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final prNo = rendererContext.row.cells['prNo']?.value as String?;
+          final materialCode = rendererContext.row.cells['partNo']?.value as String?;
+          final itemKey = prNo != null && materialCode != null ? '${prNo}_${materialCode}' : null;
+          final isSelected = itemKey != null && _selectedPrItems.contains(itemKey);
+          
+          return Checkbox(
+            value: isSelected,
+            onChanged: (bool? value) {
+              setState(() {
+                if (value == true && itemKey != null) {
+                  _selectedPrItems.add(itemKey);
+                } else if (itemKey != null) {
+                  _selectedPrItems.remove(itemKey);
+                }
+              });
+            },
+          );
+        },
+      ),
+      PlutoColumn(
         title: 'S.No',
         field: 'serialNo',
         type: PlutoColumnType.number(),
         width: 60,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -106,7 +142,7 @@ class _PurchaseRequestListPageState
         field: 'jobNo',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -116,7 +152,7 @@ class _PurchaseRequestListPageState
         field: 'prNo',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -126,7 +162,7 @@ class _PurchaseRequestListPageState
         field: 'prDate',
         type: PlutoColumnType.date(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -136,7 +172,7 @@ class _PurchaseRequestListPageState
         field: 'partNo',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -146,7 +182,7 @@ class _PurchaseRequestListPageState
         field: 'description',
         type: PlutoColumnType.text(),
         width: 200,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.start,
         enableEditingMode: false,
@@ -156,7 +192,7 @@ class _PurchaseRequestListPageState
         field: 'prQty',
         type: PlutoColumnType.number(),
         width: 100,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
@@ -166,7 +202,27 @@ class _PurchaseRequestListPageState
         field: 'unit',
         type: PlutoColumnType.text(),
         width: 80,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Category',
+        field: 'category',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Raw Material',
+        field: 'rawMaterial',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -176,7 +232,7 @@ class _PurchaseRequestListPageState
         field: 'requestedBy',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -186,7 +242,7 @@ class _PurchaseRequestListPageState
         field: 'stockTransfer',
         type: PlutoColumnType.text(),
         width: 150,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.start,
         enableEditingMode: false,
@@ -230,7 +286,7 @@ class _PurchaseRequestListPageState
         field: 'poDetails',
         type: PlutoColumnType.text(),
         width: 300,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.start,
         enableEditingMode: false,
@@ -292,7 +348,7 @@ class _PurchaseRequestListPageState
         field: 'orderedQty',
         type: PlutoColumnType.number(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
@@ -302,7 +358,7 @@ class _PurchaseRequestListPageState
         field: 'pendingQty',
         type: PlutoColumnType.number(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.right,
         enableEditingMode: false,
@@ -312,7 +368,7 @@ class _PurchaseRequestListPageState
         field: 'status',
         type: PlutoColumnType.text(),
         width: 120,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -322,7 +378,7 @@ class _PurchaseRequestListPageState
         field: 'actions',
         type: PlutoColumnType.text(),
         width: 140,
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         titleTextAlign: PlutoColumnTextAlign.center,
         textAlign: PlutoColumnTextAlign.center,
         enableEditingMode: false,
@@ -885,7 +941,7 @@ class _PurchaseRequestListPageState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         title: Text(
           'Export Purchase Request Report',
           style: TextStyle(color: Colors.grey[200]),
@@ -943,7 +999,7 @@ class _PurchaseRequestListPageState
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: Colors.grey[850],
+          backgroundColor: const Color(0xFF2D2D2D),
           title: Text(
             'Filter Purchase Requests',
             style: TextStyle(color: Colors.grey[200]),
@@ -1158,8 +1214,41 @@ class _PurchaseRequestListPageState
     List<PurchaseOrder> purchaseOrders,
     List<StoreInward> storeInwards,
   ) {
+    // Get BOP materials and convert them to PurchaseRequest-like objects
+    final bops = ref.read(billOfPreparationProvider);
+    final bopPurchaseRequests = <PurchaseRequest>[];
+    
+    for (final bop in bops) {
+      for (final mat in bop.materials) {
+        if (mat.materialSource == 'material_master') {
+          // Create a PurchaseRequest-like object for BOP materials
+          final finalQty = mat.cktTypes.isNotEmpty ? mat.cktTypes.first.materialQuantity : 0.0;
+          final bopRequest = PurchaseRequest(
+            prNo: 'BOP-${bop.jobNo}-${mat.materialCode}',
+            date: DateTime.now().toIso8601String().split('T')[0],
+            requiredBy: 'BOP System',
+            jobNo: bop.jobNo,
+            status: 'Pending',
+            items: [
+              PRItem(
+                materialCode: mat.materialCode,
+                materialDescription: mat.materialDescription,
+                quantity: finalQty.toString(),
+                unit: _getMaterialUnit(mat.materialCode),
+                prNo: 'BOP-${bop.jobNo}-${mat.materialCode}',
+              ),
+            ],
+          );
+          bopPurchaseRequests.add(bopRequest);
+        }
+      }
+    }
+    
+    // Combine regular requests with BOP requests
+    final allRequests = [...requests, ...bopPurchaseRequests];
+    
     // Apply status and date filters
-    var filteredRequests = requests.where((pr) {
+    var filteredRequests = allRequests.where((pr) {
       // Exclude CFI PRs - they should only show in Customer Free Issue List
       if (pr.prNo.startsWith('CFI')) return false;
       
@@ -1246,7 +1335,8 @@ class _PurchaseRequestListPageState
             .where((s) => s.isNotEmpty)
             .join('\n');
 
-        final pendingQty = double.parse(item.quantity) - totalOrderedQty;
+        final itemQty = double.tryParse(item.quantity) ?? 0.0;
+        final pendingQty = itemQty - totalOrderedQty;
         final status = pendingQty <= 0
             ? 'Completed'
             : totalOrderedQty > 0
@@ -1256,14 +1346,17 @@ class _PurchaseRequestListPageState
         rows.add(
           PlutoRow(
             cells: {
+              'select': PlutoCell(value: ''),
               'serialNo': PlutoCell(value: serialNo++),
               'jobNo': PlutoCell(value: request.jobNo ?? '-'),
               'prNo': PlutoCell(value: request.prNo),
               'prDate': PlutoCell(value: request.date),
               'partNo': PlutoCell(value: item.materialCode),
               'description': PlutoCell(value: item.materialDescription),
-              'prQty': PlutoCell(value: double.parse(item.quantity)),
+              'prQty': PlutoCell(value: itemQty),
               'unit': PlutoCell(value: item.unit),
+              'category': PlutoCell(value: _getMaterialCategory(item.materialCode)),
+              'rawMaterial': PlutoCell(value: _getMaterialRawMaterial(item.materialCode)),
               'requestedBy': PlutoCell(value: request.requiredBy),
               'stockTransfer':
                   PlutoCell(value: transfers.isEmpty ? '-' : transfers),
@@ -1291,7 +1384,7 @@ class _PurchaseRequestListPageState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         title: Text('Delete Purchase Request',
             style: TextStyle(color: Colors.grey[200])),
         content: Text(
@@ -1598,12 +1691,12 @@ class _PurchaseRequestListPageState
             Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[600]),
             const SizedBox(height: 16),
             Text(
-              'No BOP materials pending approval',
+              'No BOP materials available',
               style: TextStyle(fontSize: 16, color: Colors.grey[400]),
             ),
             const SizedBox(height: 8),
             Text(
-              'Materials added to Bills of Preparation with source\n"Material Master" will appear here for approval.',
+              'Materials added to Bills of Preparation with source\n"Material Master" will appear here.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
@@ -1612,114 +1705,447 @@ class _PurchaseRequestListPageState
       );
     }
 
-    return ListView.builder(
+    return Padding(
       padding: const EdgeInsets.all(16),
-      itemCount: bopItems.length,
-      itemBuilder: (context, index) {
-        final item = bopItems[index];
-        final jobNo = item['jobNo'] as String;
-        final materialCode = item['materialCode'] as String;
-        final materialDescription = item['materialDescription'] as String;
-        final bop = item['bop'] as BillOfPreparation;
-        final mat = item['mat'] as BopMaterial;
-        final finalQty = mat.cktTypes.isNotEmpty ? mat.cktTypes.first.materialQuantity : 0.0;
-
-        return Card(
-          color: Colors.grey[850],
-          margin: const EdgeInsets.only(bottom: 10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.blue.withOpacity(0.5)),
-                            ),
-                            child: Text(
-                              'Job: $jobNo',
-                              style: const TextStyle(color: Colors.blue, fontSize: 12, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.orange.withOpacity(0.5)),
-                            ),
-                            child: const Text(
-                              'Material Master',
-                              style: TextStyle(color: Colors.orange, fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        materialCode,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        materialDescription,
-                        style: TextStyle(color: Colors.grey[400], fontSize: 13),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Final Qty: ${finalQty.toStringAsFixed(2)}',
-                        style: TextStyle(color: Colors.grey[300], fontSize: 12),
-                      ),
-                    ],
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '${bopItems.length} BOP Materials',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const Spacer(),
+              Text(
+                'View Only',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
                 ),
-                const SizedBox(width: 12),
-                FilledButton.icon(
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => AddPurchaseRequestPage(
-                          existingRequest: null,
-                          index: null,
-                          initialJobNo: jobNo,
-                          initialMaterialCode: materialCode,
-                          initialMaterialDescription: materialDescription,
-                          sourceBop: bop,
-                          sourceBopMaterial: mat,
-                        ),
-                      ),
-                    );
-                    setState(() {});
-                  },
-                  icon: const Icon(Icons.check, size: 16),
-                  label: const Text('Approve'),
-                  style: FilledButton.styleFrom(backgroundColor: Colors.green[700]),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: () => _showRejectBopDialog(context, bop, mat),
-                  icon: const Icon(Icons.close, size: 16),
-                  label: const Text('Reject'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red[300],
-                    side: BorderSide(color: Colors.red[300]!),
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildHeader(),
+          const SizedBox(height: 16),
+          Expanded(
+            child: PlutoGrid(
+              columns: _getBopColumns(),
+              rows: _getBopRows(bopItems),
+              onLoaded: (PlutoGridOnLoadedEvent event) {
+                stateManager = event.stateManager;
+                stateManager?.setShowColumnFilter(true);
+              },
+              configuration: PlutoGridConfigurations.darkMode(),
             ),
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  bool _getAllBopItemsSelected(List<Map<String, dynamic>> bopItems) {
+    return bopItems.isNotEmpty && _selectedBopItems.length == bopItems.length;
+  }
+
+  int _getBopMaterialCount() {
+    final bops = ref.read(billOfPreparationProvider);
+    return bops.fold<int>(0, (sum, bop) => 
+      sum + bop.materials.where((mat) => mat.materialSource == 'material_master').length);
+  }
+
+  String _getMaterialUnit(String materialCode) {
+    final materials = ref.read(materialListProvider);
+    final material = materials.where((m) => m.partNo == materialCode).firstOrNull;
+    return material?.unit ?? 'PCS'; // Default to PCS if not found
+  }
+
+  String _getMaterialCategory(String materialCode) {
+    final materials = ref.read(materialListProvider);
+    final material = materials.where((m) => m.partNo == materialCode).firstOrNull;
+    return material?.category ?? ''; // Return empty string if not found
+  }
+
+  String _getMaterialRawMaterial(String materialCode) {
+    final materials = ref.read(materialListProvider);
+    final material = materials.where((m) => m.partNo == materialCode).firstOrNull;
+    return material?.subCategory ?? ''; // Return empty string if not found
+  }
+
+  List<PlutoColumn> _getBopColumns() {
+    return [
+      PlutoColumn(
+        title: 'S.No',
+        field: 'serialNo',
+        type: PlutoColumnType.number(),
+        width: 60,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Job No',
+        field: 'jobNo',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Part No',
+        field: 'materialCode',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Description',
+        field: 'materialDescription',
+        type: PlutoColumnType.text(),
+        width: 300,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.left,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Final Qty',
+        field: 'finalQty',
+        type: PlutoColumnType.number(),
+        width: 100,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+      PlutoColumn(
+        title: 'Source',
+        field: 'source',
+        type: PlutoColumnType.text(),
+        width: 120,
+        backgroundColor: const Color(0xFF2D2D2D),
+        titleTextAlign: PlutoColumnTextAlign.center,
+        textAlign: PlutoColumnTextAlign.center,
+        enableEditingMode: false,
+      ),
+    ];
+  }
+
+  List<PlutoRow> _getBopRows(List<Map<String, dynamic>> bopItems) {
+    final rows = <PlutoRow>[];
+    int serialNo = 1;
+    
+    for (final item in bopItems) {
+      final jobNo = item['jobNo'] as String;
+      final materialCode = item['materialCode'] as String;
+      final materialDescription = item['materialDescription'] as String;
+      final bop = item['bop'] as BillOfPreparation;
+      final mat = item['mat'] as BopMaterial;
+      final finalQty = mat.cktTypes.isNotEmpty ? mat.cktTypes.first.materialQuantity : 0.0;
+
+      rows.add(
+        PlutoRow(
+          cells: {
+            'serialNo': PlutoCell(value: serialNo++),
+            'jobNo': PlutoCell(value: jobNo),
+            'materialCode': PlutoCell(value: materialCode),
+            'materialDescription': PlutoCell(value: materialDescription),
+            'finalQty': PlutoCell(value: finalQty),
+            'source': PlutoCell(value: 'Material Master'),
+          },
+        ),
+      );
+    }
+    
+    return rows;
+  }
+
+  void _deleteSelectedBopItems() async {
+    if (_selectedBopItems.isEmpty) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: Text('Delete ${_selectedBopItems.length} BOP Items', style: TextStyle(color: Colors.grey[200])),
+        content: Text(
+          'Are you sure you want to delete the selected BOP materials?\n\nThis action cannot be undone.',
+          style: TextStyle(color: Colors.grey[300]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[400])),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Process deletion for all selected BOP items
+    final bops = ref.read(billOfPreparationProvider);
+    int deletedCount = 0;
+    
+    // Group items by BOP number
+    final itemsByBop = <String, List<String>>{};
+    for (final itemKey in _selectedBopItems) {
+      final parts = itemKey.split('_');
+      if (parts.length >= 2) {
+        final jobNo = parts.sublist(0, parts.length - 1).join('_');
+        final materialCode = parts.last;
+        itemsByBop.putIfAbsent(jobNo, () => []).add(materialCode);
+      }
+    }
+    
+    // Delete items from each BOP
+    for (final entry in itemsByBop.entries) {
+      final jobNo = entry.key;
+      final materialCodes = entry.value;
+      final bop = bops.firstWhere((b) => b.jobNo == jobNo);
+      
+      final updatedMaterials = bop.materials.where((mat) => 
+        !materialCodes.contains(mat.materialCode) || mat.materialSource != 'material_master'
+      ).toList();
+      
+      if (updatedMaterials.length != bop.materials.length) {
+        final updatedBop = bop.copyWith(materials: updatedMaterials);
+        final bopIndex = bops.indexOf(bop);
+        await ref.read(billOfPreparationProvider.notifier).updateBillOfPreparation(bopIndex, updatedBop, ref);
+        deletedCount += materialCodes.length;
+      }
+    }
+
+    setState(() {
+      _selectedBopItems.clear();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Deleted $deletedCount BOP materials'),
+        backgroundColor: Colors.red[700],
+      ),
+    );
+  }
+
+  void _approveSelectedBopItems() async {
+    if (_selectedBopItems.isEmpty) return;
+
+    // Parse selected items and navigate to AddPurchaseRequestPage with multiple materials
+    final selectedMaterials = <Map<String, dynamic>>[];
+    
+    for (final itemKey in _selectedBopItems) {
+      final parts = itemKey.split('_');
+      final jobNo = parts.sublist(0, parts.length - 1).join('_');
+      final materialCode = parts.last;
+      
+      // Find the corresponding BOP and material
+      final bops = ref.read(billOfPreparationProvider);
+      for (final bop in bops) {
+        if (bop.jobNo == jobNo) {
+          for (final mat in bop.materials) {
+            if (mat.materialCode == materialCode && mat.materialSource == 'material_master') {
+              selectedMaterials.add({
+                'jobNo': jobNo,
+                'materialCode': materialCode,
+                'materialDescription': mat.materialDescription,
+                'bop': bop,
+                'mat': mat,
+              });
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (selectedMaterials.isNotEmpty) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AddPurchaseRequestPage(
+            existingRequest: null,
+            index: null,
+            initialBopMaterials: selectedMaterials,
+          ),
+        ),
+      );
+      setState(() {
+        _selectedBopItems.clear();
+      });
+    }
+  }
+
+  void _rejectSelectedBopItems() async {
+    if (_selectedBopItems.isEmpty) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: Text('Reject ${_selectedBopItems.length} BOP Materials', style: TextStyle(color: Colors.grey[200])),
+        content: Text(
+          'Remove the selected materials from their respective Bills of Preparation?\n\nThis action cannot be undone.',
+          style: TextStyle(color: Colors.grey[300]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[400])),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reject All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Process rejection for all selected items
+    final bops = ref.read(billOfPreparationProvider);
+    
+    for (final itemKey in _selectedBopItems) {
+      final parts = itemKey.split('_');
+      final jobNo = parts.sublist(0, parts.length - 1).join('_');
+      final materialCode = parts.last;
+      
+      // Find and update the BOP
+      for (final bop in bops) {
+        if (bop.jobNo == jobNo) {
+          final updatedBop = bop.copyWith(
+            materials: bop.materials
+                .where((m) => m.materialCode != materialCode)
+                .toList(),
+          );
+          
+          final bopIndex = bops.indexWhere(
+              (b) => b.jobNo == bop.jobNo && b.createdDate == bop.createdDate);
+          if (bopIndex != -1) {
+            await ref
+                .read(billOfPreparationProvider.notifier)
+                .updateBillOfPreparation(bopIndex, updatedBop, ref);
+          }
+        }
+      }
+    }
+
+    final rejectedCount = _selectedBopItems.length;
+    setState(() {
+      _selectedBopItems.clear();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Rejected $rejectedCount materials from BOPs'),
+        backgroundColor: Colors.red[700],
+      ),
+    );
+  }
+
+  bool _getAllPrItemsSelected(List<PurchaseRequest> requests) {
+    final nonCfiRequests = requests.where((pr) => !pr.prNo.startsWith('CFI'));
+    int totalItems = 0;
+    
+    for (final pr in nonCfiRequests) {
+      totalItems += pr.items.length;
+    }
+    
+    return totalItems > 0 && _selectedPrItems.length == totalItems;
+  }
+
+  void _deleteSelectedPrItems() async {
+    if (_selectedPrItems.isEmpty) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: Text('Delete ${_selectedPrItems.length} PR Items', style: TextStyle(color: Colors.grey[200])),
+        content: Text(
+          'Are you sure you want to delete the selected PR items?\n\nThis action cannot be undone.',
+          style: TextStyle(color: Colors.grey[300]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[400])),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Process deletion for all selected PR items
+    final requests = ref.read(purchaseRequestListProvider);
+    int deletedCount = 0;
+    
+    // Group items by PR number
+    final itemsByPr = <String, List<String>>{};
+    for (final itemKey in _selectedPrItems) {
+      final parts = itemKey.split('_');
+      if (parts.length >= 2) {
+        final prNo = parts[0];
+        final materialCode = parts.sublist(1).join('_');
+        itemsByPr.putIfAbsent(prNo, () => []).add(materialCode);
+      }
+    }
+    
+    // Delete items from each PR
+    for (final entry in itemsByPr.entries) {
+      final prNo = entry.key;
+      final materialCodes = entry.value;
+      final request = requests.firstWhere((pr) => pr.prNo == prNo);
+      
+      for (final materialCode in materialCodes) {
+        final item = request.items.firstWhere((item) => item.materialCode == materialCode);
+        final success = await ref.read(purchaseRequestListProvider.notifier).deleteRequestItem(request, item);
+        if (success) {
+          deletedCount++;
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Cannot delete item $materialCode from PR $prNo - it has active purchase orders'),
+              backgroundColor: Colors.orange[700],
+            ),
+          );
+        }
+      }
+    }
+
+    setState(() {
+      _selectedPrItems.clear();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Deleted $deletedCount PR items'),
+        backgroundColor: Colors.red[700],
+      ),
     );
   }
 
@@ -1727,7 +2153,7 @@ class _PurchaseRequestListPageState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[850],
+        backgroundColor: const Color(0xFF2D2D2D),
         title: Text('Reject BOP Material', style: TextStyle(color: Colors.grey[200])),
         content: Text(
           'Remove "${mat.materialCode} - ${mat.materialDescription}" from BOP for Job ${bop.jobNo}?\n\nThis will delete it from the BOP materials list.',
@@ -1832,7 +2258,7 @@ class _PurchaseRequestListPageState
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('Refreshed from server'),
-                      backgroundColor: Colors.grey[850],
+                      backgroundColor: const Color(0xFF2D2D2D),
                       duration: const Duration(seconds: 1),
                     ),
                   );
@@ -1882,9 +2308,50 @@ class _PurchaseRequestListPageState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${requests.where((pr) => !pr.prNo.startsWith('CFI')).length} Purchase Requests',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      Row(
+                        children: [
+                          Text(
+                            '${requests.where((pr) => !pr.prNo.startsWith('CFI')).length + _getBopMaterialCount()} Purchase Requests',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const Spacer(),
+                          if (requests.where((pr) => !pr.prNo.startsWith('CFI')).isNotEmpty)
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _getAllPrItemsSelected(requests),
+                                  onChanged: (bool? value) {
+                                    setState(() {
+                                      if (value == true) {
+                                        _selectedPrItems.clear();
+                                        // Add all individual items from all PRs
+                                        for (final pr in requests.where((pr) => !pr.prNo.startsWith('CFI'))) {
+                                          for (final item in pr.items) {
+                                            _selectedPrItems.add('${pr.prNo}_${item.materialCode}');
+                                          }
+                                        }
+                                      } else {
+                                        _selectedPrItems.clear();
+                                      }
+                                    });
+                                  },
+                                ),
+                                Text(
+                                  'Select All (${_selectedPrItems.length})',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                                if (_selectedPrItems.isNotEmpty) ...[
+                                  const SizedBox(width: 16),
+                                  ElevatedButton.icon(
+                                    onPressed: _deleteSelectedPrItems,
+                                    icon: const Icon(Icons.delete, size: 16),
+                                    label: const Text('Delete Selected'),
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red[700]),
+                                  ),
+                                ],
+                              ],
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       _buildHeader(),

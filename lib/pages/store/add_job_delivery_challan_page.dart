@@ -7,6 +7,8 @@ import '../../services/pdf_service.dart';
 import '../../models/sale_order.dart';
 import '../../provider/delivery_challan_provider.dart';
 import '../../provider/sale_order_provider.dart';
+import '../../provider/customer_provider.dart';
+import '../../models/customer.dart';
 
 class AddJobDeliveryChallanPage extends ConsumerStatefulWidget {
   const AddJobDeliveryChallanPage({super.key});
@@ -23,6 +25,7 @@ class _AddJobDeliveryChallanPageState
   late TextEditingController _noteController;
   late String _selectedDate;
   List<DeliveryChallanItem> _items = [];
+  final _jobSearchController = TextEditingController();
 
   @override
   void initState() {
@@ -30,7 +33,7 @@ class _AddJobDeliveryChallanPageState
     _dcNoController = TextEditingController();
     _noteController = TextEditingController();
     _selectedDate = DateTime.now().toString().split(' ')[0];
-    
+
     // Auto-generate DC number after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final notifier = ref.read(deliveryChallanListProvider.notifier);
@@ -41,16 +44,50 @@ class _AddJobDeliveryChallanPageState
     });
   }
 
+  String _getCustomerAddress(String customerName) {
+    print('DEBUG: Looking up customer address for: "$customerName"');
+    final customers = ref.read(customerListProvider);
+    print('DEBUG: Total customers available: ${customers.length}');
+
+    final customer = customers.where((c) => c.name == customerName).firstOrNull;
+    print('DEBUG: Customer found: ${customer != null}');
+
+    if (customer == null) {
+      print('DEBUG: Customer not found, available customers:');
+      for (final c in customers.take(5)) {
+        print('DEBUG: - "${c.name}"');
+      }
+      return '';
+    }
+
+    print('DEBUG: Customer address1: "${customer.address1}"');
+    print('DEBUG: Customer address2: "${customer.address2}"');
+    print('DEBUG: Customer address3: "${customer.address3}"');
+    print('DEBUG: Customer address4: "${customer.address4}"');
+
+    final addressParts = <String>[];
+
+    if (customer.address1.isNotEmpty) addressParts.add(customer.address1);
+    if (customer.address2.isNotEmpty) addressParts.add(customer.address2);
+    if (customer.address3.isNotEmpty) addressParts.add(customer.address3);
+    if (customer.address4.isNotEmpty) addressParts.add(customer.address4);
+
+    final result = addressParts.join(', ');
+    print('DEBUG: Final formatted address: "$result"');
+    return result;
+  }
+
   @override
   void dispose() {
     _dcNoController.dispose();
     _noteController.dispose();
+    _jobSearchController.dispose();
     super.dispose();
   }
 
   void _addJobItem() {
     final saleOrders = ref.read(saleOrderProvider);
-    
+
     if (saleOrders.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -61,35 +98,67 @@ class _AddJobDeliveryChallanPageState
       return;
     }
 
+    _jobSearchController.clear();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Select Job'),
         content: SizedBox(
           width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: saleOrders.length,
-            itemBuilder: (context, index) {
-              final order = saleOrders[index];
-              return ListTile(
-                title: Text('${order.jobNo} - ${order.customerName}'),
-                subtitle: Text('Order No: ${order.orderNo}'),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _items.add(
-                      DeliveryChallanItem(
-                        materialCode: 'JOB-${order.jobNo}',
-                        materialDescription: 'Job Order: ${order.jobNo} - ${order.customerName}',
-                        unit: 'JOB',
-                        quantity: 1,
-                        jobNo: order.jobNo,
-                        price: order.finalBillValue ?? 0.0,
-                      ),
-                    );
-                  });
-                },
+          child: StatefulBuilder(
+            builder: (context, setDialogState) {
+              final query = _jobSearchController.text.trim().toLowerCase();
+              final filteredOrders = saleOrders.where((order) {
+                if (query.isEmpty) return true;
+                return order.jobNo.toLowerCase().contains(query) ||
+                    order.customerName.toLowerCase().contains(query) ||
+                    order.orderNo.toLowerCase().contains(query);
+              }).toList();
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _jobSearchController,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Search Job No, Customer, or Order No',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: filteredOrders.length,
+                      itemBuilder: (context, index) {
+                        final order = filteredOrders[index];
+                        return ListTile(
+                          title: Text('${order.jobNo} - ${order.customerName}'),
+                          subtitle: Text('Order No: ${order.orderNo}'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            setState(() {
+                              _items.add(
+                                DeliveryChallanItem(
+                                  materialCode: 'JOB-${order.jobNo}',
+                                  materialDescription:
+                                      'Job Order: ${order.jobNo} - ${order.customerName}',
+                                  unit: 'JOB',
+                                  quantity: 1,
+                                  jobNo: order.jobNo,
+                                  price: order.finalBillValue ?? 0.0,
+                                ),
+                              );
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -128,7 +197,11 @@ class _AddJobDeliveryChallanPageState
 
       // For multiple jobs, use the first job as primary job order number
       String primaryJobNo = _items.first.jobNo ?? '';
-      String primaryCustomerName = _items.first.materialDescription.split(' - ')[1];
+      String primaryCustomerName =
+          _items.first.materialDescription.split(' - ')[1];
+
+      // Get customer address
+      String customerAddress = _getCustomerAddress(primaryCustomerName);
 
       final dc = DeliveryChallan(
         dcNo: _dcNoController.text.trim(),
@@ -141,7 +214,7 @@ class _AddJobDeliveryChallanPageState
         note: _noteController.text,
         dcType: 'billing',
         jobOrderNumber: primaryJobNo,
-        siteAddress: 'Site Address', // You might want to add this to sale order
+        siteAddress: customerAddress.isNotEmpty ? customerAddress : null,
         expectedReturnDate: null,
         internalFlow: 'outward',
       );
@@ -252,7 +325,8 @@ class _AddJobDeliveryChallanPageState
     }
   }
 
-  Future<void> _generateAndSaveToDownloads(DeliveryChallan deliveryChallan) async {
+  Future<void> _generateAndSaveToDownloads(
+      DeliveryChallan deliveryChallan) async {
     try {
       showDialog(
         context: context,
@@ -262,7 +336,8 @@ class _AddJobDeliveryChallanPageState
         ),
       );
 
-      final success = await PDFService.saveJobDeliveryChallanToDownloads(deliveryChallan);
+      final success =
+          await PDFService.saveJobDeliveryChallanToDownloads(deliveryChallan);
 
       Navigator.pop(context);
 
@@ -384,7 +459,7 @@ class _AddJobDeliveryChallanPageState
                   maxLines: 3,
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Job Items Section
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -404,12 +479,13 @@ class _AddJobDeliveryChallanPageState
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _items.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final item = _items[index];
                     return Card(

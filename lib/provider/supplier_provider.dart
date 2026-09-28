@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/supplier.dart';
 import 'base_provider.dart';
+import '../utils/company_config.dart';
 
 final supplierBoxProvider = Provider<Box<Supplier>>((ref) {
   throw UnimplementedError();
@@ -94,11 +95,14 @@ class SupplierNotifier extends BaseProvider<Supplier> {
     final suppliers = state;
     int maxNumber = 0;
 
-    // Find the highest existing number in MPTSM-xxxxx format
+    final prefix = '${companyCodePrefix}SM-';
+    final altPrefix = companyCodePrefix == 'MPT' ? 'AISM-' : 'MPTSM-';
+
     for (var supplier in suppliers) {
       final code = supplier.vendorCode;
-      if (code.startsWith('MPTSM-') && code.length >= 11) {
-        final numberPart = code.substring(6); // Remove "MPTSM-" prefix
+      if ((code.startsWith(prefix) || code.startsWith(altPrefix)) &&
+          code.contains('-')) {
+        final numberPart = code.substring(code.lastIndexOf('-') + 1);
         final number = int.tryParse(numberPart);
         if (number != null && number > maxNumber) {
           maxNumber = number;
@@ -106,9 +110,8 @@ class SupplierNotifier extends BaseProvider<Supplier> {
       }
     }
 
-    // Generate next sequential number with leading zeros
     final nextNumber = maxNumber + 1;
-    return 'MPTSM-${nextNumber.toString().padLeft(5, '0')}';
+    return '$prefix${nextNumber.toString().padLeft(5, '0')}';
   }
 
   // Helper methods

@@ -25,6 +25,7 @@ class AddCustomerFreeIssuePage extends ConsumerStatefulWidget {
   final String? initialMaterialDescription;
   final BillOfPreparation? sourceBop;
   final BopMaterial? sourceBopMaterial;
+  final List<Map<String, dynamic>>? initialBopMaterials;
   const AddCustomerFreeIssuePage({
     super.key,
     required this.existingRequest,
@@ -34,13 +35,16 @@ class AddCustomerFreeIssuePage extends ConsumerStatefulWidget {
     this.initialMaterialDescription,
     this.sourceBop,
     this.sourceBopMaterial,
+    this.initialBopMaterials,
   });
 
   @override
-  ConsumerState<AddCustomerFreeIssuePage> createState() => _AddCustomerFreeIssuePageState();
+  ConsumerState<AddCustomerFreeIssuePage> createState() =>
+      _AddCustomerFreeIssuePageState();
 }
 
-class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssuePage> {
+class _AddCustomerFreeIssuePageState
+    extends ConsumerState<AddCustomerFreeIssuePage> {
   final _formKey = GlobalKey<FormState>();
   final List<CFIItemFormData> _items = [];
   final _requestedByController = TextEditingController();
@@ -67,25 +71,56 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
           quantity: item.quantity,
           partNoController: TextEditingController(text: item.materialCode),
           unitController: TextEditingController(text: item.unit),
-          materialController: TextEditingController(text: item.materialDescription),
+          materialController:
+              TextEditingController(text: item.materialDescription),
+        ));
+      }
+    } else if (widget.initialBopMaterials != null &&
+        widget.initialBopMaterials!.isNotEmpty) {
+      // Autofill from multi-selected BOP materials
+      _selectedJobNo = widget.initialBopMaterials!.first['jobNo'] as String?;
+
+      for (final materialData in widget.initialBopMaterials!) {
+        final materialCode = materialData['materialCode'] as String;
+        final materialDescription =
+            materialData['materialDescription'] as String;
+        final mat = materialData['mat'] as BopMaterial;
+
+        // Extract quantity from BOP material
+        String materialQuantity = '1';
+        if (mat.cktTypes.isNotEmpty) {
+          materialQuantity = mat.cktTypes.first.materialQuantity.toString();
+        }
+
+        _items.add(CFIItemFormData(
+          selectedMaterial: materialDescription,
+          quantity: materialQuantity,
+          partNoController: TextEditingController(text: materialCode),
+          unitController: TextEditingController(text: ''),
+          materialController: TextEditingController(text: materialDescription),
         ));
       }
     } else if (widget.initialMaterialCode != null) {
-      // Autofill from BOP approval
+      // Autofill from single BOP approval
       _selectedJobNo = widget.initialJobNo;
-      
+
       // Extract quantity from BOP material
       String materialQuantity = '1';
-      if (widget.sourceBopMaterial != null && widget.sourceBopMaterial!.cktTypes.isNotEmpty) {
-        materialQuantity = widget.sourceBopMaterial!.cktTypes.first.materialQuantity.toString();
+      if (widget.sourceBopMaterial != null &&
+          widget.sourceBopMaterial!.cktTypes.isNotEmpty) {
+        materialQuantity = widget
+            .sourceBopMaterial!.cktTypes.first.materialQuantity
+            .toString();
       }
-      
+
       _items.add(CFIItemFormData(
         selectedMaterial: widget.initialMaterialDescription ?? '',
         quantity: materialQuantity,
-        partNoController: TextEditingController(text: widget.initialMaterialCode ?? ''),
+        partNoController:
+            TextEditingController(text: widget.initialMaterialCode ?? ''),
         unitController: TextEditingController(text: ''),
-        materialController: TextEditingController(text: widget.initialMaterialDescription ?? ''),
+        materialController: TextEditingController(
+            text: widget.initialMaterialDescription ?? ''),
       ));
     } else {
       // Pre-select job number if provided
@@ -197,7 +232,26 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
           .replaceAll(RegExp(r'\s+'), '')
           .replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-      final input = await file.readAsString();
+      String input;
+      try {
+        input = await file.readAsString();
+      } catch (e) {
+        try {
+          final bytes = await file.readAsBytes();
+          input = String.fromCharCodes(bytes);
+        } catch (e2) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Failed to read file with UTF-8 or fallback encoding. Please save the CSV file as UTF-8.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
       final rows = const CsvToListConverter().convert(input);
       if (rows.isEmpty) {
         if (mounted) {
@@ -211,13 +265,16 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
         return;
       }
 
-      final headers = rows.first.map((e) => e.toString().toLowerCase()).toList();
+      final headers =
+          rows.first.map((e) => e.toString().toLowerCase()).toList();
       int codeIndex = -1;
       int qtyIndex = -1;
 
       for (int i = 0; i < headers.length; i++) {
         final h = headers[i];
-        if (h.contains('material code') || h.contains('part no') || h.contains('partno')) {
+        if (h.contains('material code') ||
+            h.contains('part no') ||
+            h.contains('partno')) {
           codeIndex = i;
         } else if (h.contains('qty') || h.contains('quantity')) {
           qtyIndex = i;
@@ -228,7 +285,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('CSV must have at least Material Code and Quantity columns.'),
+              content: Text(
+                  'CSV must have at least Material Code and Quantity columns.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -267,7 +325,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
         }
 
         if (qtyStr.isEmpty) {
-          invalidRows.add('${rowIndex + 2}: ${material.partNo} (missing quantity)');
+          invalidRows
+              .add('${rowIndex + 2}: ${material.partNo} (missing quantity)');
           continue;
         }
 
@@ -277,7 +336,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
             quantity: qtyStr,
             partNoController: TextEditingController(text: material.partNo),
             unitController: TextEditingController(text: material.unit),
-            materialController: TextEditingController(text: material.description),
+            materialController:
+                TextEditingController(text: material.description),
           ),
         );
       }
@@ -395,7 +455,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text(isQuantityStep ? 'Enter Quantities' : 'Enter Material Codes'),
+              title: Text(
+                  isQuantityStep ? 'Enter Quantities' : 'Enter Material Codes'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,7 +481,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         border: const OutlineInputBorder(),
-                        hintText: 'Enter quantities for:\n${materialCodes.join('\n')}',
+                        hintText:
+                            'Enter quantities for:\n${materialCodes.join('\n')}',
                       ),
                     ),
                   ],
@@ -441,7 +503,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                           .toList();
 
                       final invalidCodes = materialCodes
-                          .where((code) => !materials.any((m) => m.partNo == code))
+                          .where(
+                              (code) => !materials.any((m) => m.partNo == code))
                           .toList();
 
                       if (invalidCodes.isNotEmpty) {
@@ -453,7 +516,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('The following codes were not found:'),
+                                const Text(
+                                    'The following codes were not found:'),
                                 const SizedBox(height: 8),
                                 Text(invalidCodes.join('\n')),
                               ],
@@ -484,7 +548,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                           context: context,
                           builder: (context) => AlertDialog(
                             title: const Text('Quantity Mismatch'),
-                            content: Text('Please enter ${materialCodes.length} quantities, one for each material code.'),
+                            content: Text(
+                                'Please enter ${materialCodes.length} quantities, one for each material code.'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context),
@@ -498,7 +563,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
 
                       bool hasUsedFirstItem = false;
                       for (var i = 0; i < materialCodes.length; i++) {
-                        final material = materials.firstWhere((m) => m.partNo == materialCodes[i]);
+                        final material = materials
+                            .firstWhere((m) => m.partNo == materialCodes[i]);
                         final quantity = quantities[i];
 
                         if (!hasUsedFirstItem &&
@@ -510,16 +576,20 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                             _items[0].quantity = quantity;
                             _items[0].partNoController.text = material.partNo;
                             _items[0].unitController.text = material.unit;
-                            _items[0].materialController.text = material.description;
+                            _items[0].materialController.text =
+                                material.description;
                           });
                           hasUsedFirstItem = true;
                         } else {
                           _items.add(CFIItemFormData(
                             selectedMaterial: material.description,
                             quantity: quantity,
-                            partNoController: TextEditingController(text: material.partNo),
-                            unitController: TextEditingController(text: material.unit),
-                            materialController: TextEditingController(text: material.description),
+                            partNoController:
+                                TextEditingController(text: material.partNo),
+                            unitController:
+                                TextEditingController(text: material.unit),
+                            materialController: TextEditingController(
+                                text: material.description),
                           ));
                         }
                       }
@@ -543,13 +613,20 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
     int financialYear = now.year;
     if (now.month < 4) financialYear--;
     final nextFinancialYear = financialYear + 1;
-    final yearPrefix = '${financialYear.toString().substring(2)}${nextFinancialYear.toString().substring(2)}';
+    final yearPrefix =
+        '${financialYear.toString().substring(2)}${nextFinancialYear.toString().substring(2)}';
 
-    final valid = all.where((r) => r.prNo.startsWith('CFI$yearPrefix') && r.prNo.length == 13).toList();
+    final valid = all
+        .where(
+            (r) => r.prNo.startsWith('CFI$yearPrefix') && r.prNo.length == 13)
+        .toList();
     if (valid.isEmpty) return 'CFI${yearPrefix}000001';
-    final seqNumbers = valid.map((r) => int.tryParse(r.prNo.substring(7)) ?? 0).toList();
-    final nextSeq = (seqNumbers.isEmpty ? 0 : seqNumbers.reduce((a, b) => a > b ? a : b)) + 1;
-    return 'CFI$yearPrefix${nextSeq.toString().padLeft(6, '0')}' ;
+    final seqNumbers =
+        valid.map((r) => int.tryParse(r.prNo.substring(7)) ?? 0).toList();
+    final nextSeq =
+        (seqNumbers.isEmpty ? 0 : seqNumbers.reduce((a, b) => a > b ? a : b)) +
+            1;
+    return 'CFI$yearPrefix${nextSeq.toString().padLeft(6, '0')}';
   }
 
   @override
@@ -575,7 +652,7 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
         eligibleSaleOrders.add(selectedOrder);
       }
     }
-    
+
     // Extract unique job numbers for dropdown
     final uniqueJobNumbers = eligibleSaleOrders
         .map((order) => order.jobNo?.trim() ?? '') // Trim whitespace
@@ -585,7 +662,9 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.existingRequest != null ? 'Edit Customer Free Issue' : 'New Customer Free Issue'),
+        title: Text(widget.existingRequest != null
+            ? 'Edit Customer Free Issue'
+            : 'New Customer Free Issue'),
       ),
       body: Form(
         key: _formKey,
@@ -603,7 +682,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                         labelText: 'Requested By',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Required' : null,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -621,7 +701,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                         return null;
                       },
                       items: [
-                        const DropdownMenuItem(value: null, child: Text('None')),
+                        const DropdownMenuItem(
+                            value: null, child: Text('None')),
                         ...uniqueJobNumbers.map((jobNo) => DropdownMenuItem(
                               value: jobNo,
                               child: Text(jobNo),
@@ -673,10 +754,13 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                         Expanded(
                           flex: 2,
                           child: Autocomplete<CustomerScopeMaterialIssueMaster>(
-                            fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                            fieldViewBuilder: (context, textEditingController,
+                                focusNode, onFieldSubmitted) {
                               WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (textEditingController.text.isEmpty && item.partNoController.text.isNotEmpty) {
-                                  textEditingController.text = item.partNoController.text;
+                                if (textEditingController.text.isEmpty &&
+                                    item.partNoController.text.isNotEmpty) {
+                                  textEditingController.text =
+                                      item.partNoController.text;
                                 }
                               });
                               return TextFormField(
@@ -700,10 +784,12 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                                   elevation: 4.0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    side: BorderSide(color: Theme.of(context).dividerColor),
+                                    side: BorderSide(
+                                        color: Theme.of(context).dividerColor),
                                   ),
                                   child: ConstrainedBox(
-                                    constraints: const BoxConstraints(maxHeight: 200, maxWidth: 400),
+                                    constraints: const BoxConstraints(
+                                        maxHeight: 200, maxWidth: 400),
                                     child: ListView.builder(
                                       padding: const EdgeInsets.all(8.0),
                                       itemCount: options.length,
@@ -712,8 +798,13 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                                         return InkWell(
                                           onTap: () => onSelected(option),
                                           child: Container(
-                                            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                                            child: Text('${option.partNo} - ${option.description}', style: const TextStyle(fontSize: 14.0)),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 12.0,
+                                                horizontal: 16.0),
+                                            child: Text(
+                                                '${option.partNo} - ${option.description}',
+                                                style: const TextStyle(
+                                                    fontSize: 14.0)),
                                           ),
                                         );
                                       },
@@ -722,20 +813,23 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                                 ),
                               );
                             },
-                            displayStringForOption: (material) => material.partNo,
+                            displayStringForOption: (material) =>
+                                material.partNo,
                             optionsBuilder: (textEditingValue) {
                               if (textEditingValue.text.isEmpty) {
                                 return materials;
                               }
                               return materials.where((material) =>
-                                  material.partNo.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                                  material.partNo.toLowerCase().contains(
+                                      textEditingValue.text.toLowerCase()));
                             },
                             onSelected: (material) {
                               setState(() {
                                 item.selectedMaterial = material.description;
                                 item.partNoController.text = material.partNo;
                                 item.unitController.text = material.unit;
-                                item.materialController.text = material.description;
+                                item.materialController.text =
+                                    material.description;
                               });
                             },
                           ),
@@ -744,10 +838,13 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                         Expanded(
                           flex: 3,
                           child: Autocomplete<CustomerScopeMaterialIssueMaster>(
-                            fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                            fieldViewBuilder: (context, textEditingController,
+                                focusNode, onFieldSubmitted) {
                               WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (textEditingController.text.isEmpty && item.selectedMaterial != null) {
-                                  textEditingController.text = item.selectedMaterial!;
+                                if (textEditingController.text.isEmpty &&
+                                    item.selectedMaterial != null) {
+                                  textEditingController.text =
+                                      item.selectedMaterial!;
                                 }
                               });
                               return TextFormField(
@@ -771,10 +868,12 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                                   elevation: 4.0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    side: BorderSide(color: Theme.of(context).dividerColor),
+                                    side: BorderSide(
+                                        color: Theme.of(context).dividerColor),
                                   ),
                                   child: ConstrainedBox(
-                                    constraints: const BoxConstraints(maxHeight: 200, maxWidth: 600),
+                                    constraints: const BoxConstraints(
+                                        maxHeight: 200, maxWidth: 600),
                                     child: ListView.builder(
                                       padding: const EdgeInsets.all(8.0),
                                       itemCount: options.length,
@@ -783,8 +882,12 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                                         return InkWell(
                                           onTap: () => onSelected(option),
                                           child: Container(
-                                            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                                            child: Text(option.description, style: const TextStyle(fontSize: 14.0)),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 12.0,
+                                                horizontal: 16.0),
+                                            child: Text(option.description,
+                                                style: const TextStyle(
+                                                    fontSize: 14.0)),
                                           ),
                                         );
                                       },
@@ -793,21 +896,23 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                                 ),
                               );
                             },
-                            displayStringForOption: (material) => material.description,
+                            displayStringForOption: (material) =>
+                                material.description,
                             optionsBuilder: (textEditingValue) {
                               if (textEditingValue.text.isEmpty) {
                                 return materials;
                               }
-                              return materials.where((material) => material.description
-                                  .toLowerCase()
-                                  .contains(textEditingValue.text.toLowerCase()));
+                              return materials.where((material) =>
+                                  material.description.toLowerCase().contains(
+                                      textEditingValue.text.toLowerCase()));
                             },
                             onSelected: (material) {
                               setState(() {
                                 item.selectedMaterial = material.description;
                                 item.partNoController.text = material.partNo;
                                 item.unitController.text = material.unit;
-                                item.materialController.text = material.description;
+                                item.materialController.text =
+                                    material.description;
                               });
                             },
                           ),
@@ -823,7 +928,8 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                               labelText: 'Quantity',
                               border: OutlineInputBorder(),
                             ),
-                            validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
                             onChanged: (v) => item.quantity = v,
                             onSaved: (v) => item.quantity = v,
                           ),
@@ -851,14 +957,17 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
                         _formKey.currentState!.save();
-                        final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
+                        final now =
+                            DateFormat('yyyy-MM-dd').format(DateTime.now());
                         final all = ref.read(purchaseRequestListProvider);
-                        final cfiNo = widget.existingRequest?.prNo ?? _generateCFINumber(all);
+                        final cfiNo = widget.existingRequest?.prNo ??
+                            _generateCFINumber(all);
 
                         final allItems = <PRItem>[];
                         for (var item in _items) {
                           if (item.selectedMaterial == null) continue;
-                          final material = materials.firstWhere((m) => m.description == item.selectedMaterial);
+                          final material = materials.firstWhere(
+                              (m) => m.description == item.selectedMaterial);
                           final prItem = PRItem(
                             materialCode: material.partNo,
                             materialDescription: material.description,
@@ -881,32 +990,68 @@ class _AddCustomerFreeIssuePageState extends ConsumerState<AddCustomerFreeIssueP
                           requiredBy: _requestedByController.text,
                           items: allItems,
                           jobNo: _selectedJobNo,
-                          customerId: selectedOrder.customerName, // Using customer name as ID for now
+                          customerId: selectedOrder
+                              .customerName, // Using customer name as ID for now
                           customerName: selectedOrder.customerName,
                         );
 
-                        if (widget.existingRequest != null && widget.index != null) {
-                          await ref.read(purchaseRequestListProvider.notifier).updateRequest(widget.index!, request);
+                        if (widget.existingRequest != null &&
+                            widget.index != null) {
+                          await ref
+                              .read(purchaseRequestListProvider.notifier)
+                              .updateRequest(widget.index!, request);
                         } else {
-                          await ref.read(purchaseRequestListProvider.notifier).addRequest(request);
+                          await ref
+                              .read(purchaseRequestListProvider.notifier)
+                              .addRequest(request);
                         }
 
-                        // If approved from BOP tab, remove the material from the BOP
-                        if (widget.sourceBop != null && widget.sourceBopMaterial != null) {
+                        // If approved from BOP tab, remove the materials from the BOP
+                        if (widget.initialBopMaterials != null &&
+                            widget.initialBopMaterials!.isNotEmpty) {
+                          // Handle multiple materials from multi-select
+                          for (final materialData
+                              in widget.initialBopMaterials!) {
+                            final bop =
+                                materialData['bop'] as BillOfPreparation;
+                            final mat = materialData['mat'] as BopMaterial;
+                            final updatedBop = bop.copyWith(
+                              materials: bop.materials
+                                  .where(
+                                      (m) => m.materialCode != mat.materialCode)
+                                  .toList(),
+                            );
+                            final bops = ref.read(billOfPreparationProvider);
+                            final bopIndex = bops.indexWhere((b) =>
+                                b.jobNo == bop.jobNo &&
+                                b.createdDate == bop.createdDate);
+                            if (bopIndex != -1) {
+                              await ref
+                                  .read(billOfPreparationProvider.notifier)
+                                  .updateBillOfPreparation(
+                                      bopIndex, updatedBop, ref);
+                            }
+                          }
+                        } else if (widget.sourceBop != null &&
+                            widget.sourceBopMaterial != null) {
+                          // Handle single material from traditional approval
                           final bop = widget.sourceBop!;
                           final mat = widget.sourceBopMaterial!;
                           final updatedBop = bop.copyWith(
                             materials: bop.materials
-                                .where((m) => m.materialCode != mat.materialCode)
+                                .where(
+                                    (m) => m.materialCode != mat.materialCode)
                                 .toList(),
                           );
                           final bops = ref.read(billOfPreparationProvider);
-                          final bopIndex = bops.indexWhere(
-                              (b) => b.jobNo == bop.jobNo && b.createdDate == bop.createdDate);
+                          final bopIndex = bops.indexWhere((b) =>
+                              b.jobNo == bop.jobNo &&
+                              b.createdDate == bop.createdDate);
                           if (bopIndex != -1) {
                             await ref
                                 .read(billOfPreparationProvider.notifier)
-                                .updateBillOfPreparation(bopIndex, updatedBop, ref);
+                                .updateBillOfPreparation(
+                                    bopIndex, updatedBop, ref);
                           }
                         }
 

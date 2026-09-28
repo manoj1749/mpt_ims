@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/employee.dart';
 import 'base_provider.dart';
+import '../utils/company_config.dart';
 
 final employeeBoxProvider = Provider<Box<Employee>>((ref) {
   throw UnimplementedError();
@@ -100,13 +101,14 @@ class EmployeeNotifier extends BaseProvider<Employee> {
     final employees = state;
     int maxNumber = 0;
 
-    // Find the highest existing number in MPTEM-xxxxx format
+    final prefix = '${companyCodePrefix}EM-';
+    final altPrefix = companyCodePrefix == 'MPT' ? 'AIEM-' : 'MPTEM-';
+
     for (var employee in employees) {
       final code = employee.employeeCode;
-      if ((code.startsWith('MPTEM-') || code.startsWith('AIEM-')) &&
-          code.length >= 10) {
-        final prefixLength = code.startsWith('MPTEM-') ? 6 : 5;
-        final numberPart = code.substring(prefixLength);
+      if ((code.startsWith(prefix) || code.startsWith(altPrefix)) &&
+          code.contains('-')) {
+        final numberPart = code.substring(code.lastIndexOf('-') + 1);
         final number = int.tryParse(numberPart);
         if (number != null && number > maxNumber) {
           maxNumber = number;
@@ -114,8 +116,7 @@ class EmployeeNotifier extends BaseProvider<Employee> {
       }
     }
 
-    // Increment and format with leading zeros
     final nextNumber = maxNumber + 1;
-    return 'MPTEM-${nextNumber.toString().padLeft(5, '0')}';
+    return '$prefix${nextNumber.toString().padLeft(5, '0')}';
   }
 }

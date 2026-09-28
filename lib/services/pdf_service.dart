@@ -13,6 +13,7 @@ import '../models/purchase_order.dart';
 import '../models/delivery_challan.dart';
 import '../models/supplier.dart';
 import '../models/customer.dart';
+import '../utils/company_config.dart';
 
 class PDFService {
   static Future<pw.Document> _setupPdfDocument({
@@ -35,8 +36,8 @@ class PDFService {
       marginRight: 15.0,
     );
   }
-  // Company configuration - comment/uncomment to switch between companies
-  static const bool useMagnetPowerTech = true;// Set to false for Aimant Industries
+
+  // Company configuration is imported from ../utils/company_config.dart
 
   // Company configurations
   static const Map<String, String> magnetPowerTech = {
@@ -61,7 +62,7 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
   };
 
   // Get current company configuration
-  static Map<String, String> get _companyConfig => 
+  static Map<String, String> get _companyConfig =>
       useMagnetPowerTech ? magnetPowerTech : aimantIndustries;
 
   static Future<Uint8List> generatePurchaseOrderPDF(
@@ -249,10 +250,12 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
                       if (purchaseOrder.hasAmendments) ...[
                         pw.SizedBox(width: 10),
                         pw.Container(
-                          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: pw.BoxDecoration(
                             color: PdfColors.red,
-                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                            borderRadius: const pw.BorderRadius.all(
+                                pw.Radius.circular(4)),
                           ),
                           child: pw.Text(
                             'AMENDED',
@@ -528,16 +531,22 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
             final index = entry.key;
             final item = entry.value;
             // Use amended price if available, otherwise use current cost
-            final effectivePrice = item.amendedCostPerUnit ?? double.tryParse(item.costPerUnit) ?? 0.0;
-            final effectiveTotal = effectivePrice * (double.tryParse(item.quantity) ?? 0.0);
-            
+            final effectivePrice = item.amendedCostPerUnit ??
+                double.tryParse(item.costPerUnit) ??
+                0.0;
+            final effectiveTotal =
+                effectivePrice * (double.tryParse(item.quantity) ?? 0.0);
+
             final widgets = <pw.Widget>[
               pw.Container(
                 decoration: pw.BoxDecoration(
                   border: pw.Border(
-                    bottom: item.termsAndConditions != null && item.termsAndConditions!.isNotEmpty
-                        ? const pw.BorderSide(color: PdfColors.black, width: 0.2)
-                        : const pw.BorderSide(color: PdfColors.black, width: 0.5),
+                    bottom: item.termsAndConditions != null &&
+                            item.termsAndConditions!.isNotEmpty
+                        ? const pw.BorderSide(
+                            color: PdfColors.black, width: 0.2)
+                        : const pw.BorderSide(
+                            color: PdfColors.black, width: 0.5),
                   ),
                 ),
                 child: pw.Row(
@@ -560,9 +569,10 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
                 ),
               ),
             ];
-            
+
             // Add terms and conditions row if present
-            if (item.termsAndConditions != null && item.termsAndConditions!.isNotEmpty) {
+            if (item.termsAndConditions != null &&
+                item.termsAndConditions!.isNotEmpty) {
               widgets.add(
                 pw.Container(
                   decoration: const pw.BoxDecoration(
@@ -605,7 +615,7 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
                 ),
               );
             }
-            
+
             return widgets;
           }).toList(),
         ],
@@ -745,7 +755,8 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
       PurchaseOrder purchaseOrder, pw.Font font, pw.Font fontBold) {
     // Filter items that have amendments
     final amendedItems = purchaseOrder.items
-        .where((item) => item.originalCostPerUnit != null && item.amendedCostPerUnit != null)
+        .where((item) =>
+            item.originalCostPerUnit != null && item.amendedCostPerUnit != null)
         .toList();
 
     if (amendedItems.isEmpty) {
@@ -754,7 +765,8 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
 
     // Format the original PO date text
     String originalDateText = '';
-    if (purchaseOrder.originalPoDate != null && purchaseOrder.originalPoDate!.isNotEmpty) {
+    if (purchaseOrder.originalPoDate != null &&
+        purchaseOrder.originalPoDate!.isNotEmpty) {
       originalDateText = 'Original PO Date: ${purchaseOrder.originalPoDate}';
     }
 
@@ -813,17 +825,35 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
                 child: pw.Row(
                   children: [
                     _buildTableCell('SR NO:',
-                        width: 40, isHeader: true, font: font, fontBold: fontBold),
+                        width: 40,
+                        isHeader: true,
+                        font: font,
+                        fontBold: fontBold),
                     _buildTableCell('CAT NO:',
-                        width: 100, isHeader: true, font: font, fontBold: fontBold),
+                        width: 100,
+                        isHeader: true,
+                        font: font,
+                        fontBold: fontBold),
                     _buildTableCell('DESCRIPTION:',
-                        width: 180, isHeader: true, font: font, fontBold: fontBold),
+                        width: 180,
+                        isHeader: true,
+                        font: font,
+                        fontBold: fontBold),
                     _buildTableCell('ORIGINAL\nCOST/UNIT:',
-                        width: 70, isHeader: true, font: font, fontBold: fontBold),
+                        width: 70,
+                        isHeader: true,
+                        font: font,
+                        fontBold: fontBold),
                     _buildTableCell('AMENDED\nCOST/UNIT:',
-                        width: 70, isHeader: true, font: font, fontBold: fontBold),
+                        width: 70,
+                        isHeader: true,
+                        font: font,
+                        fontBold: fontBold),
                     _buildTableCell('DIFFERENCE:',
-                        width: 80, isHeader: true, font: font, fontBold: fontBold),
+                        width: 80,
+                        isHeader: true,
+                        font: font,
+                        fontBold: fontBold),
                   ],
                 ),
               ),
@@ -1009,12 +1039,13 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
       if (baseDirectory != null) {
         // Create MPT_IMS/Purchase_Orders folder structure
         final mptImsDirectory = Directory('${baseDirectory.path}/MPT_IMS');
-        final poDirectory = Directory('${mptImsDirectory.path}/Purchase_Orders');
+        final poDirectory =
+            Directory('${mptImsDirectory.path}/Purchase_Orders');
         final poTypeDirectoryName =
             purchaseOrder.isServiceBill ? 'Service_Bill_PO' : 'Material_PO';
         final poTypeDirectory =
             Directory('${poDirectory.path}/$poTypeDirectoryName');
-        
+
         // Create directories if they don't exist
         if (!await mptImsDirectory.exists()) {
           await mptImsDirectory.create(recursive: true);
@@ -1113,7 +1144,6 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
           ),
         ],
       ),
-
     );
 
     return pdf.save();
@@ -1803,7 +1833,8 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
       print('=== DC Totals Debug ===');
       print('Materials available: ${materials?.length ?? 0}');
       print('DC items: ${deliveryChallan.items.length}');
-      print('Supplier: ${supplier.name} (IGST: ${supplier.igst}, CGST: ${supplier.cgst}, SGST: ${supplier.sgst})');
+      print(
+          'Supplier: ${supplier.name} (IGST: ${supplier.igst}, CGST: ${supplier.cgst}, SGST: ${supplier.sgst})');
     }
 
     for (var item in deliveryChallan.items) {
@@ -1841,7 +1872,9 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
 
           if (materialData != null) {
             double rateValue = 0.0;
-            if (debug) print('Found material: ${materialData.partNo} - ${materialData.description}');
+            if (debug)
+              print(
+                  'Found material: ${materialData.partNo} - ${materialData.description}');
 
             // Priority 1: Get rate from the specific vendor for this DC
             if (materialData.vendorRates != null &&
@@ -1908,12 +1941,15 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
             }
 
             total += rateValue * item.quantity;
-            
+
             if (debug) {
-              print('${item.materialCode}: Rate=$rateValue x Qty=${item.quantity} = $total');
+              print(
+                  '${item.materialCode}: Rate=$rateValue x Qty=${item.quantity} = $total');
             }
           } else {
-            if (debug) print('Material NOT FOUND: ${item.materialCode} - ${item.materialDescription}');
+            if (debug)
+              print(
+                  'Material NOT FOUND: ${item.materialCode} - ${item.materialDescription}');
           }
         } catch (e) {
           if (debug) print('Error processing ${item.materialCode}: $e');
@@ -1930,13 +1966,14 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
 
     // Get company state code from GSTN (first two digits)
     final companyStateCode = _companyConfig['gstn']!.substring(0, 2);
-    final supplierStateCode = supplier.gstNo.isNotEmpty ? supplier.gstNo.substring(0, 2) : '';
-    
+    final supplierStateCode =
+        supplier.gstNo.isNotEmpty ? supplier.gstNo.substring(0, 2) : '';
+
     // Calculate GST based on state comparison
     double igst = 0.0;
     double cgst = 0.0;
     double sgst = 0.0;
-    
+
     if (supplierStateCode == companyStateCode) {
       // Same state - apply CGST and SGST
       cgst = total * (parseGstRate(supplier.cgst) / 100);
@@ -1977,20 +2014,30 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
               _buildTotalRow('TOTAL:', 'Rs.${total.toStringAsFixed(2)}',
                   font: font, fontBold: fontBold),
               if (igst > 0)
-                _buildTotalRow('IGST @ ${parseGstRate(supplier.igst).toStringAsFixed(0)}%:', 'Rs.${igst.toStringAsFixed(2)}',
-                    font: font, fontBold: fontBold),
+                _buildTotalRow(
+                    'IGST @ ${parseGstRate(supplier.igst).toStringAsFixed(0)}%:',
+                    'Rs.${igst.toStringAsFixed(2)}',
+                    font: font,
+                    fontBold: fontBold),
               if (cgst > 0)
-                _buildTotalRow('CGST @ ${parseGstRate(supplier.cgst).toStringAsFixed(0)}%:', 'Rs.${cgst.toStringAsFixed(2)}',
-                    font: font, fontBold: fontBold),
+                _buildTotalRow(
+                    'CGST @ ${parseGstRate(supplier.cgst).toStringAsFixed(0)}%:',
+                    'Rs.${cgst.toStringAsFixed(2)}',
+                    font: font,
+                    fontBold: fontBold),
               if (sgst > 0)
-                _buildTotalRow('SGST @ ${parseGstRate(supplier.sgst).toStringAsFixed(0)}%:', 'Rs.${sgst.toStringAsFixed(2)}',
-                    font: font, fontBold: fontBold),
-              _buildTotalRow('Total GST:', 'Rs.${actualTotalGst.toStringAsFixed(2)}',
+                _buildTotalRow(
+                    'SGST @ ${parseGstRate(supplier.sgst).toStringAsFixed(0)}%:',
+                    'Rs.${sgst.toStringAsFixed(2)}',
+                    font: font,
+                    fontBold: fontBold),
+              _buildTotalRow(
+                  'Total GST:', 'Rs.${actualTotalGst.toStringAsFixed(2)}',
                   font: font, fontBold: fontBold),
               _buildTotalRow('Round Off:', 'Rs.${roundOff.toStringAsFixed(2)}',
                   font: font, fontBold: fontBold),
-              _buildTotalRow(
-                  'GRAND TOTAL:', 'Rs.${(total + roundedTotalGst).toStringAsFixed(2)}',
+              _buildTotalRow('GRAND TOTAL:',
+                  'Rs.${(total + roundedTotalGst).toStringAsFixed(2)}',
                   isGrandTotal: true, font: font, fontBold: fontBold),
             ],
           ),
@@ -2200,8 +2247,9 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
       if (baseDirectory != null) {
         // Create MPT_IMS/Delivery_Challans folder structure
         final mptImsDirectory = Directory('${baseDirectory.path}/MPT_IMS');
-        final dcDirectory = Directory('${mptImsDirectory.path}/Delivery_Challans');
-        
+        final dcDirectory =
+            Directory('${mptImsDirectory.path}/Delivery_Challans');
+
         // Create directories if they don't exist
         if (!await mptImsDirectory.exists()) {
           await mptImsDirectory.create(recursive: true);
@@ -2272,8 +2320,9 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
       if (baseDirectory != null) {
         // Create MPT_IMS/Delivery_Challans folder structure
         final mptImsDirectory = Directory('${baseDirectory.path}/MPT_IMS');
-        final dcDirectory = Directory('${mptImsDirectory.path}/Delivery_Challans');
-        
+        final dcDirectory =
+            Directory('${mptImsDirectory.path}/Delivery_Challans');
+
         // Create directories if they don't exist
         if (!await mptImsDirectory.exists()) {
           await mptImsDirectory.create(recursive: true);
@@ -2322,19 +2371,8 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // Header with company details
-              _buildHeader(companyName, companyAddress, companyGSTN,
-                  companyMobile, companyEmail, logoImage, font, fontBold),
-
-              pw.SizedBox(height: 20),
-
-              // Job Delivery Challan title and details
-              _buildJobDCHeader(deliveryChallan, font, fontBold),
-
-              pw.SizedBox(height: 20),
-
-              // Customer details section
-              _buildJobCustomerDetails(deliveryChallan, font, fontBold),
+              // Split columns with company header and DC details
+              _buildJobSplitHeader(deliveryChallan, logoImage, font, fontBold),
 
               pw.SizedBox(height: 20),
 
@@ -2361,266 +2399,133 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
     return pdf.save();
   }
 
-  static pw.Widget _buildJobDCHeader(
-      DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
+  static pw.Widget _buildJobSplitHeader(DeliveryChallan deliveryChallan,
+      pw.MemoryImage logoImage, pw.Font font, pw.Font fontBold) {
+    // Company information (configurable)
+    final companyName = _companyConfig['name']!;
+    final companyAddress = _companyConfig['address']!;
+    final companyGSTN = _companyConfig['gstn']!;
+    final companyMobile = _companyConfig['mobile']!;
+    final companyEmail = _companyConfig['email']!;
+
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.black, width: 1),
       ),
       child: pw.Row(
         children: [
+          // Left column - Company Header with Logo
           pw.Expanded(
             child: pw.Container(
               padding: const pw.EdgeInsets.all(8),
+              child: pw.Row(
+                children: [
+                  // Company Logo
+                  pw.Container(
+                    width: 60,
+                    height: 60,
+                    child: pw.Image(logoImage),
+                  ),
+                  pw.SizedBox(width: 10),
+                  // Company Details
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          companyName,
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.bold,
+                            font: fontBold,
+                          ),
+                        ),
+                        pw.SizedBox(height: 5),
+                        pw.Text(
+                          companyAddress,
+                          style: pw.TextStyle(fontSize: 12, font: font),
+                          maxLines: 10,
+                        ),
+                        pw.SizedBox(height: 3),
+                        pw.Text(
+                          'GSTIN: $companyGSTN',
+                          style: pw.TextStyle(fontSize: 12, font: font),
+                        ),
+                        pw.Text(
+                          'Mobile: $companyMobile',
+                          style: pw.TextStyle(fontSize: 12, font: font),
+                        ),
+                        pw.Text(
+                          'Email: $companyEmail',
+                          style: pw.TextStyle(fontSize: 12, font: font),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Right column - Delivery Challan Details
+          pw.Expanded(
+            child: pw.Container(
+              padding: const pw.EdgeInsets.all(8),
+              decoration: pw.BoxDecoration(
+                border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.black, width: 1)),
+              ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
                     'DELIVERY CHALLAN',
                     style: pw.TextStyle(
-                      fontSize: 20,
+                      fontSize: 12,
                       fontWeight: pw.FontWeight.bold,
                       font: fontBold,
                     ),
                   ),
-                  pw.SizedBox(height: 5),
+                  pw.SizedBox(height: 10),
                   pw.Text(
                     'DC No: ${deliveryChallan.dcNo}',
                     style: pw.TextStyle(fontSize: 12, font: font),
                   ),
+                  pw.SizedBox(height: 5),
                   pw.Text(
                     'Date: ${deliveryChallan.dcDate}',
                     style: pw.TextStyle(fontSize: 12, font: font),
                   ),
-                  if ((deliveryChallan.jobOrderNumber ?? '').isNotEmpty)
+                  if ((deliveryChallan.jobOrderNumber ?? '').isNotEmpty) ...[
+                    pw.SizedBox(height: 5),
                     pw.Text(
                       'Job Order: ${deliveryChallan.jobOrderNumber}',
                       style: pw.TextStyle(fontSize: 12, font: font),
                     ),
+                  ],
+                  pw.SizedBox(height: 5),
+                  pw.Text(
+                    'Customer: ${deliveryChallan.vendorName}',
+                    style: pw.TextStyle(fontSize: 12, font: font),
+                  ),
+                  if ((deliveryChallan.siteAddress ?? '').isNotEmpty) ...[
+                    pw.SizedBox(height: 3),
+                    pw.Text(
+                      'Address: ${deliveryChallan.siteAddress}',
+                      style: pw.TextStyle(fontSize: 12, font: font),
+                      maxLines: 10,
+                    ),
+                  ],
+                  if ((deliveryChallan.vendorGstin ?? '').isNotEmpty) ...[
+                    pw.SizedBox(height: 3),
+                    pw.Text(
+                      'Customer GST: ${deliveryChallan.vendorGstin}',
+                      style: pw.TextStyle(fontSize: 10, font: font),
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _buildJobCustomerDetails(
-      DeliveryChallan deliveryChallan, pw.Font font, pw.Font fontBold) {
-    // Try to find customer details from customer master
-    Customer? customer;
-    Supplier? supplierAsCustomer;
-    try {
-      if (!Hive.isBoxOpen('customers')) {
-        Hive.openBox<Customer>('customers');
-      }
-      if (!Hive.isBoxOpen('suppliers')) {
-        Hive.openBox<Supplier>('suppliers');
-      }
-
-      final customerBox = Hive.box<Customer>('customers');
-      final supplierBox = Hive.box<Supplier>('suppliers');
-
-      String normalize(String v) {
-        return v
-            .toLowerCase()
-            .replaceAll(RegExp(r'\s+'), ' ')
-            .trim();
-      }
-
-      final dcName = normalize(deliveryChallan.vendorName);
-      final dcGst = normalize(deliveryChallan.vendorGstin ?? '');
-      final customers = customerBox.values.toList();
-      final suppliers = supplierBox.values.toList();
-
-      Customer? found;
-
-      if (dcGst.isNotEmpty) {
-        try {
-          found = customers.firstWhere((c) => normalize(c.gstNo) == dcGst);
-        } catch (_) {}
-      }
-
-      try {
-        found = customers.firstWhere((c) => normalize(c.name) == dcName);
-      } catch (_) {}
-
-      if (found == null) {
-        try {
-          found = customers.firstWhere((c) => dcName.contains(normalize(c.name)));
-        } catch (_) {}
-      }
-
-      if (found == null) {
-        try {
-          found = customers.firstWhere((c) => normalize(c.name).contains(dcName));
-        } catch (_) {}
-      }
-
-      Supplier? supplierFound;
-      if (dcGst.isNotEmpty) {
-        try {
-          supplierFound = suppliers.firstWhere((s) => normalize(s.gstNo) == dcGst);
-        } catch (_) {}
-      }
-
-      if (supplierFound == null) {
-        try {
-          supplierFound = suppliers.firstWhere((s) => normalize(s.name) == dcName);
-        } catch (_) {}
-      }
-
-      if (supplierFound == null) {
-        try {
-          supplierFound = suppliers.firstWhere((s) => dcName.contains(normalize(s.name)));
-        } catch (_) {}
-      }
-
-      if (supplierFound == null) {
-        try {
-          supplierFound = suppliers.firstWhere((s) => normalize(s.name).contains(dcName));
-        } catch (_) {}
-      }
-
-      supplierAsCustomer = supplierFound;
-
-      customer = found ?? Customer(
-        name: deliveryChallan.vendorName,
-        address1: '',
-        address2: '',
-        address3: '',
-        address4: '',
-        gstNo: deliveryChallan.vendorGstin ?? '',
-        email: '',
-        contact: '',
-        paymentTerms: '',
-        phone: '',
-        customerCode: '',
-        state: '',
-        stateCode: '',
-        pan: '',
-        igst: '',
-        cgst: '',
-        sgst: '',
-        totalGst: '',
-        bank: '',
-        branch: '',
-        account: '',
-        ifsc: '',
-        email1: '',
-      );
-    } catch (e) {
-      // If customer not found, create a basic customer object
-      customer = Customer(
-        name: deliveryChallan.vendorName,
-        address1: '',
-        address2: '',
-        address3: '',
-        address4: '',
-        gstNo: deliveryChallan.vendorGstin ?? '',
-        email: '',
-        contact: '',
-        paymentTerms: '',
-        phone: '',
-        customerCode: '',
-        state: '',
-        stateCode: '',
-        pan: '',
-        igst: '',
-        cgst: '',
-        sgst: '',
-        totalGst: '',
-        bank: '',
-        branch: '',
-        account: '',
-        ifsc: '',
-        email1: '',
-      );
-    }
-
-    // Build full address string
-    final addressParts = <String>[];
-    if (customer!.address1.isNotEmpty) addressParts.add(customer.address1);
-    if (customer.address2.isNotEmpty) addressParts.add(customer.address2);
-    if (customer.address3.isNotEmpty) addressParts.add(customer.address3);
-    if (customer.address4.isNotEmpty) addressParts.add(customer.address4);
-
-    if (addressParts.isEmpty && supplierAsCustomer != null) {
-      if (supplierAsCustomer!.address1.isNotEmpty) {
-        addressParts.add(supplierAsCustomer!.address1);
-      }
-      if (supplierAsCustomer!.address2.isNotEmpty) {
-        addressParts.add(supplierAsCustomer!.address2);
-      }
-      if (supplierAsCustomer!.address3.isNotEmpty) {
-        addressParts.add(supplierAsCustomer!.address3);
-      }
-      if (supplierAsCustomer!.address4.isNotEmpty) {
-        addressParts.add(supplierAsCustomer!.address4);
-      }
-    }
-    
-    final fullAddress = addressParts.join(', ');
-    
-    // Use site address if available and no customer address
-    final displayAddress = fullAddress.isNotEmpty
-        ? fullAddress
-        : ((deliveryChallan.siteAddress ?? '').isNotEmpty
-            ? deliveryChallan.siteAddress!
-            : '');
-
-    // Use customer GST if available, otherwise use delivery challan GST
-    final displayGst = customer.gstNo.isNotEmpty
-        ? customer.gstNo
-        : ((supplierAsCustomer?.gstNo ?? '').isNotEmpty
-            ? supplierAsCustomer!.gstNo
-            : ((deliveryChallan.vendorGstin ?? '').isNotEmpty
-                ? deliveryChallan.vendorGstin!
-                : ''));
-
-    return pw.Container(
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.black, width: 1),
-      ),
-      padding: const pw.EdgeInsets.all(8),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Customer Details',
-            style: pw.TextStyle(
-              fontSize: 14,
-              fontWeight: pw.FontWeight.bold,
-              font: fontBold,
-            ),
-          ),
-          pw.SizedBox(height: 5),
-          pw.Text(
-            'Name: ${deliveryChallan.vendorName}',
-            style: pw.TextStyle(fontSize: 12, font: font),
-          ),
-          if (displayAddress.isNotEmpty) ...[
-            pw.SizedBox(height: 3),
-            pw.Text(
-              'Address: $displayAddress',
-              style: pw.TextStyle(fontSize: 12, font: font),
-            ),
-          ],
-          if (customer?.state?.isNotEmpty == true) ...[
-            pw.SizedBox(height: 3),
-            pw.Text(
-              'State: ${customer!.state}',
-              style: pw.TextStyle(fontSize: 12, font: font),
-            ),
-          ],
-          if (displayGst.isNotEmpty) ...[
-            pw.SizedBox(height: 3),
-            pw.Text(
-              'GST: $displayGst',
-              style: pw.TextStyle(fontSize: 12, font: font),
-            ),
-          ],
         ],
       ),
     );
@@ -2694,7 +2599,8 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
           // Table rows
           ...deliveryChallan.items.map((item) {
             final lineValue = item.price * item.quantity;
-            final displayUnit = item.unit.toLowerCase() == 'job' ? 'SET' : item.unit;
+            final displayUnit =
+                item.unit.toLowerCase() == 'job' ? 'SET' : item.unit;
             return pw.Container(
               padding: const pw.EdgeInsets.all(8),
               decoration: pw.BoxDecoration(
@@ -2752,43 +2658,126 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
       (sum, item) => sum + (item.price * item.quantity),
     );
 
-    final gstLabel = _getCustomerGstRateLabel(deliveryChallan);
+    // Get customer/supplier GST information
+    Customer? customer;
+    Supplier? supplier;
 
-    return pw.Container(
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.black, width: 1),
-      ),
-      padding: const pw.EdgeInsets.all(8),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.end,
-        children: [
-          pw.Text(
-            'Total Value: ',
-            style: pw.TextStyle(
-              fontSize: 14,
-              fontWeight: pw.FontWeight.bold,
-              font: fontBold,
-            ),
+    try {
+      if (Hive.isBoxOpen('customers')) {
+        final customerBox = Hive.box<Customer>('customers');
+        final dcName = deliveryChallan.vendorName.toLowerCase().trim();
+        final dcGst = (deliveryChallan.vendorGstin ?? '').toLowerCase().trim();
+        final customers = customerBox.values.toList();
+
+        if (dcGst.isNotEmpty) {
+          try {
+            customer =
+                customers.firstWhere((c) => c.gstNo.toLowerCase() == dcGst);
+          } catch (_) {}
+        }
+
+        if (customer == null) {
+          try {
+            customer =
+                customers.firstWhere((c) => c.name.toLowerCase() == dcName);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    try {
+      if (Hive.isBoxOpen('suppliers')) {
+        final supplierBox = Hive.box<Supplier>('suppliers');
+        final dcName = deliveryChallan.vendorName.toLowerCase().trim();
+        final dcGst = (deliveryChallan.vendorGstin ?? '').toLowerCase().trim();
+        final suppliers = supplierBox.values.toList();
+
+        if (dcGst.isNotEmpty) {
+          try {
+            supplier =
+                suppliers.firstWhere((s) => s.gstNo.toLowerCase() == dcGst);
+          } catch (_) {}
+        }
+
+        if (supplier == null) {
+          try {
+            supplier =
+                suppliers.firstWhere((s) => s.name.toLowerCase() == dcName);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    // Parse GST rates
+    double parseGstRate(String? value) {
+      if (value == null || value.isEmpty) return 0.0;
+      value = value.replaceAll('%', '').trim();
+      return double.tryParse(value) ?? 0.0;
+    }
+
+    // Get company state code from GSTN (first two digits)
+    final companyStateCode = _companyConfig['gstn']!.substring(0, 2);
+    final entityStateCode =
+        (customer?.gstNo ?? supplier?.gstNo ?? '').isNotEmpty
+            ? (customer?.gstNo ?? supplier?.gstNo)!.substring(0, 2)
+            : '';
+
+    // Get customer's assigned GST rates
+    double igst = 0.0;
+    double cgst = 0.0;
+    double sgst = 0.0;
+
+    // Always use the customer's assigned GST rates
+    final cgstRate = parseGstRate(customer?.cgst ?? supplier?.cgst ?? '0');
+    final sgstRate = parseGstRate(customer?.sgst ?? supplier?.sgst ?? '0');
+    final igstRate = parseGstRate(customer?.igst ?? supplier?.igst ?? '0');
+
+    if (igstRate > 0) {
+      // Customer has IGST assigned
+      igst = totalValue * (igstRate / 100);
+    } else {
+      // Customer has CGST and SGST assigned
+      cgst = totalValue * (cgstRate / 100);
+      sgst = totalValue * (sgstRate / 100);
+    }
+
+    // Calculate total GST and round off
+    final actualTotalGst = igst + cgst + sgst;
+    final roundedTotalGst = actualTotalGst.ceilToDouble();
+    final roundOff = roundedTotalGst - actualTotalGst;
+
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.end,
+      children: [
+        pw.Container(
+          width: 200,
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.black, width: 1),
           ),
-          pw.Text(
-            totalValue.toStringAsFixed(2),
-            style: pw.TextStyle(
-              fontSize: 14,
-              fontWeight: pw.FontWeight.bold,
-              font: fontBold,
-            ),
+          child: pw.Column(
+            children: [
+              _buildTotalRow('TOTAL:', 'Rs.${totalValue.toStringAsFixed(2)}',
+                  font: font, fontBold: fontBold),
+              pw.SizedBox(height: 4),
+              if (igstRate > 0)
+                _buildTotalRow('IGST @ ${igstRate.toStringAsFixed(0)}%:',
+                    'Rs.${igst.toStringAsFixed(2)}',
+                    font: font, fontBold: fontBold),
+              if (cgstRate > 0)
+                _buildTotalRow('CGST @ ${cgstRate.toStringAsFixed(0)}%:',
+                    'Rs.${cgst.toStringAsFixed(2)}',
+                    font: font, fontBold: fontBold),
+              if (sgstRate > 0)
+                _buildTotalRow('SGST @ ${sgstRate.toStringAsFixed(0)}%:',
+                    'Rs.${sgst.toStringAsFixed(2)}',
+                    font: font, fontBold: fontBold),
+              _buildTotalRow('GRAND TOTAL:',
+                  'Rs.${(totalValue + roundedTotalGst).toStringAsFixed(2)}',
+                  isGrandTotal: true, font: font, fontBold: fontBold),
+            ],
           ),
-          if (gstLabel.isNotEmpty)
-            pw.Text(
-              ' $gstLabel',
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                font: fontBold,
-              ),
-            ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -2832,13 +2821,15 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
 
         if (customer == null) {
           try {
-            customer = customers.firstWhere((c) => dcName.contains(normalize(c.name)));
+            customer =
+                customers.firstWhere((c) => dcName.contains(normalize(c.name)));
           } catch (_) {}
         }
 
         if (customer == null) {
           try {
-            customer = customers.firstWhere((c) => normalize(c.name).contains(dcName));
+            customer =
+                customers.firstWhere((c) => normalize(c.name).contains(dcName));
           } catch (_) {}
         }
       }
@@ -2976,7 +2967,7 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
         // Create MPT_IMS/Invoices folder structure
         final mptImsDirectory = Directory('${baseDirectory.path}/MPT_IMS');
         final invoiceDirectory = Directory('${mptImsDirectory.path}/Invoices');
-        
+
         // Create directories if they don't exist
         if (!await mptImsDirectory.exists()) {
           await mptImsDirectory.create(recursive: true);
@@ -2996,7 +2987,3 @@ Chettipalayam, Coimbatore, Tamil Nadu - 641201''',
     }
   }
 }
-
-
-
-

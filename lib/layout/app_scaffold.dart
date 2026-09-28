@@ -15,6 +15,8 @@ import 'package:mpt_ims/pages/hr/employee_list_page.dart';
 import 'package:mpt_ims/pages/login_page.dart';
 import 'package:mpt_ims/pages/planning/purchase_request_list_page.dart';
 import 'package:mpt_ims/pages/planning/bill_of_preparation_list_page.dart';
+import 'package:mpt_ims/pages/planning/job_order_request_page.dart';
+import 'package:mpt_ims/pages/planning/customer_free_issue_list_page.dart';
 import 'package:mpt_ims/pages/section_page.dart';
 import 'package:mpt_ims/pages/purchase/purchase_order_list_page.dart';
 import 'package:mpt_ims/pages/store/store_inward_list_page.dart';
@@ -39,6 +41,7 @@ import 'package:mpt_ims/pages/store/material_return_delivery_challan_list_page.d
 import 'package:mpt_ims/pages/store/invoice_generation_page.dart';
 import 'package:mpt_ims/pages/store/internal_inward_delivery_challan_list_page.dart';
 import '../widgets/sync_status_widget.dart';
+import '../utils/company_config.dart';
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({super.key});
@@ -52,8 +55,7 @@ class _AppScaffoldState extends State<AppScaffold> {
   int? _selectedSubsectionIndex;
   String _selectedPage = 'Dashboard';
 
-  // Company configuration - comment/uncomment to switch between companies
-  static const bool useMagnetPowerTech = true; // Set to false for Aimant Industries
+  // Company configuration is imported from ../utils/company_config.dart
 
   // Company configurations
   static const Map<String, String> magnetPowerTech = {
@@ -192,6 +194,8 @@ class _AppScaffoldState extends State<AppScaffold> {
         return const PurchaseRequestListPage();
       case 'Bill of Material Preparation':
         return const BillOfPreparationListPage();
+      case 'Job Order Request':
+        return const JobOrderRequestPage();
       case 'Customer Free Issue List':
         return const CustomerFreeIssueListPage();
       case 'Purchase Order Creation':

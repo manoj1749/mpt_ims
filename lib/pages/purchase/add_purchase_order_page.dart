@@ -135,9 +135,10 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
   // Track visibility of General Stock row per material
   Map<String, bool> showGeneralStock = {};
-  
+
   // Supplier search controller
-  final TextEditingController _supplierSearchController = TextEditingController();
+  final TextEditingController _supplierSearchController =
+      TextEditingController();
 
   String? _poNo;
 
@@ -152,7 +153,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     try {
       await ref.read(supplierListProvider.notifier).loadSuppliers();
       await ref.read(materialListProvider.notifier).loadMaterials();
-      await ref.read(purchaseRequestListProvider.notifier).loadPurchaseRequests();
+      await ref
+          .read(purchaseRequestListProvider.notifier)
+          .loadPurchaseRequests();
       await ref.read(stockMaintenanceProvider.notifier).loadStock();
 
       // Rebind selected supplier to refreshed list (instances may change)
@@ -216,7 +219,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       _originalPO = widget.existingPO!.copyWith(
         items: widget.existingPO!.items.map((item) => item.copyWith()).toList(),
       );
-      
+
       selectedSupplier = ref
           .read(supplierListProvider)
           .firstWhereOrNull((s) => s.name == widget.existingPO!.supplierName);
@@ -248,11 +251,11 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
           // Find the corresponding PR item and add it to materialPRItems
           if (detail.key != 'General') {
-            final pr = allPRs.firstWhereOrNull((pr) => pr.prNo == detail.value.prNo);
+            final pr =
+                allPRs.firstWhereOrNull((pr) => pr.prNo == detail.value.prNo);
             if (pr != null) {
               final prItem = pr.items.firstWhereOrNull(
-                (prItem) => prItem.materialCode == item.materialCode
-              );
+                  (prItem) => prItem.materialCode == item.materialCode);
               if (prItem != null) {
                 materialPRItems[item.materialCode]!.add(prItem);
               }
@@ -278,9 +281,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         // Initialize price controllers for existing PO items
         priceControllers[item.materialCode] =
             TextEditingController(text: item.costPerUnit);
-        
+
         // Show General Stock row if it's already selected in existing PO
-        if (item.prDetails.containsKey('General') && 
+        if (item.prDetails.containsKey('General') &&
             item.prDetails['General']!.quantity > 0) {
           showGeneralStock[item.materialCode] = true;
         }
@@ -293,7 +296,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         setState(() {
-          _poNo ??= ref.read(purchaseOrderListProvider.notifier).generateOrderNumber();
+          _poNo ??= ref
+              .read(purchaseOrderListProvider.notifier)
+              .generateOrderNumber();
         });
       });
     }
@@ -365,12 +370,16 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     // Get the vendor rate for the selected supplier
     final vendorRate = material.getRateForVendor(selectedSupplier!.name);
 
-    if (vendorRate == null) {
-      throw Exception('Rate not found for ${selectedSupplier!.name}');
+    // Base purchase rate from Material Master
+    double costPerUnit = 0.0;
+
+    if (vendorRate != null) {
+      costPerUnit = double.parse(vendorRate.purchaseRate);
+    } else {
+      // If no rate found, throw exception to show error
+      throw Exception('Rate not set for ${selectedSupplier!.name}');
     }
 
-    // Base purchase rate from Material Master
-    double costPerUnit = double.parse(vendorRate.purchaseRate);
     // If editing, prefer amended price from UI controller when available
     if (widget.existingPO != null) {
       final ctrl = priceControllers[material.partNo];
@@ -449,14 +458,16 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     }
 
     // Compare against the ORIGINAL saved PO item from the deep copy, not the mutable widget.existingPO
-    final originalPOItem = _originalPO?.items.firstWhereOrNull((i) => i.materialCode == material.partNo);
+    final originalPOItem = _originalPO?.items
+        .firstWhereOrNull((i) => i.materialCode == material.partNo);
 
     print('Creating POItem for material: ${material.partNo}');
     print('Total quantity: $totalQty');
     print('PR Details: ${prDetails.keys.join(", ")}');
 
     // Track amendment history when editing existing PO
-    List<AmendmentEntry> amendmentHistory = originalPOItem?.amendmentHistory ?? [];
+    List<AmendmentEntry> amendmentHistory =
+        originalPOItem?.amendmentHistory ?? [];
     double? originalCost = originalPOItem?.originalCostPerUnit;
     double? amendedCost;
 
@@ -466,18 +477,24 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
           (double.tryParse(originalPOItem.costPerUnit) ?? 0.0);
 
       // Set original cost - preserve from first amendment, or use previous price
-      originalCost = originalPOItem.originalCostPerUnit ?? previousEffectivePrice;
+      originalCost =
+          originalPOItem.originalCostPerUnit ?? previousEffectivePrice;
 
       print('=== Amendment Check for ${material.partNo} ===');
       print('widget.existingPO.poNo: ${widget.existingPO!.poNo}');
-      print('widget.existingPO.hasAmendments: ${widget.existingPO!.hasAmendments}');
-      print('originalPOItem.originalCostPerUnit: ${originalPOItem.originalCostPerUnit}');
-      print('originalPOItem.amendedCostPerUnit: ${originalPOItem.amendedCostPerUnit}');
+      print(
+          'widget.existingPO.hasAmendments: ${widget.existingPO!.hasAmendments}');
+      print(
+          'originalPOItem.originalCostPerUnit: ${originalPOItem.originalCostPerUnit}');
+      print(
+          'originalPOItem.amendedCostPerUnit: ${originalPOItem.amendedCostPerUnit}');
       print('originalPOItem.costPerUnit: ${originalPOItem.costPerUnit}');
-      print('originalPOItem.amendmentHistory.length: ${originalPOItem.amendmentHistory.length}');
+      print(
+          'originalPOItem.amendmentHistory.length: ${originalPOItem.amendmentHistory.length}');
       print('Previous effective price: $previousEffectivePrice');
       print('Current price from controller: $costPerUnit');
-      print('Price difference: ${(costPerUnit - previousEffectivePrice).abs()}');
+      print(
+          'Price difference: ${(costPerUnit - previousEffectivePrice).abs()}');
 
       // Check if price has changed
       if ((costPerUnit - previousEffectivePrice).abs() > 0.0001) {
@@ -489,7 +506,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
           oldPrice: previousEffectivePrice,
           newPrice: costPerUnit,
         ));
-        print('✓✓✓ AMENDMENT ADDED: ₹${previousEffectivePrice.toStringAsFixed(2)} → ₹${costPerUnit.toStringAsFixed(2)}');
+        print(
+            '✓✓✓ AMENDMENT ADDED: ₹${previousEffectivePrice.toStringAsFixed(2)} → ₹${costPerUnit.toStringAsFixed(2)}');
         print('✓✓✓ New amendment history length: ${amendmentHistory.length}');
       } else {
         // No change - preserve existing amended cost
@@ -501,13 +519,14 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       originalCost = costPerUnit;
       print('New PO - setting original cost to: $costPerUnit');
     } else {
-      print('WARNING: widget.existingPO is not null but originalPOItem is null for ${material.partNo}');
+      print(
+          'WARNING: widget.existingPO is not null but originalPOItem is null for ${material.partNo}');
     }
-    
+
     // Use PO-level terms and conditions for every item
     final termsText = _termsAndConditionsController.text.trim();
     final terms = termsText.isNotEmpty ? termsText : null;
-    
+
     return POItem(
       materialCode: material.partNo,
       materialDescription: material.description,
@@ -591,9 +610,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         double.parse(a.purchaseRate).compareTo(double.parse(b.purchaseRate)));
 
     // Find selected supplier's rate
-    final selectedRate = rates.firstWhere(
+    final selectedRate = rates.firstWhereOrNull(
       (r) => r.vendorId == selectedSupplier!.name,
-      orElse: () => throw Exception('Rate not found'),
     );
 
     // Get lowest and highest prices
@@ -601,18 +619,29 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         rates.isNotEmpty ? double.parse(rates.first.purchaseRate) : 0.0;
     final highestPrice =
         rates.isNotEmpty ? double.parse(rates.last.purchaseRate) : 0.0;
+
     // If editing an existing PO and this material exists in it, use the PO item's cost as selected price display
     // Use widget.existingPO.items to get the original saved data with amendment history
-    final existingPOItem = widget.existingPO?.items.firstWhereOrNull((i) => i.materialCode == material.partNo);
-    final selectedPrice = existingPOItem != null
-        ? double.tryParse(existingPOItem.costPerUnit) ?? double.parse(selectedRate.purchaseRate)
-        : double.parse(selectedRate.purchaseRate);
+    final existingPOItem = widget.existingPO?.items
+        .firstWhereOrNull((i) => i.materialCode == material.partNo);
+
+    double selectedPrice;
+    if (existingPOItem != null) {
+      selectedPrice = double.tryParse(existingPOItem.costPerUnit) ?? 0.0;
+    } else if (selectedRate != null) {
+      selectedPrice = double.parse(selectedRate.purchaseRate);
+    } else {
+      selectedPrice = 0.0; // No rate found, use 0.0 for manual entry
+    }
 
     // Determine color based on rate comparison
     Color priceColor;
     Color textColor = Colors.black;
 
-    if (selectedPrice == lowestPrice) {
+    if (selectedPrice == 0.0) {
+      // No rate found, use neutral color
+      priceColor = Colors.grey.shade200;
+    } else if (selectedPrice == lowestPrice) {
       priceColor = Colors.green.shade200;
     } else if (selectedPrice == highestPrice && selectedPrice > lowestPrice) {
       priceColor = Colors.red.shade200;
@@ -671,25 +700,46 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          Text(
-                            'Rate: ₹${selectedRate.purchaseRate}',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textColor,
-                              fontWeight: FontWeight.bold,
+                          if (selectedRate != null)
+                            Text(
+                              'Rate: ₹${selectedRate.purchaseRate}',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: textColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade100,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'No Rate',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
-                          ),
                         ],
                       ),
-                      if (material.specifications != null && material.specifications!.isNotEmpty) ...[
+                      if (material.specifications != null &&
+                          material.specifications!.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Wrap(
                           spacing: 8,
                           runSpacing: 4,
-                          children: material.specifications!.entries.map((spec) {
+                          children:
+                              material.specifications!.entries.map((spec) {
                             return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(4),
@@ -716,17 +766,22 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                     child: Builder(builder: (context) {
                       final hasGRs = widget.existingPO == null
                           ? false
-                          : ref.read(storeInwardProvider.notifier)
+                          : ref
+                              .read(storeInwardProvider.notifier)
                               .getInwardsForPO(widget.existingPO!.poNo)
                               .isNotEmpty;
-                      final existingController = priceControllers[material.partNo];
+                      final existingController =
+                          priceControllers[material.partNo];
                       final controller = existingController ??
-                          TextEditingController(text: selectedPrice.toStringAsFixed(2));
+                          TextEditingController(
+                              text: selectedPrice.toStringAsFixed(2));
                       if (existingController == null) {
-                        print('Creating NEW price controller for ${material.partNo} with price: ${selectedPrice.toStringAsFixed(2)}');
+                        print(
+                            'Creating NEW price controller for ${material.partNo} with price: ${selectedPrice.toStringAsFixed(2)}');
                         priceControllers[material.partNo] = controller;
                       } else {
-                        print('Using EXISTING price controller for ${material.partNo} with value: ${existingController.text}');
+                        print(
+                            'Using EXISTING price controller for ${material.partNo} with value: ${existingController.text}');
                       }
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -743,22 +798,29 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                   style: const TextStyle(color: Colors.black),
                                   controller: controller,
                                   enabled: !hasGRs,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
                                   inputFormatters: [
                                     _LeadingZeroDecimalTextInputFormatter(),
                                   ],
                                   decoration: InputDecoration(
                                     isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 6),
                                     border: const OutlineInputBorder(),
                                     hintText: 'Rate',
                                     suffixText: '₹',
-                                    hintStyle: const TextStyle(color: Colors.black),
+                                    hintStyle:
+                                        const TextStyle(color: Colors.black),
                                   ),
                                   onChanged: (val) {
                                     final v = double.tryParse(val);
                                     setState(() {
-                                      final item = poItems.firstWhereOrNull((i) => i.materialCode == material.partNo);
+                                      final item = poItems.firstWhereOrNull(
+                                          (i) =>
+                                              i.materialCode ==
+                                              material.partNo);
                                       if (item != null && v != null) {
                                         item.updateCostPerUnit(v.toString());
                                       }
@@ -768,66 +830,104 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                               ),
                               const SizedBox(width: 8),
                               if (existingPOItem?.originalCostPerUnit != null)
-                                Text('Original: ₹${existingPOItem!.originalCostPerUnit!.toStringAsFixed(2)}',
-                                    style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.w600)),
+                                Text(
+                                    'Original: ₹${existingPOItem!.originalCostPerUnit!.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.w600)),
                             ],
                           ),
                           // Always-visible amendments summary
                           Padding(
                             padding: const EdgeInsets.only(top: 4, bottom: 2),
-                            child: Builder(
-                              builder: (context) {
-                                // Calculate if there's a pending amendment
-                                int amendmentCount = existingPOItem?.amendmentHistory.length ?? 0;
-                                double? currentPrice = double.tryParse(priceControllers[material.partNo]?.text ?? '');
-                                double? savedPrice = existingPOItem?.amendedCostPerUnit ?? 
-                                    (existingPOItem != null ? double.tryParse(existingPOItem.costPerUnit) : null);
-                                
-                                bool hasPendingAmendment = false;
-                                if (widget.existingPO != null && currentPrice != null && savedPrice != null) {
-                                  hasPendingAmendment = (currentPrice - savedPrice).abs() > 0.0001;
-                                  if (hasPendingAmendment) {
-                                    amendmentCount++; // Count the pending amendment
-                                  }
+                            child: Builder(builder: (context) {
+                              // Calculate if there's a pending amendment
+                              int amendmentCount =
+                                  existingPOItem?.amendmentHistory.length ?? 0;
+                              double? currentPrice = double.tryParse(
+                                  priceControllers[material.partNo]?.text ??
+                                      '');
+                              double? savedPrice =
+                                  existingPOItem?.amendedCostPerUnit ??
+                                      (existingPOItem != null
+                                          ? double.tryParse(
+                                              existingPOItem.costPerUnit)
+                                          : null);
+
+                              bool hasPendingAmendment = false;
+                              if (widget.existingPO != null &&
+                                  currentPrice != null &&
+                                  savedPrice != null) {
+                                hasPendingAmendment =
+                                    (currentPrice - savedPrice).abs() > 0.0001;
+                                if (hasPendingAmendment) {
+                                  amendmentCount++; // Count the pending amendment
                                 }
-                                
-                                return Row(
-                                  children: [
-                                    Text(
-                                      'Amendments: $amendmentCount${hasPendingAmendment ? ' (1 pending)' : ''}',
-                                      style: TextStyle(
-                                        fontSize: 11, 
-                                        color: hasPendingAmendment ? Colors.orange[900] : Colors.black, 
-                                        fontWeight: FontWeight.w600
-                                      ),
-                                    ),
-                                    if (existingPOItem?.amendedCostPerUnit != null) ...[
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'Last Amended: ₹${existingPOItem!.amendedCostPerUnit!.toStringAsFixed(2)}',
-                                        style: const TextStyle(fontSize: 11, color: Colors.black),
-                                      ),
-                                    ],
-                                    if (hasPendingAmendment && currentPrice != null) ...[
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'New: ₹${currentPrice.toStringAsFixed(2)}',
-                                        style: TextStyle(fontSize: 11, color: Colors.orange[900], fontWeight: FontWeight.w600),
-                                      ),
-                                    ],
-                                  ],
-                                );
                               }
-                            ),
+
+                              return Row(
+                                children: [
+                                  Text(
+                                    'Amendments: $amendmentCount${hasPendingAmendment ? ' (1 pending)' : ''}',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: hasPendingAmendment
+                                            ? Colors.orange[900]
+                                            : Colors.black,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                  if (existingPOItem?.amendedCostPerUnit !=
+                                      null) ...[
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Last Amended: ₹${existingPOItem!.amendedCostPerUnit!.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                          fontSize: 11, color: Colors.black),
+                                    ),
+                                  ],
+                                  if (hasPendingAmendment &&
+                                      currentPrice != null) ...[
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'New: ₹${currentPrice.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.orange[900],
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ],
+                              );
+                            }),
                           ),
-                          if ((existingPOItem?.amendmentHistory.isNotEmpty ?? false) || 
-                              (widget.existingPO != null && 
-                               double.tryParse(priceControllers[material.partNo]?.text ?? '') != null &&
-                               (existingPOItem?.amendedCostPerUnit ?? double.tryParse(existingPOItem?.costPerUnit ?? '0')) != null &&
-                               ((double.tryParse(priceControllers[material.partNo]?.text ?? '') ?? 0) - 
-                                (existingPOItem?.amendedCostPerUnit ?? double.tryParse(existingPOItem?.costPerUnit ?? '0') ?? 0)).abs() > 0.0001)) ...[
+                          if ((existingPOItem?.amendmentHistory.isNotEmpty ??
+                                  false) ||
+                              (widget.existingPO != null &&
+                                  double.tryParse(
+                                          priceControllers[material.partNo]?.text ??
+                                              '') !=
+                                      null &&
+                                  (existingPOItem?.amendedCostPerUnit ??
+                                          double.tryParse(
+                                              existingPOItem?.costPerUnit ??
+                                                  '0')) !=
+                                      null &&
+                                  ((double.tryParse(priceControllers[material.partNo]?.text ?? '') ??
+                                                  0) -
+                                              (existingPOItem
+                                                      ?.amendedCostPerUnit ??
+                                                  double.tryParse(
+                                                      existingPOItem?.costPerUnit ?? '0') ??
+                                                  0))
+                                          .abs() >
+                                      0.0001)) ...[
                             const SizedBox(height: 6),
-                            const Text('Amendment History', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.black)),
+                            const Text('Amendment History',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    color: Colors.black)),
                             const SizedBox(height: 4),
                             Container(
                               padding: const EdgeInsets.all(8),
@@ -835,55 +935,68 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                                 color: Colors.white.withOpacity(0.8),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: Builder(
-                                builder: (context) {
-                                  final savedHistory = existingPOItem?.amendmentHistory ?? [];
-                                  final currentPrice = double.tryParse(priceControllers[material.partNo]?.text ?? '');
-                                  final savedPrice = existingPOItem?.amendedCostPerUnit ?? 
-                                      (existingPOItem != null ? double.tryParse(existingPOItem.costPerUnit) : null);
-                                  
-                                  final hasPendingAmendment = widget.existingPO != null && 
-                                      currentPrice != null && 
-                                      savedPrice != null && 
-                                      (currentPrice - savedPrice).abs() > 0.0001;
-                                  
-                                  return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      ...savedHistory.map((e) =>
-                                        Padding(
-                                          padding: const EdgeInsets.only(bottom: 2),
+                              child: Builder(builder: (context) {
+                                final savedHistory =
+                                    existingPOItem?.amendmentHistory ?? [];
+                                final currentPrice = double.tryParse(
+                                    priceControllers[material.partNo]?.text ??
+                                        '');
+                                final savedPrice =
+                                    existingPOItem?.amendedCostPerUnit ??
+                                        (existingPOItem != null
+                                            ? double.tryParse(
+                                                existingPOItem.costPerUnit)
+                                            : null);
+
+                                final hasPendingAmendment = widget.existingPO !=
+                                        null &&
+                                    currentPrice != null &&
+                                    savedPrice != null &&
+                                    (currentPrice - savedPrice).abs() > 0.0001;
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ...savedHistory.map((e) => Padding(
+                                          padding:
+                                              const EdgeInsets.only(bottom: 2),
                                           child: Text(
-                                            '${e.dateTime.split('T')[0]} ${e.dateTime.split('T')[1].substring(0, 8)}: ₹${e.oldPrice.toStringAsFixed(2)} → ₹${e.newPrice.toStringAsFixed(2)}',
-                                            style: const TextStyle(fontSize: 11, color: Colors.black)
-                                          ),
-                                        )
-                                      ),
-                                      if (hasPendingAmendment && currentPrice != null && savedPrice != null) ...[
-                                        if (savedHistory.isNotEmpty) const Divider(height: 8, thickness: 1),
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 2),
-                                          child: Text(
+                                              '${e.dateTime.split('T')[0]} ${e.dateTime.split('T')[1].substring(0, 8)}: ₹${e.oldPrice.toStringAsFixed(2)} → ₹${e.newPrice.toStringAsFixed(2)}',
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.black)),
+                                        )),
+                                    if (hasPendingAmendment &&
+                                        currentPrice != null &&
+                                        savedPrice != null) ...[
+                                      if (savedHistory.isNotEmpty)
+                                        const Divider(height: 8, thickness: 1),
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
                                             'Pending: ₹${savedPrice.toStringAsFixed(2)} → ₹${currentPrice.toStringAsFixed(2)}',
                                             style: TextStyle(
-                                              fontSize: 11, 
-                                              color: Colors.orange[900], 
-                                              fontWeight: FontWeight.w600,
-                                              fontStyle: FontStyle.italic
-                                            )
-                                          ),
-                                        ),
-                                      ],
+                                                fontSize: 11,
+                                                color: Colors.orange[900],
+                                                fontWeight: FontWeight.w600,
+                                                fontStyle: FontStyle.italic)),
+                                      ),
                                     ],
-                                  );
-                                }
-                              ),
+                                  ],
+                                );
+                              }),
                             ),
                           ],
-                          if (widget.existingPO != null && (ref.read(storeInwardProvider.notifier).getInwardsForPO(widget.existingPO!.poNo).isNotEmpty))
+                          if (widget.existingPO != null &&
+                              (ref
+                                  .read(storeInwardProvider.notifier)
+                                  .getInwardsForPO(widget.existingPO!.poNo)
+                                  .isNotEmpty))
                             const Padding(
                               padding: EdgeInsets.only(top: 4),
-                              child: Text('Locked after GR', style: TextStyle(color: Colors.red, fontSize: 11)),
+                              child: Text('Locked after GR',
+                                  style: TextStyle(
+                                      color: Colors.red, fontSize: 11)),
                             ),
                         ],
                       );
@@ -896,639 +1009,789 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
             LayoutBuilder(
               builder: (context, constraints) {
                 final viewportWidth = MediaQuery.of(context).size.width;
-                final tableWidth = viewportWidth > 1000 ? viewportWidth : 1000.0;
+                final tableWidth =
+                    viewportWidth > 1000 ? viewportWidth : 1000.0;
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: SizedBox(
                     width: tableWidth,
                     child: Column(
                       children: [
-                    SizedBox(
-                      width: tableWidth,
-                      child: Table(
-                      columnWidths: const {
-                        0: FlexColumnWidth(0.25), // Checkbox column
-                        1: FlexColumnWidth(0.6), // PR No
-                        2: FlexColumnWidth(0.6), // Job No
-                        3: FlexColumnWidth(0.5), // Need
-                        4: FlexColumnWidth(0.5), // Ordered
-                        5: FlexColumnWidth(0.7), // Order Qty
-                        6: FlexColumnWidth(0.6), // Available (Board/PR)
-                        7: FlexColumnWidth(0.6), // Available (General)
-                        8: FlexColumnWidth(0.9), // Stock Transfer
-                      },
-                      children: [
-                        TableRow(
-                          children: [
-                            // Add Select All checkbox
-                            TableCell(
-                              verticalAlignment: TableCellVerticalAlignment.middle,
-                              child: Center(
-                                child: Checkbox(
-                                  value: ((showGeneralStock[material.partNo] ?? false)
-                                          ? (selectedPRs[material.partNo]?['General'] == true)
-                                          : true) &&
-                                      prItems.every((prItem) =>
-                                          selectedPRs[material.partNo]?[prItem.prNo] ==
-                                          true),
-                                  tristate: true,
-                                  side:
-                                      const BorderSide(color: Colors.black, width: 1.5),
-                                  onChanged: (_) {
-                                    setState(() {
-                                      // Check if all items (including General Stock if visible) are currently selected
-                                      final allSelected =
-                                          ((showGeneralStock[material.partNo] ?? false)
-                                                  ? (selectedPRs[material.partNo]?['General'] ==
-                                                      true)
-                                                  : true) &&
-                                              prItems.every((prItem) =>
-                                                  selectedPRs[material.partNo]?[prItem.prNo] ==
-                                                  true);
-
-                                      // If all are selected, deselect all. Otherwise, select all
-                                      final newValue = !allSelected;
-
-                                      // Update General Stock only if visible
-                                      if (showGeneralStock[material.partNo] ?? false) {
-                                        selectedPRs[material.partNo]!['General'] =
-                                            newValue;
-                                        if (newValue) {
-                                          prQtyControllers[material.partNo]!['General']
-                                              ?.text = '0';
-                                        } else {
-                                          prQtyControllers[material.partNo]!['General']
-                                              ?.text = '';
-                                        }
-                                      }
-
-                                      // Update PR items
-                                      for (var prItem in prItems) {
-                                        selectedPRs[material.partNo]![prItem.prNo] =
-                                            newValue;
-
-                                        // Update quantity
-                                        if (newValue) {
-                                          final totalQty =
-                                              double.parse(prItem.quantity);
-                                          final orderedQty = prItem
-                                              .orderedQuantities.entries
-                                              .where((e) =>
-                                                  e.key != widget.existingPO?.poNo)
-                                              .fold(0.0, (sum, e) => sum + e.value);
-                                          final remainingQty = totalQty - orderedQty;
-
-                                          prQtyControllers[material.partNo]![prItem.prNo]
-                                              ?.text = remainingQty.toString();
-                                        } else {
-                                          prQtyControllers[material.partNo]![prItem.prNo]
-                                              ?.text = '0';
-                                        }
-                                      }
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                            TableCell(
-                              verticalAlignment: TableCellVerticalAlignment.middle,
-                              child: Center(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Text('PR No',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 12,
-                                            color: textColor)),
-                                    if (!(showGeneralStock[material.partNo] ?? false)) ...[
-                                      const SizedBox(width: 6),
-                                      IconButton(
-                                        icon: const Icon(Icons.add_circle_outline, size: 16),
-                                        color: Colors.black,
-                                        tooltip: 'Add General Stock',
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        onPressed: () {
+                        SizedBox(
+                          width: tableWidth,
+                          child: Table(
+                            columnWidths: const {
+                              0: FlexColumnWidth(0.25), // Checkbox column
+                              1: FlexColumnWidth(0.6), // PR No
+                              2: FlexColumnWidth(0.6), // Job No
+                              3: FlexColumnWidth(0.5), // Need
+                              4: FlexColumnWidth(0.5), // Ordered
+                              5: FlexColumnWidth(0.7), // Order Qty
+                              6: FlexColumnWidth(0.6), // Available (Board/PR)
+                              7: FlexColumnWidth(0.6), // Available (General)
+                              8: FlexColumnWidth(0.9), // Stock Transfer
+                            },
+                            children: [
+                              TableRow(
+                                children: [
+                                  // Add Select All checkbox
+                                  TableCell(
+                                    verticalAlignment:
+                                        TableCellVerticalAlignment.middle,
+                                    child: Center(
+                                      child: Checkbox(
+                                        value: ((showGeneralStock[
+                                                        material.partNo] ??
+                                                    false)
+                                                ? (selectedPRs[material.partNo]
+                                                        ?['General'] ==
+                                                    true)
+                                                : true) &&
+                                            prItems.every((prItem) =>
+                                                selectedPRs[material.partNo]
+                                                    ?[prItem.prNo] ==
+                                                true),
+                                        tristate: true,
+                                        side: const BorderSide(
+                                            color: Colors.black, width: 1.5),
+                                        onChanged: (_) {
                                           setState(() {
-                                            showGeneralStock[material.partNo] = true;
+                                            // Check if all items (including General Stock if visible) are currently selected
+                                            final allSelected =
+                                                ((showGeneralStock[material
+                                                                .partNo] ??
+                                                            false)
+                                                        ? (selectedPRs[material
+                                                                    .partNo]
+                                                                ?['General'] ==
+                                                            true)
+                                                        : true) &&
+                                                    prItems.every((prItem) =>
+                                                        selectedPRs[
+                                                                material.partNo]
+                                                            ?[prItem.prNo] ==
+                                                        true);
+
+                                            // If all are selected, deselect all. Otherwise, select all
+                                            final newValue = !allSelected;
+
+                                            // Update General Stock only if visible
+                                            if (showGeneralStock[
+                                                    material.partNo] ??
+                                                false) {
+                                              selectedPRs[material.partNo]![
+                                                  'General'] = newValue;
+                                              if (newValue) {
+                                                prQtyControllers[material
+                                                        .partNo]!['General']
+                                                    ?.text = '0';
+                                              } else {
+                                                prQtyControllers[material
+                                                        .partNo]!['General']
+                                                    ?.text = '';
+                                              }
+                                            }
+
+                                            // Update PR items
+                                            for (var prItem in prItems) {
+                                              selectedPRs[material.partNo]![
+                                                  prItem.prNo] = newValue;
+
+                                              // Update quantity
+                                              if (newValue) {
+                                                final totalQty = double.parse(
+                                                    prItem.quantity);
+                                                final orderedQty = prItem
+                                                    .orderedQuantities.entries
+                                                    .where((e) =>
+                                                        e.key !=
+                                                        widget.existingPO?.poNo)
+                                                    .fold(
+                                                        0.0,
+                                                        (sum, e) =>
+                                                            sum + e.value);
+                                                final remainingQty =
+                                                    totalQty - orderedQty;
+
+                                                prQtyControllers[
+                                                                material
+                                                                    .partNo]![
+                                                            prItem.prNo]
+                                                        ?.text =
+                                                    remainingQty.toString();
+                                              } else {
+                                                prQtyControllers[material
+                                                        .partNo]![prItem.prNo]
+                                                    ?.text = '0';
+                                              }
+                                            }
                                           });
                                         },
                                       ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ),
-                            TableCell(
-                              verticalAlignment: TableCellVerticalAlignment.middle,
-                              child: Center(
-                                child: Text('Job No',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 12,
-                                        color: textColor)),
-                              ),
-                            ),
-                            TableCell(
-                              verticalAlignment: TableCellVerticalAlignment.middle,
-                              child: Center(
-                                child: Text('Need',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 12,
-                                        color: textColor)),
-                              ),
-                            ),
-                            TableCell(
-                              verticalAlignment: TableCellVerticalAlignment.middle,
-                              child: Center(
-                                child: Text('Ordered',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 12,
-                                        color: textColor)),
-                              ),
-                            ),
-                            TableCell(
-                              verticalAlignment: TableCellVerticalAlignment.middle,
-                              child: Center(
-                                child: Text('Order Qty',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 12,
-                                        color: textColor)),
-                              ),
-                            ),
-                            TableCell(
-                              verticalAlignment: TableCellVerticalAlignment.middle,
-                              child: Center(
-                                child: Text('Available (Board/PR)',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 12,
-                                        color: textColor)),
-                              ),
-                            ),
-                            TableCell(
-                              verticalAlignment: TableCellVerticalAlignment.middle,
-                              child: Center(
-                                child: Text('Available (General)',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 12,
-                                        color: textColor)),
-                              ),
-                            ),
-                            TableCell(
-                              verticalAlignment: TableCellVerticalAlignment.middle,
-                              child: Center(
-                                child: Text('Stock Transfer',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 12,
-                                        color: textColor)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    ),
-                    const Divider(height: 16),
-                    SizedBox(
-                      width: tableWidth,
-                      child: Table(
-                      columnWidths: const {
-                        0: FlexColumnWidth(0.25), // Checkbox column
-                        1: FlexColumnWidth(0.6), // PR No
-                        2: FlexColumnWidth(0.6), // Job No
-                        3: FlexColumnWidth(0.5), // Need
-                        4: FlexColumnWidth(0.5), // Ordered
-                        5: FlexColumnWidth(0.7), // Order Qty
-                        6: FlexColumnWidth(0.6), // Available (Board/PR)
-                        7: FlexColumnWidth(0.6), // Available (General)
-                        8: FlexColumnWidth(0.9), // Stock Transfer
-                      },
-                      children: [
-                // Add General Stock row first (conditionally shown)
-                if (showGeneralStock[material.partNo] ?? false)
-                  TableRow(
-                    children: [
-                      // Checkbox
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Checkbox(
-                            value:
-                                selectedPRs[material.partNo]?['General'] ?? false,
-                            side:
-                                const BorderSide(color: Colors.black, width: 1.5),
-                            onChanged: (bool? value) {
-                              setState(() {
-                                selectedPRs[material.partNo]!['General'] =
-                                    value ?? false;
-                                if (!value!) {
-                                  prQtyControllers[material.partNo]!['General']!
-                                      .text = '';
-                                }
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                      // PR No (General Stock)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text('General Stock',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: textColor,
-                                  fontStyle: FontStyle.italic)),
-                        ),
-                      ),
-                      // Job No
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text('General Stock',
-                              style:
-                                  TextStyle(fontSize: 12, color: textColor)),
-                        ),
-                      ),
-                      // Need
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text('-',
-                              style:
-                                  TextStyle(fontSize: 12, color: textColor)),
-                        ),
-                      ),
-                      // Ordered
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text('-',
-                              style:
-                                  TextStyle(fontSize: 12, color: textColor)),
-                        ),
-                      ),
-                      // Order Qty with close button
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: 120,
-                                height: 32,
-                                child: TextFormField(
-                                  controller:
-                                      prQtyControllers[material.partNo]!['General'],
-                                  enabled:
-                                      selectedPRs[material.partNo]?['General'] ??
-                                          false,
-                                  textAlign: TextAlign.center,
-                                  decoration: InputDecoration(
-                                    isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 8),
-                                    border: const OutlineInputBorder(),
-                                    filled: !(selectedPRs[material.partNo]
-                                            ?['General'] ??
-                                        false),
-                                    fillColor: !(selectedPRs[material.partNo]
-                                                ?['General'] ??
-                                            false)
-                                        ? Colors.grey[200]
-                                        : null,
+                                    ),
                                   ),
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: textColor,
-                                      fontWeight: FontWeight.w500),
-                                  keyboardType: TextInputType.number,
-                                  validator: (value) {
-                                    if (!(selectedPRs[material.partNo]?['General'] ??
-                                        false)) return null;
-                                    if (value == null || value.isEmpty) {
-                                      return 'Required';
-                                    }
-                                    final qty = double.tryParse(value);
-                                    if (qty == null || qty <= 0) return 'Invalid';
-                                    return null;
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              IconButton(
-                                icon: const Icon(Icons.close, size: 18),
-                                color: Colors.red,
-                                tooltip: 'Remove General Stock',
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: () {
-                                  setState(() {
-                                    showGeneralStock[material.partNo] = false;
-                                    selectedPRs[material.partNo]!['General'] =
-                                        false;
-                                    prQtyControllers[material.partNo]!['General']!
-                                        .text = '';
-                                  });
-                                },
+                                  TableCell(
+                                    verticalAlignment:
+                                        TableCellVerticalAlignment.middle,
+                                    child: Center(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Text('PR No',
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.w500,
+                                                  fontSize: 12,
+                                                  color: textColor)),
+                                          if (!(showGeneralStock[
+                                                  material.partNo] ??
+                                              false)) ...[
+                                            const SizedBox(width: 6),
+                                            IconButton(
+                                              icon: const Icon(
+                                                  Icons.add_circle_outline,
+                                                  size: 16),
+                                              color: Colors.black,
+                                              tooltip: 'Add General Stock',
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              onPressed: () {
+                                                setState(() {
+                                                  showGeneralStock[
+                                                      material.partNo] = true;
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  TableCell(
+                                    verticalAlignment:
+                                        TableCellVerticalAlignment.middle,
+                                    child: Center(
+                                      child: Text('Job No',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                    ),
+                                  ),
+                                  TableCell(
+                                    verticalAlignment:
+                                        TableCellVerticalAlignment.middle,
+                                    child: Center(
+                                      child: Text('Need',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                    ),
+                                  ),
+                                  TableCell(
+                                    verticalAlignment:
+                                        TableCellVerticalAlignment.middle,
+                                    child: Center(
+                                      child: Text('Ordered',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                    ),
+                                  ),
+                                  TableCell(
+                                    verticalAlignment:
+                                        TableCellVerticalAlignment.middle,
+                                    child: Center(
+                                      child: Text('Order Qty',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                    ),
+                                  ),
+                                  TableCell(
+                                    verticalAlignment:
+                                        TableCellVerticalAlignment.middle,
+                                    child: Center(
+                                      child: Text('Available (Board/PR)',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                    ),
+                                  ),
+                                  TableCell(
+                                    verticalAlignment:
+                                        TableCellVerticalAlignment.middle,
+                                    child: Center(
+                                      child: Text('Available (General)',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                    ),
+                                  ),
+                                  TableCell(
+                                    verticalAlignment:
+                                        TableCellVerticalAlignment.middle,
+                                    child: Center(
+                                      child: Text('Stock Transfer',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                              color: textColor)),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      // Available (Board/PR)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text('-',
-                              style: TextStyle(fontSize: 12, color: textColor)),
-                        ),
-                      ),
-                      // Available (General)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text(
-                              (ref
-                                          .read(stockMaintenanceProvider.notifier)
-                                          .getStockForMaterial(material.partNo)
-                                          ?.prDetails
-                                          .values
-                                          .where((p) => p.jobNo == 'General')
-                                          .fold(0.0,
-                                              (sum, p) => sum + p.availableQuantity) ??
-                                      0.0)
-                                  .toStringAsFixed(2),
-                              style: TextStyle(fontSize: 12, color: textColor)),
-                        ),
-                      ),
-                      // Transfer
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: IconButton(
-                          icon: const Icon(Icons.swap_horiz_rounded, size: 20),
-                          tooltip: 'Stock Transfer',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          color: Colors.black,
-                          onPressed: () {
-                            // Handle stock transfer for General Stock
-                            // You can implement the stock transfer logic here
-                          },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ...prItems.map((prItem) {
-                  final totalQty = double.parse(prItem.quantity);
-                  final orderedQty = prItem.orderedQuantities.entries
-                      .where((e) => e.key != widget.existingPO?.poNo)
-                      .fold(0.0, (sum, e) => sum + e.value);
-                  final remainingQty = totalQty - orderedQty;
-
-                  // Get the parent PR to access its job number
-                  final parentPR = ref
-                      .read(purchaseRequestListProvider)
-                      .firstWhereOrNull((pr) => pr.prNo == prItem.prNo);
-                  final jobNo = parentPR?.jobNo ?? 'General Stock';
-
-                  final stock = ref
-                      .read(stockMaintenanceProvider.notifier)
-                      .getStockForMaterial(material.partNo);
-
-                  final generalAvailable = stock == null
-                      ? 0.0
-                      : stock.prDetails.values
-                          .where((p) => p.jobNo == 'General')
-                          .fold(0.0, (sum, p) => sum + p.availableQuantity);
-
-                  final boardAvailable = stock == null
-                      ? 0.0
-                      : stock.prDetails.entries
-                          .where((e) {
-                            final key = e.key;
-                            final p = e.value;
-                            if (p.jobNo != jobNo) return false;
-                            return key == prItem.prNo ||
-                                key.startsWith('${prItem.prNo}|XFER|$jobNo|');
-                          })
-                          .fold(0.0, (sum, e) => sum + e.value.availableQuantity);
-
-                  final isInExistingPO = widget.existingPO?.items.any(
-                          (item) => item.prDetails.containsKey(prItem.prNo)) ??
-                      false;
-
-                  if (remainingQty <= 0 && !isInExistingPO) {
-                    return const TableRow(children: [
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                      SizedBox(),
-                    ]);
-                  }
-
-                  final isSelected =
-                      selectedPRs[material.partNo]?[prItem.prNo] ?? false;
-
-                  return TableRow(
-                    children: [
-                      // Checkbox
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Checkbox(
-                            value: isSelected,
-                            side: const BorderSide(
-                                color: Colors.black, width: 1.5),
-                            onChanged: (bool? value) {
-                              setState(() {
-                                selectedPRs.putIfAbsent(
-                                    material.partNo, () => {});
-                                prQtyControllers.putIfAbsent(
-                                    material.partNo, () => {});
-
-                                selectedPRs[material.partNo]![prItem.prNo] =
-                                    value ?? false;
-
-                                prQtyControllers[material.partNo]!.putIfAbsent(
-                                    prItem.prNo,
-                                    () => TextEditingController());
-
-                                if (value == true) {
-                                  prQtyControllers[material.partNo]![prItem.prNo]!
-                                      .text = remainingQty.toString();
-                                } else {
-                                  prQtyControllers[material.partNo]![prItem.prNo]!
-                                      .text = '0';
-                                }
-                              });
+                        const Divider(height: 16),
+                        SizedBox(
+                          width: tableWidth,
+                          child: Table(
+                            columnWidths: const {
+                              0: FlexColumnWidth(0.25), // Checkbox column
+                              1: FlexColumnWidth(0.6), // PR No
+                              2: FlexColumnWidth(0.6), // Job No
+                              3: FlexColumnWidth(0.5), // Need
+                              4: FlexColumnWidth(0.5), // Ordered
+                              5: FlexColumnWidth(0.7), // Order Qty
+                              6: FlexColumnWidth(0.6), // Available (Board/PR)
+                              7: FlexColumnWidth(0.6), // Available (General)
+                              8: FlexColumnWidth(0.9), // Stock Transfer
                             },
-                          ),
-                        ),
-                      ),
-                      // PR No
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text(prItem.prNo,
-                              style:
-                                  TextStyle(fontSize: 12, color: textColor)),
-                        ),
-                      ),
-                      // Job No
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text(jobNo,
-                              style:
-                                  TextStyle(fontSize: 12, color: textColor)),
-                        ),
-                      ),
-                      // Need
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text(totalQty.toStringAsFixed(2),
-                              style:
-                                  TextStyle(fontSize: 12, color: textColor)),
-                        ),
-                      ),
-                      // Ordered
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text(orderedQty.toStringAsFixed(2),
-                              style:
-                                  TextStyle(fontSize: 12, color: textColor)),
-                        ),
-                      ),
-                      // Order Qty
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: SizedBox(
-                            height: 32,
-                            child: TextFormField(
-                              controller: prQtyControllers[material.partNo]![prItem.prNo],
-                              enabled: isSelected,
-                              textAlign: TextAlign.center,
-                              decoration: InputDecoration(
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 8),
-                                border: const OutlineInputBorder(),
-                                filled: !isSelected,
-                                fillColor: !isSelected ? Colors.grey[200] : null,
-                              ),
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: textColor,
-                                  fontWeight: FontWeight.w500),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (!isSelected) return null;
-                                if (value == null || value.isEmpty) {
-                                  return null;
-                                }
-                                final qty = double.tryParse(value);
-                                if (qty == null) return 'Invalid';
-                                if (qty < 0) return 'Invalid';
-                                if (qty > remainingQty) return 'Exceeds';
-                                return null;
-                              },
-                              onChanged: (value) {
-                                if (!isSelected) return;
-                                final qty = double.tryParse(value);
-                                if (qty != null) {
-                                  if (qty > remainingQty) {
-                                    prQtyControllers[material.partNo]?[prItem.prNo]
-                                        ?.text = remainingQty.toString();
-                                    value = remainingQty.toString();
-                                  }
-                                  // Find or create the PO item
-                                  var poItem = poItems.firstWhere(
-                                    (item) => item.materialCode == material.partNo,
-                                    orElse: () {
-                                      // Create a new PO item if it doesn't exist
-                                      final newItem =
-                                          _createPOItem(material, [prItem]);
-                                      poItems.add(newItem);
-                                      return newItem;
-                                    },
-                                  );
-                                  poItem.updateQuantity(value);
-                                }
-                                setState(() {});
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Available (Board/PR)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text(boardAvailable.toStringAsFixed(2),
-                              style:
-                                  TextStyle(fontSize: 12, color: textColor)),
-                        ),
-                      ),
-                      // Available (General)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: Text(generalAvailable.toStringAsFixed(2),
-                              style:
-                                  TextStyle(fontSize: 12, color: textColor)),
-                        ),
-                      ),
-                      // Transfer
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Center(
-                          child: IconButton(
-                          icon: const Icon(Icons.swap_horiz_rounded, size: 20),
-                          tooltip: 'Stock Transfer',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          color: Colors.black,
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => StockTransferPage(
-                                  prNo: prItem.prNo,
-                                  materialCode: material.partNo,
+                            children: [
+                              // Add General Stock row first (conditionally shown)
+                              if (showGeneralStock[material.partNo] ?? false)
+                                TableRow(
+                                  children: [
+                                    // Checkbox
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Checkbox(
+                                          value: selectedPRs[material.partNo]
+                                                  ?['General'] ??
+                                              false,
+                                          side: const BorderSide(
+                                              color: Colors.black, width: 1.5),
+                                          onChanged: (bool? value) {
+                                            setState(() {
+                                              selectedPRs[material.partNo]![
+                                                  'General'] = value ?? false;
+                                              if (!value!) {
+                                                prQtyControllers[material
+                                                        .partNo]!['General']!
+                                                    .text = '';
+                                              }
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    // PR No (General Stock)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text('General Stock',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor,
+                                                fontStyle: FontStyle.italic)),
+                                      ),
+                                    ),
+                                    // Job No
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text('General Stock',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor)),
+                                      ),
+                                    ),
+                                    // Need
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text('-',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor)),
+                                      ),
+                                    ),
+                                    // Ordered
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text('-',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor)),
+                                      ),
+                                    ),
+                                    // Order Qty with close button
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            SizedBox(
+                                              width: 120,
+                                              height: 32,
+                                              child: TextFormField(
+                                                controller: prQtyControllers[
+                                                    material
+                                                        .partNo]!['General'],
+                                                enabled:
+                                                    selectedPRs[material.partNo]
+                                                            ?['General'] ??
+                                                        false,
+                                                textAlign: TextAlign.center,
+                                                decoration: InputDecoration(
+                                                  isDense: true,
+                                                  contentPadding:
+                                                      const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 8),
+                                                  border:
+                                                      const OutlineInputBorder(),
+                                                  filled: !(selectedPRs[
+                                                              material.partNo]
+                                                          ?['General'] ??
+                                                      false),
+                                                  fillColor: !(selectedPRs[
+                                                                  material
+                                                                      .partNo]
+                                                              ?['General'] ??
+                                                          false)
+                                                      ? Colors.grey[200]
+                                                      : null,
+                                                ),
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: textColor,
+                                                    fontWeight:
+                                                        FontWeight.w500),
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                validator: (value) {
+                                                  if (!(selectedPRs[
+                                                              material.partNo]
+                                                          ?['General'] ??
+                                                      false)) return null;
+                                                  if (value == null ||
+                                                      value.isEmpty) {
+                                                    return 'Required';
+                                                  }
+                                                  final qty =
+                                                      double.tryParse(value);
+                                                  if (qty == null || qty <= 0)
+                                                    return 'Invalid';
+                                                  return null;
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            IconButton(
+                                              icon: const Icon(Icons.close,
+                                                  size: 18),
+                                              color: Colors.red,
+                                              tooltip: 'Remove General Stock',
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              onPressed: () {
+                                                setState(() {
+                                                  showGeneralStock[
+                                                      material.partNo] = false;
+                                                  selectedPRs[material.partNo]![
+                                                      'General'] = false;
+                                                  prQtyControllers[material
+                                                          .partNo]!['General']!
+                                                      .text = '';
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    // Available (Board/PR)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text('-',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor)),
+                                      ),
+                                    ),
+                                    // Available (General)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text(
+                                            (ref
+                                                        .read(
+                                                            stockMaintenanceProvider
+                                                                .notifier)
+                                                        .getStockForMaterial(
+                                                            material.partNo)
+                                                        ?.prDetails
+                                                        .values
+                                                        .where((p) =>
+                                                            p.jobNo ==
+                                                            'General')
+                                                        .fold(
+                                                            0.0,
+                                                            (sum, p) =>
+                                                                sum +
+                                                                p
+                                                                    .availableQuantity) ??
+                                                    0.0)
+                                                .toStringAsFixed(2),
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor)),
+                                      ),
+                                    ),
+                                    // Transfer
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: IconButton(
+                                          icon: const Icon(
+                                              Icons.swap_horiz_rounded,
+                                              size: 20),
+                                          tooltip: 'Stock Transfer',
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(
+                                              minWidth: 28, minHeight: 28),
+                                          color: Colors.black,
+                                          onPressed: () {
+                                            // Handle stock transfer for General Stock
+                                            // You can implement the stock transfer logic here
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            );
-                          },
+                              ...prItems.map((prItem) {
+                                final totalQty = double.parse(prItem.quantity);
+                                final orderedQty = prItem
+                                    .orderedQuantities.entries
+                                    .where(
+                                        (e) => e.key != widget.existingPO?.poNo)
+                                    .fold(0.0, (sum, e) => sum + e.value);
+                                final remainingQty = totalQty - orderedQty;
+
+                                // Get the parent PR to access its job number
+                                final parentPR = ref
+                                    .read(purchaseRequestListProvider)
+                                    .firstWhereOrNull(
+                                        (pr) => pr.prNo == prItem.prNo);
+                                final jobNo =
+                                    parentPR?.jobNo ?? 'General Stock';
+
+                                final stock = ref
+                                    .read(stockMaintenanceProvider.notifier)
+                                    .getStockForMaterial(material.partNo);
+
+                                final generalAvailable = stock == null
+                                    ? 0.0
+                                    : stock.prDetails.values
+                                        .where((p) => p.jobNo == 'General')
+                                        .fold(
+                                            0.0,
+                                            (sum, p) =>
+                                                sum + p.availableQuantity);
+
+                                final boardAvailable = stock == null
+                                    ? 0.0
+                                    : stock.prDetails.entries.where((e) {
+                                        final key = e.key;
+                                        final p = e.value;
+                                        if (p.jobNo != jobNo) return false;
+                                        return key == prItem.prNo ||
+                                            key.startsWith(
+                                                '${prItem.prNo}|XFER|$jobNo|');
+                                      }).fold(
+                                        0.0,
+                                        (sum, e) =>
+                                            sum + e.value.availableQuantity);
+
+                                final isInExistingPO = widget.existingPO?.items
+                                        .any((item) => item.prDetails
+                                            .containsKey(prItem.prNo)) ??
+                                    false;
+
+                                if (remainingQty <= 0 && !isInExistingPO) {
+                                  return const TableRow(children: [
+                                    SizedBox(),
+                                    SizedBox(),
+                                    SizedBox(),
+                                    SizedBox(),
+                                    SizedBox(),
+                                    SizedBox(),
+                                    SizedBox(),
+                                    SizedBox(),
+                                    SizedBox(),
+                                  ]);
+                                }
+
+                                final isSelected = selectedPRs[material.partNo]
+                                        ?[prItem.prNo] ??
+                                    false;
+
+                                return TableRow(
+                                  children: [
+                                    // Checkbox
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Checkbox(
+                                          value: isSelected,
+                                          side: const BorderSide(
+                                              color: Colors.black, width: 1.5),
+                                          onChanged: (bool? value) {
+                                            setState(() {
+                                              selectedPRs.putIfAbsent(
+                                                  material.partNo, () => {});
+                                              prQtyControllers.putIfAbsent(
+                                                  material.partNo, () => {});
+
+                                              selectedPRs[material.partNo]![
+                                                  prItem.prNo] = value ?? false;
+
+                                              prQtyControllers[material.partNo]!
+                                                  .putIfAbsent(
+                                                      prItem.prNo,
+                                                      () =>
+                                                          TextEditingController());
+
+                                              if (value == true) {
+                                                prQtyControllers[
+                                                                material
+                                                                    .partNo]![
+                                                            prItem.prNo]!
+                                                        .text =
+                                                    remainingQty.toString();
+                                              } else {
+                                                prQtyControllers[material
+                                                        .partNo]![prItem.prNo]!
+                                                    .text = '0';
+                                              }
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    // PR No
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text(prItem.prNo,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor)),
+                                      ),
+                                    ),
+                                    // Job No
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text(jobNo,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor)),
+                                      ),
+                                    ),
+                                    // Need
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text(totalQty.toStringAsFixed(2),
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor)),
+                                      ),
+                                    ),
+                                    // Ordered
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text(
+                                            orderedQty.toStringAsFixed(2),
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor)),
+                                      ),
+                                    ),
+                                    // Order Qty
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: SizedBox(
+                                          height: 32,
+                                          child: TextFormField(
+                                            controller: prQtyControllers[
+                                                material.partNo]![prItem.prNo],
+                                            enabled: isSelected,
+                                            textAlign: TextAlign.center,
+                                            decoration: InputDecoration(
+                                              isDense: true,
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 8),
+                                              border:
+                                                  const OutlineInputBorder(),
+                                              filled: !isSelected,
+                                              fillColor: !isSelected
+                                                  ? Colors.grey[200]
+                                                  : null,
+                                            ),
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor,
+                                                fontWeight: FontWeight.w500),
+                                            keyboardType: TextInputType.number,
+                                            validator: (value) {
+                                              if (!isSelected) return null;
+                                              if (value == null ||
+                                                  value.isEmpty) {
+                                                return null;
+                                              }
+                                              final qty =
+                                                  double.tryParse(value);
+                                              if (qty == null) return 'Invalid';
+                                              if (qty < 0) return 'Invalid';
+                                              if (qty > remainingQty)
+                                                return 'Exceeds';
+                                              return null;
+                                            },
+                                            onChanged: (value) {
+                                              if (!isSelected) return;
+                                              final qty =
+                                                  double.tryParse(value);
+                                              if (qty != null) {
+                                                if (qty > remainingQty) {
+                                                  prQtyControllers[
+                                                                  material
+                                                                      .partNo]
+                                                              ?[prItem.prNo]
+                                                          ?.text =
+                                                      remainingQty.toString();
+                                                  value =
+                                                      remainingQty.toString();
+                                                }
+                                                // Find or create the PO item
+                                                var poItem = poItems.firstWhere(
+                                                  (item) =>
+                                                      item.materialCode ==
+                                                      material.partNo,
+                                                  orElse: () {
+                                                    // Create a new PO item if it doesn't exist
+                                                    final newItem =
+                                                        _createPOItem(
+                                                            material, [prItem]);
+                                                    poItems.add(newItem);
+                                                    return newItem;
+                                                  },
+                                                );
+                                                poItem.updateQuantity(value);
+                                              }
+                                              setState(() {});
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // Available (Board/PR)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text(
+                                            boardAvailable.toStringAsFixed(2),
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor)),
+                                      ),
+                                    ),
+                                    // Available (General)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: Text(
+                                            generalAvailable.toStringAsFixed(2),
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textColor)),
+                                      ),
+                                    ),
+                                    // Transfer
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Center(
+                                        child: IconButton(
+                                          icon: const Icon(
+                                              Icons.swap_horiz_rounded,
+                                              size: 20),
+                                          tooltip: 'Stock Transfer',
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(
+                                              minWidth: 28, minHeight: 28),
+                                          color: Colors.black,
+                                          onPressed: () {
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    StockTransferPage(
+                                                  materialCode: material.partNo,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).where((row) => row.children
+                                  .any((cell) => cell is! SizedBox)),
+                            ],
+                          ),
                         ),
-                        ),
-                      ),
-                    ],
-                  );
-                }).where(
-                    (row) => row.children.any((cell) => cell is! SizedBox)),
-              ],
-                    ),
-                    ),
                       ],
                     ),
                   ),
@@ -1552,6 +1815,7 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     bool hasItems = false;
 
     final updatedPOItems = <POItem>[];
+    final missingRateMaterials = <String>[];
 
     // Process PR-based and general stock items
     for (var entry in materialPRItems.entries) {
@@ -1560,10 +1824,15 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       final prItems = entry.value;
 
       // Create POItem only if there are quantities
-      final poItem = _createPOItem(material, prItems);
-      if (double.parse(poItem.quantity) > 0) {
-        updatedPOItems.add(poItem);
-        hasItems = true;
+      try {
+        final poItem = _createPOItem(material, prItems);
+        if (double.parse(poItem.quantity) > 0) {
+          updatedPOItems.add(poItem);
+          hasItems = true;
+        }
+      } catch (e) {
+        // Collect materials without rates
+        missingRateMaterials.add(entry.key);
       }
     }
 
@@ -1571,14 +1840,33 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     for (var entry in selectedPRs.entries) {
       if (!materialPRItems.containsKey(entry.key) &&
           entry.value['General'] == true) {
-        final material = materials.firstWhereOrNull((m) => m.partNo == entry.key);
+        final material =
+            materials.firstWhereOrNull((m) => m.partNo == entry.key);
         if (material == null) continue;
-        final poItem = _createPOItem(material, []);
-        if (double.parse(poItem.quantity) > 0) {
-          updatedPOItems.add(poItem);
-          hasItems = true;
+        try {
+          final poItem = _createPOItem(material, []);
+          if (double.parse(poItem.quantity) > 0) {
+            updatedPOItems.add(poItem);
+            hasItems = true;
+          }
+        } catch (e) {
+          // Collect materials without rates
+          missingRateMaterials.add(entry.key);
         }
       }
+    }
+
+    // Show error message if any materials are missing rates
+    if (missingRateMaterials.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Rate not set for: ${missingRateMaterials.join(', ')} with ${selectedSupplier!.name}. Please set the rates in Material Master.'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
     }
 
     if (!hasItems) {
@@ -1619,14 +1907,15 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
     final grandTotal = subtotal + igst + cgst + sgst;
 
     final poNo = widget.existingPO?.poNo ??
-        (_poNo ?? ref.read(purchaseOrderListProvider.notifier).generateOrderNumber());
+        (_poNo ??
+            ref.read(purchaseOrderListProvider.notifier).generateOrderNumber());
     final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     // Check if any items have amendments or if existing PO already had amendments
-    bool hasAmendments = (widget.existingPO?.hasAmendments ?? false) || 
-      updatedPOItems.any((item) => 
-        item.amendmentHistory.isNotEmpty || item.amendedCostPerUnit != null
-      );
+    bool hasAmendments = (widget.existingPO?.hasAmendments ?? false) ||
+        updatedPOItems.any((item) =>
+            item.amendmentHistory.isNotEmpty ||
+            item.amendedCostPerUnit != null);
 
     print('=== PO Save Debug ===');
     print('PO No: $poNo');
@@ -1641,7 +1930,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       if (item.amendmentHistory.isNotEmpty) {
         print('  Amendment details:');
         for (var amendment in item.amendmentHistory) {
-          print('    ${amendment.dateTime}: ${amendment.oldPrice} → ${amendment.newPrice}');
+          print(
+              '    ${amendment.dateTime}: ${amendment.oldPrice} → ${amendment.newPrice}');
         }
       }
     }
@@ -1661,8 +1951,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
       previousPONo: widget.foreClosedPONo,
       hasAmendments: hasAmendments,
       // Preserve original PO date when amending, or set to current date for new PO
-      originalPoDate: widget.existingPO?.originalPoDate ?? 
-                      (widget.existingPO != null ? widget.existingPO!.poDate : now),
+      originalPoDate: widget.existingPO?.originalPoDate ??
+          (widget.existingPO != null ? widget.existingPO!.poDate : now),
     );
 
     // Update PR quantities and status
@@ -1717,7 +2007,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Cannot amend PO - Goods Receipt already created. PO is locked.'),
+              content: Text(
+                  'Cannot amend PO - Goods Receipt already created. PO is locked.'),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 4),
             ),
@@ -1725,10 +2016,10 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         }
         return;
       }
-      
+
       final poNotifier = ref.read(purchaseOrderListProvider.notifier);
       await poNotifier.updateOrder(widget.index!, newPO);
-      
+
       print('✓ PO updated successfully. Amendments saved: $hasAmendments');
     } else {
       final poNotifier = ref.read(purchaseOrderListProvider.notifier);
@@ -1922,8 +2213,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
         .where((entry) =>
             entry.value['General'] == true &&
             !materialPRItems.containsKey(entry.key))
-        .map((entry) =>
-            materials.firstWhereOrNull((m) => m.partNo == entry.key))
+        .map(
+            (entry) => materials.firstWhereOrNull((m) => m.partNo == entry.key))
         .whereType<MaterialItem>()
         .toList();
 
@@ -2121,19 +2412,22 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           const SizedBox(width: 8),
                           Checkbox(
                             value: _showL1,
-                            onChanged: (v) => setState(() => _showL1 = v ?? true),
+                            onChanged: (v) =>
+                                setState(() => _showL1 = v ?? true),
                           ),
                           const Text('Green (L1)'),
                           const SizedBox(width: 8),
                           Checkbox(
                             value: _showL2,
-                            onChanged: (v) => setState(() => _showL2 = v ?? true),
+                            onChanged: (v) =>
+                                setState(() => _showL2 = v ?? true),
                           ),
                           const Text('Yellow (L2)'),
                           const SizedBox(width: 8),
                           Checkbox(
                             value: _showL3,
-                            onChanged: (v) => setState(() => _showL3 = v ?? true),
+                            onChanged: (v) =>
+                                setState(() => _showL3 = v ?? true),
                           ),
                           const Text('Red (L3)'),
                         ],
@@ -2160,8 +2454,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                       }).map((entry) {
                         final materialCode = entry.key;
                         final prItems = entry.value;
-                        final material =
-                            materials.firstWhereOrNull((m) => m.partNo == materialCode);
+                        final material = materials
+                            .firstWhereOrNull((m) => m.partNo == materialCode);
                         if (material == null) {
                           return const SizedBox.shrink();
                         }
@@ -2269,8 +2563,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
                         // Calculate total for PR-based items and general stock items
                         for (var entry in selectedPRs.entries) {
-                          final material =
-                              materials.firstWhereOrNull((m) => m.partNo == entry.key);
+                          final material = materials
+                              .firstWhereOrNull((m) => m.partNo == entry.key);
                           if (material == null) {
                             continue; // skip missing materials
                           }
@@ -2284,8 +2578,9 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                           } else {
                             final existingItem = poItems.firstWhereOrNull(
                                 (i) => i.materialCode == material.partNo);
-                            costPerUnit =
-                                double.tryParse(existingItem?.costPerUnit ?? '') ?? 0.0;
+                            costPerUnit = double.tryParse(
+                                    existingItem?.costPerUnit ?? '') ??
+                                0.0;
                           }
 
                           // Calculate total for general stock
@@ -2305,7 +2600,8 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
                               final controller =
                                   prQtyControllers[entry.key]?[prItem.prNo];
                               if (controller != null) {
-                                final qty = double.tryParse(controller.text) ?? 0;
+                                final qty =
+                                    double.tryParse(controller.text) ?? 0;
                                 total += costPerUnit * qty;
                               }
                             }
@@ -2314,18 +2610,18 @@ class _AddPurchaseOrderPageState extends ConsumerState<AddPurchaseOrderPage> {
 
                         // Calculate GST
                         final igst = total *
-                            (double.tryParse(
-                                    selectedSupplier!.igst.replaceAll('%', '')) ??
+                            (double.tryParse(selectedSupplier!.igst
+                                    .replaceAll('%', '')) ??
                                 0) /
                             100;
                         final cgst = total *
-                            (double.tryParse(
-                                    selectedSupplier!.cgst.replaceAll('%', '')) ??
+                            (double.tryParse(selectedSupplier!.cgst
+                                    .replaceAll('%', '')) ??
                                 0) /
                             100;
                         final sgst = total *
-                            (double.tryParse(
-                                    selectedSupplier!.sgst.replaceAll('%', '')) ??
+                            (double.tryParse(selectedSupplier!.sgst
+                                    .replaceAll('%', '')) ??
                                 0) /
                             100;
                         final grandTotal = total + igst + cgst + sgst;

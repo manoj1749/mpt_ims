@@ -23,6 +23,7 @@ class AddMaterialReturnDeliveryChallanPage extends ConsumerStatefulWidget {
 class _AddMaterialReturnDeliveryChallanPageState
     extends ConsumerState<AddMaterialReturnDeliveryChallanPage> {
   final _formKey = GlobalKey<FormState>();
+  final _supplierSearchController = TextEditingController();
   late TextEditingController _dcNoController;
   late TextEditingController _vendorNameController;
   late TextEditingController _vendorEmailController;
@@ -65,8 +66,8 @@ class _AddMaterialReturnDeliveryChallanPageState
         final suppliers = ref.read(supplierListProvider);
         Supplier? selected;
         try {
-          selected = suppliers.firstWhere(
-              (s) => s.name == widget.deliveryChallan!.vendorName);
+          selected = suppliers
+              .firstWhere((s) => s.name == widget.deliveryChallan!.vendorName);
         } catch (_) {
           selected = null;
         }
@@ -82,6 +83,7 @@ class _AddMaterialReturnDeliveryChallanPageState
 
   @override
   void dispose() {
+    _supplierSearchController.dispose();
     _dcNoController.dispose();
     _vendorNameController.dispose();
     _vendorEmailController.dispose();
@@ -176,10 +178,10 @@ class _AddMaterialReturnDeliveryChallanPageState
                                   onPressed: () {
                                     final existing =
                                         _materialCodesController.text;
-                                    _materialCodesController.text = existing
-                                            .isEmpty
-                                        ? item.materialCode
-                                        : '$existing\n${item.materialCode}';
+                                    _materialCodesController.text =
+                                        existing.isEmpty
+                                            ? item.materialCode
+                                            : '$existing\n${item.materialCode}';
                                   },
                                 ))
                             .toList(),
@@ -436,8 +438,7 @@ class _AddMaterialReturnDeliveryChallanPageState
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) =>
-            const Center(child: CircularProgressIndicator()),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       final materials = ref.read(materialListProvider);
@@ -450,7 +451,8 @@ class _AddMaterialReturnDeliveryChallanPageState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success ? 'PDF saved successfully!' : 'Save cancelled by user'),
+            content: Text(
+                success ? 'PDF saved successfully!' : 'Save cancelled by user'),
             backgroundColor: success ? Colors.green : Colors.orange,
           ),
         );
@@ -474,8 +476,7 @@ class _AddMaterialReturnDeliveryChallanPageState
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) =>
-            const Center(child: CircularProgressIndicator()),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       final materials = ref.read(materialListProvider);
@@ -577,8 +578,7 @@ class _AddMaterialReturnDeliveryChallanPageState
                           border: OutlineInputBorder(),
                           suffixIcon: Icon(Icons.calendar_today),
                         ),
-                        controller:
-                            TextEditingController(text: _selectedDate),
+                        controller: TextEditingController(text: _selectedDate),
                         onTap: () async {
                           final picked = await showDatePicker(
                             context: context,
@@ -588,8 +588,7 @@ class _AddMaterialReturnDeliveryChallanPageState
                           );
                           if (picked != null) {
                             setState(() {
-                              _selectedDate =
-                                  picked.toString().split(' ')[0];
+                              _selectedDate = picked.toString().split(' ')[0];
                             });
                           }
                         },
@@ -634,7 +633,7 @@ class _AddMaterialReturnDeliveryChallanPageState
                     return null;
                   },
                   dropdownSearchData: DropdownSearchData(
-                    searchController: TextEditingController(),
+                    searchController: _supplierSearchController,
                     searchInnerWidgetHeight: 50,
                     searchInnerWidget: Container(
                       height: 50,
@@ -645,6 +644,7 @@ class _AddMaterialReturnDeliveryChallanPageState
                         left: 8,
                       ),
                       child: TextFormField(
+                        controller: _supplierSearchController,
                         decoration: InputDecoration(
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
@@ -665,6 +665,9 @@ class _AddMaterialReturnDeliveryChallanPageState
                           .contains(searchValue.toLowerCase());
                     },
                   ),
+                  onMenuStateChange: (isOpen) {
+                    if (!isOpen) _supplierSearchController.clear();
+                  },
                 ),
                 const SizedBox(height: 16),
                 // Read-only Email field
@@ -674,13 +677,11 @@ class _AddMaterialReturnDeliveryChallanPageState
                     labelText: 'Vendor Email',
                     border: const OutlineInputBorder(),
                     filled: true,
-                    fillColor:
-                        Theme.of(context).disabledColor.withOpacity(0.1),
+                    fillColor: Theme.of(context).disabledColor.withOpacity(0.1),
                     prefixIconColor: Theme.of(context).disabledColor,
                     suffixIconColor: Theme.of(context).disabledColor,
                   ),
-                  style:
-                      TextStyle(color: Theme.of(context).disabledColor),
+                  style: TextStyle(color: Theme.of(context).disabledColor),
                   readOnly: true,
                   enabled: false,
                 ),
@@ -692,13 +693,11 @@ class _AddMaterialReturnDeliveryChallanPageState
                     labelText: 'Vendor GSTIN',
                     border: const OutlineInputBorder(),
                     filled: true,
-                    fillColor:
-                        Theme.of(context).disabledColor.withOpacity(0.1),
+                    fillColor: Theme.of(context).disabledColor.withOpacity(0.1),
                     prefixIconColor: Theme.of(context).disabledColor,
                     suffixIconColor: Theme.of(context).disabledColor,
                   ),
-                  style:
-                      TextStyle(color: Theme.of(context).disabledColor),
+                  style: TextStyle(color: Theme.of(context).disabledColor),
                   readOnly: true,
                   enabled: false,
                 ),
@@ -741,8 +740,7 @@ class _AddMaterialReturnDeliveryChallanPageState
                             child: Text(
                               'No outward delivery challans found for ${_selectedSupplier!.name}. Add items manually.',
                               style: TextStyle(
-                                  color: Colors.orange.shade800,
-                                  fontSize: 13),
+                                  color: Colors.orange.shade800, fontSize: 13),
                             ),
                           ),
                         ],
@@ -765,8 +763,7 @@ class _AddMaterialReturnDeliveryChallanPageState
                             child: Text(
                               '${outwardDcItems.length} item(s) found from outward DCs for ${_selectedSupplier!.name}',
                               style: TextStyle(
-                                  color: Colors.green.shade800,
-                                  fontSize: 13),
+                                  color: Colors.green.shade800, fontSize: 13),
                             ),
                           ),
                         ],
@@ -861,11 +858,9 @@ class _AddMaterialReturnDeliveryChallanPageState
                                     child: Material(
                                       elevation: 4.0,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(8),
                                         side: BorderSide(
-                                          color:
-                                              Theme.of(context).dividerColor,
+                                          color: Theme.of(context).dividerColor,
                                         ),
                                       ),
                                       child: ConstrainedBox(
@@ -874,18 +869,16 @@ class _AddMaterialReturnDeliveryChallanPageState
                                           maxWidth: 400,
                                         ),
                                         child: ListView.builder(
-                                          padding:
-                                              const EdgeInsets.all(8.0),
+                                          padding: const EdgeInsets.all(8.0),
                                           itemCount: options.length,
                                           itemBuilder: (context, idx) {
                                             final option =
                                                 options.elementAt(idx);
                                             return InkWell(
-                                              onTap: () =>
-                                                  onSelected(option),
+                                              onTap: () => onSelected(option),
                                               child: Container(
-                                                padding: const EdgeInsets
-                                                    .symmetric(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
                                                   vertical: 12.0,
                                                   horizontal: 16.0,
                                                 ),
@@ -911,11 +904,11 @@ class _AddMaterialReturnDeliveryChallanPageState
                                   if (textEditingValue.text.isEmpty) {
                                     return outwardDcItems;
                                   }
-                                  return outwardDcItems.where((dcItem) =>
-                                      dcItem.materialCode
-                                          .toLowerCase()
-                                          .contains(textEditingValue.text
-                                              .toLowerCase()));
+                                  return outwardDcItems.where((dcItem) => dcItem
+                                      .materialCode
+                                      .toLowerCase()
+                                      .contains(
+                                          textEditingValue.text.toLowerCase()));
                                 },
                                 onSelected: (dcItem) {
                                   setState(() {
@@ -976,11 +969,9 @@ class _AddMaterialReturnDeliveryChallanPageState
                                     child: Material(
                                       elevation: 4.0,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(8),
                                         side: BorderSide(
-                                          color:
-                                              Theme.of(context).dividerColor,
+                                          color: Theme.of(context).dividerColor,
                                         ),
                                       ),
                                       child: ConstrainedBox(
@@ -989,18 +980,16 @@ class _AddMaterialReturnDeliveryChallanPageState
                                           maxWidth: 600,
                                         ),
                                         child: ListView.builder(
-                                          padding:
-                                              const EdgeInsets.all(8.0),
+                                          padding: const EdgeInsets.all(8.0),
                                           itemCount: options.length,
                                           itemBuilder: (context, idx) {
                                             final option =
                                                 options.elementAt(idx);
                                             return InkWell(
-                                              onTap: () =>
-                                                  onSelected(option),
+                                              onTap: () => onSelected(option),
                                               child: Container(
-                                                padding: const EdgeInsets
-                                                    .symmetric(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
                                                   vertical: 12.0,
                                                   horizontal: 16.0,
                                                 ),
@@ -1026,11 +1015,11 @@ class _AddMaterialReturnDeliveryChallanPageState
                                   if (textEditingValue.text.isEmpty) {
                                     return outwardDcItems;
                                   }
-                                  return outwardDcItems.where((dcItem) =>
-                                      dcItem.materialDescription
-                                          .toLowerCase()
-                                          .contains(textEditingValue.text
-                                              .toLowerCase()));
+                                  return outwardDcItems.where((dcItem) => dcItem
+                                      .materialDescription
+                                      .toLowerCase()
+                                      .contains(
+                                          textEditingValue.text.toLowerCase()));
                                 },
                                 onSelected: (dcItem) {
                                   setState(() {
@@ -1104,11 +1093,9 @@ class _AddMaterialReturnDeliveryChallanPageState
                                   return null;
                                 },
                                 onChanged: (value) {
-                                  final price =
-                                      double.tryParse(value) ?? 0.0;
+                                  final price = double.tryParse(value) ?? 0.0;
                                   setState(() {
-                                    _items[index] =
-                                        item.copyWith(price: price);
+                                    _items[index] = item.copyWith(price: price);
                                   });
                                 },
                               ),
@@ -1129,8 +1116,8 @@ class _AddMaterialReturnDeliveryChallanPageState
                                     child: Text('General'),
                                   ),
                                   ...saleOrders
-                                      .where((order) =>
-                                          order.boardNo.isNotEmpty)
+                                      .where(
+                                          (order) => order.boardNo.isNotEmpty)
                                       .map((order) => order.boardNo)
                                       .toSet()
                                       .map((boardNo) => DropdownMenuItem(
@@ -1141,9 +1128,7 @@ class _AddMaterialReturnDeliveryChallanPageState
                                 onChanged: (value) {
                                   setState(() {
                                     _items[index] = item.copyWith(
-                                      jobNo: value == 'General'
-                                          ? null
-                                          : value,
+                                      jobNo: value == 'General' ? null : value,
                                     );
                                   });
                                 },

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/supplier.dart';
 import 'base_provider.dart';
+import '../utils/company_config.dart';
 
 final serviceSupplierBoxProvider = Provider<Box<Supplier>>((ref) {
   throw UnimplementedError();
@@ -90,14 +91,16 @@ class ServiceSupplierNotifier extends BaseProvider<Supplier> {
     final suppliers = state;
     int maxNumber = 0;
 
+    final prefix = '${companyCodePrefix}SB-';
+    final altPrefix = companyCodePrefix == 'MPT' ? 'AISB-' : 'MPTSB-';
+
     for (var supplier in suppliers) {
       final code = supplier.vendorCode;
-      if ((code.startsWith('MPTSB-') ||
-              code.startsWith('AISB-') ||
+      if ((code.startsWith(prefix) ||
+              code.startsWith(altPrefix) ||
               code.startsWith('SVS-')) &&
-          code.length >= 9) {
-        final prefixLength = code.startsWith('MPTSB-') ? 6 : 5;
-        final numberPart = code.substring(prefixLength);
+          code.contains('-')) {
+        final numberPart = code.substring(code.lastIndexOf('-') + 1);
         final number = int.tryParse(numberPart);
         if (number != null && number > maxNumber) {
           maxNumber = number;
@@ -106,7 +109,7 @@ class ServiceSupplierNotifier extends BaseProvider<Supplier> {
     }
 
     final nextNumber = maxNumber + 1;
-    return 'MPTSB-${nextNumber.toString().padLeft(5, '0')}';
+    return '$prefix${nextNumber.toString().padLeft(5, '0')}';
   }
 
   Supplier? getServiceSupplierByCode(String code) {

@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 
+import '../../models/job_order_request.dart';
 import '../../models/purchase_request.dart';
+import '../../models/sale_order.dart';
 import '../../models/stock_maintenance.dart';
+import '../../provider/job_order_request_provider.dart';
 import '../../provider/purchase_request_provider.dart';
+import '../../provider/sale_order_provider.dart';
 import '../../provider/stock_maintenance_provider.dart';
 
 class StockTransferHomePage extends ConsumerStatefulWidget {
@@ -16,29 +21,41 @@ class StockTransferHomePage extends ConsumerStatefulWidget {
 }
 
 class _StockTransferHomePageState extends ConsumerState<StockTransferHomePage> {
-  String? _selectedPrNo;
   String? _selectedMaterialCode;
+  final TextEditingController _materialSearchController =
+      TextEditingController();
+
+  @override
+  void dispose() {
+    _materialSearchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final prs = ref.watch(purchaseRequestListProvider);
     final stocks = ref.watch(stockMaintenanceProvider);
 
-    final pr = _selectedPrNo == null
+    final materials = stocks.toList()
+      ..sort((a, b) => a.materialCode.compareTo(b.materialCode));
+
+    final selectedStock = _selectedMaterialCode == null
         ? null
-        : prs.where((p) => p.prNo == _selectedPrNo).isNotEmpty
-            ? prs.firstWhere((p) => p.prNo == _selectedPrNo)
-            : null;
+        : materials
+            .where((s) => s.materialCode == _selectedMaterialCode)
+            .firstOrNull;
 
-    final prMaterialCodes = pr == null
-        ? <String>[]
-        : pr.items.map((i) => i.materialCode).toSet().toList();
-    prMaterialCodes.sort();
+    final availabilityByJob = _selectedMaterialCode == null
+        ? <String, double>{}
+        : ref
+            .watch(stockMaintenanceProvider.notifier)
+            .jobWiseAvailability(_selectedMaterialCode!);
 
-    final availableMaterialCodes = pr == null
-        ? stocks.map((s) => s.materialCode).toSet().toList()
-        : prMaterialCodes;
-    availableMaterialCodes.sort();
+    final sortedJobs = availabilityByJob.keys.toList()
+      ..sort((a, b) {
+        if (a == 'General') return -1;
+        if (b == 'General') return 1;
+        return a.compareTo(b);
+      });
 
     return Scaffold(
       appBar: AppBar(
@@ -49,36 +66,26 @@ class _StockTransferHomePageState extends ConsumerState<StockTransferHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DropdownButtonFormField<String>(
-              value: _selectedPrNo,
-              decoration: const InputDecoration(
-                labelText: 'Select PR',
-                border: OutlineInputBorder(),
-              ),
-              items: prs
-                  .map((p) => DropdownMenuItem<String>(
-                        value: p.prNo,
-                        child: Text(p.prNo),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedPrNo = value;
-                  _selectedMaterialCode = null;
-                });
-              },
+            const Text(
+              'Select a material to view its available stock and transfer '
+              'quantities between General and Board (job) locations.',
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
+            DropdownButtonFormField2<String>(
               value: _selectedMaterialCode,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Select Material',
                 border: OutlineInputBorder(),
               ),
-              items: availableMaterialCodes
-                  .map((code) => DropdownMenuItem<String>(
-                        value: code,
-                        child: Text(code),
+              hint: const Text('Select Material'),
+              items: materials
+                  .map((s) => DropdownMenuItem<String>(
+                        value: s.materialCode,
+                        child: Text(
+                          '${s.materialCode} - ${s.materialDescription}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ))
                   .toList(),
               onChanged: (value) {
@@ -86,19 +93,84 @@ class _StockTransferHomePageState extends ConsumerState<StockTransferHomePage> {
                   _selectedMaterialCode = value;
                 });
               },
+              dropdownSearchData: DropdownSearchData(
+                searchController: _materialSearchController,
+                searchInnerWidgetHeight: 50,
+                searchInnerWidget: Container(
+                  height: 50,
+                  padding: const EdgeInsets.only(
+                    top: 8,
+                    bottom: 4,
+                    right: 8,
+                    left: 8,
+                  ),
+                  child: TextFormField(
+                    controller: _materialSearchController,
+                    expands: true,
+                    maxLines: null,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      hintText: 'Search Material',
+                      hintStyle: const TextStyle(fontSize: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                searchMatchFn: (item, searchValue) {
+                  final stock = materials.firstWhere(
+                    (s) => s.materialCode == item.value,
+                  );
+                  final query = searchValue.toLowerCase();
+                  return stock.materialCode.toLowerCase().contains(query) ||
+                      stock.materialDescription.toLowerCase().contains(query);
+                },
+              ),
+              onMenuStateChange: (isOpen) {
+                if (!isOpen) _materialSearchController.clear();
+              },
             ),
+            if (_selectedMaterialCode != null) ...[
+              const SizedBox(height: 16),
+              Text('Available Stock by Location',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: sortedJobs.isEmpty
+                      ? const Text('No available stock for this material.')
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: sortedJobs
+                              .map((job) => Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 2),
+                                    child: Text(
+                                      '$job: ${availabilityByJob[job]!.toStringAsFixed(2)} ${selectedStock?.unit ?? ''}',
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: (_selectedPrNo == null ||
-                        _selectedMaterialCode == null)
+                onPressed: _selectedMaterialCode == null
                     ? null
                     : () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => StockTransferPage(
-                              prNo: _selectedPrNo!,
                               materialCode: _selectedMaterialCode!,
                             ),
                           ),
@@ -115,12 +187,10 @@ class _StockTransferHomePageState extends ConsumerState<StockTransferHomePage> {
 }
 
 class StockTransferPage extends ConsumerStatefulWidget {
-  final String prNo;
   final String materialCode;
 
   const StockTransferPage({
     super.key,
-    required this.prNo,
     required this.materialCode,
   });
 
@@ -130,7 +200,11 @@ class StockTransferPage extends ConsumerStatefulWidget {
 
 class _StockTransferPageState extends ConsumerState<StockTransferPage> {
   final TextEditingController _qtyController = TextEditingController();
+  final TextEditingController _newBoardController = TextEditingController();
   bool _isSubmitting = false;
+  bool _enterNewBoard = false;
+  String? _fromJobNo;
+  String? _toJobNo;
 
   DateTime? _tryParseDateTime(String value) {
     try {
@@ -150,14 +224,8 @@ class _StockTransferPageState extends ConsumerState<StockTransferPage> {
   @override
   void dispose() {
     _qtyController.dispose();
+    _newBoardController.dispose();
     super.dispose();
-  }
-
-  PurchaseRequest? _getPR() {
-    return _firstWhereOrNull(
-      ref.read(purchaseRequestListProvider),
-      (p) => p.prNo == widget.prNo,
-    );
   }
 
   StockMaintenance? _getStock() {
@@ -167,28 +235,67 @@ class _StockTransferPageState extends ConsumerState<StockTransferPage> {
     );
   }
 
-  double _availableForPRJob(StockMaintenance stock, String prNo, String jobNo) {
-    // General is treated as a pooled stock bucket across all PRs.
-    if (jobNo == 'General') {
-      return stock.prDetails.values
-          .where((p) => p.jobNo == 'General')
-          .fold(0.0, (sum, p) => sum + p.availableQuantity);
-    }
+  /// All known Board/job numbers anywhere in the system (Job Order Requests,
+  /// Purchase Requests, Sale Orders, and any job already used in stock
+  /// records), so a destination Board can be selected even if it doesn't yet
+  /// have stock allocated to it for this specific material.
+  List<String> _allKnownBoardJobs({
+    required List<JobOrderRequest> jobOrderRequests,
+    required List<PurchaseRequest> purchaseRequests,
+    required List<SaleOrder> saleOrders,
+    required List<StockMaintenance> allStocks,
+  }) {
+    final jobs = <String>{};
 
-    double total = 0.0;
-    for (final entry in stock.prDetails.entries) {
-      final key = entry.key;
-      final prDetail = entry.value;
-      if (prDetail.jobNo != jobNo) continue;
-
-      if (key == prNo || key.startsWith('$prNo|XFER|$jobNo|')) {
-        total += prDetail.availableQuantity;
+    void addJob(String? job) {
+      final trimmed = job?.trim() ?? '';
+      if (trimmed.isNotEmpty && trimmed != 'General') {
+        jobs.add(trimmed);
       }
     }
-    return total;
+
+    for (final jor in jobOrderRequests) {
+      for (final job in jor.selectedJobs) {
+        addJob(job);
+      }
+    }
+    for (final pr in purchaseRequests) {
+      addJob(pr.jobNo);
+    }
+    for (final so in saleOrders) {
+      addJob(so.jobNo);
+    }
+    for (final stock in allStocks) {
+      for (final jobNo in stock.jobDetails.keys) {
+        addJob(jobNo);
+      }
+      for (final pr in stock.prDetails.values) {
+        addJob(pr.jobNo);
+      }
+    }
+
+    return jobs.toList()..sort();
   }
 
-  Future<void> _submitTransfer({required bool boardToGeneral}) async {
+  Future<void> _submitTransfer() async {
+    final fromJob = _fromJobNo;
+    final toJob = _toJobNo;
+
+    if (fromJob == null || toJob == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please select both From and To locations')),
+      );
+      return;
+    }
+    if (fromJob == toJob) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('From and To locations cannot be the same')),
+      );
+      return;
+    }
+
     final qty = double.tryParse(_qtyController.text.trim()) ?? 0.0;
     if (qty <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -197,40 +304,24 @@ class _StockTransferPageState extends ConsumerState<StockTransferPage> {
       return;
     }
 
-    final pr = _getPR();
-    if (pr == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PR not found')),
-      );
-      return;
-    }
-
-    final boardJobNo = (pr.jobNo == null || pr.jobNo!.trim().isEmpty)
-        ? 'General'
-        : pr.jobNo!.trim();
-
-    if (boardJobNo == 'General') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This PR does not have a Board/Job No')),
-      );
-      return;
-    }
-
     final stock = _getStock();
     if (stock == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Stock record not found for this material')),
+        const SnackBar(
+            content: Text('Stock record not found for this material')),
       );
       return;
     }
 
-    final fromJob = boardToGeneral ? boardJobNo : 'General';
-    final toJob = boardToGeneral ? 'General' : boardJobNo;
-
-    final available = _availableForPRJob(stock, widget.prNo, fromJob);
+    final available = ref
+            .read(stockMaintenanceProvider.notifier)
+            .jobWiseAvailability(widget.materialCode)[fromJob] ??
+        0.0;
     if (qty > available + 0.0001) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Insufficient available stock. Available: ${available.toStringAsFixed(2)}')),
+        SnackBar(
+            content: Text(
+                'Insufficient available stock in $fromJob. Available: ${available.toStringAsFixed(2)}')),
       );
       return;
     }
@@ -239,10 +330,8 @@ class _StockTransferPageState extends ConsumerState<StockTransferPage> {
     try {
       await ref
           .read(stockMaintenanceProvider.notifier)
-          .transferStockForPRMaterial(
+          .transferStockBetweenJobs(
             materialCode: widget.materialCode,
-            basePrNo: widget.prNo,
-            boardJobNo: boardJobNo,
             fromJobNo: fromJob,
             toJobNo: toJob,
             quantity: qty,
@@ -250,6 +339,10 @@ class _StockTransferPageState extends ConsumerState<StockTransferPage> {
 
       if (mounted) {
         _qtyController.clear();
+        setState(() {
+          _fromJobNo = null;
+          _toJobNo = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Stock transferred successfully')),
         );
@@ -269,31 +362,59 @@ class _StockTransferPageState extends ConsumerState<StockTransferPage> {
 
   @override
   Widget build(BuildContext context) {
-    final pr = _firstWhereOrNull(
-      ref.watch(purchaseRequestListProvider),
-      (p) => p.prNo == widget.prNo,
-    );
-
     final stock = _firstWhereOrNull(
       ref.watch(stockMaintenanceProvider),
       (s) => s.materialCode == widget.materialCode,
     );
 
-    final boardJobNo = (pr?.jobNo == null || pr!.jobNo!.trim().isEmpty)
-        ? 'General'
-        : pr.jobNo!.trim();
+    final jobOrderRequests = ref.watch(jobOrderRequestProvider);
+    final purchaseRequests = ref.watch(purchaseRequestListProvider);
+    final saleOrders = ref.watch(saleOrderProvider);
+    final allStocks = ref.watch(stockMaintenanceProvider);
 
-    final boardAvailable = (stock != null && boardJobNo != 'General')
-        ? _availableForPRJob(stock, widget.prNo, boardJobNo)
-        : 0.0;
+    final availabilityByJob = ref
+        .watch(stockMaintenanceProvider.notifier)
+        .jobWiseAvailability(widget.materialCode);
 
-    final generalAvailable = stock != null
-        ? _availableForPRJob(stock, widget.prNo, 'General')
-        : 0.0;
+    // "From" can only be a location that actually has stock.
+    final fromOptions = availabilityByJob.keys.toList()
+      ..sort((a, b) {
+        if (a == 'General') return -1;
+        if (b == 'General') return 1;
+        return a.compareTo(b);
+      });
 
-    final history = (stock?.transferHistory ?? [])
-        .where((e) => e.basePrNo == widget.prNo)
-        .toList();
+    // "To" can be General plus any known board/job (whether or not it
+    // currently has stock), excluding whichever is selected as "From".
+    final knownBoards = _allKnownBoardJobs(
+      jobOrderRequests: jobOrderRequests,
+      purchaseRequests: purchaseRequests,
+      saleOrders: saleOrders,
+      allStocks: allStocks,
+    );
+    final toOptions = <String>{
+      'General',
+      ...knownBoards,
+      ...availabilityByJob.keys
+    }.where((j) => j != _fromJobNo).toList()
+      ..sort((a, b) {
+        if (a == 'General') return -1;
+        if (b == 'General') return 1;
+        return a.compareTo(b);
+      });
+
+    // Keep selections valid if the underlying data changes.
+    if (_fromJobNo != null && !fromOptions.contains(_fromJobNo)) {
+      _fromJobNo = null;
+    }
+    if (!_enterNewBoard && _toJobNo != null && !toOptions.contains(_toJobNo)) {
+      _toJobNo = null;
+    }
+
+    final selectedFromAvailable =
+        _fromJobNo == null ? 0.0 : (availabilityByJob[_fromJobNo] ?? 0.0);
+
+    final history = (stock?.transferHistory ?? []).toList();
     history.sort((a, b) {
       final da = _tryParseDateTime(a.dateTime);
       final db = _tryParseDateTime(b.dateTime);
@@ -312,63 +433,145 @@ class _StockTransferPageState extends ConsumerState<StockTransferPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('PR No: ${widget.prNo}', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text('Material: ${widget.materialCode}', style: Theme.of(context).textTheme.bodyLarge),
-            const SizedBox(height: 12),
-            if (boardJobNo != 'General')
-              Text('Board/Job No: $boardJobNo', style: Theme.of(context).textTheme.bodyLarge),
+            Text('Material: ${widget.materialCode}',
+                style: Theme.of(context).textTheme.titleMedium),
+            if (stock != null)
+              Text(stock.materialDescription,
+                  style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 12),
             if (stock == null)
               const Text('No stock record found for this material.'),
             if (stock != null) ...[
+              Text('Available Stock by Location',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Available (Board): ${boardAvailable.toStringAsFixed(2)} ${stock.unit}'),
-                      const SizedBox(height: 4),
-                      Text('Available (General): ${generalAvailable.toStringAsFixed(2)} ${stock.unit}'),
-                    ],
+                  child: availabilityByJob.isEmpty
+                      ? const Text('No available stock for this material.')
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: fromOptions
+                              .map((job) => Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 2),
+                                    child: Text(
+                                      '$job: ${availabilityByJob[job]!.toStringAsFixed(2)} ${stock.unit}',
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _fromJobNo,
+                      decoration: const InputDecoration(
+                        labelText: 'From',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: fromOptions
+                          .map((j) => DropdownMenuItem<String>(
+                                value: j,
+                                child: Text(j),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _fromJobNo = value;
+                          if (_toJobNo == value) _toJobNo = null;
+                        });
+                      },
+                    ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _enterNewBoard
+                        ? TextField(
+                            controller: _newBoardController,
+                            decoration: const InputDecoration(
+                              labelText: 'New Board/Job No',
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                _toJobNo =
+                                    value.trim().isEmpty ? null : value.trim();
+                              });
+                            },
+                          )
+                        : DropdownButtonFormField<String>(
+                            value: _toJobNo,
+                            decoration: const InputDecoration(
+                              labelText: 'To',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: toOptions
+                                .map((j) => DropdownMenuItem<String>(
+                                      value: j,
+                                      child: Text(j),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _toJobNo = value;
+                              });
+                            },
+                          ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Checkbox(
+                    value: _enterNewBoard,
+                    onChanged: (checked) {
+                      setState(() {
+                        _enterNewBoard = checked ?? false;
+                        _toJobNo = null;
+                        _newBoardController.clear();
+                      });
+                    },
+                  ),
+                  const Text('Enter a new Board/Job No for "To"'),
+                ],
+              ),
+              if (_fromJobNo != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Available in $_fromJobNo: ${selectedFromAvailable.toStringAsFixed(2)} ${stock.unit}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: _qtyController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Transfer Quantity',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed:
+                      (_isSubmitting || _fromJobNo == null || _toJobNo == null)
+                          ? null
+                          : _submitTransfer,
+                  child: const Text('Transfer'),
                 ),
               ),
             ],
-            const SizedBox(height: 12),
-            TextField(
-              controller: _qtyController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Transfer Quantity',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: (_isSubmitting || boardJobNo == 'General')
-                        ? null
-                        : () => _submitTransfer(boardToGeneral: true),
-                    child: const Text('Board -> General'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: (_isSubmitting || boardJobNo == 'General')
-                        ? null
-                        : () => _submitTransfer(boardToGeneral: false),
-                    child: const Text('General -> Board'),
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 16),
-            Text('Transfer History', style: Theme.of(context).textTheme.titleMedium),
+            Text('Transfer History',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Expanded(
               child: history.isEmpty
@@ -381,7 +584,8 @@ class _StockTransferPageState extends ConsumerState<StockTransferPage> {
                         final dt = _tryParseDateTime(h.dateTime);
                         final dtText = dt == null
                             ? h.dateTime
-                            : DateFormat('yyyy-MM-dd HH:mm').format(dt.toLocal());
+                            : DateFormat('yyyy-MM-dd HH:mm')
+                                .format(dt.toLocal());
                         return Card(
                           child: ListTile(
                             title: Text(

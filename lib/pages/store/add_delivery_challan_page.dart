@@ -12,6 +12,7 @@ import '../../provider/material_provider.dart';
 import '../../provider/supplier_provider.dart';
 import '../../provider/sale_order_provider.dart';
 import '../../provider/customer_scope_material_issue_master_provider.dart';
+import '../../provider/stock_maintenance_provider.dart';
 
 // Use the provider from the provider file
 
@@ -20,7 +21,11 @@ class AddDeliveryChallanPage extends ConsumerStatefulWidget {
   final String? presetDcType; // e.g., 'internal'
   final String? presetInternalFlow; // 'inward' | 'outward'
 
-  const AddDeliveryChallanPage({super.key, this.deliveryChallan, this.presetDcType, this.presetInternalFlow});
+  const AddDeliveryChallanPage(
+      {super.key,
+      this.deliveryChallan,
+      this.presetDcType,
+      this.presetInternalFlow});
 
   @override
   ConsumerState<AddDeliveryChallanPage> createState() =>
@@ -40,9 +45,12 @@ class _AddDeliveryChallanPageState
   Supplier? _selectedSupplier;
   final _materialCodesController = TextEditingController();
   final _quantitiesController = TextEditingController();
+  final _supplierSearchController = TextEditingController();
+  final _jobSearchController = TextEditingController();
   late String _selectedDate;
   // Material source selection for JODC type
-  String _materialSource = 'material_master'; // 'material_master' or 'customer_scope'
+  String _materialSource =
+      'material_master'; // 'material_master' or 'customer_scope'
 
   @override
   void initState() {
@@ -50,12 +58,13 @@ class _AddDeliveryChallanPageState
     // For internal outward DCs, DC number will be auto-generated
     // For internal inward DCs, allow manual input
     // For job order DCs, JODC number will be auto-generated
-    final isInternalOutward = widget.presetDcType == 'internal' && 
-                              widget.presetInternalFlow == 'outward';
+    final isInternalOutward = widget.presetDcType == 'internal' &&
+        widget.presetInternalFlow == 'outward';
     final isJobOrder = widget.presetDcType == 'job_order';
-    
+
     _dcNoController = TextEditingController(
-      text: widget.deliveryChallan?.dcNo ?? (isInternalOutward || isJobOrder ? '' : ''),
+      text: widget.deliveryChallan?.dcNo ??
+          (isInternalOutward || isJobOrder ? '' : ''),
     );
     _vendorNameController = TextEditingController(
       text: widget.deliveryChallan?.vendorName ?? '',
@@ -75,13 +84,18 @@ class _AddDeliveryChallanPageState
     _selectedDate = widget.deliveryChallan?.dcDate ??
         DateTime.now().toString().split(' ')[0];
 
-    // Auto-generate DC number for job orders after first frame
-    if (isJobOrder && widget.deliveryChallan == null) {
+    // Auto-generate DC number for job orders and internal outward DCs after first frame
+    if ((isJobOrder || isInternalOutward) && widget.deliveryChallan == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final notifier = ref.read(deliveryChallanListProvider.notifier);
-        final nextJODCNumber = notifier.generateNextJODCNumber();
+        String nextDcNo;
+        if (isJobOrder) {
+          nextDcNo = notifier.generateNextJODCNumber();
+        } else {
+          nextDcNo = notifier.generateInternalOutwardDcNo();
+        }
         setState(() {
-          _dcNoController.text = nextJODCNumber;
+          _dcNoController.text = nextDcNo;
         });
       });
     }
@@ -114,6 +128,17 @@ class _AddDeliveryChallanPageState
     }
   }
 
+  String _getSupplierAddress(Supplier supplier) {
+    final addressParts = <String>[];
+
+    if (supplier.address1.isNotEmpty) addressParts.add(supplier.address1);
+    if (supplier.address2.isNotEmpty) addressParts.add(supplier.address2);
+    if (supplier.address3.isNotEmpty) addressParts.add(supplier.address3);
+    if (supplier.address4.isNotEmpty) addressParts.add(supplier.address4);
+
+    return addressParts.join(', ');
+  }
+
   @override
   void dispose() {
     _dcNoController.dispose();
@@ -123,6 +148,8 @@ class _AddDeliveryChallanPageState
     _noteController.dispose();
     _materialCodesController.dispose();
     _quantitiesController.dispose();
+    _supplierSearchController.dispose();
+    _jobSearchController.dispose();
     super.dispose();
   }
 
@@ -147,40 +174,53 @@ class _AddDeliveryChallanPageState
   }
 
   // Helper method to get available materials based on selected source
-  List<Object> _getAvailableMaterials(List<MaterialItem> materials, List<CustomerScopeMaterialIssueMaster> customerScopeMaterials) {
-    if (widget.presetDcType == 'job_order' && _materialSource == 'customer_scope') {
+  List<Object> _getAvailableMaterials(List<MaterialItem> materials,
+      List<CustomerScopeMaterialIssueMaster> customerScopeMaterials) {
+    if (widget.presetDcType == 'job_order' &&
+        _materialSource == 'customer_scope') {
       return customerScopeMaterials.cast<Object>();
     }
     return materials.cast<Object>();
   }
 
   // Helper method to validate material code based on source
-  bool _isValidMaterialCode(String code, List<MaterialItem> materials, List<CustomerScopeMaterialIssueMaster> customerScopeMaterials, [List<DeliveryChallanItem> outwardDcItems = const []]) {
+  bool _isValidMaterialCode(String code, List<MaterialItem> materials,
+      List<CustomerScopeMaterialIssueMaster> customerScopeMaterials,
+      [List<DeliveryChallanItem> outwardDcItems = const []]) {
     final trimmedCode = code.trim();
     if (widget.presetDcType == 'material_return' && outwardDcItems.isNotEmpty) {
-      return outwardDcItems.any((item) => item.materialCode.trim() == trimmedCode);
+      return outwardDcItems
+          .any((item) => item.materialCode.trim() == trimmedCode);
     }
-    if (widget.presetDcType == 'job_order' && _materialSource == 'customer_scope') {
+    if (widget.presetDcType == 'job_order' &&
+        _materialSource == 'customer_scope') {
       return customerScopeMaterials.any((m) => m.partNo.trim() == trimmedCode);
     }
     return materials.any((m) => m.partNo.trim() == trimmedCode);
   }
 
   // Helper method to validate material description based on source
-  bool _isValidMaterialDescription(String desc, List<MaterialItem> materials, List<CustomerScopeMaterialIssueMaster> customerScopeMaterials, [List<DeliveryChallanItem> outwardDcItems = const []]) {
+  bool _isValidMaterialDescription(String desc, List<MaterialItem> materials,
+      List<CustomerScopeMaterialIssueMaster> customerScopeMaterials,
+      [List<DeliveryChallanItem> outwardDcItems = const []]) {
     final trimmedDesc = desc.trim();
     if (widget.presetDcType == 'material_return' && outwardDcItems.isNotEmpty) {
-      return outwardDcItems.any((item) => item.materialDescription.trim() == trimmedDesc);
+      return outwardDcItems
+          .any((item) => item.materialDescription.trim() == trimmedDesc);
     }
-    if (widget.presetDcType == 'job_order' && _materialSource == 'customer_scope') {
-      return customerScopeMaterials.any((m) => m.description.trim() == trimmedDesc);
+    if (widget.presetDcType == 'job_order' &&
+        _materialSource == 'customer_scope') {
+      return customerScopeMaterials
+          .any((m) => m.description.trim() == trimmedDesc);
     }
     return materials.any((m) => m.description.trim() == trimmedDesc);
   }
 
   // Helper method to find material by code
-  dynamic _findMaterialByCode(String code, List<MaterialItem> materials, List<CustomerScopeMaterialIssueMaster> customerScopeMaterials) {
-    if (widget.presetDcType == 'job_order' && _materialSource == 'customer_scope') {
+  dynamic _findMaterialByCode(String code, List<MaterialItem> materials,
+      List<CustomerScopeMaterialIssueMaster> customerScopeMaterials) {
+    if (widget.presetDcType == 'job_order' &&
+        _materialSource == 'customer_scope') {
       return customerScopeMaterials.firstWhere(
         (m) => m.partNo == code,
         orElse: () => null as CustomerScopeMaterialIssueMaster,
@@ -198,10 +238,12 @@ class _AddDeliveryChallanPageState
     bool isQuantityStep = false;
     List<String> materialCodes = [];
     final materials = ref.read(materialListProvider);
-    final customerScopeMaterials = ref.read(customerScopeMaterialIssueMasterListProvider);
-    
+    final customerScopeMaterials =
+        ref.read(customerScopeMaterialIssueMasterListProvider);
+
     // Get correct material list based on source
-    final availableMaterials = _getAvailableMaterials(materials, customerScopeMaterials);
+    final availableMaterials =
+        _getAvailableMaterials(materials, customerScopeMaterials);
 
     await showDialog(
       context: context,
@@ -265,9 +307,11 @@ class _AddDeliveryChallanPageState
 
                       // Validate material codes
                       final invalidCodes = materialCodes
-                          .where(
-                              (code) => !availableMaterials.any((m) => 
-                                  (m is CustomerScopeMaterialIssueMaster ? m.partNo : (m as MaterialItem).partNo) == code))
+                          .where((code) => !availableMaterials.any((m) =>
+                              (m is CustomerScopeMaterialIssueMaster
+                                  ? m.partNo
+                                  : (m as MaterialItem).partNo) ==
+                              code))
                           .toList();
 
                       if (invalidCodes.isNotEmpty) {
@@ -327,10 +371,11 @@ class _AddDeliveryChallanPageState
 
                       // Add all items
                       for (var i = 0; i < materialCodes.length; i++) {
-                        final material = availableMaterials.firstWhere(
-                            (m) => (m is CustomerScopeMaterialIssueMaster 
-                                ? m.partNo 
-                                : (m as MaterialItem).partNo) == materialCodes[i]);
+                        final material = availableMaterials.firstWhere((m) =>
+                            (m is CustomerScopeMaterialIssueMaster
+                                ? m.partNo
+                                : (m as MaterialItem).partNo) ==
+                            materialCodes[i]);
                         final quantity = double.tryParse(quantities[i]) ?? 0;
 
                         if (material is CustomerScopeMaterialIssueMaster) {
@@ -411,7 +456,7 @@ class _AddDeliveryChallanPageState
       // Auto-generate DC number for internal outward DCs and job orders
       final isInternalOutward = isInternal && internalFlow == 'outward';
       final isJobOrder = widget.presetDcType == 'job_order';
-      
+
       String dcNo;
       if (widget.deliveryChallan == null) {
         // New DC - auto-generate if needed
@@ -427,6 +472,14 @@ class _AddDeliveryChallanPageState
         dcNo = _dcNoController.text.trim();
       }
 
+      // Calculate site address
+      String? siteAddress;
+      if ((isJobOrder || widget.presetDcType == 'billing') && !isInternal) {
+        siteAddress = _getSupplierAddress(_selectedSupplier!);
+      } else {
+        siteAddress = null;
+      }
+
       final dc = DeliveryChallan(
         dcNo: dcNo,
         dcDate: _selectedDate,
@@ -440,6 +493,7 @@ class _AddDeliveryChallanPageState
         internalFlow: internalFlow,
         fromVendor: internalFromVendor,
         toVendor: internalToVendor,
+        siteAddress: siteAddress,
       );
 
       try {
@@ -643,12 +697,14 @@ class _AddDeliveryChallanPageState
   }
 
   // Helper method to get outward DC items for material return
-  List<DeliveryChallanItem> _getOutwardDcItemsForVendor(String vendorName, List<DeliveryChallan> allDcs) {
-    final outwardDcs = allDcs.where((dc) => 
-      dc.dcType == 'regular' && 
-      dc.vendorName.toLowerCase() == vendorName.toLowerCase()
-    ).toList();
-    
+  List<DeliveryChallanItem> _getOutwardDcItemsForVendor(
+      String vendorName, List<DeliveryChallan> allDcs) {
+    final outwardDcs = allDcs
+        .where((dc) =>
+            dc.dcType == 'regular' &&
+            dc.vendorName.toLowerCase() == vendorName.toLowerCase())
+        .toList();
+
     final List<DeliveryChallanItem> items = [];
     for (final dc in outwardDcs) {
       items.addAll(dc.items);
@@ -661,20 +717,37 @@ class _AddDeliveryChallanPageState
     final suppliers = ref.watch(supplierListProvider);
     final saleOrders = ref.watch(saleOrderProvider);
     final materials = ref.watch(materialListProvider);
-    final customerScopeMaterials = ref.watch(customerScopeMaterialIssueMasterListProvider);
+    final customerScopeMaterials =
+        ref.watch(customerScopeMaterialIssueMasterListProvider);
+    final stockRecords = ref.watch(stockMaintenanceProvider);
     final allDeliveryChallans = ref.watch(deliveryChallanListProvider);
 
+    final boardJobs = <String>{
+      ...saleOrders
+          .map((order) => order.boardNo.trim())
+          .where((boardNo) => boardNo.isNotEmpty),
+      ...stockRecords
+          .expand((stock) => [
+                ...stock.jobDetails.keys,
+                ...stock.prDetails.values.map((detail) => detail.jobNo),
+              ])
+          .where((jobNo) => jobNo.trim().isNotEmpty && jobNo != 'General'),
+    }.toList()
+      ..sort();
+
     // Get outward DC items for material return
-    final outwardDcItems = widget.presetDcType == 'material_return' && _selectedSupplier != null
-        ? _getOutwardDcItemsForVendor(_selectedSupplier!.name, allDeliveryChallans)
-        : <DeliveryChallanItem>[];
+    final outwardDcItems =
+        widget.presetDcType == 'material_return' && _selectedSupplier != null
+            ? _getOutwardDcItemsForVendor(
+                _selectedSupplier!.name, allDeliveryChallans)
+            : <DeliveryChallanItem>[];
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
           widget.deliveryChallan != null
               ? 'Edit Delivery Challan'
-              : (widget.presetDcType == 'job_order' 
+              : (widget.presetDcType == 'job_order'
                   ? 'New Job Order Delivery Challan'
                   : 'New Delivery Challan'),
         ),
@@ -693,714 +766,792 @@ class _AddDeliveryChallanPageState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              // DC Number and Date Row
-              Row(
-                children: [
-                  // Show DC Number input only for non-job-order and non-internal-outward DCs
-                  if (!(widget.presetDcType == 'job_order') && 
-                      !(widget.presetDcType == 'internal' && widget.presetInternalFlow == 'outward')) ...[
+                // DC Number and Date Row
+                Row(
+                  children: [
+                    // Show DC Number input only for non-job-order and non-internal-outward DCs
+                    if (!(widget.presetDcType == 'job_order') &&
+                        !(widget.presetDcType == 'internal' &&
+                            widget.presetInternalFlow == 'outward')) ...[
+                      Expanded(
+                        child: TextFormField(
+                          controller: _dcNoController,
+                          decoration: const InputDecoration(
+                            labelText: 'DC Number',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter DC number';
+                            }
+                            // Check uniqueness only for new DCs
+                            if (widget.deliveryChallan == null) {
+                              final existingDCs =
+                                  ref.read(deliveryChallanListProvider);
+                              if (existingDCs
+                                  .any((dc) => dc.dcNo == value.trim())) {
+                                return 'DC number already exists';
+                              }
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                    ],
+                    // Show auto-generated DC number for job orders and internal outward
+                    if (widget.presetDcType == 'job_order' ||
+                        (widget.presetDcType == 'internal' &&
+                            widget.presetInternalFlow == 'outward')) ...[
+                      Expanded(
+                        child: TextFormField(
+                          controller: _dcNoController,
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            labelText: widget.presetDcType == 'job_order'
+                                ? 'Job Order DC Number'
+                                : 'DC Number',
+                            border: const OutlineInputBorder(),
+                            suffixIcon: const Icon(Icons.confirmation_number),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                    ],
                     Expanded(
                       child: TextFormField(
-                        controller: _dcNoController,
-                        decoration: const InputDecoration(
-                          labelText: 'DC Number',
-                          border: OutlineInputBorder(),
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          labelText: 'DC Date',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.calendar_today),
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter DC number';
+                        controller: TextEditingController(text: _selectedDate),
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.parse(_selectedDate),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              _selectedDate = picked.toString().split(' ')[0];
+                            });
                           }
-                          // Check uniqueness only for new DCs
-                          if (widget.deliveryChallan == null) {
-                            final existingDCs = ref.read(deliveryChallanListProvider);
-                            if (existingDCs.any((dc) => dc.dcNo == value.trim())) {
-                              return 'DC number already exists';
-                            }
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please select date';
                           }
                           return null;
                         },
                       ),
                     ),
-                    const SizedBox(width: 16),
                   ],
-                  // Show auto-generated DC number for job orders and internal outward
-                  if (widget.presetDcType == 'job_order' || 
-                      (widget.presetDcType == 'internal' && widget.presetInternalFlow == 'outward')) ...[
-                    Expanded(
-                      child: TextFormField(
-                        controller: _dcNoController,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          labelText: widget.presetDcType == 'job_order' 
-                              ? 'Job Order DC Number'
-                              : 'DC Number',
-                          border: const OutlineInputBorder(),
-                          suffixIcon: const Icon(Icons.confirmation_number),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                  ],
-                  Expanded(
-                    child: TextFormField(
-                      readOnly: true,
-                      decoration: InputDecoration(
-                        labelText: 'DC Date',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.calendar_today),
-                      ),
-                      controller: TextEditingController(text: _selectedDate),
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: DateTime.parse(_selectedDate),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2100),
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            _selectedDate = picked.toString().split(' ')[0];
-                          });
-                        }
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please select date';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Vendor Name Dropdown
-              DropdownButtonFormField2<Supplier>(
-                value: _selectedSupplier,
-                decoration: const InputDecoration(
-                  labelText: 'Vendor Name',
-                  border: OutlineInputBorder(),
-                ),
-                items: suppliers
-                    .map((supplier) => DropdownMenuItem(
-                          value: supplier,
-                          child: Text(supplier.name),
-                        ))
-                    .toList(),
-                onChanged: (supplier) {
-                  setState(() {
-                    _selectedSupplier = supplier;
-                    _vendorNameController.text = supplier?.name ?? '';
-                    _vendorEmailController.text = supplier?.email ?? '';
-                    _vendorGstinController.text = supplier?.gstNo ?? '';
-                  });
-                },
-                validator: (value) {
-                  if (value == null) {
-                    return 'Please select a vendor';
-                  }
-                  return null;
-                },
-                dropdownSearchData: DropdownSearchData(
-                  searchController: TextEditingController(),
-                  searchInnerWidgetHeight: 50,
-                  searchInnerWidget: Container(
-                    height: 50,
-                    padding: const EdgeInsets.only(
-                      top: 8,
-                      bottom: 4,
-                      right: 8,
-                      left: 8,
-                    ),
-                    child: TextFormField(
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        hintText: 'Search vendor...',
-                        hintStyle: const TextStyle(fontSize: 12),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-                  searchMatchFn: (item, searchValue) {
-                    return item.value!.name
-                        .toLowerCase()
-                        .contains(searchValue.toLowerCase());
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Read-only Email field
-              TextFormField(
-                controller: _vendorEmailController,
-                decoration: InputDecoration(
-                  labelText: 'Vendor Email',
-                  border: const OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Theme.of(context).disabledColor.withOpacity(0.1),
-                  prefixIconColor: Theme.of(context).disabledColor,
-                  suffixIconColor: Theme.of(context).disabledColor,
-                ),
-                style: TextStyle(color: Theme.of(context).disabledColor),
-                readOnly: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 16),
-              // Read-only GSTIN field
-              TextFormField(
-                controller: _vendorGstinController,
-                decoration: InputDecoration(
-                  labelText: 'Vendor GSTIN',
-                  border: const OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Theme.of(context).disabledColor.withOpacity(0.1),
-                  prefixIconColor: Theme.of(context).disabledColor,
-                  suffixIconColor: Theme.of(context).disabledColor,
-                ),
-                style: TextStyle(color: Theme.of(context).disabledColor),
-                readOnly: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 16),
-              CheckboxListTile(
-                title: const Text('Returnable'),
-                value: _isReturnable,
-                onChanged: (value) {
-                  setState(() {
-                    _isReturnable = value ?? false;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _noteController,
-                decoration: const InputDecoration(
-                  labelText: 'Note',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 24),
-              // Material Source Selection for JODC type
-              if (widget.presetDcType == 'job_order') ...[
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Material Source',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: RadioListTile<String>(
-                              title: const Text('Material Master'),
-                              value: 'material_master',
-                              groupValue: _materialSource,
-                              onChanged: (value) {
-                                setState(() {
-                                  _materialSource = value!;
-                                });
-                              },
-                              dense: true,
-                            ),
-                          ),
-                          Expanded(
-                            child: RadioListTile<String>(
-                              title: const Text('Customer Scope Material Issue Master'),
-                              value: 'customer_scope',
-                              groupValue: _materialSource,
-                              onChanged: (value) {
-                                setState(() {
-                                  _materialSource = value!;
-                                });
-                              },
-                              dense: true,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
                 ),
                 const SizedBox(height: 16),
-              ],
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Items',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                // Vendor Name Dropdown
+                DropdownButtonFormField2<Supplier>(
+                  value: _selectedSupplier,
+                  decoration: const InputDecoration(
+                    labelText: 'Vendor Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: suppliers
+                      .map((supplier) => DropdownMenuItem(
+                            value: supplier,
+                            child: Text(supplier.name),
+                          ))
+                      .toList(),
+                  onChanged: (supplier) {
+                    setState(() {
+                      _selectedSupplier = supplier;
+                      _vendorNameController.text = supplier?.name ?? '';
+                      _vendorEmailController.text = supplier?.email ?? '';
+                      _vendorGstinController.text = supplier?.gstNo ?? '';
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null) {
+                      return 'Please select a vendor';
+                    }
+                    return null;
+                  },
+                  dropdownSearchData: DropdownSearchData(
+                    searchController: _supplierSearchController,
+                    searchInnerWidgetHeight: 50,
+                    searchInnerWidget: Container(
+                      height: 50,
+                      padding: const EdgeInsets.only(
+                        top: 8,
+                        bottom: 4,
+                        right: 8,
+                        left: 8,
+                      ),
+                      child: TextFormField(
+                        controller: _supplierSearchController,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          hintText: 'Search vendor...',
+                          hintStyle: const TextStyle(fontSize: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    searchMatchFn: (item, searchValue) {
+                      return item.value!.name
+                          .toLowerCase()
+                          .contains(searchValue.toLowerCase());
+                    },
+                  ),
+                  onMenuStateChange: (isOpen) {
+                    if (!isOpen) _supplierSearchController.clear();
+                  },
+                ),
+                const SizedBox(height: 16),
+                // Read-only Email field
+                TextFormField(
+                  controller: _vendorEmailController,
+                  decoration: InputDecoration(
+                    labelText: 'Vendor Email',
+                    border: const OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Theme.of(context).disabledColor.withOpacity(0.1),
+                    prefixIconColor: Theme.of(context).disabledColor,
+                    suffixIconColor: Theme.of(context).disabledColor,
+                  ),
+                  style: TextStyle(color: Theme.of(context).disabledColor),
+                  readOnly: true,
+                  enabled: false,
+                ),
+                const SizedBox(height: 16),
+                // Read-only GSTIN field
+                TextFormField(
+                  controller: _vendorGstinController,
+                  decoration: InputDecoration(
+                    labelText: 'Vendor GSTIN',
+                    border: const OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Theme.of(context).disabledColor.withOpacity(0.1),
+                    prefixIconColor: Theme.of(context).disabledColor,
+                    suffixIconColor: Theme.of(context).disabledColor,
+                  ),
+                  style: TextStyle(color: Theme.of(context).disabledColor),
+                  readOnly: true,
+                  enabled: false,
+                ),
+                const SizedBox(height: 16),
+                CheckboxListTile(
+                  title: const Text('Returnable'),
+                  value: _isReturnable,
+                  onChanged: (value) {
+                    setState(() {
+                      _isReturnable = value ?? false;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Note',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 24),
+                // Material Source Selection for JODC type
+                if (widget.presetDcType == 'job_order') ...[
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Material Source',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: RadioListTile<String>(
+                                title: const Text('Material Master'),
+                                value: 'material_master',
+                                groupValue: _materialSource,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _materialSource = value!;
+                                  });
+                                },
+                                dense: true,
+                              ),
+                            ),
+                            Expanded(
+                              child: RadioListTile<String>(
+                                title: const Text(
+                                    'Customer Scope Material Issue Master'),
+                                value: 'customer_scope',
+                                groupValue: _materialSource,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _materialSource = value!;
+                                  });
+                                },
+                                dense: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  Row(
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () => _showBulkEntryDialog(),
-                        icon: const Icon(Icons.playlist_add),
-                        label: const Text('Bulk Entry'),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.icon(
-                        onPressed: _addNewItem,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Item'),
-                      ),
-                    ],
-                  ),
+                  const SizedBox(height: 16),
                 ],
-              ),
-              const SizedBox(height: 16),
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _items.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final item = _items[index];
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Material Code Selection
-                          Expanded(
-                            flex: 2,
-                            child: Autocomplete<Object>(
-                              key: ValueKey('material_code_${_materialSource}_$index'),
-                              fieldViewBuilder: (context, textEditingController,
-                                  focusNode, onFieldSubmitted) {
-                                // Set initial value without triggering rebuild
-                                WidgetsBinding.instance
-                                    .addPostFrameCallback((_) {
-                                  if (textEditingController.text.isEmpty &&
-                                      item.materialCode.isNotEmpty) {
-                                    textEditingController.text =
-                                        item.materialCode;
-                                  }
-                                });
-                                return TextFormField(
-                                  controller: textEditingController,
-                                  focusNode: focusNode,
-                                  decoration: InputDecoration(
-                                    labelText: 'Material Code',
-                                    border: const OutlineInputBorder(),
-                                    suffixIcon: widget.presetDcType == 'job_order'
-                                        ? Icon(
-                                            _materialSource == 'customer_scope'
-                                                ? Icons.inventory_2_outlined
-                                                : Icons.warehouse_outlined,
-                                            size: 18,
-                                            color: Colors.grey,
-                                          )
-                                        : null,
-                                  ),
-                                  validator: (v) {
-                                    if (v == null || v.isEmpty) {
-                                      return 'Required';
-                                    }
-                                    // Skip strict validation - Autocomplete already restricts to valid materials
-                                    return null;
-                                  },
-                                );
-                              },
-                              optionsViewBuilder:
-                                  (context, onSelected, options) {
-                                return Align(
-                                  alignment: Alignment.topLeft,
-                                  child: Material(
-                                    elevation: 4.0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      side: BorderSide(
-                                        color: Theme.of(context).dividerColor,
-                                      ),
-                                    ),
-                                    child: ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxHeight: 200,
-                                        maxWidth: 400,
-                                      ),
-                                      child: ListView.builder(
-                                        padding: const EdgeInsets.all(8.0),
-                                        itemCount: options.length,
-                                        itemBuilder: (context, index) {
-                                          final option =
-                                              options.elementAt(index);
-                                          final partNo = option is CustomerScopeMaterialIssueMaster
-                                              ? option.partNo
-                                              : (option as MaterialItem).partNo;
-                                          final description = option is CustomerScopeMaterialIssueMaster
-                                              ? option.description
-                                              : (option as MaterialItem).description;
-                                          return InkWell(
-                                            onTap: () => onSelected(option),
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                vertical: 12.0,
-                                                horizontal: 16.0,
-                                              ),
-                                              child: Text(
-                                                '$partNo - $description',
-                                                style: const TextStyle(
-                                                  fontSize: 14.0,
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                              displayStringForOption: (material) {
-                                if (material is DeliveryChallanItem) {
-                                  return material.materialCode;
-                                }
-                                if (material is CustomerScopeMaterialIssueMaster) {
-                                  return material.partNo;
-                                }
-                                return (material as MaterialItem).partNo;
-                              },
-                              optionsBuilder: (textEditingValue) {
-                                // For material return, show items from outward DCs for the selected vendor
-                                if (widget.presetDcType == 'material_return' && _selectedSupplier != null) {
-                                  if (textEditingValue.text.isEmpty) {
-                                    return outwardDcItems;
-                                  }
-                                  return outwardDcItems.where((item) => 
-                                    item.materialCode.toLowerCase().contains(textEditingValue.text.toLowerCase())
-                                  );
-                                }
-                                // For other DC types, use regular materials
-                                final availableMaterials = _getAvailableMaterials(materials, customerScopeMaterials);
-                                if (textEditingValue.text.isEmpty) {
-                                  return availableMaterials;
-                                }
-                                return availableMaterials.where((material) {
-                                  final partNo = material is CustomerScopeMaterialIssueMaster 
-                                      ? material.partNo 
-                                      : (material as MaterialItem).partNo;
-                                  return partNo.toLowerCase().contains(
-                                      textEditingValue.text.toLowerCase());
-                                });
-                              },
-                              onSelected: (material) {
-                                setState(() {
-                                  if (material is DeliveryChallanItem) {
-                                    // For material return, copy the item directly
-                                    _items[index] = DeliveryChallanItem(
-                                      materialCode: material.materialCode,
-                                      materialDescription: material.materialDescription,
-                                      unit: material.unit,
-                                      quantity: material.quantity,
-                                      jobNo: material.jobNo,
-                                      price: material.price,
-                                    );
-                                  } else if (material is CustomerScopeMaterialIssueMaster) {
-                                    _items[index] = DeliveryChallanItem(
-                                      materialCode: material.partNo,
-                                      materialDescription: material.description,
-                                      unit: material.unit,
-                                      quantity: item.quantity,
-                                      jobNo: item.jobNo,
-                                      price: item.price,
-                                    );
-                                  } else {
-                                    final m = material as MaterialItem;
-                                    _items[index] = DeliveryChallanItem(
-                                      materialCode: m.partNo,
-                                      materialDescription: m.description,
-                                      unit: m.unit,
-                                      quantity: item.quantity,
-                                      jobNo: item.jobNo,
-                                      price: item.price,
-                                    );
-                                  }
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // Material Description Selection
-                          Expanded(
-                            flex: 4,
-                            child: Autocomplete<Object>(
-                              key: ValueKey('material_desc_${_materialSource}_$index'),
-                              fieldViewBuilder: (context, textEditingController,
-                                  focusNode, onFieldSubmitted) {
-                                // Set initial value without triggering rebuild
-                                WidgetsBinding.instance
-                                    .addPostFrameCallback((_) {
-                                  if (textEditingController.text.isEmpty &&
-                                      item.materialDescription.isNotEmpty) {
-                                    textEditingController.text =
-                                        item.materialDescription;
-                                  }
-                                });
-                                return TextFormField(
-                                  controller: textEditingController,
-                                  focusNode: focusNode,
-                                  decoration: InputDecoration(
-                                    labelText: 'Description',
-                                    border: const OutlineInputBorder(),
-                                    suffixIcon: widget.presetDcType == 'job_order'
-                                        ? Icon(
-                                            _materialSource == 'customer_scope'
-                                                ? Icons.inventory_2_outlined
-                                                : Icons.warehouse_outlined,
-                                            size: 18,
-                                            color: Colors.grey,
-                                          )
-                                        : null,
-                                  ),
-                                  validator: (v) {
-                                    if (v == null || v.isEmpty) {
-                                      return 'Required';
-                                    }
-                                    // Skip strict validation - Autocomplete already restricts to valid materials
-                                    return null;
-                                  },
-                                );
-                              },
-                              optionsViewBuilder:
-                                  (context, onSelected, options) {
-                                return Align(
-                                  alignment: Alignment.topLeft,
-                                  child: Material(
-                                    elevation: 4.0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      side: BorderSide(
-                                        color: Theme.of(context).dividerColor,
-                                      ),
-                                    ),
-                                    child: ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxHeight: 200,
-                                        maxWidth: 600,
-                                      ),
-                                      child: ListView.builder(
-                                        padding: const EdgeInsets.all(8.0),
-                                        itemCount: options.length,
-                                        itemBuilder: (context, index) {
-                                          final option =
-                                              options.elementAt(index);
-                                          final description = option is CustomerScopeMaterialIssueMaster
-                                              ? option.description
-                                              : (option as MaterialItem).description;
-                                          return InkWell(
-                                            onTap: () => onSelected(option),
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                vertical: 12.0,
-                                                horizontal: 16.0,
-                                              ),
-                                              child: Text(
-                                                description,
-                                                style: const TextStyle(
-                                                  fontSize: 14.0,
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                              displayStringForOption: (material) {
-                                if (material is DeliveryChallanItem) {
-                                  return material.materialDescription;
-                                }
-                                if (material is CustomerScopeMaterialIssueMaster) {
-                                  return material.description;
-                                }
-                                return (material as MaterialItem).description;
-                              },
-                              optionsBuilder: (textEditingValue) {
-                                // For material return, show items from outward DCs for the selected vendor
-                                if (widget.presetDcType == 'material_return' && _selectedSupplier != null) {
-                                  if (textEditingValue.text.isEmpty) {
-                                    return outwardDcItems;
-                                  }
-                                  return outwardDcItems.where((item) => 
-                                    item.materialDescription.toLowerCase().contains(textEditingValue.text.toLowerCase())
-                                  );
-                                }
-                                // For other DC types, use regular materials
-                                final availableMaterials = _getAvailableMaterials(materials, customerScopeMaterials);
-                                if (textEditingValue.text.isEmpty) {
-                                  return availableMaterials;
-                                }
-                                return availableMaterials.where((material) {
-                                  final desc = material is CustomerScopeMaterialIssueMaster 
-                                      ? material.description 
-                                      : (material as MaterialItem).description;
-                                  return desc.toLowerCase().contains(
-                                      textEditingValue.text.toLowerCase());
-                                });
-                              },
-                              onSelected: (material) {
-                                setState(() {
-                                  if (material is DeliveryChallanItem) {
-                                    // For material return, copy the item directly
-                                    _items[index] = DeliveryChallanItem(
-                                      materialCode: material.materialCode,
-                                      materialDescription: material.materialDescription,
-                                      unit: material.unit,
-                                      quantity: material.quantity,
-                                      jobNo: material.jobNo,
-                                      price: material.price,
-                                    );
-                                  } else if (material is CustomerScopeMaterialIssueMaster) {
-                                    _items[index] = DeliveryChallanItem(
-                                      materialCode: material.partNo,
-                                      materialDescription: material.description,
-                                      unit: material.unit,
-                                      quantity: item.quantity,
-                                      jobNo: item.jobNo,
-                                      price: item.price,
-                                    );
-                                  } else {
-                                    final m = material as MaterialItem;
-                                    _items[index] = DeliveryChallanItem(
-                                      materialCode: m.partNo,
-                                      materialDescription: m.description,
-                                      unit: m.unit,
-                                      quantity: item.quantity,
-                                      jobNo: item.jobNo,
-                                      price: item.price,
-                                    );
-                                  }
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              initialValue: item.quantity.toString(),
-                              decoration: InputDecoration(
-                                labelText: 'Quantity (${item.unit})',
-                                border: const OutlineInputBorder(),
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter quantity';
-                                }
-                                final qty = double.tryParse(value);
-                                if (qty == null || qty <= 0) {
-                                  return 'Please enter a valid quantity';
-                                }
-                                return null;
-                              },
-                              onChanged: (value) {
-                                final qty = double.tryParse(value) ?? 0;
-                                setState(() {
-                                  _items[index] = item.copyWith(quantity: qty);
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              initialValue: item.price.toString(),
-                              decoration: const InputDecoration(
-                                labelText: 'Price',
-                                border: OutlineInputBorder(),
-                              ),
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return null;
-                                }
-                                final price = double.tryParse(value);
-                                if (price == null || price < 0) {
-                                  return 'Invalid price';
-                                }
-                                return null;
-                              },
-                              onChanged: (value) {
-                                final price = double.tryParse(value) ?? 0.0;
-                                setState(() {
-                                  _items[index] = item.copyWith(price: price);
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DropdownButtonFormField2<String>(
-                              isExpanded: true,
-                              value: item.jobNo ?? 'General',
-                              decoration: const InputDecoration(
-                                labelText: 'Job No',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: [
-                                const DropdownMenuItem(
-                                  value: 'General',
-                                  child: Text('General'),
-                                ),
-                                ...saleOrders
-                                    .where((order) => order.boardNo.isNotEmpty)
-                                    .map((order) => order.boardNo)
-                                    .toSet() // Remove duplicates
-                                    .map((boardNo) => DropdownMenuItem(
-                                          value: boardNo,
-                                          child: Text(boardNo),
-                                        )),
-                              ],
-                              onChanged: (value) {
-                                setState(() {
-                                  _items[index] = item.copyWith(
-                                    jobNo: value == 'General' ? null : value,
-                                  );
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            color: Colors.red,
-                            onPressed: () => _removeItem(index),
-                          ),
-                        ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Items',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  );
-                },
-              ),
-            ],
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => _showBulkEntryDialog(),
+                          icon: const Icon(Icons.playlist_add),
+                          label: const Text('Bulk Entry'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          onPressed: _addNewItem,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Item'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _items.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final item = _items[index];
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Material Code Selection
+                            Expanded(
+                              flex: 2,
+                              child: Autocomplete<Object>(
+                                key: ValueKey(
+                                    'material_code_${_materialSource}_$index'),
+                                fieldViewBuilder: (context,
+                                    textEditingController,
+                                    focusNode,
+                                    onFieldSubmitted) {
+                                  // Set initial value without triggering rebuild
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
+                                    if (textEditingController.text.isEmpty &&
+                                        item.materialCode.isNotEmpty) {
+                                      textEditingController.text =
+                                          item.materialCode;
+                                    }
+                                  });
+                                  return TextFormField(
+                                    controller: textEditingController,
+                                    focusNode: focusNode,
+                                    decoration: InputDecoration(
+                                      labelText: 'Material Code',
+                                      border: const OutlineInputBorder(),
+                                      suffixIcon: widget.presetDcType ==
+                                              'job_order'
+                                          ? Icon(
+                                              _materialSource ==
+                                                      'customer_scope'
+                                                  ? Icons.inventory_2_outlined
+                                                  : Icons.warehouse_outlined,
+                                              size: 18,
+                                              color: Colors.grey,
+                                            )
+                                          : null,
+                                    ),
+                                    validator: (v) {
+                                      if (v == null || v.isEmpty) {
+                                        return 'Required';
+                                      }
+                                      // Skip strict validation - Autocomplete already restricts to valid materials
+                                      return null;
+                                    },
+                                  );
+                                },
+                                optionsViewBuilder:
+                                    (context, onSelected, options) {
+                                  return Align(
+                                    alignment: Alignment.topLeft,
+                                    child: Material(
+                                      elevation: 4.0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        side: BorderSide(
+                                          color: Theme.of(context).dividerColor,
+                                        ),
+                                      ),
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          maxHeight: 200,
+                                          maxWidth: 400,
+                                        ),
+                                        child: ListView.builder(
+                                          padding: const EdgeInsets.all(8.0),
+                                          itemCount: options.length,
+                                          itemBuilder: (context, index) {
+                                            final option =
+                                                options.elementAt(index);
+                                            final partNo = option
+                                                    is CustomerScopeMaterialIssueMaster
+                                                ? option.partNo
+                                                : (option as MaterialItem)
+                                                    .partNo;
+                                            final description = option
+                                                    is CustomerScopeMaterialIssueMaster
+                                                ? option.description
+                                                : (option as MaterialItem)
+                                                    .description;
+                                            return InkWell(
+                                              onTap: () => onSelected(option),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  vertical: 12.0,
+                                                  horizontal: 16.0,
+                                                ),
+                                                child: Text(
+                                                  '$partNo - $description',
+                                                  style: const TextStyle(
+                                                    fontSize: 14.0,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                displayStringForOption: (material) {
+                                  if (material is DeliveryChallanItem) {
+                                    return material.materialCode;
+                                  }
+                                  if (material
+                                      is CustomerScopeMaterialIssueMaster) {
+                                    return material.partNo;
+                                  }
+                                  return (material as MaterialItem).partNo;
+                                },
+                                optionsBuilder: (textEditingValue) {
+                                  // For material return, show items from outward DCs for the selected vendor
+                                  if (widget.presetDcType ==
+                                          'material_return' &&
+                                      _selectedSupplier != null) {
+                                    if (textEditingValue.text.isEmpty) {
+                                      return outwardDcItems;
+                                    }
+                                    return outwardDcItems.where((item) => item
+                                        .materialCode
+                                        .toLowerCase()
+                                        .contains(textEditingValue.text
+                                            .toLowerCase()));
+                                  }
+                                  // For other DC types, use regular materials
+                                  final availableMaterials =
+                                      _getAvailableMaterials(
+                                          materials, customerScopeMaterials);
+                                  if (textEditingValue.text.isEmpty) {
+                                    return availableMaterials;
+                                  }
+                                  return availableMaterials.where((material) {
+                                    final partNo = material
+                                            is CustomerScopeMaterialIssueMaster
+                                        ? material.partNo
+                                        : (material as MaterialItem).partNo;
+                                    return partNo.toLowerCase().contains(
+                                        textEditingValue.text.toLowerCase());
+                                  });
+                                },
+                                onSelected: (material) {
+                                  setState(() {
+                                    if (material is DeliveryChallanItem) {
+                                      // For material return, copy the item directly
+                                      _items[index] = DeliveryChallanItem(
+                                        materialCode: material.materialCode,
+                                        materialDescription:
+                                            material.materialDescription,
+                                        unit: material.unit,
+                                        quantity: material.quantity,
+                                        jobNo: material.jobNo,
+                                        price: material.price,
+                                      );
+                                    } else if (material
+                                        is CustomerScopeMaterialIssueMaster) {
+                                      _items[index] = DeliveryChallanItem(
+                                        materialCode: material.partNo,
+                                        materialDescription:
+                                            material.description,
+                                        unit: material.unit,
+                                        quantity: item.quantity,
+                                        jobNo: item.jobNo,
+                                        price: item.price,
+                                      );
+                                    } else {
+                                      final m = material as MaterialItem;
+                                      _items[index] = DeliveryChallanItem(
+                                        materialCode: m.partNo,
+                                        materialDescription: m.description,
+                                        unit: m.unit,
+                                        quantity: item.quantity,
+                                        jobNo: item.jobNo,
+                                        price: item.price,
+                                      );
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Material Description Selection
+                            Expanded(
+                              flex: 4,
+                              child: Autocomplete<Object>(
+                                key: ValueKey(
+                                    'material_desc_${_materialSource}_$index'),
+                                fieldViewBuilder: (context,
+                                    textEditingController,
+                                    focusNode,
+                                    onFieldSubmitted) {
+                                  // Set initial value without triggering rebuild
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
+                                    if (textEditingController.text.isEmpty &&
+                                        item.materialDescription.isNotEmpty) {
+                                      textEditingController.text =
+                                          item.materialDescription;
+                                    }
+                                  });
+                                  return TextFormField(
+                                    controller: textEditingController,
+                                    focusNode: focusNode,
+                                    decoration: InputDecoration(
+                                      labelText: 'Description',
+                                      border: const OutlineInputBorder(),
+                                      suffixIcon: widget.presetDcType ==
+                                              'job_order'
+                                          ? Icon(
+                                              _materialSource ==
+                                                      'customer_scope'
+                                                  ? Icons.inventory_2_outlined
+                                                  : Icons.warehouse_outlined,
+                                              size: 18,
+                                              color: Colors.grey,
+                                            )
+                                          : null,
+                                    ),
+                                    validator: (v) {
+                                      if (v == null || v.isEmpty) {
+                                        return 'Required';
+                                      }
+                                      // Skip strict validation - Autocomplete already restricts to valid materials
+                                      return null;
+                                    },
+                                  );
+                                },
+                                optionsViewBuilder:
+                                    (context, onSelected, options) {
+                                  return Align(
+                                    alignment: Alignment.topLeft,
+                                    child: Material(
+                                      elevation: 4.0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        side: BorderSide(
+                                          color: Theme.of(context).dividerColor,
+                                        ),
+                                      ),
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          maxHeight: 200,
+                                          maxWidth: 600,
+                                        ),
+                                        child: ListView.builder(
+                                          padding: const EdgeInsets.all(8.0),
+                                          itemCount: options.length,
+                                          itemBuilder: (context, index) {
+                                            final option =
+                                                options.elementAt(index);
+                                            final description = option
+                                                    is CustomerScopeMaterialIssueMaster
+                                                ? option.description
+                                                : (option as MaterialItem)
+                                                    .description;
+                                            return InkWell(
+                                              onTap: () => onSelected(option),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  vertical: 12.0,
+                                                  horizontal: 16.0,
+                                                ),
+                                                child: Text(
+                                                  description,
+                                                  style: const TextStyle(
+                                                    fontSize: 14.0,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                displayStringForOption: (material) {
+                                  if (material is DeliveryChallanItem) {
+                                    return material.materialDescription;
+                                  }
+                                  if (material
+                                      is CustomerScopeMaterialIssueMaster) {
+                                    return material.description;
+                                  }
+                                  return (material as MaterialItem).description;
+                                },
+                                optionsBuilder: (textEditingValue) {
+                                  // For material return, show items from outward DCs for the selected vendor
+                                  if (widget.presetDcType ==
+                                          'material_return' &&
+                                      _selectedSupplier != null) {
+                                    if (textEditingValue.text.isEmpty) {
+                                      return outwardDcItems;
+                                    }
+                                    return outwardDcItems.where((item) => item
+                                        .materialDescription
+                                        .toLowerCase()
+                                        .contains(textEditingValue.text
+                                            .toLowerCase()));
+                                  }
+                                  // For other DC types, use regular materials
+                                  final availableMaterials =
+                                      _getAvailableMaterials(
+                                          materials, customerScopeMaterials);
+                                  if (textEditingValue.text.isEmpty) {
+                                    return availableMaterials;
+                                  }
+                                  return availableMaterials.where((material) {
+                                    final desc = material
+                                            is CustomerScopeMaterialIssueMaster
+                                        ? material.description
+                                        : (material as MaterialItem)
+                                            .description;
+                                    return desc.toLowerCase().contains(
+                                        textEditingValue.text.toLowerCase());
+                                  });
+                                },
+                                onSelected: (material) {
+                                  setState(() {
+                                    if (material is DeliveryChallanItem) {
+                                      // For material return, copy the item directly
+                                      _items[index] = DeliveryChallanItem(
+                                        materialCode: material.materialCode,
+                                        materialDescription:
+                                            material.materialDescription,
+                                        unit: material.unit,
+                                        quantity: material.quantity,
+                                        jobNo: material.jobNo,
+                                        price: material.price,
+                                      );
+                                    } else if (material
+                                        is CustomerScopeMaterialIssueMaster) {
+                                      _items[index] = DeliveryChallanItem(
+                                        materialCode: material.partNo,
+                                        materialDescription:
+                                            material.description,
+                                        unit: material.unit,
+                                        quantity: item.quantity,
+                                        jobNo: item.jobNo,
+                                        price: item.price,
+                                      );
+                                    } else {
+                                      final m = material as MaterialItem;
+                                      _items[index] = DeliveryChallanItem(
+                                        materialCode: m.partNo,
+                                        materialDescription: m.description,
+                                        unit: m.unit,
+                                        quantity: item.quantity,
+                                        jobNo: item.jobNo,
+                                        price: item.price,
+                                      );
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: TextFormField(
+                                initialValue: item.quantity.toString(),
+                                decoration: InputDecoration(
+                                  labelText: 'Quantity (${item.unit})',
+                                  border: const OutlineInputBorder(),
+                                ),
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter quantity';
+                                  }
+                                  final qty = double.tryParse(value);
+                                  if (qty == null || qty <= 0) {
+                                    return 'Please enter a valid quantity';
+                                  }
+                                  return null;
+                                },
+                                onChanged: (value) {
+                                  final qty = double.tryParse(value) ?? 0;
+                                  setState(() {
+                                    _items[index] =
+                                        item.copyWith(quantity: qty);
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                initialValue: item.price.toString(),
+                                decoration: const InputDecoration(
+                                  labelText: 'Price',
+                                  border: OutlineInputBorder(),
+                                ),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                  decimal: true,
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return null;
+                                  }
+                                  final price = double.tryParse(value);
+                                  if (price == null || price < 0) {
+                                    return 'Invalid price';
+                                  }
+                                  return null;
+                                },
+                                onChanged: (value) {
+                                  final price = double.tryParse(value) ?? 0.0;
+                                  setState(() {
+                                    _items[index] = item.copyWith(price: price);
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonFormField2<String>(
+                                isExpanded: true,
+                                value: widget.presetDcType == 'job_order'
+                                    ? item.jobNo
+                                    : (item.jobNo ?? 'General'),
+                                decoration: const InputDecoration(
+                                  labelText: 'Board / Job No',
+                                  border: OutlineInputBorder(),
+                                ),
+                                items: [
+                                  if (widget.presetDcType != 'job_order')
+                                    const DropdownMenuItem(
+                                      value: 'General',
+                                      child: Text('General'),
+                                    ),
+                                  ...boardJobs
+                                      .map((boardNo) => DropdownMenuItem(
+                                            value: boardNo,
+                                            child: Text(boardNo),
+                                          )),
+                                ],
+                                dropdownSearchData: DropdownSearchData(
+                                  searchController: _jobSearchController,
+                                  searchInnerWidgetHeight: 50,
+                                  searchInnerWidget: Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: TextFormField(
+                                      controller: _jobSearchController,
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        labelText: 'Search Board / Job No',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+                                  ),
+                                  searchMatchFn: (item, searchValue) =>
+                                      item.value?.toLowerCase().contains(
+                                          searchValue.toLowerCase()) ??
+                                      false,
+                                ),
+                                onMenuStateChange: (isOpen) {
+                                  if (!isOpen) _jobSearchController.clear();
+                                },
+                                onChanged: (value) {
+                                  setState(() {
+                                    _items[index] = item.copyWith(
+                                      jobNo: value == 'General' ? null : value,
+                                    );
+                                  });
+                                },
+                                validator: widget.presetDcType == 'job_order'
+                                    ? (value) =>
+                                        value == null || value == 'General'
+                                            ? 'Select a Board / Job No'
+                                            : null
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              color: Colors.red,
+                              onPressed: () => _removeItem(index),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ),

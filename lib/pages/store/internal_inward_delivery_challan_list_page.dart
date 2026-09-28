@@ -79,14 +79,17 @@ class _InternalInwardDeliveryChallanListPageState
     List<DeliveryChallan> deliveryChallans,
     List<Supplier> suppliers,
   ) {
-    return deliveryChallans.map((dc) {
+    final List<PlutoRow> rows = [];
+
+    for (final dc in deliveryChallans) {
       final fromVendor = (dc.fromVendor ?? '').trim();
       final toVendor = (dc.toVendor ?? '').trim();
       final counterpartyName = fromVendor;
       Supplier? counterparty;
       if (counterpartyName.isNotEmpty) {
         try {
-          counterparty = suppliers.firstWhere((s) => s.name == counterpartyName);
+          counterparty =
+              suppliers.firstWhere((s) => s.name == counterpartyName);
         } catch (_) {
           counterparty = null;
         }
@@ -104,37 +107,31 @@ class _InternalInwardDeliveryChallanListPageState
           ? (dc.vendorEmail ?? '')
           : (counterparty?.email ?? '');
 
-      // Build text representations for Items, Quantities, and Prices
-      final itemsText = dc.items
-          .map((item) =>
-              '${item.materialCode} - ${item.materialDescription} (Job: ${item.jobNo ?? "General"}${item.prNo != null ? " | PR: ${item.prNo}" : ""})')
-          .join('\n');
+      for (final item in dc.items) {
+        rows.add(PlutoRow(cells: {
+          'dcNo': PlutoCell(value: dc.dcNo),
+          'date': PlutoCell(value: dc.dcDate),
+          'fromVendor': PlutoCell(value: fromVendor),
+          'toVendor': PlutoCell(value: toVendor),
+          'gstin': PlutoCell(value: gstin),
+          'email': PlutoCell(value: email),
+          'returnable': PlutoCell(value: dc.isReturnable ? 'Yes' : 'No'),
+          'note': PlutoCell(value: dc.note ?? ''),
+          'itemCode': PlutoCell(value: item.materialCode),
+          'itemDescription': PlutoCell(value: item.materialDescription),
+          'jobNo': PlutoCell(value: item.jobNo ?? 'General'),
+          'prNo': PlutoCell(value: item.prNo ?? ''),
+          'quantity': PlutoCell(value: '${item.quantity} ${item.unit}'),
+          'unitPrice': PlutoCell(value: '₹${item.price.toStringAsFixed(2)}'),
+          'totalPrice':
+              PlutoCell(value: (item.quantity * item.price).toStringAsFixed(2)),
+          'dcTotalPrice': PlutoCell(value: totalPrice.toStringAsFixed(2)),
+          'actions': PlutoCell(value: dc),
+        }));
+      }
+    }
 
-      final quantitiesText = dc.items
-          .map((item) => '${item.quantity} ${item.unit}')
-          .join('\n');
-
-      final pricesText = dc.items
-          .map((item) =>
-              'Unit: ₹${item.price.toStringAsFixed(2)} | Total: ₹${(item.quantity * item.price).toStringAsFixed(2)}')
-          .join('\n');
-
-      return PlutoRow(cells: {
-        'dcNo': PlutoCell(value: dc.dcNo),
-        'date': PlutoCell(value: dc.dcDate),
-        'fromVendor': PlutoCell(value: fromVendor),
-        'toVendor': PlutoCell(value: toVendor),
-        'gstin': PlutoCell(value: gstin),
-        'email': PlutoCell(value: email),
-        'items': PlutoCell(value: itemsText),
-        'quantities': PlutoCell(value: quantitiesText),
-        'prices': PlutoCell(value: pricesText),
-        'totalPrice': PlutoCell(value: totalPrice.toStringAsFixed(2)),
-        'returnable': PlutoCell(value: dc.isReturnable ? 'Yes' : 'No'),
-        'note': PlutoCell(value: dc.note ?? ''),
-        'actions': PlutoCell(value: dc),
-      });
-    }).toList();
+    return rows;
   }
 
   @override
@@ -204,89 +201,66 @@ class _InternalInwardDeliveryChallanListPageState
         width: 150,
       ),
       PlutoColumn(
-        title: 'Items',
-        field: 'items',
-        type: PlutoColumnType.text(),
-        enableEditingMode: false,
-        width: 350,
-        renderer: (rendererContext) {
-          final itemsText = rendererContext.cell.value as String;
-          return Container(
-            constraints: const BoxConstraints(maxHeight: 200),
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                child: Text(
-                  itemsText,
-                  style: const TextStyle(fontSize: 12),
-                  maxLines: null,
-                  softWrap: true,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-      PlutoColumn(
-        title: 'Quantities',
-        field: 'quantities',
+        title: 'Item Code',
+        field: 'itemCode',
         type: PlutoColumnType.text(),
         enableEditingMode: false,
         width: 120,
-        renderer: (rendererContext) {
-          final quantitiesText = rendererContext.cell.value as String;
-          return Container(
-            constraints: const BoxConstraints(maxHeight: 200),
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                child: Text(
-                  quantitiesText,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-            ),
-          );
-        },
       ),
       PlutoColumn(
-        title: 'Individual Prices',
-        field: 'prices',
+        title: 'Item Description',
+        field: 'itemDescription',
         type: PlutoColumnType.text(),
         enableEditingMode: false,
-        width: 200,
-        renderer: (rendererContext) {
-          final pricesText = rendererContext.cell.value as String;
-          return Container(
-            constraints: const BoxConstraints(maxHeight: 200),
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                child: Text(
-                  pricesText,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-            ),
-          );
-        },
+        width: 250,
       ),
       PlutoColumn(
-        title: 'Total Price',
+        title: 'Job No',
+        field: 'jobNo',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 100,
+      ),
+      PlutoColumn(
+        title: 'PR No',
+        field: 'prNo',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 100,
+      ),
+      PlutoColumn(
+        title: 'Quantity',
+        field: 'quantity',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 100,
+      ),
+      PlutoColumn(
+        title: 'Unit Price',
+        field: 'unitPrice',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 100,
+        titleTextAlign: PlutoColumnTextAlign.right,
+        textAlign: PlutoColumnTextAlign.right,
+      ),
+      PlutoColumn(
+        title: 'Item Total',
         field: 'totalPrice',
         type: PlutoColumnType.text(),
         enableEditingMode: false,
-        width: 120,
+        width: 100,
         titleTextAlign: PlutoColumnTextAlign.right,
         textAlign: PlutoColumnTextAlign.right,
-        renderer: (rendererContext) {
-          final value = rendererContext.cell.value;
-          return Text(
-            value == null || value.toString().isEmpty ? '0.00' : value.toString(),
-            textAlign: TextAlign.right,
-            style: const TextStyle(fontSize: 12),
-          );
-        },
+      ),
+      PlutoColumn(
+        title: 'DC Total',
+        field: 'dcTotalPrice',
+        type: PlutoColumnType.text(),
+        enableEditingMode: false,
+        width: 100,
+        titleTextAlign: PlutoColumnTextAlign.right,
+        textAlign: PlutoColumnTextAlign.right,
       ),
       PlutoColumn(
         title: 'Actions',

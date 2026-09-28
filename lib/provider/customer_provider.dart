@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/customer.dart';
 import 'base_provider.dart';
+import '../utils/company_config.dart';
 
 final customerBoxProvider = Provider<Box<Customer>>((ref) {
   throw UnimplementedError();
@@ -93,11 +94,14 @@ class CustomerNotifier extends BaseProvider<Customer> {
     final customers = state;
     int maxNumber = 0;
 
-    // Find the highest existing number in MPTCM-xxxxx format
+    final prefix = '${companyCodePrefix}CM-';
+    final altPrefix = companyCodePrefix == 'MPT' ? 'AICM-' : 'MPTCM-';
+
     for (var customer in customers) {
       final code = customer.customerCode;
-      if (code.startsWith('MPTCM-') && code.length >= 11) {
-        final numberPart = code.substring(6); // Remove "MPTCM-" prefix
+      if ((code.startsWith(prefix) || code.startsWith(altPrefix)) &&
+          code.contains('-')) {
+        final numberPart = code.substring(code.lastIndexOf('-') + 1);
         final number = int.tryParse(numberPart);
         if (number != null && number > maxNumber) {
           maxNumber = number;
@@ -105,9 +109,8 @@ class CustomerNotifier extends BaseProvider<Customer> {
       }
     }
 
-    // Generate next sequential number with leading zeros
     final nextNumber = maxNumber + 1;
-    return 'MPTCM-${nextNumber.toString().padLeft(5, '0')}';
+    return '$prefix${nextNumber.toString().padLeft(5, '0')}';
   }
 
   // Search customers with custom matcher

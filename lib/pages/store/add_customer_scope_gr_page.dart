@@ -13,6 +13,8 @@ import '../../provider/customer_provider.dart';
 import '../../models/purchase_request.dart';
 import '../../models/pr_item.dart';
 import '../../provider/purchase_request_provider.dart';
+import '../../models/sale_order.dart';
+import '../../provider/sale_order_provider.dart';
 import 'package:mpt_ims/pages/store/select_jobs_dialog.dart';
 import '../planning/add_customer_free_issue_page.dart';
 
@@ -27,10 +29,12 @@ class AddCustomerScopeGRPage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AddCustomerScopeGRPage> createState() => _AddCustomerScopeGRPageState();
+  ConsumerState<AddCustomerScopeGRPage> createState() =>
+      _AddCustomerScopeGRPageState();
 }
 
-class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage> {
+class _AddCustomerScopeGRPageState
+    extends ConsumerState<AddCustomerScopeGRPage> {
   final _formKey = GlobalKey<FormState>();
   final _grnDateController = TextEditingController();
   final _invoiceNoController = TextEditingController();
@@ -38,17 +42,19 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
   final _invoiceAmountController = TextEditingController();
   final _receivedByController = TextEditingController();
   final _checkedByController = TextEditingController();
-  final TextEditingController _customerSearchController = TextEditingController();
-  final TextEditingController _partNumberFilterController = TextEditingController();
-  final TextEditingController _descriptionFilterController = TextEditingController();
+  final TextEditingController _customerSearchController =
+      TextEditingController();
 
   Customer? selectedCustomer;
   List<String> selectedJobs = ['All'];
-  
+
+  // Part numbers the user picked via "Add Material"
+  final Set<String> _addedMaterials = {};
+
   // Simplified data structure: Material -> PR -> Quantity
   Map<String, Map<String, TextEditingController>> prQtyControllers = {};
   Map<String, Map<String, TextEditingController>> priceControllers = {};
-  
+
   bool _isLoading = false;
 
   String _generateGRNNo() {
@@ -58,7 +64,7 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
   @override
   void initState() {
     super.initState();
-    
+
     // Load customer data
     Future.microtask(() async {
       try {
@@ -74,10 +80,9 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
 
     // Initialize for edit mode
     if (widget.existingGR != null) {
-      selectedCustomer = ref
-          .read(customerListProvider)
-          .firstWhere((c) => c.name == widget.existingGR!.customerName,
-              orElse: () => ref.read(customerListProvider).first);
+      selectedCustomer = ref.read(customerListProvider).firstWhere(
+          (c) => c.name == widget.existingGR!.customerName,
+          orElse: () => ref.read(customerListProvider).first);
       _grnDateController.text = widget.existingGR!.grnDate;
       _invoiceNoController.text = widget.existingGR!.invoiceNo;
       _invoiceDateController.text = widget.existingGR!.invoiceDate;
@@ -87,7 +92,8 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
       _checkedByController.text = widget.existingGR!.checkedBy;
     } else {
       _grnDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      _invoiceDateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      _invoiceDateController.text =
+          DateFormat('yyyy-MM-dd').format(DateTime.now());
     }
   }
 
@@ -100,9 +106,7 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
     _receivedByController.dispose();
     _checkedByController.dispose();
     _customerSearchController.dispose();
-    _partNumberFilterController.dispose();
-    _descriptionFilterController.dispose();
-    
+
     for (var prMap in prQtyControllers.values) {
       for (var controller in prMap.values) {
         controller.dispose();
@@ -127,17 +131,32 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
     return jobNos;
   }
 
+  Set<String> _getCustomerScopeJobNumbers(
+      List<SaleOrder> saleOrders, String? customerName) {
+    final jobNos = <String>{};
+    for (final order in saleOrders) {
+      if (!(order.isCustomerFreeIssueAvailable ?? false)) continue;
+      if (customerName != null && order.customerName != customerName) {
+        continue;
+      }
+      final jobNo = order.jobNo.trim();
+      if (jobNo.isNotEmpty) jobNos.add(jobNo);
+    }
+    return jobNos;
+  }
+
   bool _hasInputData(String materialPartNo) {
     final qtyControllers = prQtyControllers[materialPartNo];
     final priceControllersMap = priceControllers[materialPartNo];
-    
+
     if (qtyControllers == null || priceControllersMap == null) return false;
-    
+
     for (var entry in qtyControllers.entries) {
       final prNo = entry.key;
       final qty = double.tryParse(entry.value.text) ?? 0.0;
-      final price = double.tryParse(priceControllersMap[prNo]?.text ?? '0') ?? 0.0;
-      
+      final price =
+          double.tryParse(priceControllersMap[prNo]?.text ?? '0') ?? 0.0;
+
       if (qty > 0 || price > 0) {
         return true;
       }
@@ -154,7 +173,8 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
         final prNo = prEntry.key;
         final qty = double.tryParse(prEntry.value.text) ?? 0.0;
         final price = double.tryParse(
-            priceControllers[materialCode]?[prNo]?.text ?? '0') ?? 0.0;
+                priceControllers[materialCode]?[prNo]?.text ?? '0') ??
+            0.0;
         total += qty * price;
       }
     }
@@ -179,17 +199,18 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
     });
   }
 
-  Widget _buildItemCard(CustomerScopeMaterialIssueMaster material, List<PurchaseRequest> prs) {
+  Widget _buildItemCard(
+      CustomerScopeMaterialIssueMaster material, List<PurchaseRequest> prs) {
     // Initialize controllers for this material if not exists
     if (!prQtyControllers.containsKey(material.partNo)) {
       prQtyControllers[material.partNo] = {};
       priceControllers[material.partNo] = {};
-      
+
       for (var pr in prs) {
         final prItem = pr.items.firstWhere(
           (item) => item.materialCode == material.partNo,
         );
-        
+
         prQtyControllers[material.partNo]![pr.prNo] =
             TextEditingController(text: '0');
         priceControllers[material.partNo]![pr.prNo] =
@@ -216,23 +237,39 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
                 topRight: Radius.circular(8),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  material.description,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        material.description,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Code: ${material.partNo} | Unit: ${material.unit}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[400],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Code: ${material.partNo} | Unit: ${material.unit}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[400],
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Remove material',
+                  onPressed: () {
+                    _addedMaterials.remove(material.partNo);
+                    prQtyControllers.remove(material.partNo);
+                    priceControllers.remove(material.partNo);
+                    _updateInvoiceAmount();
+                  },
                 ),
               ],
             ),
@@ -242,7 +279,7 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
             final prItem = pr.items.firstWhere(
               (item) => item.materialCode == material.partNo,
             );
-            
+
             final totalRequired = double.tryParse(prItem.quantity) ?? 0.0;
             final totalReceived = prItem.totalReceivedQuantity;
             final pendingQty = totalRequired - totalReceived;
@@ -302,7 +339,8 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
                       SizedBox(
                         width: 120,
                         child: TextFormField(
-                          controller: priceControllers[material.partNo]![pr.prNo],
+                          controller:
+                              priceControllers[material.partNo]![pr.prNo],
                           decoration: const InputDecoration(
                             isDense: true,
                             contentPadding: EdgeInsets.symmetric(
@@ -320,7 +358,8 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
                       SizedBox(
                         width: 100,
                         child: TextFormField(
-                          controller: prQtyControllers[material.partNo]![pr.prNo],
+                          controller:
+                              prQtyControllers[material.partNo]![pr.prNo],
                           decoration: InputDecoration(
                             isDense: true,
                             contentPadding: const EdgeInsets.symmetric(
@@ -389,11 +428,11 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
       for (var entry in prQtyControllers.entries) {
         final materialCode = entry.key;
         final prControllers = entry.value;
-        
+
         final material = ref
             .read(customerScopeMaterialIssueMasterListProvider)
             .firstWhere((m) => m.partNo == materialCode);
-        
+
         double totalReceivedQty = 0;
         final inwardItem = InwardItem(
           materialCode: materialCode,
@@ -418,23 +457,24 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
 
           // Update PR item received quantity
           prItem.totalReceivedQuantity += qty;
-          
+
           // Update PR status
           pr.updateStatus();
           await prNotifier.update(pr);
 
           // Set price
           final price = double.tryParse(
-              priceControllers[materialCode]?[prNo]?.text ?? '0') ?? 0.0;
+                  priceControllers[materialCode]?[prNo]?.text ?? '0') ??
+              0.0;
           inwardItem.costPerUnit = price.toStringAsFixed(2);
 
           // Add to inward item (using PR as "PO" reference for compatibility)
           inwardItem.addPRQuantity(prNo, prNo, qty);
           inwardItem.addJobNumberForPR(prNo, prNo, pr.jobNo ?? 'General');
-          
+
           totalReceivedQty += qty;
           prNos.add(prNo);
-          
+
           inwardItem.orderedQty = double.tryParse(prItem.quantity) ?? 0.0;
         }
 
@@ -493,61 +533,125 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
     }
   }
 
+  Future<void> _showAddMaterialDialog(
+      List<CustomerScopeMaterialIssueMaster> available) async {
+    var query = '';
+    final picked = await showDialog<CustomerScopeMaterialIssueMaster>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final q = query.toLowerCase();
+          final results = available
+              .where((m) =>
+                  !_addedMaterials.contains(m.partNo) &&
+                  (m.partNo.toLowerCase().contains(q) ||
+                      m.description.toLowerCase().contains(q)))
+              .toList();
+          return AlertDialog(
+            title: Text('Add Material (${selectedJobs.join(', ')})'),
+            content: SizedBox(
+              width: 500,
+              height: 400,
+              child: Column(
+                children: [
+                  TextField(
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Search part number or description...',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => setDialogState(() => query = v.trim()),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: results.isEmpty
+                        ? const Center(child: Text('No matching materials'))
+                        : ListView.builder(
+                            itemCount: results.length,
+                            itemBuilder: (context, i) => ListTile(
+                              title: Text(results[i].description),
+                              subtitle: Text(
+                                  '${results[i].partNo} | ${results[i].unit}'),
+                              onTap: () => Navigator.pop(context, results[i]),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (picked != null) {
+      setState(() => _addedMaterials.add(picked.partNo));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final customers = ref.watch(customerListProvider);
-    
+    final saleOrders = ref.watch(saleOrderProvider);
+
     // Get CFI Purchase Requests for selected customer
-    final allPurchaseRequests = ref
-        .watch(purchaseRequestListProvider)
-        .where((pr) {
-          if (!pr.prNo.startsWith('CFI')) return false;
-          // Filter by selected customer if one is selected
-          if (selectedCustomer != null) {
-            return pr.customerName == selectedCustomer!.name;
-          }
-          return true;
-        })
-        .toList();
+    final allPurchaseRequests =
+        ref.watch(purchaseRequestListProvider).where((pr) {
+      if (!pr.prNo.startsWith('CFI')) return false;
+      // Filter by selected customer if one is selected
+      if (selectedCustomer != null) {
+        return pr.customerName == selectedCustomer!.name;
+      }
+      return true;
+    }).toList();
 
     // Get unique job numbers
-    final availableJobs = _getUniqueJobNumbers(allPurchaseRequests);
+    final availableJobs = {
+      ..._getCustomerScopeJobNumbers(saleOrders, selectedCustomer?.name),
+      ..._getUniqueJobNumbers(allPurchaseRequests),
+    };
 
-    // Get materials that have pending quantities in CFI PRs
-    var materials = ref.watch(customerScopeMaterialIssueMasterListProvider).where((material) {
-      // Apply part number filter
-      final partNumberFilter = _partNumberFilterController.text.trim().toLowerCase();
-      if (partNumberFilter.isNotEmpty && !material.partNo.toLowerCase().contains(partNumberFilter)) {
-        return false;
-      }
-      
-      // Apply description filter
-      final descriptionFilter = _descriptionFilterController.text.trim().toLowerCase();
-      if (descriptionFilter.isNotEmpty && !material.description.toLowerCase().contains(descriptionFilter)) {
-        return false;
-      }
-      
-      return allPurchaseRequests.any((pr) {
-        // Skip if job filter is active and this PR's job doesn't match
-        if (!selectedJobs.contains('All') && 
-            !selectedJobs.contains(pr.jobNo ?? '')) {
-          return false;
-        }
-        
-        final prItems = pr.items.where((item) => item.materialCode == material.partNo);
-        if (prItems.isEmpty) return false;
+    final jobSelected = !selectedJobs.contains('All');
 
-        for (var item in prItems) {
-          final totalRequired = double.tryParse(item.quantity) ?? 0.0;
-          final totalReceived = item.totalReceivedQuantity;
-          
-          if (totalReceived < totalRequired) {
-            return true;
-          }
-        }
-        return false;
-      });
-    }).toList();
+    // Materials with pending quantities in CFI PRs of the selected job(s)
+    final availableMaterials = !jobSelected
+        ? <CustomerScopeMaterialIssueMaster>[]
+        : ref
+            .watch(customerScopeMaterialIssueMasterListProvider)
+            .where((material) {
+            return allPurchaseRequests.any((pr) {
+              // Skip if job filter is active and this PR's job doesn't match
+              if (!selectedJobs.contains('All') &&
+                  !selectedJobs.contains(pr.jobNo ?? '')) {
+                return false;
+              }
+
+              final prItems = pr.items
+                  .where((item) => item.materialCode == material.partNo);
+              if (prItems.isEmpty) return false;
+
+              for (var item in prItems) {
+                final totalRequired = double.tryParse(item.quantity) ?? 0.0;
+                final totalReceived = item.totalReceivedQuantity;
+
+                if (totalReceived < totalRequired) {
+                  return true;
+                }
+              }
+              return false;
+            });
+          }).toList();
+
+    // Only show what the user added
+    final materials = availableMaterials
+        .where((m) => _addedMaterials.contains(m.partNo))
+        .toList();
 
     // Sort materials: ones with input data at the top, followed by the rest
     materials.sort((a, b) {
@@ -596,6 +700,9 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
                               selectedCustomer = value;
                               // Reset job selection when customer changes
                               selectedJobs = ['All'];
+                              _addedMaterials.clear();
+                              prQtyControllers.clear();
+                              priceControllers.clear();
                             });
                           },
                           dropdownSearchData: DropdownSearchData(
@@ -671,6 +778,7 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
                                       if (selectedJobs.contains('All')) {
                                         selectedJobs = ['All'];
                                       }
+                                      _addedMaterials.clear();
                                       prQtyControllers.clear();
                                       priceControllers.clear();
                                     });
@@ -678,17 +786,20 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
                                 },
                               ),
                             ),
-                            if (!selectedJobs.contains('All') && selectedJobs.length == 1)
+                            if (!selectedJobs.contains('All') &&
+                                selectedJobs.length == 1)
                               Padding(
                                 padding: const EdgeInsets.only(left: 8),
                                 child: IconButton(
                                   icon: const Icon(Icons.add_circle_outline),
-                                  tooltip: 'Create CFI PR for ${selectedJobs.first}',
+                                  tooltip:
+                                      'Create CFI PR for ${selectedJobs.first}',
                                   onPressed: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => AddCustomerFreeIssuePage(
+                                        builder: (_) =>
+                                            AddCustomerFreeIssuePage(
                                           existingRequest: null,
                                           index: null,
                                           initialJobNo: selectedJobs.first,
@@ -828,54 +939,15 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _partNumberFilterController,
-                          decoration: InputDecoration(
-                            labelText: 'Filter by Part Number',
-                            border: const OutlineInputBorder(),
-                            suffixIcon: _partNumberFilterController.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      setState(() {
-                                        _partNumberFilterController.clear();
-                                      });
-                                    },
-                                  )
-                                : null,
-                          ),
-                          onChanged: (value) {
-                            setState(() {});
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _descriptionFilterController,
-                          decoration: InputDecoration(
-                            labelText: 'Filter by Description',
-                            border: const OutlineInputBorder(),
-                            suffixIcon: _descriptionFilterController.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      setState(() {
-                                        _descriptionFilterController.clear();
-                                      });
-                                    },
-                                  )
-                                : null,
-                          ),
-                          onChanged: (value) {
-                            setState(() {});
-                          },
-                        ),
-                      ),
-                    ],
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Material'),
+                      onPressed: selectedCustomer == null || !jobSelected
+                          ? null
+                          : () => _showAddMaterialDialog(availableMaterials),
+                    ),
                   ),
                 ],
               ),
@@ -895,20 +967,27 @@ class _AddCustomerScopeGRPageState extends ConsumerState<AddCustomerScopeGRPage>
                                   size: 64, color: Colors.grey[600]),
                               const SizedBox(height: 16),
                               Text(
-                                'No pending materials for selected customer',
+                                !jobSelected
+                                    ? 'Select a job number to add materials'
+                                    : availableMaterials.isEmpty
+                                        ? 'No pending CFI PR materials for this job'
+                                        : 'Use "Add Material" to search materials for this job',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.grey[400],
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Create a CFI Purchase Request first',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[500],
+                              if (jobSelected &&
+                                  availableMaterials.isEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Create a CFI Purchase Request first',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[500],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                         )

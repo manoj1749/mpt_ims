@@ -11,8 +11,12 @@ import '../../provider/material_provider.dart';
 import '../../provider/customer_scope_material_issue_master_provider.dart';
 import '../../models/bill_of_preparation.dart';
 import '../../models/sale_order.dart';
+import '../../models/purchase_request.dart';
+import '../../models/pr_item.dart';
+import '../../provider/purchase_request_provider.dart';
 import '../../provider/bill_of_preparation_provider.dart';
 import '../../provider/sale_order_provider.dart';
+import '../../provider/store_inward_provider.dart';
 
 class AddBillOfPreparationPage extends ConsumerStatefulWidget {
   final BillOfPreparation? existingBop;
@@ -64,13 +68,13 @@ class CktTypeWithMaterials {
   String name;
   double quantity;
   List<MaterialAssignment> materials;
-  
+
   CktTypeWithMaterials({
     required this.name,
     required this.quantity,
     this.materials = const [],
   });
-  
+
   CktTypeWithMaterials copyWith({
     String? name,
     double? quantity,
@@ -90,7 +94,7 @@ class MaterialAssignment {
   String materialRawMaterial;
   double materialQuantity;
   String materialSource; // 'material_master' or 'customer_scope'
-  
+
   MaterialAssignment({
     required this.materialCode,
     required this.materialDescription,
@@ -98,7 +102,7 @@ class MaterialAssignment {
     this.materialRawMaterial = '',
     this.materialSource = 'material_master',
   });
-  
+
   MaterialAssignment copyWith({
     String? materialCode,
     String? materialDescription,
@@ -116,7 +120,8 @@ class MaterialAssignment {
   }
 }
 
-class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationPage> {
+class _AddBillOfPreparationPageState
+    extends ConsumerState<AddBillOfPreparationPage> {
   final _formKey = GlobalKey<FormState>();
   String _selectedBoardNo = '';
   List<CktTypeWithMaterials> _cktTypesWithMaterials = [];
@@ -144,22 +149,25 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         materials = ref.read(materialListProvider);
-        customerScopeMaterials = ref.read(customerScopeMaterialIssueMasterListProvider);
-        print('DEBUG: Loaded ${customerScopeMaterials.length} customer scope materials');
+        customerScopeMaterials =
+            ref.read(customerScopeMaterialIssueMasterListProvider);
+        print(
+            'DEBUG: Loaded ${customerScopeMaterials.length} customer scope materials');
         setState(() {});
       }
     });
-    
+
     if (widget.existingBop != null) {
       _selectedBoardNo = widget.existingBop!.jobNo;
       // Convert existing BOP to new structure
       _cktTypesWithMaterials = [];
       for (final cktType in widget.existingBop!.cktTypes) {
         // If cktTypeFilter is provided, only include that CKT type
-        if (widget.cktTypeFilter != null && cktType.name != widget.cktTypeFilter) {
+        if (widget.cktTypeFilter != null &&
+            cktType.name != widget.cktTypeFilter) {
           continue;
         }
-        
+
         final materialsForCktType = <MaterialAssignment>[];
         for (final material in widget.existingBop!.materials) {
           for (final materialCktType in material.cktTypes) {
@@ -167,7 +175,14 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
               // Find the material item to get raw material info
               final materialItem = materials.firstWhere(
                 (m) => m.partNo == material.materialCode,
-                orElse: () => MaterialItem(slNo: '', description: '', partNo: '', unit: '', category: '', subCategory: '', rawMaterial: ''),
+                orElse: () => MaterialItem(
+                    slNo: '',
+                    description: '',
+                    partNo: '',
+                    unit: '',
+                    category: '',
+                    subCategory: '',
+                    rawMaterial: ''),
               );
               materialsForCktType.add(MaterialAssignment(
                 materialCode: material.materialCode,
@@ -215,7 +230,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
                   final counts = <String, int>{};
                   for (final r in preview) {
                     if (r.normalizedKey.isEmpty) continue;
-                    counts[r.normalizedKey] = (counts[r.normalizedKey] ?? 0) + 1;
+                    counts[r.normalizedKey] =
+                        (counts[r.normalizedKey] ?? 0) + 1;
                   }
 
                   for (final r in preview) {
@@ -228,7 +244,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
 
                 recomputeDuplicateErrors();
 
-                final validCount = preview.where((r) => r.errors.isEmpty).length;
+                final validCount =
+                    preview.where((r) => r.errors.isEmpty).length;
                 final invalidCount = preview.length - validCount;
 
                 return AlertDialog(
@@ -242,9 +259,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
                         Text(
                           'Valid: $validCount    Errors: $invalidCount',
                           style: TextStyle(
-                            color: invalidCount > 0
-                                ? Colors.orange
-                                : Colors.green,
+                            color:
+                                invalidCount > 0 ? Colors.orange : Colors.green,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -400,7 +416,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Material masters are empty. Please add materials first.'),
+              content: Text(
+                  'Material masters are empty. Please add materials first.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -432,7 +449,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Unsupported file type: $ext. Please upload a CSV file.'),
+              content: Text(
+                  'Unsupported file type: $ext. Please upload a CSV file.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -440,7 +458,26 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
         return;
       }
 
-      final input = await file.readAsString();
+      String input;
+      try {
+        input = await file.readAsString();
+      } catch (e) {
+        try {
+          final bytes = await file.readAsBytes();
+          input = String.fromCharCodes(bytes);
+        } catch (e2) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Failed to read file with UTF-8 or fallback encoding. Please save the CSV file as UTF-8.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
       final rows = const CsvToListConverter().convert(input);
       if (rows.isEmpty) {
         if (mounted) {
@@ -454,7 +491,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
         return;
       }
 
-      final headers = rows.first.map((e) => e.toString().toLowerCase()).toList();
+      final headers =
+          rows.first.map((e) => e.toString().toLowerCase()).toList();
       int cktNameIndex = -1;
       int cktQtyIndex = -1;
       int sourceIndex = -1;
@@ -466,24 +504,34 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
         final h = headers[i];
         if (h.contains('ckt') && h.contains('type')) {
           cktNameIndex = i;
-        } else if (h.contains('ckt') && (h.contains('qty') || h.contains('quantity'))) {
+        } else if (h.contains('ckt') &&
+            (h.contains('qty') || h.contains('quantity'))) {
           cktQtyIndex = i;
         } else if (h.contains('source')) {
           sourceIndex = i;
-        } else if (h.contains('material code') || h.contains('part no') || h.contains('partno')) {
+        } else if (h.contains('material code') ||
+            h.contains('part no') ||
+            h.contains('partno')) {
           codeIndex = i;
         } else if (h == 'material' || h.contains('description')) {
           descIndex = i;
-        } else if (h.contains('material qty') || (h.contains('material') && (h.contains('qty') || h.contains('quantity')))) {
+        } else if (h.contains('material qty') ||
+            (h.contains('material') &&
+                (h.contains('qty') || h.contains('quantity')))) {
           qtyIndex = i;
         }
       }
 
-      if (cktNameIndex == -1 || cktQtyIndex == -1 || sourceIndex == -1 || codeIndex == -1 || qtyIndex == -1) {
+      if (cktNameIndex == -1 ||
+          cktQtyIndex == -1 ||
+          sourceIndex == -1 ||
+          codeIndex == -1 ||
+          qtyIndex == -1) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('CSV must have CKT Type, CKT Qty, Material Source, Material Code and Material Qty columns.'),
+              content: Text(
+                  'CSV must have CKT Type, CKT Qty, Material Source, Material Code and Material Qty columns.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -498,7 +546,11 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
         final row = dataRows[i];
         final rowNo = i + 2;
         if (row.isEmpty) continue;
-        if (row.length <= cktNameIndex || row.length <= cktQtyIndex || row.length <= sourceIndex || row.length <= codeIndex || row.length <= qtyIndex) {
+        if (row.length <= cktNameIndex ||
+            row.length <= cktQtyIndex ||
+            row.length <= sourceIndex ||
+            row.length <= codeIndex ||
+            row.length <= qtyIndex) {
           continue;
         }
 
@@ -511,7 +563,12 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
             ? (row[descIndex]?.toString().trim() ?? '')
             : '';
 
-        if (rawCktName.isEmpty && rawCktQty.isEmpty && rawSource.isEmpty && rawCode.isEmpty && rawMaterialQty.isEmpty && rawDesc.isEmpty) {
+        if (rawCktName.isEmpty &&
+            rawCktQty.isEmpty &&
+            rawSource.isEmpty &&
+            rawCode.isEmpty &&
+            rawMaterialQty.isEmpty &&
+            rawDesc.isEmpty) {
           continue;
         }
 
@@ -551,12 +608,14 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
           errors.add('Missing material code');
         } else {
           if (source == 'customer_scope') {
-            matchedCfi = cfiMaster.firstWhereOrNull((m) => _norm(m.partNo) == normalizedCode);
+            matchedCfi = cfiMaster
+                .firstWhereOrNull((m) => _norm(m.partNo) == normalizedCode);
             if (matchedCfi == null) {
               errors.add('Material code not found');
             }
           } else {
-            matchedMat = matMaster.firstWhereOrNull((m) => _norm(m.partNo) == normalizedCode);
+            matchedMat = matMaster
+                .firstWhereOrNull((m) => _norm(m.partNo) == normalizedCode);
             if (matchedMat == null) {
               errors.add('Material code not found');
             }
@@ -572,7 +631,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
           errors.add('Material qty must be > 0');
         }
 
-        final desc = matchedMat?.description ?? matchedCfi?.description ?? rawDesc;
+        final desc =
+            matchedMat?.description ?? matchedCfi?.description ?? rawDesc;
         final key = '${normalizedCkt}_${source}_${normalizedCode}';
 
         previewRows.add(
@@ -640,11 +700,12 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
               : '';
           final matQty = double.tryParse(r.materialQty.trim()) ?? 0.0;
 
-          final cktIndex = _cktTypesWithMaterials.indexWhere(
-              (c) => _norm(c.name) == _norm(cktName));
+          final cktIndex = _cktTypesWithMaterials
+              .indexWhere((c) => _norm(c.name) == _norm(cktName));
           CktTypeWithMaterials ckt;
           if (cktIndex == -1) {
-            ckt = CktTypeWithMaterials(name: cktName, quantity: cktQty, materials: []);
+            ckt = CktTypeWithMaterials(
+                name: cktName, quantity: cktQty, materials: []);
             _cktTypesWithMaterials.add(ckt);
           } else {
             ckt = _cktTypesWithMaterials[cktIndex];
@@ -673,7 +734,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
           }
 
           final updatedCkt = ckt.copyWith(materials: updatedMaterials);
-          final idx = _cktTypesWithMaterials.indexWhere((c) => _norm(c.name) == _norm(updatedCkt.name));
+          final idx = _cktTypesWithMaterials
+              .indexWhere((c) => _norm(c.name) == _norm(updatedCkt.name));
           if (idx != -1) {
             _cktTypesWithMaterials[idx] = updatedCkt;
           }
@@ -762,10 +824,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
                 final previewRows = <_BopCsvPreviewRow>[];
                 for (int i = 0; i < lines.length; i++) {
                   final rowNo = i + 1;
-                  final parts = lines[i]
-                      .split(',')
-                      .map((p) => p.trim())
-                      .toList();
+                  final parts =
+                      lines[i].split(',').map((p) => p.trim()).toList();
 
                   final errors = <String>[];
                   if (parts.length < 5) {
@@ -805,7 +865,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
                   }
 
                   String source = rawSource.toLowerCase();
-                  if (source != 'material_master' && source != 'customer_scope') {
+                  if (source != 'material_master' &&
+                      source != 'customer_scope') {
                     if (source.contains('material')) {
                       source = 'material_master';
                     } else if (source.contains('customer')) {
@@ -871,7 +932,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
                 );
                 if (!shouldImport) return;
 
-                final validRows = previewRows.where((r) => r.errors.isEmpty).toList();
+                final validRows =
+                    previewRows.where((r) => r.errors.isEmpty).toList();
                 if (validRows.isEmpty) return;
 
                 setState(() {
@@ -892,8 +954,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
                         : '';
                     final matQty = double.tryParse(r.materialQty.trim()) ?? 0.0;
 
-                    final cktIndex = _cktTypesWithMaterials.indexWhere(
-                        (c) => _norm(c.name) == _norm(cktName));
+                    final cktIndex = _cktTypesWithMaterials
+                        .indexWhere((c) => _norm(c.name) == _norm(cktName));
                     CktTypeWithMaterials ckt;
                     if (cktIndex == -1) {
                       ckt = CktTypeWithMaterials(
@@ -927,7 +989,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
                       updatedMaterials[existingMatIndex] = updatedAssignment;
                     }
 
-                    final updatedCkt = ckt.copyWith(materials: updatedMaterials);
+                    final updatedCkt =
+                        ckt.copyWith(materials: updatedMaterials);
                     final idx = _cktTypesWithMaterials.indexWhere(
                         (c) => _norm(c.name) == _norm(updatedCkt.name));
                     if (idx != -1) {
@@ -960,9 +1023,19 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
     for (final cktTypeWithMaterials in _cktTypesWithMaterials) {
       for (final materialAssignment in cktTypeWithMaterials.materials) {
         // Calculate: material quantity * CKT type quantity
-        total += materialAssignment.materialQuantity * cktTypeWithMaterials.quantity;
+        total +=
+            materialAssignment.materialQuantity * cktTypeWithMaterials.quantity;
       }
     }
+
+    // Subtract Customer Scope GR values for this job
+    if (_selectedBoardNo.isNotEmpty) {
+      final customerScopeGRValue = ref
+          .read(storeInwardProvider.notifier)
+          .getCustomerScopeGRValueForJob(_selectedBoardNo);
+      total -= customerScopeGRValue;
+    }
+
     setState(() {
       _finalValue = total;
     });
@@ -992,6 +1065,61 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
     });
   }
 
+  /// Creates/updates one CFI-BOP- PR holding all customer scope materials of
+  /// this BOP, so they show up in Customer Scope GR.
+  Future<void> _syncCustomerScopePr(BillOfPreparation bop) async {
+    final csMaterials =
+        bop.materials.where((m) => m.materialSource == 'customer_scope');
+    if (csMaterials.isEmpty) return;
+
+    final prNo = 'CFI-BOP-${bop.jobNo}-${bop.createdDate}';
+    final prNotifier = ref.read(purchaseRequestListProvider.notifier);
+    final existing = ref
+        .read(purchaseRequestListProvider)
+        .firstWhereOrNull((r) => r.prNo == prNo);
+    final order = ref
+        .read(saleOrderProvider)
+        .firstWhereOrNull((o) => o.jobNo == bop.jobNo);
+
+    final items = csMaterials.map((m) {
+      final qty = m.cktTypes.fold<double>(
+          0, (sum, c) => sum + c.cktTypeQuantity * c.materialQuantity);
+      final unit = customerScopeMaterials
+              .firstWhereOrNull((c) => c.partNo == m.materialCode)
+              ?.unit ??
+          '';
+      // Keep ordered/received progress when the BOP is edited
+      final old =
+          existing?.items.firstWhereOrNull((i) => i.materialCode == m.materialCode);
+      return PRItem(
+        materialCode: m.materialCode,
+        materialDescription: m.materialDescription,
+        unit: unit,
+        quantity: qty.toString(),
+        prNo: prNo,
+        orderedQuantities: old?.orderedQuantities,
+        totalReceivedQuantity: old?.totalReceivedQuantity ?? 0.0,
+      );
+    }).toList();
+
+    final request = PurchaseRequest(
+      prNo: prNo,
+      date: existing?.date ?? DateTime.now().toString().split(' ')[0],
+      requiredBy: existing?.requiredBy ?? '',
+      status: existing?.status,
+      items: items,
+      jobNo: bop.jobNo,
+      customerId: order?.customerName,
+      customerName: order?.customerName,
+    );
+
+    if (existing != null) {
+      await prNotifier.updateRequest(0, request);
+    } else {
+      await prNotifier.addRequest(request);
+    }
+  }
+
   Future<void> _saveBillOfPreparation() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
@@ -1018,7 +1146,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
 
       // Validate CKT types have names and quantities
       for (final cktTypeWithMaterials in _cktTypesWithMaterials) {
-        if (cktTypeWithMaterials.name.isEmpty || cktTypeWithMaterials.quantity <= 0) {
+        if (cktTypeWithMaterials.name.isEmpty ||
+            cktTypeWithMaterials.quantity <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('All CKT types must have names and quantities'),
@@ -1027,14 +1156,14 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
           );
           return;
         }
-        
+
         // Validate materials for this CKT type (only if materials are added)
         for (final material in cktTypeWithMaterials.materials) {
-          if (material.materialCode.isEmpty ||
-              material.materialQuantity <= 0) {
+          if (material.materialCode.isEmpty || material.materialQuantity <= 0) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('All materials must have valid codes and quantities'),
+                content:
+                    Text('All materials must have valid codes and quantities'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -1044,15 +1173,17 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
       }
 
       // Convert new structure back to BOP format
-      final cktTypes = _cktTypesWithMaterials.map((cktTypeWithMaterials) => CktType(
-        name: cktTypeWithMaterials.name,
-        quantity: cktTypeWithMaterials.quantity,
-      )).toList();
+      final cktTypes = _cktTypesWithMaterials
+          .map((cktTypeWithMaterials) => CktType(
+                name: cktTypeWithMaterials.name,
+                quantity: cktTypeWithMaterials.quantity,
+              ))
+          .toList();
 
       // Create materials from the new structure
       final materials = <BopMaterial>[];
       final materialMap = <String, BopMaterial>{};
-      
+
       for (final cktTypeWithMaterials in _cktTypesWithMaterials) {
         for (final materialAssignment in cktTypeWithMaterials.materials) {
           if (!materialMap.containsKey(materialAssignment.materialCode)) {
@@ -1063,7 +1194,7 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
               cktTypes: [],
             );
           }
-          
+
           final material = materialMap[materialAssignment.materialCode]!;
           material.cktTypes.add(MaterialCktType(
             cktTypeName: cktTypeWithMaterials.name,
@@ -1072,13 +1203,17 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
           ));
         }
       }
-      
+
       final materialsList = materialMap.values.toList();
 
       final notifier = ref.read(billOfPreparationProvider.notifier);
+      // Preserve original createdDate when editing, otherwise use current date
+      final createdDate = widget.existingBop?.createdDate ??
+          DateTime.now().toString().split(' ')[0];
+
       final bop = BillOfPreparation(
         jobNo: _selectedBoardNo!,
-        createdDate: DateTime.now().toString().split(' ')[0],
+        createdDate: createdDate,
         cktTypes: cktTypes,
         materials: materialsList,
         finalValue: _finalValue,
@@ -1090,6 +1225,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
         } else {
           await notifier.addBillOfPreparation(bop, ref);
         }
+
+        await _syncCustomerScopePr(bop);
 
         if (mounted) {
           Navigator.pop(context);
@@ -1125,6 +1262,20 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
         title: Text(widget.existingBop != null
             ? 'Edit Bill of Preparation'
             : 'New Bill of Preparation'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: ElevatedButton.icon(
+              onPressed: _saveBillOfPreparation,
+              icon: const Icon(Icons.save),
+              label: const Text('Save'),
+              style: ElevatedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+            ),
+          ),
+        ],
       ),
       body: Form(
         key: _formKey,
@@ -1147,7 +1298,8 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.warning_amber, color: Colors.orange.shade700),
+                          Icon(Icons.warning_amber,
+                              color: Colors.orange.shade700),
                           const SizedBox(width: 8),
                           Text(
                             'No Job Numbers Available',
@@ -1186,7 +1338,10 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
                 )
               else
                 DropdownButtonFormField2<String>(
-                  value: _selectedBoardNo.isNotEmpty && jobNumbers.contains(_selectedBoardNo) ? _selectedBoardNo : null,
+                  value: _selectedBoardNo.isNotEmpty &&
+                          jobNumbers.contains(_selectedBoardNo)
+                      ? _selectedBoardNo
+                      : null,
                   decoration: const InputDecoration(
                     labelText: 'Job Number',
                     border: OutlineInputBorder(),
@@ -1289,20 +1444,6 @@ class _AddBillOfPreparationPageState extends ConsumerState<AddBillOfPreparationP
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
-
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _saveBillOfPreparation,
-                  icon: const Icon(Icons.save),
-                  label: const Text('Save Bill of Preparation'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -1330,22 +1471,29 @@ class CktTypeWithMaterialsWidget extends StatelessWidget {
   });
 
   void _addMaterial(Function(CktTypeWithMaterials) onUpdate) {
-    final updatedMaterials = [...cktTypeWithMaterials.materials, MaterialAssignment(
-      materialCode: '',
-      materialDescription: '',
-      materialQuantity: 0,
-    )];
+    final updatedMaterials = [
+      ...cktTypeWithMaterials.materials,
+      MaterialAssignment(
+        materialCode: '',
+        materialDescription: '',
+        materialQuantity: 0,
+      )
+    ];
     onUpdate(cktTypeWithMaterials.copyWith(materials: updatedMaterials));
   }
 
-  void _updateMaterial(int materialIndex, MaterialAssignment updated, Function(CktTypeWithMaterials) onUpdate) {
-    final updatedMaterials = List<MaterialAssignment>.from(cktTypeWithMaterials.materials);
+  void _updateMaterial(int materialIndex, MaterialAssignment updated,
+      Function(CktTypeWithMaterials) onUpdate) {
+    final updatedMaterials =
+        List<MaterialAssignment>.from(cktTypeWithMaterials.materials);
     updatedMaterials[materialIndex] = updated;
     onUpdate(cktTypeWithMaterials.copyWith(materials: updatedMaterials));
   }
 
-  void _removeMaterial(int materialIndex, Function(CktTypeWithMaterials) onUpdate) {
-    final updatedMaterials = List<MaterialAssignment>.from(cktTypeWithMaterials.materials);
+  void _removeMaterial(
+      int materialIndex, Function(CktTypeWithMaterials) onUpdate) {
+    final updatedMaterials =
+        List<MaterialAssignment>.from(cktTypeWithMaterials.materials);
     updatedMaterials.removeAt(materialIndex);
     onUpdate(cktTypeWithMaterials.copyWith(materials: updatedMaterials));
   }
@@ -1387,7 +1535,8 @@ class CktTypeWithMaterialsWidget extends StatelessWidget {
                     keyboardType: TextInputType.number,
                     onChanged: (value) {
                       final quantity = double.tryParse(value) ?? 0;
-                      onUpdate(cktTypeWithMaterials.copyWith(quantity: quantity));
+                      onUpdate(
+                          cktTypeWithMaterials.copyWith(quantity: quantity));
                     },
                   ),
                 ),
@@ -1399,14 +1548,14 @@ class CktTypeWithMaterialsWidget extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // Materials Section for this CKT Type
             const Text(
               'Materials for this CKT Type',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            
+
             // List of Materials
             ...cktTypeWithMaterials.materials.asMap().entries.map((entry) {
               final materialIndex = entry.key;
@@ -1445,24 +1594,33 @@ class CktTypeWithMaterialsWidget extends StatelessWidget {
                                       child: RadioListTile<String>(
                                         title: const Text('Material Master'),
                                         value: 'material_master',
-                                        groupValue: materialAssignment.materialSource,
+                                        groupValue:
+                                            materialAssignment.materialSource,
                                         onChanged: (value) {
-                                          _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                            materialSource: value,
-                                          ), onUpdate);
+                                          _updateMaterial(
+                                              materialIndex,
+                                              materialAssignment.copyWith(
+                                                materialSource: value,
+                                              ),
+                                              onUpdate);
                                         },
                                         dense: true,
                                       ),
                                     ),
                                     Expanded(
                                       child: RadioListTile<String>(
-                                        title: const Text('Customer Free Issue'),
+                                        title:
+                                            const Text('Customer Free Issue'),
                                         value: 'customer_scope',
-                                        groupValue: materialAssignment.materialSource,
+                                        groupValue:
+                                            materialAssignment.materialSource,
                                         onChanged: (value) {
-                                          _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                            materialSource: value,
-                                          ), onUpdate);
+                                          _updateMaterial(
+                                              materialIndex,
+                                              materialAssignment.copyWith(
+                                                materialSource: value,
+                                              ),
+                                              onUpdate);
                                         },
                                         dense: true,
                                       ),
@@ -1478,45 +1636,75 @@ class CktTypeWithMaterialsWidget extends StatelessWidget {
                               Expanded(
                                 flex: 1,
                                 child: Autocomplete<Object>(
-                                  key: ValueKey('code_autocomplete_${materialIndex}_${materialAssignment.materialSource}'),
+                                  key: ValueKey(
+                                      'code_autocomplete_${materialIndex}_${materialAssignment.materialSource}'),
                                   optionsBuilder: (textEditingValue) {
-                                    final query = textEditingValue.text.toLowerCase().trim();
-                                    if (materialAssignment.materialSource == 'customer_scope') {
-                                      if (query.isEmpty) return customerScopeMaterials.cast<Object>();
-                                      return customerScopeMaterials.where((material) =>
-                                          material.partNo.toLowerCase().contains(query)).cast<Object>();
+                                    final query = textEditingValue.text
+                                        .toLowerCase()
+                                        .trim();
+                                    if (materialAssignment.materialSource ==
+                                        'customer_scope') {
+                                      if (query.isEmpty)
+                                        return customerScopeMaterials
+                                            .cast<Object>();
+                                      return customerScopeMaterials
+                                          .where((material) => material.partNo
+                                              .toLowerCase()
+                                              .contains(query))
+                                          .cast<Object>();
                                     } else {
-                                      if (query.isEmpty) return materials.cast<Object>();
-                                      return materials.where((material) =>
-                                          material.partNo.toLowerCase().contains(query)).cast<Object>();
+                                      if (query.isEmpty)
+                                        return materials.cast<Object>();
+                                      return materials
+                                          .where((material) => material.partNo
+                                              .toLowerCase()
+                                              .contains(query))
+                                          .cast<Object>();
                                     }
                                   },
                                   displayStringForOption: (material) {
-                                    if (material is CustomerScopeMaterialIssueMaster) {
+                                    if (material
+                                        is CustomerScopeMaterialIssueMaster) {
                                       return material.partNo;
                                     }
                                     return (material as MaterialItem).partNo;
                                   },
                                   onSelected: (Object selection) {
-                                    if (selection is CustomerScopeMaterialIssueMaster) {
-                                      _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                        materialCode: selection.partNo,
-                                        materialDescription: selection.description,
-                                        materialRawMaterial: '',
-                                      ), onUpdate);
+                                    if (selection
+                                        is CustomerScopeMaterialIssueMaster) {
+                                      _updateMaterial(
+                                          materialIndex,
+                                          materialAssignment.copyWith(
+                                            materialCode: selection.partNo,
+                                            materialDescription:
+                                                selection.description,
+                                            materialRawMaterial: '',
+                                          ),
+                                          onUpdate);
                                     } else if (selection is MaterialItem) {
-                                      _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                        materialCode: selection.partNo,
-                                        materialDescription: selection.description,
-                                        materialRawMaterial: selection.rawMaterial,
-                                      ), onUpdate);
+                                      _updateMaterial(
+                                          materialIndex,
+                                          materialAssignment.copyWith(
+                                            materialCode: selection.partNo,
+                                            materialDescription:
+                                                selection.description,
+                                            materialRawMaterial:
+                                                selection.rawMaterial,
+                                          ),
+                                          onUpdate);
                                     }
                                   },
-                                  fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                                  fieldViewBuilder: (context,
+                                      textEditingController,
+                                      focusNode,
+                                      onFieldSubmitted) {
                                     // Sync controller with current state
-                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                      if (textEditingController.text != materialAssignment.materialCode) {
-                                        textEditingController.text = materialAssignment.materialCode;
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                      if (textEditingController.text !=
+                                          materialAssignment.materialCode) {
+                                        textEditingController.text =
+                                            materialAssignment.materialCode;
                                       }
                                     });
                                     return TextFormField(
@@ -1527,26 +1715,62 @@ class CktTypeWithMaterialsWidget extends StatelessWidget {
                                         border: OutlineInputBorder(),
                                       ),
                                       onFieldSubmitted: (value) {
-                                        if (materialAssignment.materialSource == 'customer_scope') {
-                                          final foundMaterial = customerScopeMaterials.firstWhere(
-                                            (m) => m.partNo.toLowerCase() == value.toLowerCase(),
-                                            orElse: () => customerScopeMaterials.isNotEmpty ? customerScopeMaterials.first : CustomerScopeMaterialIssueMaster(slNo: '', description: '', partNo: '', unit: '', category: '', subCategory: ''),
+                                        if (materialAssignment.materialSource ==
+                                            'customer_scope') {
+                                          final foundMaterial =
+                                              customerScopeMaterials.firstWhere(
+                                            (m) =>
+                                                m.partNo.toLowerCase() ==
+                                                value.toLowerCase(),
+                                            orElse: () => customerScopeMaterials
+                                                    .isNotEmpty
+                                                ? customerScopeMaterials.first
+                                                : CustomerScopeMaterialIssueMaster(
+                                                    slNo: '',
+                                                    description: '',
+                                                    partNo: '',
+                                                    unit: '',
+                                                    category: '',
+                                                    subCategory: ''),
                                           );
-                                          _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                            materialCode: foundMaterial.partNo,
-                                            materialDescription: foundMaterial.description,
-                                            materialRawMaterial: '',
-                                          ), onUpdate);
+                                          _updateMaterial(
+                                              materialIndex,
+                                              materialAssignment.copyWith(
+                                                materialCode:
+                                                    foundMaterial.partNo,
+                                                materialDescription:
+                                                    foundMaterial.description,
+                                                materialRawMaterial: '',
+                                              ),
+                                              onUpdate);
                                         } else {
-                                          final foundMaterial = materials.firstWhere(
-                                            (m) => m.partNo.toLowerCase() == value.toLowerCase(),
-                                            orElse: () => materials.isNotEmpty ? materials.first : MaterialItem(slNo: '1', description: '', partNo: '', unit: '', category: '', subCategory: '', rawMaterial: ''),
+                                          final foundMaterial =
+                                              materials.firstWhere(
+                                            (m) =>
+                                                m.partNo.toLowerCase() ==
+                                                value.toLowerCase(),
+                                            orElse: () => materials.isNotEmpty
+                                                ? materials.first
+                                                : MaterialItem(
+                                                    slNo: '1',
+                                                    description: '',
+                                                    partNo: '',
+                                                    unit: '',
+                                                    category: '',
+                                                    subCategory: '',
+                                                    rawMaterial: ''),
                                           );
-                                          _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                            materialCode: foundMaterial.partNo,
-                                            materialDescription: foundMaterial.description,
-                                            materialRawMaterial: foundMaterial.rawMaterial,
-                                          ), onUpdate);
+                                          _updateMaterial(
+                                              materialIndex,
+                                              materialAssignment.copyWith(
+                                                materialCode:
+                                                    foundMaterial.partNo,
+                                                materialDescription:
+                                                    foundMaterial.description,
+                                                materialRawMaterial:
+                                                    foundMaterial.rawMaterial,
+                                              ),
+                                              onUpdate);
                                         }
                                       },
                                     );
@@ -1557,45 +1781,80 @@ class CktTypeWithMaterialsWidget extends StatelessWidget {
                               Expanded(
                                 flex: 1,
                                 child: Autocomplete<Object>(
-                                  key: ValueKey('desc_autocomplete_${materialIndex}_${materialAssignment.materialSource}'),
+                                  key: ValueKey(
+                                      'desc_autocomplete_${materialIndex}_${materialAssignment.materialSource}'),
                                   optionsBuilder: (textEditingValue) {
-                                    final query = textEditingValue.text.toLowerCase().trim();
-                                    if (materialAssignment.materialSource == 'customer_scope') {
-                                      if (query.isEmpty) return customerScopeMaterials.cast<Object>();
-                                      return customerScopeMaterials.where((material) =>
-                                          material.description.toLowerCase().contains(query)).cast<Object>();
+                                    final query = textEditingValue.text
+                                        .toLowerCase()
+                                        .trim();
+                                    if (materialAssignment.materialSource ==
+                                        'customer_scope') {
+                                      if (query.isEmpty)
+                                        return customerScopeMaterials
+                                            .cast<Object>();
+                                      return customerScopeMaterials
+                                          .where((material) => material
+                                              .description
+                                              .toLowerCase()
+                                              .contains(query))
+                                          .cast<Object>();
                                     } else {
-                                      if (query.isEmpty) return materials.cast<Object>();
-                                      return materials.where((material) =>
-                                          material.description.toLowerCase().contains(query)).cast<Object>();
+                                      if (query.isEmpty)
+                                        return materials.cast<Object>();
+                                      return materials
+                                          .where((material) => material
+                                              .description
+                                              .toLowerCase()
+                                              .contains(query))
+                                          .cast<Object>();
                                     }
                                   },
                                   displayStringForOption: (material) {
-                                    if (material is CustomerScopeMaterialIssueMaster) {
+                                    if (material
+                                        is CustomerScopeMaterialIssueMaster) {
                                       return material.description;
                                     }
-                                    return (material as MaterialItem).description;
+                                    return (material as MaterialItem)
+                                        .description;
                                   },
                                   onSelected: (Object selection) {
-                                    if (selection is CustomerScopeMaterialIssueMaster) {
-                                      _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                        materialCode: selection.partNo,
-                                        materialDescription: selection.description,
-                                        materialRawMaterial: '',
-                                      ), onUpdate);
+                                    if (selection
+                                        is CustomerScopeMaterialIssueMaster) {
+                                      _updateMaterial(
+                                          materialIndex,
+                                          materialAssignment.copyWith(
+                                            materialCode: selection.partNo,
+                                            materialDescription:
+                                                selection.description,
+                                            materialRawMaterial: '',
+                                          ),
+                                          onUpdate);
                                     } else if (selection is MaterialItem) {
-                                      _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                        materialCode: selection.partNo,
-                                        materialDescription: selection.description,
-                                        materialRawMaterial: selection.rawMaterial,
-                                      ), onUpdate);
+                                      _updateMaterial(
+                                          materialIndex,
+                                          materialAssignment.copyWith(
+                                            materialCode: selection.partNo,
+                                            materialDescription:
+                                                selection.description,
+                                            materialRawMaterial:
+                                                selection.rawMaterial,
+                                          ),
+                                          onUpdate);
                                     }
                                   },
-                                  fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                                  fieldViewBuilder: (context,
+                                      textEditingController,
+                                      focusNode,
+                                      onFieldSubmitted) {
                                     // Sync controller with current state
-                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                      if (textEditingController.text != materialAssignment.materialDescription) {
-                                        textEditingController.text = materialAssignment.materialDescription;
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                      if (textEditingController.text !=
+                                          materialAssignment
+                                              .materialDescription) {
+                                        textEditingController.text =
+                                            materialAssignment
+                                                .materialDescription;
                                       }
                                     });
                                     return TextFormField(
@@ -1606,26 +1865,62 @@ class CktTypeWithMaterialsWidget extends StatelessWidget {
                                         border: OutlineInputBorder(),
                                       ),
                                       onFieldSubmitted: (value) {
-                                        if (materialAssignment.materialSource == 'customer_scope') {
-                                          final foundMaterial = customerScopeMaterials.firstWhere(
-                                            (m) => m.description.toLowerCase() == value.toLowerCase(),
-                                            orElse: () => customerScopeMaterials.isNotEmpty ? customerScopeMaterials.first : CustomerScopeMaterialIssueMaster(slNo: '', description: '', partNo: '', unit: '', category: '', subCategory: ''),
+                                        if (materialAssignment.materialSource ==
+                                            'customer_scope') {
+                                          final foundMaterial =
+                                              customerScopeMaterials.firstWhere(
+                                            (m) =>
+                                                m.description.toLowerCase() ==
+                                                value.toLowerCase(),
+                                            orElse: () => customerScopeMaterials
+                                                    .isNotEmpty
+                                                ? customerScopeMaterials.first
+                                                : CustomerScopeMaterialIssueMaster(
+                                                    slNo: '',
+                                                    description: '',
+                                                    partNo: '',
+                                                    unit: '',
+                                                    category: '',
+                                                    subCategory: ''),
                                           );
-                                          _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                            materialCode: foundMaterial.partNo,
-                                            materialDescription: foundMaterial.description,
-                                            materialRawMaterial: '',
-                                          ), onUpdate);
+                                          _updateMaterial(
+                                              materialIndex,
+                                              materialAssignment.copyWith(
+                                                materialCode:
+                                                    foundMaterial.partNo,
+                                                materialDescription:
+                                                    foundMaterial.description,
+                                                materialRawMaterial: '',
+                                              ),
+                                              onUpdate);
                                         } else {
-                                          final foundMaterial = materials.firstWhere(
-                                            (m) => m.description.toLowerCase() == value.toLowerCase(),
-                                            orElse: () => materials.isNotEmpty ? materials.first : MaterialItem(slNo: '1', description: '', partNo: '', unit: '', category: '', subCategory: '', rawMaterial: ''),
+                                          final foundMaterial =
+                                              materials.firstWhere(
+                                            (m) =>
+                                                m.description.toLowerCase() ==
+                                                value.toLowerCase(),
+                                            orElse: () => materials.isNotEmpty
+                                                ? materials.first
+                                                : MaterialItem(
+                                                    slNo: '1',
+                                                    description: '',
+                                                    partNo: '',
+                                                    unit: '',
+                                                    category: '',
+                                                    subCategory: '',
+                                                    rawMaterial: ''),
                                           );
-                                          _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                            materialCode: foundMaterial.partNo,
-                                            materialDescription: foundMaterial.description,
-                                            materialRawMaterial: foundMaterial.rawMaterial,
-                                          ), onUpdate);
+                                          _updateMaterial(
+                                              materialIndex,
+                                              materialAssignment.copyWith(
+                                                materialCode:
+                                                    foundMaterial.partNo,
+                                                materialDescription:
+                                                    foundMaterial.description,
+                                                materialRawMaterial:
+                                                    foundMaterial.rawMaterial,
+                                              ),
+                                              onUpdate);
                                         }
                                       },
                                     );
@@ -1636,44 +1931,59 @@ class CktTypeWithMaterialsWidget extends StatelessWidget {
                               Expanded(
                                 flex: 1,
                                 child: TextFormField(
-                                  initialValue: materialAssignment.materialQuantity.toString(),
+                                  initialValue: materialAssignment
+                                      .materialQuantity
+                                      .toString(),
                                   decoration: const InputDecoration(
                                     labelText: 'Material Quantity',
                                     border: OutlineInputBorder(),
                                   ),
                                   keyboardType: TextInputType.number,
                                   onChanged: (value) {
-                                    final quantity = double.tryParse(value) ?? 0;
-                                    _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                      materialQuantity: quantity,
-                                    ), onUpdate);
+                                    final quantity =
+                                        double.tryParse(value) ?? 0;
+                                    _updateMaterial(
+                                        materialIndex,
+                                        materialAssignment.copyWith(
+                                          materialQuantity: quantity,
+                                        ),
+                                        onUpdate);
                                   },
                                 ),
                               ),
                               const SizedBox(width: 8),
                               IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _removeMaterial(materialIndex, onUpdate),
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () =>
+                                    _removeMaterial(materialIndex, onUpdate),
                               ),
                             ],
                           ),
                           const SizedBox(height: 15),
                           Builder(
                             builder: (context) {
-                              print('DEBUG: Building raw material field with: "${materialAssignment.materialRawMaterial}"');
+                              print(
+                                  'DEBUG: Building raw material field with: "${materialAssignment.materialRawMaterial}"');
                               return TextFormField(
-                                key: ValueKey('material_raw_${materialIndex}_${materialAssignment.materialRawMaterial}'),
-                                initialValue: materialAssignment.materialRawMaterial,
+                                key: ValueKey(
+                                    'material_raw_${materialIndex}_${materialAssignment.materialRawMaterial}'),
+                                initialValue:
+                                    materialAssignment.materialRawMaterial,
                                 decoration: const InputDecoration(
                                   labelText: 'Raw Material',
                                   border: OutlineInputBorder(),
                                 ),
                                 maxLines: 1,
                                 onChanged: (value) {
-                                  print('DEBUG: Raw material changed to: "$value"');
-                                  _updateMaterial(materialIndex, materialAssignment.copyWith(
-                                    materialRawMaterial: value,
-                                  ), onUpdate);
+                                  print(
+                                      'DEBUG: Raw material changed to: "$value"');
+                                  _updateMaterial(
+                                      materialIndex,
+                                      materialAssignment.copyWith(
+                                        materialRawMaterial: value,
+                                      ),
+                                      onUpdate);
                                 },
                               );
                             },
@@ -1685,7 +1995,7 @@ class CktTypeWithMaterialsWidget extends StatelessWidget {
                 ),
               );
             }),
-            
+
             const SizedBox(height: 8),
             ElevatedButton.icon(
               onPressed: () => _addMaterial(onUpdate),
@@ -1722,16 +2032,20 @@ class MaterialWidget extends StatelessWidget {
 
   void _addMaterialCktType(Function(BopMaterial) onUpdate) {
     final updatedMaterial = material.copyWith(
-      cktTypes: [...material.cktTypes, MaterialCktType(
-        cktTypeName: '',
-        cktTypeQuantity: 0,
-        materialQuantity: 0,
-      )],
+      cktTypes: [
+        ...material.cktTypes,
+        MaterialCktType(
+          cktTypeName: '',
+          cktTypeQuantity: 0,
+          materialQuantity: 0,
+        )
+      ],
     );
     onUpdate(updatedMaterial);
   }
 
-  void _updateMaterialCktType(int cktIndex, MaterialCktType updatedCktType, Function(BopMaterial) onUpdate) {
+  void _updateMaterialCktType(int cktIndex, MaterialCktType updatedCktType,
+      Function(BopMaterial) onUpdate) {
     final updatedCktTypes = List<MaterialCktType>.from(material.cktTypes);
     updatedCktTypes[cktIndex] = updatedCktType;
     final updatedMaterial = material.copyWith(cktTypes: updatedCktTypes);
@@ -1760,7 +2074,8 @@ class MaterialWidget extends StatelessWidget {
                 Expanded(
                   flex: 2,
                   child: Autocomplete<MaterialItem>(
-                    fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                    fieldViewBuilder: (context, textEditingController,
+                        focusNode, onFieldSubmitted) {
                       textEditingController.text = material.materialCode;
                       return TextFormField(
                         controller: textEditingController,
@@ -1771,8 +2086,17 @@ class MaterialWidget extends StatelessWidget {
                         ),
                         onChanged: (value) {
                           final foundMaterial = materials.firstWhere(
-                            (m) => m.partNo.toLowerCase() == value.toLowerCase(),
-                            orElse: () => materials.isNotEmpty ? materials.first : MaterialItem(slNo: '1', description: '', partNo: '', unit: '', category: '', subCategory: ''),
+                            (m) =>
+                                m.partNo.toLowerCase() == value.toLowerCase(),
+                            orElse: () => materials.isNotEmpty
+                                ? materials.first
+                                : MaterialItem(
+                                    slNo: '1',
+                                    description: '',
+                                    partNo: '',
+                                    unit: '',
+                                    category: '',
+                                    subCategory: ''),
                           );
                           onUpdate(material.copyWith(
                             materialCode: value,
@@ -1785,8 +2109,9 @@ class MaterialWidget extends StatelessWidget {
                       if (textEditingValue.text.isEmpty) {
                         return materials;
                       }
-                      return materials.where((material) =>
-                          material.partNo.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                      return materials.where((material) => material.partNo
+                          .toLowerCase()
+                          .contains(textEditingValue.text.toLowerCase()));
                     },
                     displayStringForOption: (material) => material.partNo,
                     onSelected: (selectedMaterial) {
@@ -1808,7 +2133,8 @@ class MaterialWidget extends StatelessWidget {
                     ),
                     readOnly: true,
                     style: const TextStyle(color: Colors.grey),
-                    key: ValueKey('desc_${material.materialCode}_${material.materialDescription}'),
+                    key: ValueKey(
+                        'desc_${material.materialCode}_${material.materialDescription}'),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -1819,19 +2145,19 @@ class MaterialWidget extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // CKT Types Section
             const Text(
               'CKT Types for this Material',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            
+
             // List of CKT Types for this material
             ...material.cktTypes.asMap().entries.map((entry) {
               final cktIndex = entry.key;
               final materialCktType = entry.value;
-              
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
@@ -1840,8 +2166,11 @@ class MaterialWidget extends StatelessWidget {
                     Expanded(
                       flex: 2,
                       child: DropdownButtonFormField<String>(
-                        key: ValueKey('ckt_${index}_${cktIndex}_${materialCktType.cktTypeName}'),
-                        value: materialCktType.cktTypeName.isNotEmpty ? materialCktType.cktTypeName : null,
+                        key: ValueKey(
+                            'ckt_${index}_${cktIndex}_${materialCktType.cktTypeName}'),
+                        value: materialCktType.cktTypeName.isNotEmpty
+                            ? materialCktType.cktTypeName
+                            : null,
                         decoration: const InputDecoration(
                           labelText: 'CKT Type',
                           border: OutlineInputBorder(),
@@ -1873,8 +2202,10 @@ class MaterialWidget extends StatelessWidget {
                     // Material Quantity
                     Expanded(
                       child: TextFormField(
-                        key: ValueKey('qty_${index}_${cktIndex}_${materialCktType.materialQuantity}'),
-                        initialValue: materialCktType.materialQuantity.toString(),
+                        key: ValueKey(
+                            'qty_${index}_${cktIndex}_${materialCktType.materialQuantity}'),
+                        initialValue:
+                            materialCktType.materialQuantity.toString(),
                         decoration: const InputDecoration(
                           labelText: 'Material Qty',
                           border: OutlineInputBorder(),
@@ -1884,7 +2215,8 @@ class MaterialWidget extends StatelessWidget {
                           final quantity = double.tryParse(value) ?? 0;
                           _updateMaterialCktType(
                             cktIndex,
-                            materialCktType.copyWith(materialQuantity: quantity),
+                            materialCktType.copyWith(
+                                materialQuantity: quantity),
                             onUpdate,
                           );
                         },
@@ -1893,13 +2225,14 @@ class MaterialWidget extends StatelessWidget {
                     const SizedBox(width: 16),
                     IconButton(
                       icon: const Icon(Icons.remove_circle, color: Colors.red),
-                      onPressed: () => _removeMaterialCktType(cktIndex, onUpdate),
+                      onPressed: () =>
+                          _removeMaterialCktType(cktIndex, onUpdate),
                     ),
                   ],
                 ),
               );
             }).toList(),
-            
+
             // Add CKT Type Button
             ElevatedButton.icon(
               onPressed: () => _addMaterialCktType(onUpdate),

@@ -5,6 +5,7 @@ A comprehensive Flutter-based Inventory Management System designed for manufactu
 ## 🚀 Features
 
 ### Core Modules
+
 - **Admin** - Administrative functions and system management
 - **Accounts** - Financial management including invoice receipts, supplier/customer masters, bank statements, expenses, payments, salary & wages, sales entries, and GST management
 - **HR** - Employee details, attendance management, ESI & PF entry
@@ -17,6 +18,7 @@ A comprehensive Flutter-based Inventory Management System designed for manufactu
 - **Quality** - Incoming inspection, category settings, final inspection, CAPA status
 
 ### Technical Features
+
 - **Firebase Authentication** - Secure user login and registration
 - **Cloud Firestore** - Real-time database synchronization
 - **Local Storage** - Hive database for offline functionality
@@ -30,6 +32,7 @@ A comprehensive Flutter-based Inventory Management System designed for manufactu
 Before setting up the application, ensure you have the following installed:
 
 ### Required Software
+
 - **Flutter SDK** (>=3.0.0 <4.0.0)
 - **Dart SDK** (included with Flutter)
 - **Git** for version control
@@ -38,22 +41,26 @@ Before setting up the application, ensure you have the following installed:
 ### Platform-specific Requirements
 
 #### For macOS Development:
+
 - **Xcode** (latest version)
 - **CocoaPods** (`sudo gem install cocoapods`)
 
 #### For Windows Development:
+
 - **Visual Studio** with C++ development tools
 - **Windows 10 SDK**
 
 ## 🛠️ Installation & Setup
 
 ### 1. Clone the Repository
+
 ```bash
 git clone <repository-url>
 cd mpt_ims
 ```
 
 ### 2. Install Flutter Dependencies
+
 ```bash
 flutter pub get
 ```
@@ -63,10 +70,12 @@ flutter pub get
 This application uses Firebase for authentication and data storage. The Firebase configuration is already included, but you may need to set up your own Firebase project for production use.
 
 #### Current Firebase Configuration:
+
 - Project ID: `mpts-ims`
 - Supported platforms: macOS, Windows
 
 #### To use your own Firebase project:
+
 1. Create a new Firebase project at [Firebase Console](https://console.firebase.google.com)
 2. Enable Authentication (Email/Password)
 3. Enable Cloud Firestore
@@ -76,6 +85,7 @@ This application uses Firebase for authentication and data storage. The Firebase
 7. Generate new configuration: `flutterfire configure`
 
 ### 4. Generate Hive Type Adapters
+
 ```bash
 flutter packages pub run build_runner build
 ```
@@ -83,6 +93,7 @@ flutter packages pub run build_runner build
 ### 5. Platform-specific Setup
 
 #### macOS Setup:
+
 ```bash
 cd macos
 pod install
@@ -90,6 +101,7 @@ cd ..
 ```
 
 #### Windows Setup:
+
 No additional setup required for basic functionality.
 
 ## 🚀 Running the Application
@@ -97,11 +109,13 @@ No additional setup required for basic functionality.
 ### Development Mode
 
 #### Run on macOS:
+
 ```bash
 flutter run -d macos
 ```
 
 #### Run on Windows:
+
 ```bash
 flutter run -d windows
 ```
@@ -109,16 +123,46 @@ flutter run -d windows
 ### Production Build
 
 #### macOS Build:
+
 ```bash
 flutter build macos
 ```
+
 The build output will be in the `build/macos` directory.
 
 #### Windows Build:
+
 ```bash
 flutter build windows
 ```
+
 The build output will be in the `build/windows` directory.
+
+#### Create a Windows Setup Wizard:
+
+1. Install [Inno Setup 6](https://jrsoftware.org/isinfo.php) on the build machine.
+2. From PowerShell at the repository root, run:
+   ```powershell
+   .\scripts\build_windows_installer.ps1
+   ```
+3. Distribute `build/installer/MPT-IMS-Setup-<version>.exe`.
+
+The script reads `useMagnetPowerTech` from `lib/utils/company_config.dart` and
+brands the installer accordingly. With the flag set to `true`, it creates
+`Magnet-IMS-Setup-<version>.exe`; with it set to `false`, it creates
+`Aimant-IMS-Setup-<version>.exe`. The variants use separate install folders,
+shortcuts, publishers, and uninstall identities, so both can be installed on
+one laptop. Build each variant after setting the flag for that company.
+
+The script checks the executable, Flutter runtime and asset bundle, stages only
+the executable, runtime DLLs and complete `data` folder, downloads Microsoft's
+official x64 Visual C++ runtime installer, and compiles a setup wizard. The
+wizard installs the staged app and plugin DLLs, installs the Visual C++ runtime
+if needed, creates Start Menu and optional Desktop shortcuts, and offers to
+launch the app. Do not distribute only `mpt_ims.exe`; the app must remain beside
+its `data` folder and runtime/plugin DLLs. The installer is currently unsigned,
+so Windows SmartScreen may show a publisher warning until a code-signing
+certificate is configured.
 
 ## 📱 First Time Setup
 
@@ -138,12 +182,15 @@ The build output will be in the `build/windows` directory.
 ## 🗂️ Data Storage
 
 ### Local Storage (Hive)
+
 The application creates a local database structure:
+
 - **Location**: `Documents/MPT_IMS/Database/`
 - **Purpose**: Offline functionality and local caching
 - **Data**: All application data is stored locally and synced with Firebase
 
 ### Cloud Storage (Firebase)
+
 - **Authentication**: User accounts and sessions
 - **Firestore**: Real-time database for all business data
 - **Automatic Sync**: Data synchronizes between local and cloud storage
@@ -151,21 +198,25 @@ The application creates a local database structure:
 ## 🔧 Configuration
 
 ### Application Settings
+
 - **Theme**: Dark theme with custom color scheme
 - **Responsive**: Automatically adapts to screen size
 - **Language**: English (internationalization ready)
 
 ### Firebase Configuration
+
 The application is pre-configured with Firebase settings in `lib/firebase_options.dart`. For production use, update these with your own Firebase project credentials.
 
 ## 📊 Usage Guide
 
 ### Navigation
+
 - **Sidebar Menu**: Access different modules (Accounts, HR, Sales, etc.)
 - **Section Pages**: Each module contains specific functionality pages
 - **Data Grids**: Most data is displayed in sortable, filterable tables
 
 ### Common Operations
+
 1. **Adding Data**: Use the floating action button (+) on list pages
 2. **Editing**: Click on rows in data grids to edit entries
 3. **Searching**: Use search functionality available in most modules
@@ -184,6 +235,7 @@ The application is pre-configured with Firebase settings in `lib/firebase_option
 ### Common Issues
 
 #### Build Errors:
+
 ```bash
 # Clean and rebuild
 flutter clean
@@ -192,29 +244,34 @@ flutter packages pub run build_runner build --delete-conflicting-outputs
 ```
 
 #### Firebase Connection Issues:
+
 - Check internet connectivity
 - Verify Firebase project configuration
 - Ensure Firebase services are enabled
 
 #### Local Database Issues:
+
 - Delete local database: `Documents/MPT_IMS/Database/`
 - Restart application to regenerate
 
 #### Platform-specific Issues:
 
 **macOS:**
+
 ```bash
 cd macos && pod install && cd ..
 flutter clean && flutter run
 ```
 
 **Windows:**
+
 - Ensure Visual Studio C++ tools are installed
 - Run as administrator if permission issues occur
 
 ## 📝 Development
 
 ### Project Structure
+
 ```
 lib/
 ├── db/                 # Hive database initialization
@@ -227,6 +284,7 @@ lib/
 ```
 
 ### Adding New Features
+
 1. Create model classes in `lib/models/`
 2. Generate Hive adapters with `build_runner`
 3. Create provider classes in `lib/provider/`
@@ -234,6 +292,7 @@ lib/
 5. Update navigation in `lib/layout/app_scaffold.dart`
 
 ### State Management
+
 - **Riverpod**: Primary state management solution
 - **Hive Boxes**: Local data persistence
 - **Firebase**: Remote data synchronization
@@ -253,6 +312,7 @@ This project is private and proprietary. All rights reserved.
 ## 📞 Support
 
 For technical support or questions:
+
 - Check the troubleshooting section above
 - Review Flutter documentation: [flutter.dev](https://flutter.dev)
 - Firebase documentation: [firebase.google.com](https://firebase.google.com)

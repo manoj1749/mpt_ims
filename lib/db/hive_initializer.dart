@@ -38,6 +38,7 @@ import '../models/bill_of_preparation.dart';
 import '../models/job_order_request.dart';
 
 bool _adaptersRegistered = false;
+const int _currentHiveSchemaVersion = 13;
 
 Future<void> initializeHive() async {
   // Register adapters only once to prevent duplicate registration errors
@@ -96,7 +97,7 @@ Future<void> initializeHive() async {
     Hive.registerAdapter(CustomerScopeStockMaintenanceAdapter());
     Hive.registerAdapter(CustomerScopeGRNDetailsAdapter());
     Hive.registerAdapter(CustomerScopeJobDetailsAdapter());
-    
+
     // Register payment terms adapter
     Hive.registerAdapter(PaymentTermsAdapter());
     Hive.registerAdapter(RatingRangeAdapter());
@@ -105,7 +106,7 @@ Future<void> initializeHive() async {
     Hive.registerAdapter(ServiceMasterAdapter());
     Hive.registerAdapter(ServiceNameAdapter());
     Hive.registerAdapter(ServiceTypeAdapter());
-    
+
     // Register Bill of Preparation adapters
     Hive.registerAdapter(BillOfPreparationAdapter());
     Hive.registerAdapter(CktTypeAdapter());
@@ -113,7 +114,7 @@ Future<void> initializeHive() async {
     Hive.registerAdapter(BopMaterialAdapter());
 
     Hive.registerAdapter(JobOrderRequestAdapter());
-    
+
     _adaptersRegistered = true;
   }
 
@@ -142,8 +143,10 @@ Future<void> initializeHive() async {
     Hive.openBox<StateModel>('states'),
     Hive.openBox<GSTModel>('gst'),
     Hive.openBox<InventoryClassification>('inventory_classifications'),
-    Hive.openBox<CustomerScopeMaterialIssueMaster>('customer_scope_material_issue_masters'),
-    Hive.openBox<CustomerScopeStockMaintenance>('customer_scope_stock_maintenance'),
+    Hive.openBox<CustomerScopeMaterialIssueMaster>(
+        'customer_scope_material_issue_masters'),
+    Hive.openBox<CustomerScopeStockMaintenance>(
+        'customer_scope_stock_maintenance'),
     Hive.openBox<PaymentTerms>('paymentTerms'),
     Hive.openBox<MaterialRatingRule>('materialRatingRules'),
     Hive.openBox<ServiceMaster>('serviceMasters'),
@@ -156,8 +159,16 @@ Future<void> initializeHive() async {
 }
 
 Future<void> clearIncompatibleData() async {
+  final schemaBox = await Hive.openBox('schemaVersion');
+  final storedVersion = schemaBox.get('version');
+  if (storedVersion is int && storedVersion >= _currentHiveSchemaVersion) {
+    return;
+  }
+
+  await schemaBox.close();
+
   try {
-    // Delete all boxes
+    // Clear cached models only when the stored Hive schema is outdated.
     await Future.wait([
       Hive.deleteBoxFromDisk('customers'),
       Hive.deleteBoxFromDisk('employees'),
@@ -175,7 +186,7 @@ Future<void> clearIncompatibleData() async {
       Hive.deleteBoxFromDisk('subCategories'),
       Hive.deleteBoxFromDisk('qualities'),
       Hive.deleteBoxFromDisk('universal_parameters'),
-      Hive.deleteBoxFromDisk('schemaVersion'),
+      Hive.deleteBoxFromDisk('universalParameters'),
       Hive.deleteBoxFromDisk('stock_maintenance'),
       Hive.deleteBoxFromDisk('material_requests'),
       Hive.deleteBoxFromDisk('material_issues'),
@@ -183,7 +194,10 @@ Future<void> clearIncompatibleData() async {
       Hive.deleteBoxFromDisk('states'),
       Hive.deleteBoxFromDisk('gst'),
       Hive.deleteBoxFromDisk('inventory_classifications'),
+      Hive.deleteBoxFromDisk('customer_scope_material_issue_masters'),
       Hive.deleteBoxFromDisk('customer_scope_stock_maintenance'),
+      Hive.deleteBoxFromDisk('paymentTerms'),
+      Hive.deleteBoxFromDisk('materialRatingRules'),
       Hive.deleteBoxFromDisk('serviceMasters'),
       Hive.deleteBoxFromDisk('serviceNames'),
       Hive.deleteBoxFromDisk('serviceTypes'),
@@ -194,39 +208,9 @@ Future<void> clearIncompatibleData() async {
 
     // Create and initialize schema version box
     final box = await Hive.openBox('schemaVersion');
-    await box.put('version', 13);
+    await box.put('version', _currentHiveSchemaVersion);
   } catch (e) {
     print('Error clearing incompatible data: $e');
-    try {
-      await Future.wait([
-        Hive.deleteBoxFromDisk('customers'),
-        Hive.deleteBoxFromDisk('employees'),
-        Hive.deleteBoxFromDisk('materials'),
-        Hive.deleteBoxFromDisk('purchaseOrders'),
-        Hive.deleteBoxFromDisk('purchaseRequests'),
-        Hive.deleteBoxFromDisk('store_inwards'),
-        Hive.deleteBoxFromDisk('suppliers'),
-        Hive.deleteBoxFromDisk('service_suppliers'),
-        Hive.deleteBoxFromDisk('vendorMaterialRates'),
-        Hive.deleteBoxFromDisk('qualityInspections'),
-        Hive.deleteBoxFromDisk('categoryParameterMappings'),
-        Hive.deleteBoxFromDisk('saleOrders'),
-        Hive.deleteBoxFromDisk('categories'),
-        Hive.deleteBoxFromDisk('subCategories'),
-        Hive.deleteBoxFromDisk('qualities'),
-        Hive.deleteBoxFromDisk('universal_parameters'),
-        Hive.deleteBoxFromDisk('schemaVersion'),
-        Hive.deleteBoxFromDisk('stock_maintenance'),
-        Hive.deleteBoxFromDisk('material_requests'),
-        Hive.deleteBoxFromDisk('material_issues'),
-        Hive.deleteBoxFromDisk('delivery_challans'),
-        Hive.deleteBoxFromDisk('states'),
-        Hive.deleteBoxFromDisk('gst'),
-        Hive.deleteBoxFromDisk('inventory_classifications'),
-        Hive.deleteBoxFromDisk('customer_scope_stock_maintenance'),
-      ]);
-    } catch (e) {
-      print('Error deleting boxes: $e');
-    }
+    rethrow;
   }
 }

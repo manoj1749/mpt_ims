@@ -9,9 +9,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'dart:ui' show PlatformDispatcher;
 import 'package:mpt_ims/provider/material_request_provider.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'db/hive_initializer.dart';
+import 'utils/app_diagnostic_logger.dart';
 import 'layout/app_scaffold.dart';
 import 'models/supplier.dart';
 import 'models/material_item.dart';
@@ -80,11 +82,11 @@ Future<void> _setupHiveDirectory() async {
   try {
     // Get the application documents directory
     final Directory appDocDir = await getApplicationDocumentsDirectory();
-    
+
     // Create MPT_IMS/Database folder structure
     final mptImsDirectory = Directory('${appDocDir.path}/MPT_IMS');
     final databaseDirectory = Directory('${mptImsDirectory.path}/Database');
-    
+
     // Create directories if they don't exist
     if (!await mptImsDirectory.exists()) {
       await mptImsDirectory.create(recursive: true);
@@ -92,7 +94,7 @@ Future<void> _setupHiveDirectory() async {
     if (!await databaseDirectory.exists()) {
       await databaseDirectory.create(recursive: true);
     }
-    
+
     // Initialize Hive with custom path
     await Hive.initFlutter(databaseDirectory.path);
     print('Hive initialized at: ${databaseDirectory.path}');
@@ -105,17 +107,34 @@ Future<void> _setupHiveDirectory() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppDiagnosticLogger.initialize();
+  AppDiagnosticLogger.write(
+      'Application startup; platform=${Platform.operatingSystem}');
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    AppDiagnosticLogger.write(
+        'Flutter framework error: ${details.exceptionAsString()}\n${details.stack}');
+  };
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    AppDiagnosticLogger.write('Uncaught platform error: $error\n$stackTrace');
+    return false;
+  };
 
   if (kIsWeb) {
+    AppDiagnosticLogger.write('Initializing Firebase for web');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.web,
     );
+    AppDiagnosticLogger.write('Firebase initialized for web');
     await Hive.initFlutter();
   } else {
+    AppDiagnosticLogger.write(
+        'Initializing Firebase for ${Platform.operatingSystem}');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    
+    AppDiagnosticLogger.write('Firebase initialized');
+
     // Set up custom Hive directory structure
     await _setupHiveDirectory();
   }
@@ -124,10 +143,14 @@ void main() async {
   // await Hive.initFlutter();
 
   // Then clear incompatible data
+  AppDiagnosticLogger.write('Checking local Hive schema');
   await clearIncompatibleData();
+  AppDiagnosticLogger.write('Local Hive schema check complete');
 
   // Finally initialize adapters and boxes
+  AppDiagnosticLogger.write('Opening local Hive boxes');
   await initializeHive();
+  AppDiagnosticLogger.write('Local Hive boxes opened');
 
   // Get references to boxes for providers
   final supplierBox = Hive.box<Supplier>('suppliers');
@@ -153,18 +176,26 @@ void main() async {
   final materialIssueBox = Hive.box<MaterialIssue>('material_issues');
   final stateBox = Hive.box<StateModel>('states');
   final gstBox = Hive.box<GSTModel>('gst');
-  final inventoryClassificationBox = Hive.box<InventoryClassification>('inventory_classifications');
-  final customerScopeMaterialIssueMasterBox = Hive.box<CustomerScopeMaterialIssueMaster>('customer_scope_material_issue_masters');
-  final customerScopeStockMaintenanceBox = Hive.box<CustomerScopeStockMaintenance>('customer_scope_stock_maintenance');
+  final inventoryClassificationBox =
+      Hive.box<InventoryClassification>('inventory_classifications');
+  final customerScopeMaterialIssueMasterBox =
+      Hive.box<CustomerScopeMaterialIssueMaster>(
+          'customer_scope_material_issue_masters');
+  final customerScopeStockMaintenanceBox =
+      Hive.box<CustomerScopeStockMaintenance>(
+          'customer_scope_stock_maintenance');
   final paymentTermsBox = Hive.box<PaymentTerms>('paymentTerms');
-  final materialRatingRuleBox = Hive.box<MaterialRatingRule>('materialRatingRules');
+  final materialRatingRuleBox =
+      Hive.box<MaterialRatingRule>('materialRatingRules');
   final serviceMasterBox = Hive.box<ServiceMaster>('serviceMasters');
   final serviceNameBox = Hive.box<ServiceName>('serviceNames');
   final serviceTypeBox = Hive.box<ServiceType>('serviceTypes');
-  final billOfPreparationBox = Hive.box<BillOfPreparation>('billOfPreparations');
+  final billOfPreparationBox =
+      Hive.box<BillOfPreparation>('billOfPreparations');
   final jobOrderRequestBox = Hive.box<JobOrderRequest>('job_order_requests');
 
   final user = FirebaseAuth.instance.currentUser;
+  AppDiagnosticLogger.write('Firebase auth user present=${user != null}');
 
   runApp(
     ProviderScope(
@@ -191,9 +222,12 @@ void main() async {
         materialIssueBoxProvider.overrideWithValue(materialIssueBox),
         stateBoxProvider.overrideWithValue(stateBox),
         gstBoxProvider.overrideWithValue(gstBox),
-        inventoryClassificationBoxProvider.overrideWithValue(inventoryClassificationBox),
-        customerScopeMaterialIssueMasterBoxProvider.overrideWithValue(customerScopeMaterialIssueMasterBox),
-        customerScopeStockMaintenanceBoxProvider.overrideWithValue(customerScopeStockMaintenanceBox),
+        inventoryClassificationBoxProvider
+            .overrideWithValue(inventoryClassificationBox),
+        customerScopeMaterialIssueMasterBoxProvider
+            .overrideWithValue(customerScopeMaterialIssueMasterBox),
+        customerScopeStockMaintenanceBoxProvider
+            .overrideWithValue(customerScopeStockMaintenanceBox),
         paymentTermsBoxProvider.overrideWithValue(paymentTermsBox),
         materialRatingRuleBoxProvider.overrideWithValue(materialRatingRuleBox),
         serviceMasterBoxProvider.overrideWithValue(serviceMasterBox),
@@ -205,6 +239,7 @@ void main() async {
       child: IMSApp(isLoggedIn: user != null),
     ),
   );
+  AppDiagnosticLogger.write('Application widget tree started');
 }
 
 class IMSApp extends StatelessWidget {

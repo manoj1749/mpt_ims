@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart'; // Added for WidgetsBinding
 import '../utils/company_config.dart';
+import '../utils/app_diagnostic_logger.dart';
 
 abstract class BaseProvider<T> extends StateNotifier<List<T>> {
   final Box<T> box;
@@ -57,13 +58,17 @@ abstract class BaseProvider<T> extends StateNotifier<List<T>> {
     // Always try to load fresh data from Firebase first
     try {
       print('Loading fresh data from Firebase for $collectionName...');
+      AppDiagnosticLogger.write('Firestore fetch started: $collectionName');
 
       // Fetch from Firestore
       final querySnapshot = await _firestoreCollection.get();
+      AppDiagnosticLogger.write(
+          'Firestore fetch completed: $collectionName; docs=${querySnapshot.docs.length}');
       print(
           'Found ${querySnapshot.docs.length} documents in Firebase for $collectionName');
 
       // Clear existing local data
+      AppDiagnosticLogger.write('Replacing Hive cache: $collectionName');
       await box.clear();
 
       final List<T> firebaseData = [];
@@ -83,10 +88,14 @@ abstract class BaseProvider<T> extends StateNotifier<List<T>> {
       if (mounted) {
         state = firebaseData;
         _isLoaded = true;
+        AppDiagnosticLogger.write(
+            'Provider load complete: $collectionName; items=${firebaseData.length}');
         print(
             'Successfully loaded ${firebaseData.length} items from Firebase for $collectionName');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppDiagnosticLogger.write(
+          'Provider load failed: $collectionName; error=$e\n$stackTrace');
       print('Error loading from Firebase for $collectionName: $e');
 
       // Fallback: Load from local Hive cache if Firebase fails
